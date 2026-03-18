@@ -286,9 +286,9 @@ function baseShifts(emp,ws){
   if(emp.category!=='emp'){
     if(emp.fixed)return [N,N,N,N,N,O,O];
     if(emp.rotates){ /* fall through to rotation logic below */ }
-    else if(emp.category==='sup'||emp.category==='mgr'){
-      /* rotate on-call Friday among all active sup+mgr */
-      var supPool=EMPS.filter(function(e){return e.active&&(e.category==='sup'||e.category==='mgr');});
+    else if(emp.category==='sup'){
+      /* rotate on-call Friday among supervisors only (not managers) */
+      var supPool=EMPS.filter(function(e){return e.active&&e.category==='sup';});
       var sn2=supPool.length;
       if(sn2>0){
         var swk=Math.abs(Math.round((ws-REF)/(7*86400000)))%sn2;
@@ -297,6 +297,7 @@ function baseShifts(emp,ws){
       }
       return [W,W,W,W,W,O,O]; /* باقي الأسابيع إجازة جمعة */
     }
+    else if(emp.category==='mgr')return [W,W,W,W,W,O,O]; /* المدير: إجازة جمعة دائماً */
     else return [W,W,W,W,W,O,O];
   }
   if(emp.fixed)return [N,N,N,N,N,O,O]; /* ليلي ثابت: أحد-خميس ليلي | إجازة جمعة+سبت ✓ */
@@ -739,7 +740,7 @@ function renderSchedule(abdLv,pool){
   if(nE)h+='&#127761; '+T('سبت ليلي','Sat Night')+' &larr; <b style="color:#4a148c">'+nE.name.split(' ')[0]+'</b> &nbsp;|&nbsp; ';
   if(mE)h+='&#9728; '+T('سبت صباحي','Sat Morning')+' &larr; <b style="color:#0d47a1">'+mE.name.split(' ')[0]+'</b> &nbsp;|&nbsp; ';
   /* who is on-call this Friday */
-  var supPool2=EMPS.filter(function(e){return e.active&&(e.category==='sup'||e.category==='mgr');});
+  var supPool2=EMPS.filter(function(e){return e.active&&e.category==='sup';});
   var onCallThisWeek=supPool2.length>0?supPool2[Math.abs(Math.round((curSun-REF)/(7*86400000)))%supPool2.length]:null;
   h+='&#128274; '+T('الجمعة','Fri')+': ';
   if(onCallThisWeek)h+='<b style="color:#c2410c">'+T('أون كول','On-Call')+': '+onCallThisWeek.name.split(' ')[0]+'</b>';
