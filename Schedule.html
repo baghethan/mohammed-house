@@ -95,14 +95,14 @@ td{border:1px solid #dde8f5;padding:4px 3px;text-align:center;vertical-align:mid
 .rotC,.rotD{font-size:10.5px;font-weight:700;border-radius:6px;padding:4px 9px;}
 .rotC{background:#f3e5f5;color:#6a1b9a;}.rotD{background:#fce4ec;color:#b71c1c;}
 .bbl{background:#1565c0;color:#fff;}.bpur{background:#6a1b9a;color:#fff;}
-.badge-rot{font-size:10px;color:#7b1fa2;background:#f3e5f5;border-radius:5px;padding:4px 10px;font-weight:700;white-space:nowrap;}
-.badge-fix,.badge-on,.badge-night,.badge-off2{font-size:10px;border-radius:5px;padding:4px 10px;white-space:nowrap;}
+.badge-rot,.badge-fix,.badge-on,.badge-night,.badge-off2{font-size:10px;border-radius:5px;padding:4px 10px;white-space:nowrap;}
+.badge-rot{color:#7b1fa2;background:#f3e5f5;font-weight:700;}
 .badge-fix{color:#555;background:#f0f0f0;}.badge-on{color:#1b5e20;font-weight:700;background:#e8f5e9;}
 .badge-night{color:#b71c1c;font-weight:700;background:#fce4ec;}.badge-off2{color:#888;background:#f5f5f5;border:1px dashed #ccc;}
 table{border-collapse:collapse;width:100%;font-size:11px;}
 tbody tr{background:#ffffff;}tbody tr:nth-child(even){background:#f8fafd;}
 tbody tr:hover td{filter:brightness(0.95);}
-td{border:1px solid #e8eef6;padding:5px 4px;text-align:center;vertical-align:middle;white-space:nowrap;background:inherit;}
+td{border:1px solid #e8eef6;padding:7px 4px;text-align:center;vertical-align:middle;white-space:nowrap;background:inherit;}
 th{background:#1a3558;color:#fff;padding:8px 6px;text-align:center;border:1px solid #2a4878;font-size:11px;white-space:nowrap;}
 td.en{background:#fff!important;color:#0d1f3c!important;font-weight:600;text-align:right;padding-right:8px;}
 td.bg-m{background:#dbeafe!important;}td.bg-n{background:#6d28d9!important;color:#fff!important;}
@@ -112,8 +112,8 @@ td.bg-i{background:#f1f5f9!important;}td.bg-k{background:#ea580c!important;color
 td.bg-m.fric{background:#c7dffe!important;}td.bg-o.fric{background:#fecaca!important;}
 td.bg-m.satc{background:#bfdbfe!important;}td.bg-n.satc{background:#5b21b6!important;color:#fff!important;}
 td.bg-o.satc{background:#fecaca!important;}
-.sh{border-radius:5px;padding:3px 5px;display:inline-block;font-size:10px;font-weight:700;white-space:nowrap;line-height:1.4;background:transparent!important;}
-.sh small{display:block;font-size:8px;font-weight:400;opacity:0.85;}
+.sh{border-radius:5px;padding:4px 8px;display:inline-block;font-size:11px;font-weight:700;white-space:nowrap;line-height:1.4;background:transparent!important;}
+.sh small{display:none!important;}
 .sh.sm{color:#1e40af;}.sh.sn{color:#fff;font-weight:800;}.sh.sa{color:#92400e;}
 .sh.so{color:#991b1b;}.sh.sl{color:#fff;font-weight:700;}.sh.sc{color:#065f46;font-style:italic;}
 .sh.si{color:#6b7280;}.sh.sk{color:#fff;font-weight:800;}
@@ -142,8 +142,8 @@ var REGIONS = {
   riyadh:  {label_ar:'الرياض',          label_en:'Riyadh',           morning:'8:00am-5:30pm', morning_ar:'8:00ص-5:30م'},
   jeddah:  {label_ar:'جدة',             label_en:'Jeddah',           morning:'8:00am-5:30pm', morning_ar:'8:00ص-5:30م'}
 };
-var SAT_TIME    = '9:00am-7:00pm';
-var SAT_TIME_AR = '9:00ص-7:00م';
+var SAT_TIME    = '10:00am-7:00pm';
+var SAT_TIME_AR = '10:00ص-7:00م';
 function satTime(){ return LANG==='en'?SAT_TIME:SAT_TIME_AR; }
 
 function T(ar, en) { return LANG === 'en' ? en : ar; }
@@ -186,6 +186,23 @@ var DEF=[
   {id:'hamad',name:'Hamad Rashid Al-Khathran',category:'emp',core:true,fixed:false,active:true,rotates:true,jobTitle:'دعم فني',empNum:'',email:'',phone:'',dept:'',region:'eastern'},
   {id:'ziyad',name:'Ziyad Fawaz Althaqfiy',category:'emp',core:true,fixed:false,active:true,rotates:true,jobTitle:'دعم فني',empNum:'',email:'',phone:'',dept:'',region:'eastern'}
 ];
+
+/* Check URL hash for shared data */
+(function(){
+  try{
+    var hash=window.location.hash;
+    if(hash&&hash.length>10){
+      var b64=hash.slice(1);
+      var json=decodeURIComponent(escape(atob(b64)));
+      var data=JSON.parse(json);
+      if(data&&data.emps){
+        localStorage.setItem('jadwal_v6',JSON.stringify({emps:data.emps,leaves:data.leaves||[]}));
+        /* clear hash after loading */
+        history.replaceState(null,'',window.location.pathname+window.location.search);
+      }
+    }
+  }catch(x){}
+})();
 
 var sv=loadState();
 var EMPS=sv?sv.emps:DEF;
@@ -325,7 +342,7 @@ function baseShifts(emp,ws){
   /* دورة معتمدة — الجمعة إجازة للجميع — السبت شخص واحد صباحي — إجازات متتالية ✓
      idx=wk: سبت صباحي → أحد-أربعاء صباحي + سبت صباحي | إجازة خميس+جمعة ✓
      الباقون: أحد-خميس صباحي                           | إجازة جمعة+سبت  ✓ */
-  if(mi===wk%n) return [M,M,M,M,O,O,M]; /* سبت صباحي (9:00ص-7:00م) | إجازة خميس+جمعة ✓ */
+  if(mi===wk%n) return [M,M,M,M,O,O,M]; /* سبت صباحي (10:00ص-7:00م) | إجازة خميس+جمعة ✓ */
   return [M,M,M,M,M,O,O];               /* أحد-خميس                 | إجازة جمعة+سبت  ✓ */
 }
 function getShifts(emp,ws){
@@ -361,9 +378,7 @@ function consec(s){
 
 function shH(s,cat,empR,dayIdx){
   if(s===M){
-    var isSat=(dayIdx===6);
-    var timeLabel=isSat?satTime():morningTime(empR);
-    return '<span class="sh sm">'+T('صباحي','Morning')+'<small>'+timeLabel+'</small></span>';
+    return '<span class="sh sm">'+T('صباحي','Morning')+'</span>';
   }
   if(s===N)return '<span class="sh sn">&#127761; '+T('ليلي','Night')+'</span>';
   if(s===A)return '<span class="sh sa">&#128336; '+T('مسائي','Afternoon')+'</span>';
@@ -372,7 +387,7 @@ function shH(s,cat,empR,dayIdx){
   if(s===OC)return '<span class="sh sk">'+T('أون كول','On-Call')+'</span>';
   if(s===C)return '<span class="sh sc">'+T('بديل','Cover')+'</span>';
   if(s===W){
-    return '<span class="sh sm">&#9728; '+T('صباحي','Morning')+'<small>'+morningTime(empR)+'</small></span>';
+    return '<span class="sh sm">'+T('صباحي','Morning')+'</span>';
   }
   return '<span class="sh so">'+T('اجازة','Day Off')+'</span>';
 }
@@ -477,6 +492,109 @@ window.addLeave=function(){
   LEAVES.push({id:'lv'+Date.now(),empId:eid,startDate:sd,endDate:ed,reason:rsn||'اجازة',nightCoverId:cid||null});
   openForm=null;saveState();render();
 };
+window.exportLeavesPDF=function(){
+  var fromDate=document.getElementById('lrpt-from').value;
+  var toDate=document.getElementById('lrpt-to').value;
+  var typeFilter=document.getElementById('lrpt-type').value;
+  if(!fromDate||!toDate){alert(T('حدد التاريخ','Select dates'));return;}
+  if(fromDate>toDate){alert(T('تاريخ البداية قبل النهاية','Start must be before end'));return;}
+
+  var fd=pd(fromDate);fd.setHours(0,0,0,0);
+  var td2=pd(toDate);td2.setHours(23,59,59,999);
+
+  /* Filter leaves in range */
+  var filtered=LEAVES.filter(function(lv){
+    var s=pd(lv.startDate);var e2=pd(lv.endDate);
+    var inRange=s<=td2&&e2>=fd;
+    var typeMatch=!typeFilter||lv.type===typeFilter;
+    return inRange&&typeMatch;
+  });
+
+  if(!filtered.length){alert(T('لا توجد اجازات في هذه الفترة','No leaves in this period'));return;}
+
+  var typeLabels={annual:T('سنوية','Annual'),sick:T('مرضية','Sick'),emergency:T('طارئة','Emergency'),other:T('أخرى','Other')};
+  var typeColors={annual:'#1e40af',sick:'#991b1b',emergency:'#c2410c',other:'#6b7280'};
+  var typeBg={annual:'#dbeafe',sick:'#fee2e2',emergency:'#fff7ed',other:'#f3f4f6'};
+
+  /* Summary per employee */
+  var empSummary={};
+  filtered.forEach(function(lv){
+    if(!empSummary[lv.empId])empSummary[lv.empId]={emp:findEmp(lv.empId),leaves:[],totalDays:0,byType:{}};
+    var rec=empSummary[lv.empId];
+    var s=pd(lv.startDate),e2=pd(lv.endDate);
+    var days=Math.round((e2-s)/86400000)+1;
+    rec.leaves.push(lv);
+    rec.totalDays+=days;
+    var t=lv.type||'annual';
+    rec.byType[t]=(rec.byType[t]||0)+days;
+  });
+
+  /* Build rows */
+  var detailRows='';
+  var sorted=filtered.slice().sort(function(a,b){return a.startDate>b.startDate?1:-1;});
+  sorted.forEach(function(lv){
+    var emp=findEmp(lv.empId);
+    var s=pd(lv.startDate),e2=pd(lv.endDate);
+    var days=Math.round((e2-s)/86400000)+1;
+    var t=lv.type||'annual';
+    detailRows+='<tr>';
+    detailRows+='<td style="padding:7px 10px;font-weight:600;color:#1a3558;border:1px solid #e0e0e0">'+(emp?emp.name:T('محذوف','Deleted'))+'</td>';
+    detailRows+='<td style="padding:7px 10px;border:1px solid #e0e0e0"><span style="background:'+typeBg[t]+';color:'+typeColors[t]+';border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700">'+typeLabels[t]+'</span></td>';
+    detailRows+='<td style="padding:7px 10px;border:1px solid #e0e0e0">'+fmtF(s)+(days>1?' &rarr; '+fmtF(e2):'')+'</td>';
+    detailRows+='<td style="padding:7px 10px;text-align:center;font-weight:700;border:1px solid #e0e0e0">'+days+'</td>';
+    detailRows+='<td style="padding:7px 10px;color:#555;border:1px solid #e0e0e0">'+lv.reason+'</td>';
+    detailRows+='</tr>';
+  });
+
+  /* Summary rows */
+  var summaryRows='';
+  EMPS.filter(function(e){return e.active&&empSummary[e.id];}).forEach(function(emp){
+    var rec=empSummary[emp.id];
+    var typeBreakdown=Object.keys(rec.byType).map(function(t){
+      return '<span style="background:'+typeBg[t]+';color:'+typeColors[t]+';border-radius:4px;padding:1px 7px;font-size:11px;margin-left:4px">'+typeLabels[t]+': '+rec.byType[t]+' '+T('يوم','d')+'</span>';
+    }).join('');
+    summaryRows+='<tr style="background:#f8fafd">';
+    summaryRows+='<td style="padding:8px 10px;font-weight:600;color:#1a3558;border:1px solid #e0e0e0">'+emp.name+'</td>';
+    summaryRows+='<td style="padding:8px 10px;border:1px solid #e0e0e0">'+typeBreakdown+'</td>';
+    summaryRows+='<td style="padding:8px 10px;text-align:center;font-weight:800;font-size:14px;color:#1a3558;border:1px solid #e0e0e0">'+rec.totalDays+'</td>';
+    summaryRows+='</tr>';
+  });
+
+  /* Totals */
+  var totalByType={};
+  filtered.forEach(function(lv){var t=lv.type||'annual';var s=pd(lv.startDate),e2=pd(lv.endDate);var d=Math.round((e2-s)/86400000)+1;totalByType[t]=(totalByType[t]||0)+d;});
+  var totalDays=filtered.reduce(function(acc,lv){var s=pd(lv.startDate),e2=pd(lv.endDate);return acc+Math.round((e2-s)/86400000)+1;},0);
+
+  var html='<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">';
+  html+='<title>'+T('تقرير الاجازات','Leave Report')+'</title>';
+  html+='<style>body{font-family:Arial,sans-serif;direction:rtl;margin:24px;color:#111;}';
+  html+='h1{color:#1a3558;font-size:20px;}h2{color:#1a3558;font-size:15px;margin:20px 0 8px;border-bottom:2px solid #e0eaf5;padding-bottom:6px;}';
+  html+='.sub{color:#555;font-size:12px;margin-bottom:16px;}table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px;}';
+  html+='th{background:#1a3558;color:#fff;padding:9px 10px;text-align:right;}';
+  html+='@media print{button{display:none!important;}}';
+  html+='</style></head><body>';
+  html+='<div style="display:flex;justify-content:space-between;align-items:flex-start">';
+  html+='<div><h1>&#128197; '+T('تقرير الاجازات','Leave Report')+'</h1>';
+  html+='<div class="sub">'+T('الفترة','Period')+': '+fmtF(fd)+' &rarr; '+fmtF(td2);
+  if(typeFilter)html+=' &nbsp;|&nbsp; '+T('النوع','Type')+': '+typeLabels[typeFilter];
+  html+=' &nbsp;|&nbsp; '+filtered.length+' '+T('اجازة','leave(s)')+' &nbsp;|&nbsp; '+T('إجمالي','Total')+': '+totalDays+' '+T('يوم','days');
+  html+='</div></div>';
+  html+='<button onclick="window.print()" style="padding:9px 20px;background:#1a3558;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer">&#128424; '+T('طباعة / PDF','Print / PDF')+'</button>';
+  html+='</div>';
+
+  html+='<h2>&#128101; '+T('ملخص الاجازات لكل موظف','Leave Summary per Employee')+'</h2>';
+  html+='<table><thead><tr><th>'+T('الموظف','Employee')+'</th><th>'+T('تفصيل الأيام','Days by Type')+'</th><th style="width:90px;text-align:center">'+T('إجمالي أيام','Total Days')+'</th></tr></thead><tbody>'+summaryRows+'</tbody>';
+  html+='<tfoot><tr style="background:#1a3558;color:#fff"><td colspan="2" style="padding:8px 10px;font-weight:700">'+T('الإجمالي الكلي','Grand Total')+'</td><td style="padding:8px 10px;text-align:center;font-weight:800;font-size:15px">'+totalDays+'</td></tr></tfoot></table>';
+
+  html+='<h2>&#128203; '+T('تفصيل الاجازات','Detailed Leave Records')+'</h2>';
+  html+='<table><thead><tr><th>'+T('الموظف','Employee')+'</th><th>'+T('النوع','Type')+'</th><th>'+T('التاريخ','Date')+'</th><th style="width:60px;text-align:center">'+T('أيام','Days')+'</th><th>'+T('ملاحظة','Note')+'</th></tr></thead><tbody>'+detailRows+'</tbody></table>';
+  html+='<div style="margin-top:14px;font-size:10px;color:#aaa">'+T('صدر بتاريخ','Generated on')+': '+fmtF(new Date())+' — '+T('فريق الدعم الفني / المجدوعي السيارات','IT Support Team / Almajdouie Motors')+'</div>';
+  html+='</body></html>';
+
+  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  window.open(URL.createObjectURL(blob),'_blank');
+};
+
 window.delLeave=function(id){
   if(!confirm('حذف الاجازة؟'))return;
   LEAVES=LEAVES.filter(function(lv){return lv.id!==id;});
@@ -486,33 +604,312 @@ window.delLeave=function(id){
 /* ── EMAIL ── */
 window.sendEmail=function(id){
   var e=findEmp(id);
-  if(!e||!e.email){alert('اضف البريد الإلكتروني اولاً من تبويب الموظفون');return;}
-  if(!validEmail(e.email)){alert('البريد يجب ان يكون @almajdouie.com');return;}
+  if(!e||!e.email){alert(T('اضف البريد الإلكتروني اولاً من تبويب الموظفون','Add email first in Employees tab'));return;}
+  if(!validEmail(e.email)){alert(T('البريد يجب ان يكون @almajdouie.com','Email must be @almajdouie.com'));return;}
   var sh=getShifts(e,curSun);
   var we=aD(curSun,6);
   var wn=Math.abs(Math.round((curSun-REF)/(7*86400000)))+1;
-  var sn={morning:'صباحي (7:30ص-5م)',night:'ليلي (12م-9م)',afternoon:'مسائي (1م-10م)',off:'اجازة',leave:'اجازة خاصة',inactive:'موقوف',watch:'دوام ثابت',cover:'ليلي بديل',oncall:'أون كول'};
-  var body='السلام عليكم ورحمة الله وبركاته\n\n';
-  body+='الموظف: '+e.name+'\n';
-  if(e.empNum)body+='رقم الموظف: '+e.empNum+'\n';
-  if(e.jobTitle)body+='المسمى الوظيفي: '+e.jobTitle+'\n';
-  if(e.dept)body+='القسم: '+e.dept+'\n';
-  body+='\nجدول الدوام - الاسبوع '+wn+'\n';
-  body+='من '+fmtF(curSun)+' الى '+fmtF(we)+'\n';
-  body+='----------------------------------------\n';
-  DAYS_AR.forEach(function(day,i){body+=day+': '+(sn[sh[i]]||sh[i])+'\n';});
-  body+='\n---\nفريق الدعم الفني - المجدوعي';
-  var subj='جدول دوامك - الاسبوع '+wn+' ('+fmtF(curSun)+' - '+fmtF(we)+')';
+  var shiftName={
+    morning:T('صباحي','Morning'),
+    night:T('ليلي','Night'),
+    afternoon:T('مسائي','Afternoon')+' ('+T('1م-10م','1pm-10pm')+')',
+    off:T('إجازة','Day Off'),
+    leave:T('إجازة خاصة','Special Leave'),
+    inactive:T('موقوف','Inactive'),
+    watch:T('دوام صباحي','Morning Shift'),
+    cover:T('ليلي بديل','Night Cover'),
+    oncall:T('أون كول','On-Call')
+  };
+  var sep='════════════════════════════';
+  var days=LANG==='en'?DAYS_EN:DAYS_AR;
+
+  var body=T('السلام عليكم ورحمة الله وبركاته','Dear')+' '+e.name+',\n\n';
+  body+=sep+'\n';
+  body+=T('📋 جدول الدوام الأسبوعي','📋 Weekly Duty Schedule')+'\n';
+  body+=sep+'\n\n';
+  if(e.empNum)body+=T('رقم الموظف','Employee No.')+': '+e.empNum+'\n';
+  if(e.jobTitle)body+=T('المسمى الوظيفي','Job Title')+': '+e.jobTitle+'\n';
+  if(e.dept)body+=T('القسم','Department')+': '+e.dept+'\n';
+  var rgnLabel=REGIONS[e.region||'eastern'];
+  body+=T('المنطقة','Region')+': '+(LANG==='en'?rgnLabel.label_en:rgnLabel.label_ar)+'\n';
+  body+='\n';
+  body+=T('الأسبوع','Week')+' '+wn+' | '+fmtF(curSun)+' '+T('إلى','to')+' '+fmtF(we)+'\n';
+  body+='\n';
+
+  /* Day-by-day schedule */
+  var workDays=[];var offDays=[];
+  days.forEach(function(day,i){
+    var dt=aD(curSun,i);
+    var sLabel=shiftName[sh[i]]||sh[i];
+    var holName=getHolidayName(dt);
+    if(holName&&sh[i]==='leave')sLabel=T('إجازة','Holiday')+': '+holName;
+    body+='  '+day+' ('+fmtAR(dt)+'): '+sLabel+'\n';
+    if(sh[i]!=='off'&&sh[i]!=='leave'&&sh[i]!=='inactive')workDays.push(day);
+    else offDays.push(day);
+  });
+
+  body+='\n'+sep+'\n';
+  body+=T('أيام الدوام','Work days')+' ('+workDays.length+'): '+workDays.join(' - ')+'\n';
+  body+=T('أيام الإجازة','Off days')+': '+offDays.join(' - ')+'\n';
+  body+='\n'+sep+'\n';
+  body+=T('فريق الدعم الفني | المجدوعي السيارات','IT Support Team | Almajdouie Motors')+'\n';
+  body+=T('هذا الجدول للأسبوع المحدد فقط — للاستفسار تواصل مع المشرف المباشر','This schedule is for the selected week only');
+
+  var subj=T('جدول دوامك','Your Duty Schedule')+' — '+T('الأسبوع','Week')+' '+wn+' ('+fmtF(curSun)+' — '+fmtF(we)+')';
   window.location.href='mailto:'+e.email+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body);
 };
 window.sendAll=function(){
   var pool=EMPS.filter(function(e){return e.active&&e.email&&validEmail(e.email);});
-  if(!pool.length){alert('لا يوجد موظفون لديهم بريد almajdouie.com مضاف');return;}
-  if(!confirm('فتح Outlook لـ '+pool.length+' موظف؟'))return;
-  pool.forEach(function(e,i){setTimeout(function(){sendEmail(e.id);},i*1000);});
+  if(!pool.length){alert(T('لا يوجد موظفون لديهم بريد almajdouie.com مضاف','No employees with almajdouie.com email'));return;}
+
+  var we=aD(curSun,6);
+  var wn=Math.abs(Math.round((curSun-REF)/(7*86400000)))+1;
+  var shiftLbl={morning:T('صباحي','Morning'),night:T('ليلي','Night'),afternoon:T('مسائي','Afternoon'),
+    off:T('إجازة','Off'),leave:T('إجازة خاصة','Leave'),inactive:T('موقوف','Inactive'),
+    watch:T('صباحي','Morning'),cover:T('بديل','Cover'),oncall:T('أون كول','On-Call')};
+  var days=LANG==='en'?DAYS_EN:DAYS_AR;
+  var sep='============================================';
+
+  var body=T('السلام عليكم ورحمة الله وبركاته','Dear Team,')+'\n\n';
+  body+=sep+'\n';
+  body+=T('جداول الدوام الاسبوعية','Weekly Duty Schedules')+'\n';
+  body+=T('الاسبوع','Week')+' '+wn+' | '+fmtF(curSun)+' - '+fmtF(we)+'\n';
+  body+=sep+'\n\n';
+
+  pool.forEach(function(emp){
+    var sh=getShifts(emp,curSun);
+    var rgn=REGIONS[emp.region||'eastern'];
+    body+='>> '+emp.name+(emp.empNum?' (#'+emp.empNum+')':'')+(emp.jobTitle?' - '+emp.jobTitle:'')+' | '+(LANG==='en'?rgn.label_en:rgn.label_ar)+'\n';
+    days.forEach(function(day,i){
+      var dt=aD(curSun,i);
+      var sl=shiftLbl[sh[i]]||sh[i];
+
+
+      if(sh[i]==='leave'){var hn=getHolidayName(dt);if(hn)sl=hn;}
+      body+='   '+day+': '+sl+'\n';
+    });
+    body+='\n';
+  });
+
+  body+=sep+'\n';
+  body+=T('فريق الدعم الفني | المجدوعي السيارات','IT Support Team | Almajdouie Motors');
+
+  var allEmails=pool.map(function(e){return e.email;}).join(';');
+  var subj=T('جداول الدوام - الاسبوع','Duty Schedules - Week')+' '+wn+' ('+fmtF(curSun)+' - '+fmtF(we)+')';
+  window.location.href='mailto:'+allEmails+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body);
+};
+
+window.openTeamScheduleHTML=function(){
+  var we=aD(curSun,6);
+  var wn=Math.abs(Math.round((curSun-REF)/(7*86400000)))+1;
+  var pool=EMPS.filter(function(e){return e.active;});
+  var days=LANG==='en'?DAYS_EN:DAYS_AR;
+  var shColors={morning:'#dbeafe',night:'#6d28d9',afternoon:'#fef3c7',off:'#fee2e2',
+    leave:'#374151',cover:'#d1fae5',oncall:'#ea580c',inactive:'#f1f5f9',watch:'#dbeafe'};
+  var shTextColors={morning:'#1e40af',night:'#ffffff',afternoon:'#92400e',off:'#991b1b',
+    leave:'#ffffff',cover:'#065f46',oncall:'#ffffff',inactive:'#6b7280',watch:'#1e40af'};
+  var shNames={morning:T('صباحي','Morning'),night:T('ليلي','Night'),afternoon:T('مسائي','Afternoon'),
+    off:T('إجازة','Off'),leave:T('إجازة خاصة','Leave'),cover:T('بديل','Cover'),
+    oncall:T('أون كول','On-Call'),inactive:T('موقوف','Inactive'),watch:T('صباحي','Morning')};
+
+  /* Table rows */
+  var rows='';
+  pool.forEach(function(emp,idx){
+    var sh=getShifts(emp,curSun);
+    var rowBg=idx%2===0?'#ffffff':'#f8fafd';
+    rows+='<tr style="background:'+rowBg+'">';
+    rows+='<td style="padding:9px 12px;font-weight:600;color:#1a3558;border:1px solid #e2e8f0;white-space:nowrap;min-width:180px">'+emp.name+'</td>';
+    sh.forEach(function(s,i){
+      var dt=aD(curSun,i);
+      var bg=shColors[s]||'#f8fafd';
+      var tc=shTextColors[s]||'#374151';
+      var lbl=shNames[s]||s;
+      if(s==='leave'){var hn=getHolidayName(dt);if(hn)lbl=hn;}
+      if(s==='morning'){
+        lbl='<b>'+T('صباحي','Morning')+'</b>';
+      } else if(s==='night'){
+        lbl='<b>'+T('ليلي','Night')+'</b>';
+      }
+      rows+='<td style="padding:8px 6px;text-align:center;border:1px solid #e2e8f0;background:'+bg+';color:'+tc+';font-size:11px;font-weight:700;min-width:82px">'+lbl+'</td>';
+    });
+    rows+='</tr>';
+  });
+
+  /* Header day cells */
+  var dayHeaders='<th style="background:#1a3558;color:#fff;padding:10px 12px;text-align:right;font-size:12px;min-width:180px">'+T('الموظف','Employee')+'</th>';
+  days.forEach(function(day,i){
+    var dt=aD(curSun,i);
+    var isFri=i===5;var isSat=i===6;
+    var bg=isFri?'#1e4a6e':isSat?'#163a5e':'#1a3558';
+    dayHeaders+='<th style="background:'+bg+';color:#fff;padding:10px 6px;text-align:center;font-size:11px;min-width:82px">'+day+'<br><span style="font-size:9px;font-weight:400;opacity:0.8">'+fmtAR(dt)+'</span></th>';
+  });
+
+  var html='<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">';
+  html+='<title>'+T('جدول الدوام الاسبوعي','Weekly Duty Schedule')+'</title>';
+  html+='<style>body{font-family:Arial,Tahoma,sans-serif;direction:rtl;margin:0;padding:20px;background:#f1f5f9;color:#1a3558;}';
+  html+='.card{background:#fff;border-radius:12px;box-shadow:0 2px 16px rgba(0,0,0,0.08);overflow:hidden;}';
+  html+='.hdr{background:#1a3558;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;}';
+  html+='.hdr h1{color:#fff;font-size:16px;margin:0;}';
+  html+='.hdr .sub{color:#a8c8f0;font-size:11px;margin-top:3px;}';
+  html+='.hdr .wk{color:#ffd580;font-size:13px;font-weight:700;}';
+  html+='table{width:100%;border-collapse:collapse;}';
+  html+='.legend{padding:10px 16px;background:#f8fafd;border-top:1px solid #e2e8f0;display:flex;gap:12px;flex-wrap:wrap;font-size:10px;}';
+  html+='.litem{display:flex;align-items:center;gap:4px;}';
+  html+='.ldot{width:12px;height:12px;border-radius:3px;}';
+  html+='.copy-btn{display:block;width:100%;padding:12px;background:#1a3558;color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;}';
+  html+='.copy-btn:hover{background:#1e4a6e;}';
+  html+='@media print{.copy-btn,.inst{display:none!important;}}';
+  html+='</style></head><body>';
+  html+='<div class="inst" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:12px;color:#92400e;line-height:1.8">';
+  html+='<b>'+T('كيفية الاستخدام','How to use')+':</b><br>';
+  html+=T('1. اضغط زر "نسخ الجدول" أدناه<br>2. افتح Outlook وأنشئ إيميل جديد<br>3. الصق (Ctrl+V) في جسم الإيميل — سيظهر بالألوان ✅',
+    '1. Click "Copy Table" below<br>2. Open Outlook and create new email<br>3. Paste (Ctrl+V) in email body — colors will appear ✅');
+  html+='</div>';
+  html+='<div class="card">';
+  html+='<div class="hdr"><div><h1>📋 '+T('جدول الدوام الاسبوعي','Weekly Duty Schedule')+'</h1>';
+  html+='<div class="sub">'+T('فريق الدعم الفني | المجدوعي السيارات','IT Support Team | Almajdouie Motors')+'</div></div>';
+  html+='<div class="wk">'+T('الاسبوع','Week')+' '+wn+'<br><span style="font-weight:400;font-size:11px;color:#a8c8f0">'+fmtF(curSun)+' — '+fmtF(we)+'</span></div></div>';
+  html+='<table><thead><tr>'+dayHeaders+'</tr></thead><tbody>'+rows+'</tbody></table>';
+  html+='<div class="legend">';
+  var legItems=[
+    {bg:'#dbeafe',tc:'#1e40af',lbl:T('صباحي','Morning')},
+    {bg:'#6d28d9',tc:'#fff',lbl:T('ليلي','Night')},
+    {bg:'#fef3c7',tc:'#92400e',lbl:T('مسائي','Afternoon')},
+    {bg:'#fee2e2',tc:'#991b1b',lbl:T('إجازة','Day Off')},
+    {bg:'#374151',tc:'#fff',lbl:T('إجازة خاصة','Official/Special Leave')},
+    {bg:'#ea580c',tc:'#fff',lbl:T('أون كول','On-Call')},
+    {bg:'#d1fae5',tc:'#065f46',lbl:T('بديل ليلي','Night Cover')},
+  ];
+  legItems.forEach(function(l){html+='<div class="litem"><div class="ldot" style="background:'+l.bg+'"></div><span style="color:'+l.tc+';background:'+l.bg+';padding:1px 6px;border-radius:3px;font-weight:600">'+l.lbl+'</span></div>';});
+  html+='</div></div>';
+  html+='<button class="copy-btn" id="copybtn" onclick="copyTable()">📋 '+T('نسخ الجدول للصقه في Outlook','Copy Table to paste in Outlook')+'</button>';
+  html+='<script>';
+  html+='function copyTable(){';
+  html+='  var el=document.querySelector(".card");';
+  html+='  var range=document.createRange();';
+  html+='  range.selectNode(el);';
+  html+='  window.getSelection().removeAllRanges();';
+  html+='  window.getSelection().addRange(range);';
+  html+='  document.execCommand("copy");';
+  html+='  window.getSelection().removeAllRanges();';
+  html+='  var btn=document.getElementById("copybtn");';
+  html+='  btn.textContent="✅ '+T('تم النسخ! الآن الصق في Outlook (Ctrl+V)','Copied! Now paste in Outlook (Ctrl+V)')+'";';
+  html+='  btn.style.background="#166534";';
+  html+='}';
+  html+='<\/script>';
+  html+='</body></html>';
+
+  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  window.open(URL.createObjectURL(blob),'_blank');
 };
 
 /* ── EXPORT ── */
+window.generateOnCallForm=function(empId){
+  var emp=findEmp(empId);
+  if(!emp){alert(T('الموظف غير موجود','Employee not found'));return;}
+  var rgnLabel=REGIONS[emp.region||'eastern'];
+  var we=aD(curSun,6);
+  var fromStr=fmtF(curSun);
+  var toStr=fmtF(we);
+
+  var data={
+    name:     emp.name,
+    empNum:   emp.empNum||'',
+    jobTitle: emp.jobTitle||'',
+    dept:     emp.dept||'',
+    region:   LANG==='en'?rgnLabel.label_en:rgnLabel.label_ar,
+    fromDate: fromStr,
+    toDate:   toStr,
+    amount:   ''
+  };
+
+  /* Build HTML form to download as docx via server — 
+     Since we're browser-only, we open a print-ready HTML page instead */
+  var html='<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">';
+  html+='<title>On-Call Form - '+emp.name+'</title>';
+  html+='<style>';
+  html+='body{font-family:Arial,Tahoma,sans-serif;direction:rtl;margin:20px;font-size:12pt;}';
+  html+='h2{color:#1a3558;text-align:center;margin-bottom:4px;}';
+  html+='.sub{text-align:center;color:#555;font-size:10pt;margin-bottom:20px;}';
+  html+='table{width:100%;border-collapse:collapse;margin-bottom:16px;}';
+  html+='td,th{border:1px solid #aaa;padding:8px 10px;}';
+  html+='.hdr{background:#1a3558;color:#fff;text-align:center;font-weight:bold;padding:8px;}';
+  html+='.lbl{background:#d6e4f0;font-weight:bold;font-size:10pt;width:160px;}';
+  html+='.val{font-size:11pt;font-weight:bold;color:#1a3558;}';
+  html+='.oncall{background:#fff3e0;color:#c2410c;font-weight:bold;}';
+  html+='.check{font-size:14pt;}';
+  html+='.sig-row td{height:50px;}';
+  html+='@media print{button{display:none!important;}}';
+  html+='</style></head><body>';
+
+  html+='<button onclick="window.print()" style="position:fixed;top:10px;left:10px;padding:8px 16px;background:#1a3558;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer">🖨️ طباعة / Print</button>';
+
+  html+='<h2>طلب بدل العمل تحت الطلب<br><span style="font-size:13pt">On-Call Duty Allowance Request</span></h2>';
+  html+='<div class="sub">شركة المجدوعي للسيارات &nbsp;|&nbsp; Almajdouie Motors Company</div>';
+
+  /* Request type */
+  html+='<table><tr><td class="hdr" colspan="4">نوع الطلب / Request Type</td></tr>';
+  html+='<tr><td class="check">☑</td><td>إضافة بدل / Adding Allowance</td><td class="check">☐</td><td>إلغاء بدل / Canceling Allowance</td></tr></table>';
+
+  /* Employee info */
+  html+='<table><tr><td class="hdr" colspan="4">بيانات الموظف / Employee Information</td></tr>';
+  html+='<tr><td class="lbl">رقم الموظف<br>Employee ID</td><td class="val">'+data.empNum+'</td><td class="lbl">الاسم<br>Name</td><td class="val">'+data.name+'</td></tr>';
+  html+='<tr><td class="lbl">القسم / الإدارة<br>Department</td><td class="val">'+data.dept+'</td><td class="lbl">المسمى الوظيفي<br>Position</td><td class="val">'+data.jobTitle+'</td></tr>';
+  html+='<tr><td class="lbl">المنطقة<br>Region</td><td class="val">'+data.region+'</td><td class="lbl">الدرجة<br>Grade</td><td></td></tr>';
+  html+='<tr><td class="lbl">الجنسية<br>Nationality</td><td></td><td class="lbl">الحالة الاجتماعية<br>Marital Status</td><td></td></tr>';
+  html+='<tr><td class="lbl">تاريخ الالتحاق<br>Joining Date</td><td></td><td></td><td></td></tr></table>';
+
+  /* Allowance type */
+  html+='<table><tr><td class="hdr" colspan="6">نوع البدل / Allowance Type</td></tr>';
+  html+='<tr><td class="check">☐</td><td>بدل الجوال<br>Cell Phone Allowance</td><td>المبلغ / Amount</td><td class="check">☐</td><td>بدل استخدام مركبة خاصة<br>Private Vehicle Usage</td><td>المبلغ / Amount</td></tr>';
+  html+='<tr><td class="check">☐</td><td>بدل طعام<br>Food Allowance</td><td>المبلغ / Amount</td><td class="check">☐</td><td>بدل مسؤوليات إضافية<br>Additional Responsibilities</td><td>المبلغ / Amount</td></tr>';
+  html+='<tr><td class="check">☐</td><td>بدل تكليف<br>Acting Allowance</td><td>المبلغ / Amount</td><td class="check">☐</td><td>بدل عمل إضافي (ثابت)<br>Fixed Overtime</td><td>المبلغ / Amount</td></tr>';
+  html+='<tr class="oncall"><td class="check" style="background:#fff3e0">☑</td><td style="background:#fff3e0"><b>بدل العمل تحت الطلب<br>On-Call Duty Allowance</b></td><td style="background:#fff3e0">المبلغ / Amount:<br><input type="text" style="width:100px;font-size:12pt;border:1px solid #c2410c;padding:4px"></td><td class="check">☐</td><td>أخرى / Other</td><td>المبلغ / Amount</td></tr>';
+  html+='</table>';
+
+  /* Duration */
+  html+='<table><tr><td class="hdr" colspan="6">نوع الطلب / Request Type</td></tr>';
+  html+='<tr><td class="check" style="background:#fff3e0">☑</td><td class="oncall" style="background:#fff3e0">مؤقت / Temporary</td>';
+  html+='<td class="lbl">من تاريخ / From</td><td class="val">'+data.fromDate+'</td>';
+  html+='<td class="lbl">إلى تاريخ / To</td><td class="val">'+data.toDate+'</td></tr>';
+  html+='<tr><td class="check">☐</td><td>دائم / Permanent</td><td colspan="4"></td></tr></table>';
+
+  /* Signatures */
+  html+='<table><tr><td class="hdr" colspan="4">التوقيعات / Signatures</td></tr>';
+  html+='<tr class="sig-row"><td class="lbl">توقيع الموظف<br>Employee Signature</td><td></td><td class="lbl">التاريخ / Date</td><td></td></tr>';
+  html+='<tr class="sig-row"><td class="lbl">مشرف خدمات الموظفين<br>Employees Service Supervisor</td><td></td><td class="lbl">التاريخ / Date</td><td></td></tr>';
+  html+='<tr class="sig-row"><td class="lbl">مدير الموارد البشرية<br>HRM</td><td>☐ موافق Accept &nbsp;&nbsp; ☐ غير موافق Not Accept</td><td class="lbl">التاريخ / Date</td><td></td></tr>';
+  html+='<tr class="sig-row"><td class="lbl">توقيع موظف الرواتب<br>Payroll Emp. Signature</td><td></td><td class="lbl">التاريخ / Date</td><td></td></tr>';
+  html+='</table>';
+
+  html+='<p style="font-size:9pt;color:#999;text-align:center">صدر بتاريخ: '+fmtF(new Date())+' — فريق الدعم الفني / المجدوعي السيارات</p>';
+  html+='</body></html>';
+
+  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  window.open(URL.createObjectURL(blob),'_blank');
+};
+
+window.copyShareLink=function(){
+  try{
+    var data={emps:EMPS,leaves:LEAVES,holidays:HOLIDAYS};
+    var json=JSON.stringify(data);
+    /* btoa needs latin1 — use encodeURIComponent trick */
+    var b64=btoa(unescape(encodeURIComponent(json)));
+    var url=window.location.href.split('#')[0]+'#'+b64;
+    /* Copy to clipboard */
+    var ta=document.createElement('textarea');
+    ta.value=url;
+    ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.focus();ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert(T('✅ تم نسخ الرابط! شاركه مع فريقك\n\nأي شخص يفتحه سيحصل على نفس بيانات الموظفين',
+      '✅ Link copied! Share with your team\n\nAnyone who opens it will get the same employee data'));
+  }catch(e){
+    alert(T('حدث خطأ: '+e.message,'Error: '+e.message));
+  }
+};
+
 window.doExportJSON=function(){
   var data={emps:EMPS,leaves:LEAVES,date:new Date().toISOString(),ver:'v6'};
   var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
@@ -865,7 +1262,7 @@ function render(){
   h+='<p style="color:#a8c8f0;font-size:10px;margin:2px 0 0">'+T('فريق الدعم الفني — المجدوعي السيارات','IT Support Team — Almajdouie Motors')+'</p>';
   h+='</div></div>';
   /* Right side info */
-  h+='<p style="color:#a8c8f0;font-size:9.5px;text-align:left;line-height:1.6">'+T('أحد-خميس','Sun-Thu')+': '+morningTime()+'<br>'+T('السبت','Sat')+': 9:00am-7:00pm</p>';
+  h+='<p style="color:#a8c8f0;font-size:9.5px;text-align:left;line-height:1.6">'+T('أحد-خميس','Sun-Thu')+': '+morningTime()+'<br>'+T('السبت','Sat')+': 10:00am-7:00pm</p>';
   h+='</div>';
   h+='<p>'+T('الاحد-الخميس','Sun-Thu')+': '+morningTime()+' | '+T('الجمعة','Fri')+': '+T('مسائي 1م-10م','Afternoon 1pm-10pm')+' | '+T('السبت','Sat')+': 1 '+T('صباحي','Morning')+' + 1 '+T('ليلي','Night')+' | '+T('5 ايام لكل موظف','5 days per employee')+' | '+T((REGIONS[REGION].label_ar),(REGIONS[REGION].label_en))+'</p></div>';
   if(abdLv){
@@ -968,7 +1365,7 @@ function renderSchedule(abdLv,pool){
   h+='&#128274; '+T('الجمعة','Fri')+': ';
   if(onCallThisWeek)h+='<b style="color:#c2410c">'+T('أون كول','On-Call')+': '+onCallThisWeek.name.split(' ')[0]+'</b>';
   else h+=T('إجازة للجميع','off for all');
-  h+=' &nbsp;|&nbsp; '+T('السبت=1 صباحي (9ص-7م)','Sat=1 Morning (9am-7pm)')+' &nbsp;|&nbsp; &#9989; '+T('جميع الإجازات متتالية','All consecutive')+'</div>';
+  h+=' &nbsp;|&nbsp; '+T('السبت=1 صباحي (10ص-7م)','Sat=1 Morning (10am-7pm)')+' &nbsp;|&nbsp; &#9989; '+T('جميع الإجازات متتالية','All consecutive')+'</div>';
   /* ── Legend / Color Key — ABOVE the table ── */
   var rg2=REGIONS[REGION];
   var mT=morningTime();
@@ -1033,7 +1430,7 @@ function renderSchedule(abdLv,pool){
     var cls=d===5?'class="frih"':d===6?'class="sath"':'';
     h+='<th '+cls+' style="min-width:90px">'+(LANG==='en'?DAYS_EN[d]:DAYS_AR[d])+'<br><small style="font-weight:400;opacity:.8;font-size:9px">'+fmtAR(dt)+'</small></th>';
   }
-  h+='<th style="min-width:42px">'+T('ايام','Days')+'</th><th style="min-width:110px">'+T('الاجازة','Day Off')+'</th></tr></thead><tbody>';
+  h+='</tr></thead><tbody>';
   var cats=['emp','sup','mgr','tra','tam'];
   for(var ci=0;ci<cats.length;ci++){
     var cat=cats[ci];
@@ -1080,11 +1477,8 @@ function renderSchedule(abdLv,pool){
         }
         h+='<td '+tdAttr+'>'+cellContent+'</td>';
       }
-      h+='<td style="font-size:12px;font-weight:700;color:#1a3558;background:#f5f8ff">'+wd+'</td>';
-      h+='<td>';
-      if(e.active&&!e.fixed&&offL)h+='<span class="dof">'+(ok?'&#9989;':'&#9888;')+' '+offL+'</span>';
-      else if(!e.active||e.fixed)h+='<span style="font-size:10px;color:#ccc">-</span>';
-      h+='</td></tr>';
+
+      h+='</tr>';
     }
   }
   var cov=[];
@@ -1147,7 +1541,22 @@ function renderSchedule(abdLv,pool){
 }
 
 function renderLeaves(){
-  var h='<div class="sec-hdr"><h3>&#128197; الاجازات الخاصة</h3><button class="nb bg" onclick="togForm(\'leave\')">+ تسجيل اجازة</button></div>';
+  var h='<div class="sec-hdr"><h3>&#128197; '+T('الاجازات الخاصة','Special Leaves')+'</h3><button class="nb bg" onclick="togForm(\'leave\')">+ '+T('تسجيل اجازة','Add Leave')+'</button></div>';
+  /* Report bar */
+  h+='<div style="padding:10px 14px;background:#f0fdf4;border-bottom:2px solid #86efac;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+  h+='<span style="font-size:11px;font-weight:700;color:#166534">&#128424; '+T('تقرير الاجازات','Leave Report')+':</span>';
+  h+='<input type="date" id="lrpt-from" style="border:1px solid #86efac;border-radius:5px;padding:5px 8px;font-size:11px">';
+  h+='<span style="font-size:10px;color:#666">'+T('إلى','to')+'</span>';
+  h+='<input type="date" id="lrpt-to" style="border:1px solid #86efac;border-radius:5px;padding:5px 8px;font-size:11px">';
+  h+='<select id="lrpt-type" style="border:1px solid #86efac;border-radius:5px;padding:5px 8px;font-size:11px;color:#166534">';
+  h+='<option value="">'+T('كل الأنواع','All Types')+'</option>';
+  h+='<option value="annual">'+T('سنوية','Annual')+'</option>';
+  h+='<option value="sick">'+T('مرضية','Sick')+'</option>';
+  h+='<option value="emergency">'+T('طارئة','Emergency')+'</option>';
+  h+='<option value="other">'+T('أخرى','Other')+'</option>';
+  h+='</select>';
+  h+='<button class="nb" style="background:#166534;color:#fff;padding:6px 14px;font-size:11px;border:none;border-radius:6px;cursor:pointer" onclick="exportLeavesPDF()">&#128424; '+T('إنشاء التقرير','Generate Report')+'</button>';
+  h+='</div>';
   if(openForm==='leave'){
     h+='<div class="formbox"><h3>&#128197; تسجيل اجازة</h3><div class="fgrid">';
     h+='<div><label>الموظف *</label><select id="le" onchange="onLeaveChg()"><option value="">-- اختر --</option>';
@@ -1275,6 +1684,7 @@ function renderEmployees(){
   h+='<button class="nb bn" onclick="doExportCSV()" style="background:#1565c0" title="تصدير CSV للتعديل في Excel">&#8659; CSV</button>';
   h+='<button class="nb bn" onclick="doExportJSON()" style="background:#4a148c" title="تصدير JSON نسخة احتياطية">&#8659; JSON</button>';
   h+='<button class="nb by" onclick="triggerImport()" title="رفع ملف CSV او JSON معدّل">&#8657; استيراد</button>';
+  h+='<button class="nb" onclick="copyShareLink()" style="background:#0369a1;color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:11px;cursor:pointer">&#128279; '+T('رابط مشاركة','Share Link')+'</button>';
   h+='<input type="file" id="importFile" accept=".json,.csv" style="display:none" onchange="handleImport(this)">';
   h+='</div></div>';
   if(openForm==='emp'){
@@ -1373,7 +1783,9 @@ function renderEmail(){
   var wn=Math.abs(Math.round((curSun-REF)/(7*86400000)))+1;
   var withEmail=EMPS.filter(function(e){return e.active&&e.email&&validEmail(e.email);});
   var h='<div class="sec-hdr"><h3>&#9993; ارسال جداول الدوام عبر Outlook</h3>';
-  h+='<button class="nb bg" onclick="sendAll()" style="font-size:12px">&#128232; ارسال للجميع ('+withEmail.length+')</button></div>';
+  h+='<button class="nb bg" onclick="sendAll()" style="font-size:12px">&#128232; '+T('ارسال نص عادي','Send Plain Text')+' ('+withEmail.length+')</button>';
+  h+='<button class="nb" onclick="openTeamScheduleHTML()" style="font-size:12px;background:#166534;color:#fff;border:none;border-radius:7px;padding:7px 14px;cursor:pointer;margin-right:6px">&#128203; '+T('إنشاء جدول ملون للإيميل','Create Colored Table for Email')+'</button>';
+  h+='</div>';
   h+='<div style="padding:10px 16px;background:#e8f4fd;border-bottom:1px solid #b3d9f5;font-size:11px;color:#0d47a1;line-height:1.7">';
   h+='&#128197; <b>الاسبوع '+wn+':</b> '+fmtF(curSun)+' - '+fmtF(we)+'&nbsp;|&nbsp;';
   h+='&#9993; يفتح Outlook تلقائياً مع الجدول&nbsp;|&nbsp;';
@@ -1383,8 +1795,9 @@ function renderEmail(){
     var e=EMPS[ei];
     if(!e.active)continue;
     var sh=getShifts(e,curSun);
-    var sn2={morning:'صباحي',night:'ليلي',afternoon:'مسائي',off:'اجازة',leave:'اجازة خاصة',inactive:'موقوف',watch:'ثابت',cover:'ليلي بديل'};
-    var schedTxt=DAYS_AR.map(function(day,i){return day+': '+(shiftNames2[sh[i]]||sh[i]);}).join(' | ');
+
+    var _sn={morning:T('صباحي','Morning'),night:T('ليلي','Night'),afternoon:T('مسائي','Afternoon'),off:T('إجازة','Off'),leave:T('إجازة خاصة','Leave'),inactive:T('موقوف','Inactive'),watch:T('صباحي','Morning'),cover:T('بديل','Cover'),oncall:T('أون كول','On-Call')};
+    var schedTxt=DAYS_AR.map(function(day,i){return day+': '+(_sn[sh[i]]||sh[i]);}).join(' | ');
     var hasEm=!!(e.email&&validEmail(e.email));
     h+='<div class="email-row'+(hasEm?' has-email':'')+'">';
     h+='<div class="emp-card">';
