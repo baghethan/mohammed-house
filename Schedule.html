@@ -610,8 +610,8 @@ window.sendEmail=function(id){
   var we=aD(curSun,6);
   var wn=Math.abs(Math.round((curSun-REF)/(7*86400000)))+1;
   var shiftName={
-    morning:T('صباحي','Morning'),
-    night:T('ليلي','Night'),
+    morning:T('صباحي','Morning')+' ('+morningTime(e.region)+')',
+    night:T('ليلي','Night')+' ('+T('12م-9م','12pm-9pm')+')',
     afternoon:T('مسائي','Afternoon')+' ('+T('1م-10م','1pm-10pm')+')',
     off:T('إجازة','Day Off'),
     leave:T('إجازة خاصة','Special Leave'),
@@ -683,6 +683,14 @@ window.sendAll=function(){
     days.forEach(function(day,i){
       var dt=aD(curSun,i);
       var sl=shiftLbl[sh[i]]||sh[i];
+      var dtForTime=aD(curSun,i);
+      var dayOfWeek=dtForTime.getDay();
+      if(sh[i]==='morning'){
+        var mt2=morningTime(emp.region);
+        if(dayOfWeek===6)mt2=satTime(); /* Saturday */
+        sl+=T(' ('+mt2+')','('+mt2+')');
+      } else if(sh[i]==='night'){sl+=T(' (12م-9م)','(12pm-9pm)');}
+      else if(sh[i]==='afternoon'||dayOfWeek===5){sl=T('مسائي','Afternoon')+T(' (10ص-10م)','(10am-10pm)');}
 
 
       if(sh[i]==='leave'){var hn=getHolidayName(dt);if(hn)sl=hn;}
@@ -769,6 +777,27 @@ window.openTeamScheduleHTML=function(){
   html+='<div class="hdr"><div><h1>📋 '+T('جدول الدوام الاسبوعي','Weekly Duty Schedule')+'</h1>';
   html+='<div class="sub">'+T('فريق الدعم الفني | المجدوعي السيارات','IT Support Team | Almajdouie Motors')+'</div></div>';
   html+='<div class="wk">'+T('الاسبوع','Week')+' '+wn+'<br><span style="font-weight:400;font-size:11px;color:#a8c8f0">'+fmtF(curSun)+' — '+fmtF(we)+'</span></div></div>';
+  /* Times legend row */
+  var timesLegend='<table style="width:100%;border-collapse:collapse;margin-bottom:0">';
+  timesLegend+='<tr>';
+  timesLegend+='<td style="background:#f8fafd;border:1px solid #e2e8f0;padding:7px 12px;font-weight:700;color:#1a3558;font-size:11px;min-width:180px">'+T('أوقات الدوام','Shift Hours')+'</td>';
+  /* Sun-Thu morning */
+  timesLegend+='<td colspan="5" style="background:#dbeafe;border:1px solid #e2e8f0;padding:7px 6px;text-align:center;font-size:10px;font-weight:700;color:#1e40af">'+T('صباحي','Morning')+'<br><span style="font-weight:400">'+morningTime()+'</span></td>';
+  /* Fri */
+  timesLegend+='<td style="background:#fef3c7;border:1px solid #e2e8f0;padding:7px 6px;text-align:center;font-size:10px;font-weight:700;color:#92400e">'+T('يوم الجمعة','Friday')+'<br><span style="font-weight:400">'+T('10ص-10م','10am-10pm')+'</span></td>';
+  /* Sat */
+  timesLegend+='<td style="background:#bfdbfe;border:1px solid #e2e8f0;padding:7px 6px;text-align:center;font-size:10px;font-weight:700;color:#1e40af">'+T('يوم السبت','Saturday')+'<br><span style="font-weight:400">'+satTime()+'</span></td>';
+  timesLegend+='</tr>';
+  /* Night row */
+  timesLegend+='<tr>';
+  timesLegend+='<td style="background:#f8fafd;border:1px solid #e2e8f0;padding:7px 12px;font-weight:700;color:#5b21b6;font-size:11px">'+T('الليلي','Night Shift')+'</td>';
+  timesLegend+='<td colspan="5" style="background:#6d28d9;border:1px solid #e2e8f0;padding:7px 6px;text-align:center;font-size:10px;font-weight:700;color:#fff">'+T('ليلي','Night')+'<br><span style="font-weight:400">'+T('12م-9م','12pm-9pm')+'</span></td>';
+  timesLegend+='<td style="background:#f8fafd;border:1px solid #e2e8f0;padding:7px 6px;text-align:center;font-size:10px;color:#9ca3af">—</td>';
+  timesLegend+='<td style="background:#f8fafd;border:1px solid #e2e8f0;padding:7px 6px;text-align:center;font-size:10px;color:#9ca3af">—</td>';
+  timesLegend+='</tr>';
+  timesLegend+='</table>';
+
+  html+=timesLegend;
   html+='<table><thead><tr>'+dayHeaders+'</tr></thead><tbody>'+rows+'</tbody></table>';
   html+='<div class="legend">';
   var legItems=[
