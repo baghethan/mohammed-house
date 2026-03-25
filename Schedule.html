@@ -1,74 +1,69 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-  <meta charset="UTF-8">
-  <title>نموذج تسجيل</title>
+<meta charset="UTF-8">
+<title>تسجيل دخول</title>
 </head>
 <body>
 
-  <h2>نموذج تسجيل</h2>
+<h2>إنشاء حساب</h2>
+<input type="email" id="email" placeholder="البريد الإلكتروني"><br><br>
+<input type="password" id="password" placeholder="كلمة المرور"><br><br>
+<button onclick="register()">تسجيل</button>
 
-  <input type="text" id="name" placeholder="الاسم"><br><br>
-  <input type="text" id="phone" placeholder="رقم الجوال"><br><br>
+<hr>
 
-  <button onclick="saveData()">حفظ</button>
-  <button onclick="loadData()">عرض البيانات</button>
+<h2>تسجيل دخول</h2>
+<input type="email" id="loginEmail" placeholder="البريد الإلكتروني"><br><br>
+<input type="password" id="loginPassword" placeholder="كلمة المرور"><br><br>
+<button onclick="login()">دخول</button>
 
-  <h3>البيانات:</h3>
-  <ul id="list"></ul>
+<p id="status"></p>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
-      authDomain: "baghethan-ba325.firebaseapp.com",
-      projectId: "baghethan-ba325",
-      storageBucket: "baghethan-ba325.firebasestorage.app",
-      messagingSenderId: "944819735112",
-      appId: "1:944819735112:web:07315600da39377320667d"
-    };
+const firebaseConfig = {
+  apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
+  authDomain: "baghethan-ba325.firebaseapp.com",
+  projectId: "baghethan-ba325",
+  appId: "1:944819735112:web:07315600da39377320667d"
+};
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
-    // 🔥 حفظ البيانات
-    async function saveData() {
-      const name = document.getElementById("name").value;
-      const phone = document.getElementById("phone").value;
+// تسجيل حساب
+async function register() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
 
-      if (!name || !phone) {
-        alert("يرجى تعبئة جميع الحقول");
-        return;
-      }
+  try {
+    await createUserWithEmailAndPassword(auth, email, password);
+    document.getElementById("status").innerText = "تم إنشاء الحساب ✅";
+  } catch (error) {
+    document.getElementById("status").innerText = error.message;
+  }
+}
 
-      await addDoc(collection(db, "users"), {
-        name: name,
-        phone: phone,
-        time: new Date()
-      });
+// تسجيل دخول
+async function login() {
+  const email = document.getElementById("loginEmail").value;
+  const password = document.getElementById("loginPassword").value;
 
-      alert("تم الحفظ بنجاح ✅");
-    }
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    document.getElementById("status").innerText = "تم تسجيل الدخول 🎉";
+  } catch (error) {
+    document.getElementById("status").innerText = error.message;
+  }
+}
 
-    // 🔥 تحميل البيانات (بديل load في api.php)
-    async function loadData() {
-      const querySnapshot = await getDocs(collection(db, "users"));
-      const list = document.getElementById("list");
-      list.innerHTML = "";
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        const li = document.createElement("li");
-        li.textContent = data.name + " - " + data.phone;
-        list.appendChild(li);
-      });
-    }
-
-    window.saveData = saveData;
-    window.loadData = loadData;
-  </script>
+window.register = register;
+window.login = login;
+</script>
 
 </body>
 </html>
