@@ -167,12 +167,11 @@ var firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 window._db = firebase.firestore();
-/* Set logos on login screen */
 window.onload = function() {
-  var l1 = document.getElementById('_logo1_login');
-  var l2 = document.getElementById('_logo2_login');
-  if(l1 && window._L1) l1.src = window._L1;
-  if(l2 && window._L2) l2.src = window._L2;
+  var l1=document.getElementById('_logo1_login');
+  var l2=document.getElementById('_logo2_login');
+  if(l1&&window._L1)l1.src=window._L1;
+  if(l2&&window._L2)l2.src=window._L2;
 };
 </script>
 
@@ -189,10 +188,57 @@ var REF=new Date('2026-01-04');
 /* _db set by Firebase script */
 
 /* ── Login System ── */
-var USERS = [
-  {username:'admin',    password:'Almajdouie@2026', role:'admin',  name:'المدير'},
-  {username:'support',  password:'IT@Support2026',  role:'viewer', name:'فريق الدعم'}
-];
+var USERS = []; /* loaded from Firebase */
+
+/* ── User Management ── */
+function loadUsers(cb) {
+  if(!window._db){cb();return;}
+  window._db.collection('app_users').get().then(function(snap){
+    USERS = [];
+    snap.forEach(function(doc){ USERS.push(doc.data()); });
+    if(USERS.length===0){
+      /* Create default admin on first run */
+      var def={username:'admin',password:'Admin@1234',role:'admin',name:'المدير'};
+      window._db.collection('app_users').doc('admin').set(def).then(function(){ USERS=[def]; cb(); });
+    } else { cb(); }
+  }).catch(function(){cb();});
+}
+
+function saveUser(u) {
+  if(!window._db) return;
+  window._db.collection('app_users').doc(u.username).set(u);
+}
+function deleteUser(username) {
+  if(!window._db) return;
+  window._db.collection('app_users').doc(username).delete();
+}
+
+window.addUser=function(){
+  var un=document.getElementById('nu-user').value.trim();
+  var pw=document.getElementById('nu-pass').value.trim();
+  var nm=document.getElementById('nu-name').value.trim();
+  var rl=document.getElementById('nu-role').value;
+  if(!un||!pw||!nm){alert(T('أكمل جميع الحقول','Fill all fields'));return;}
+  if(USERS.find(function(x){return x.username===un;})){alert(T('اسم المستخدم موجود','Username already exists'));return;}
+  var u={username:un,password:pw,name:nm,role:rl};
+  USERS.push(u);
+  saveUser(u);
+  openForm=null;
+  render();
+};
+window.deleteUser2=function(username){
+  if(username==='admin'){alert(T('لا يمكن حذف المدير الرئيسي','Cannot delete main admin'));return;}
+  if(!confirm(T('حذف هذا المستخدم؟','Delete this user?')))return;
+  USERS=USERS.filter(function(x){return x.username!==username;});
+  deleteUser(username);
+  render();
+};
+window.changePassword=function(username){
+  var pw=prompt(T('كلمة المرور الجديدة:','New password:'));
+  if(!pw||pw.length<6){alert(T('كلمة المرور قصيرة جداً (6 أحرف على الأقل)','Password too short (min 6 chars)'));return;}
+  var u=USERS.find(function(x){return x.username===username;});
+  if(u){u.password=pw;saveUser(u);alert(T('تم تغيير كلمة المرور ✅','Password changed ✅'));}
+};
 
 var currentUser = null;
 
@@ -1503,7 +1549,7 @@ function render(){
   if(wkLv.length)h+='<span style="background:#f3e5f5;color:#6a1b9a;font-size:10.5px;font-weight:700;border-radius:6px;padding:4px 9px">&#128197; '+wkLv.length+' اجازة</span>';
   h+='</div>';
   h+='<div class="tabs">';
-  var tabs=[['schedule','&#128203; '+T('الجدول','Schedule')],['leaves','&#128197; '+T('الاجازات','Leaves')+' ('+LEAVES.length+')'],['holidays','&#127466;&#127462; '+T('الإجازات الرسمية','Official Holidays')],['employees','&#128101; '+T('الموظفون','Employees')],['email','&#9993; '+T('ارسال الجداول','Send Schedules')]];
+  var tabs=[['schedule','&#128203; '+T('الجدول','Schedule')],['leaves','&#128197; '+T('الاجازات','Leaves')+' ('+LEAVES.length+')'],['holidays','&#127466;&#127462; '+T('الإجازات الرسمية','Official Holidays')],['employees','&#128101; '+T('الموظفون','Employees')],['email','&#9993; '+T('ارسال الجداول','Send Schedules')]].concat(isAdmin()?[['users','&#128100; '+T('المستخدمون','Users')+'('+USERS.length+')']]:[]);
   for(var ti=0;ti<tabs.length;ti++){
     h+='<div class="tab'+(activeTab===tabs[ti][0]?' active':'')+'" onclick="setTab(\''+tabs[ti][0]+'\')">'+tabs[ti][1]+'</div>';
   }
@@ -1511,6 +1557,7 @@ function render(){
   if(activeTab==='schedule')h+=renderSchedule(abdLv,pool);
   else if(activeTab==='leaves')h+=renderLeaves();
   else if(activeTab==='holidays')h+=renderHolidays();
+  else if(activeTab==='users')h+=renderUsers();
   else if(activeTab==='employees')h+=renderEmployees();
   else h+=renderEmail();
   h+='</div>';
@@ -1875,6 +1922,44 @@ function renderHolidays(){
   h+='<div style="padding:8px 16px;font-size:10px;color:#888;border-top:1px solid #eef0f5;line-height:1.7">';
   h+=T('الإجازات الرسمية تُطبَّق على جميع الموظفين تلقائياً — أيام عطلة غامقة في الجدول','Official holidays apply to all employees automatically — shown as dark grey in schedule');
   h+=' &nbsp;|&nbsp; '+T('يمكن تحديد موظف مناوب لكل إجازة','You can assign a duty employee for each holiday')+'</div>';
+  return h;
+}
+
+function renderUsers(){
+  var h='<div class="sec-hdr"><h3>&#128100; '+T('المستخدمون','Users')+'</h3>';
+  if(isAdmin())h+='<button class="nb bg" onclick="togForm(\'user\')">&#10133; '+T('مستخدم جديد','New User')+'</button>';
+  h+='</div>';
+  if(openForm==='user'&&isAdmin()){
+    h+='<div class="formbox"><h3>&#128100; '+T('إضافة مستخدم جديد','Add New User')+'</h3><div class="fgrid">';
+    h+='<div><label>'+T('اسم المستخدم','Username')+' *</label><input id="nu-user" type="text" placeholder="almajdouie_ali"></div>';
+    h+='<div><label>'+T('الاسم الكامل','Full Name')+' *</label><input id="nu-name" type="text" placeholder="'+T('علي أحمد','Ali Ahmed')+'"></div>';
+    h+='<div><label>'+T('كلمة المرور','Password')+' *</label><input id="nu-pass" type="text" placeholder="Min 6 chars"></div>';
+    h+='<div><label>'+T('الصلاحية','Role')+'</label><select id="nu-role">';
+    h+='<option value="admin">'+T('مدير — تعديل كامل','Admin — Full Access')+'</option>';
+    h+='<option value="viewer">'+T('مشاهدة فقط — بدون تعديل','Viewer — Read Only')+'</option>';
+    h+='</select></div></div>';
+    h+='<div class="fbtn-row"><button class="nb bg" onclick="addUser()" style="padding:7px 16px">&#10004; '+T('حفظ','Save')+'</button>';
+    h+='<button class="nb bn" onclick="cancForm()" style="background:#666;padding:7px 12px">'+T('إلغاء','Cancel')+'</button></div></div>';
+  }
+  h+='<div class="leave-list">';
+  USERS.forEach(function(u){
+    var isMe=currentUser&&currentUser.username===u.username;
+    var roleLbl=u.role==='admin'?'<span style="background:#dbeafe;color:#1e40af;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700">&#128737; '+T('مدير','Admin')+'</span>':'<span style="background:#f3f4f6;color:#555;border-radius:4px;padding:2px 8px;font-size:10px">&#128065; '+T('مشاهدة','Viewer')+'</span>';
+    h+='<div class="lv-item" style="'+(isMe?'background:#f0fdf4;border-color:#86efac':'')+';">';
+    h+='<div style="flex:1"><div style="font-weight:700;color:#1a3558;font-size:13px">'+u.name+(isMe?' <span style="font-size:10px;color:#166534">('+T('أنت','you')+')</span>':'')+'</div>';
+    h+='<div style="font-size:10px;color:#888;margin-top:3px">@'+u.username+'</div></div>';
+    h+=roleLbl+'&nbsp;';
+    if(isAdmin()){
+      h+='<button class="nb" onclick="changePassword(\''+u.username+'\')" style="background:#0369a1;color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:10px;cursor:pointer">&#128273; '+T('تغيير كلمة المرور','Change Password')+'</button>';
+      if(!isMe)h+='<button class="nb br" onclick="deleteUser2(\''+u.username+'\')" style="padding:4px 10px;font-size:10px;margin-right:4px">&#10005;</button>';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+  h+='<div style="padding:10px 16px;font-size:10px;color:#888;border-top:1px solid #eef0f5;line-height:1.8">';
+  h+='&#128737; '+T('المدير','Admin')+': '+T('يستطيع التعديل والإضافة والحذف','Can edit, add and delete')+'<br>';
+  h+='&#128065; '+T('مشاهدة فقط','Viewer')+': '+T('يستطيع مشاهدة الجدول فقط','Can only view the schedule');
+  h+='</div>';
   return h;
 }
 
