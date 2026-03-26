@@ -105,13 +105,11 @@ tbody tr:hover td{filter:brightness(0.95);}
 td{border:1px solid #e8eef6;padding:7px 4px;text-align:center;vertical-align:middle;white-space:nowrap;background:inherit;}
 th{background:#1a3558;color:#fff;padding:8px 6px;text-align:center;border:1px solid #2a4878;font-size:11px;white-space:nowrap;}
 td.en{background:#fff!important;color:#0d1f3c!important;font-weight:600;text-align:right;padding-right:8px;}
-/* Light shift cells */
 td.bg-m{background:#dbeafe!important;color:#1e40af!important;}
 td.bg-a{background:#fef3c7!important;color:#92400e!important;}
 td.bg-o{background:#fee2e2!important;color:#991b1b!important;}
 td.bg-c{background:#d1fae5!important;color:#065f46!important;}
 td.bg-i{background:#f1f5f9!important;color:#6b7280!important;}
-/* Dark shift cells — white text */
 td.bg-n{background:#6d28d9!important;color:#fff!important;}
 td.bg-l{background:#374151!important;color:#fff!important;}
 td.bg-k{background:#ea580c!important;color:#fff!important;}
@@ -122,9 +120,7 @@ td.bg-n.satc{background:#5b21b6!important;color:#fff!important;}
 td.bg-o.satc{background:#fecaca!important;color:#991b1b!important;}
 .sh{border-radius:5px;padding:4px 8px;display:inline-block;font-size:11px;font-weight:700;white-space:nowrap;line-height:1.4;background:transparent!important;}
 .sh small{display:none!important;}
-/* Light shifts — dark text */
 .sh.sm{color:#1e40af;}.sh.sa{color:#92400e;}.sh.so{color:#991b1b;}
-/* Dark shifts — white text */
 .sh.sn{color:#fff;font-weight:800;}.sh.sl{color:#fff;font-weight:700;}
 .sh.sk{color:#fff;font-weight:800;}.sh.sc{color:#fff;font-style:italic;}
 .sh.si{color:#6b7280;}
@@ -160,6 +156,14 @@ var DAYS_AR=['الأحد','الاثنين','الثلاثاء','الأربعاء'
 var DAYS_EN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 var DAYS=DAYS_AR; /* compatibility - updated in render */
 
+/* ── Employee Archive ── */
+var ARCHIVE = (function(){
+  try{var s=localStorage.getItem('jadwal_archive');return s?JSON.parse(s):[];}catch(e){return [];}
+})();
+function saveArchive(){
+  try{localStorage.setItem('jadwal_archive',JSON.stringify(ARCHIVE));}catch(e){}
+  if(window._db)window._db.collection('schedule').doc('jadwal_archive').set({data:ARCHIVE,updated:new Date()});
+}
 var REF=new Date('2026-01-04');
 
 /* ── Custom Labels ── */
@@ -175,6 +179,14 @@ function getLabel(key){ return CUSTOM_LABELS[key]||DEFAULT_LABELS[key]||key; }
 function saveLabels(){
   try{localStorage.setItem('jadwal_labels',JSON.stringify(CUSTOM_LABELS));}catch(e){}
   if(window._db)window._db.collection('schedule').doc('jadwal_labels').set({data:CUSTOM_LABELS,updated:new Date()});
+}
+/* ── Employee Archive ── */
+var ARCHIVE = (function(){
+  try{var s=localStorage.getItem('jadwal_archive');return s?JSON.parse(s):[];}catch(e){return [];}
+})();
+function saveArchive(){
+  try{localStorage.setItem('jadwal_archive',JSON.stringify(ARCHIVE));}catch(e){}
+  if(window._db)window._db.collection('schedule').doc('jadwal_archive').set({data:ARCHIVE,updated:new Date()});
 }
 var REF=new Date('2026-01-04');
 
@@ -223,6 +235,52 @@ window.resetLabels=function(){
   saveLabels();
   openForm=null;
   render();
+};
+
+window.exportArchiveReport=function(){
+  var fromDate=document.getElementById('arc-from')?document.getElementById('arc-from').value:'';
+  var toDate=document.getElementById('arc-to')?document.getElementById('arc-to').value:'';
+  var filtered=ARCHIVE.filter(function(e){
+    if(!fromDate&&!toDate)return true;
+    var d=e.archivedAt?e.archivedAt.substring(0,10):'';
+    if(fromDate&&d<fromDate)return false;
+    if(toDate&&d>toDate)return false;
+    return true;
+  });
+  if(!filtered.length){alert(T('لا يوجد موظفون محذوفون في هذه الفترة','No archived employees in this period'));return;}
+  var rows='';
+  filtered.forEach(function(emp,i){
+    var arDate=emp.archivedAt?new Date(emp.archivedAt):null;
+    var arDateStr=arDate?fmtF(arDate):'—';
+    rows+='<tr style="background:'+(i%2?'#f8fafd':'#fff')+'">';
+    rows+='<td style="padding:8px 10px;font-weight:600;color:#1a3558;border:1px solid #e0e0e0">'+emp.name+'</td>';
+    rows+='<td style="padding:8px 10px;border:1px solid #e0e0e0">'+(emp.empNum||'—')+'</td>';
+    rows+='<td style="padding:8px 10px;border:1px solid #e0e0e0">'+(emp.jobTitle||'—')+'</td>';
+    rows+='<td style="padding:8px 10px;border:1px solid #e0e0e0">'+(emp.dept||'—')+'</td>';
+    rows+='<td style="padding:8px 10px;text-align:center;border:1px solid #e0e0e0">'+arDateStr+'</td>';
+    rows+='<td style="padding:8px 10px;border:1px solid #e0e0e0">'+(emp.archivedReason||'—')+'</td>';
+    rows+='<td style="padding:8px 10px;text-align:center;border:1px solid #e0e0e0">'+(emp.leavesCount||0)+'</td>';
+    rows+='</tr>';
+  });
+  var html='<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">';
+  html+='<title>'+T('تقرير الأرشيف','Archive Report')+'</title>';
+  html+='<style>body{font-family:Arial,sans-serif;direction:rtl;margin:24px;color:#111;}';
+  html+='h1{color:#1a3558;font-size:20px;}table{width:100%;border-collapse:collapse;font-size:12px;}';
+  html+='th{background:#1a3558;color:#fff;padding:9px 10px;text-align:right;}';
+  html+='@media print{button{display:none!important;}}</style></head><body>';
+  html+='<div style="display:flex;justify-content:space-between;align-items:flex-start">';
+  html+='<div><h1>&#128451; '+T('تقرير أرشيف الموظفين','Employee Archive Report')+'</h1>';
+  html+='<p style="color:#555;font-size:12px">'+T('إجمالي الموظفين المؤرشفين','Total archived')+': <b>'+filtered.length+'</b></p></div>';
+  html+='<button onclick="window.print()" style="padding:9px 20px;background:#1a3558;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer">&#128424; '+T('طباعة / PDF','Print / PDF')+'</button>';
+  html+='</div>';
+  html+='<table><thead><tr>';
+  html+='<th>'+T('الاسم','Name')+'</th><th>'+T('رقم الموظف','ID')+'</th><th>'+T('المسمى','Title')+'</th>';
+  html+='<th>'+T('القسم','Dept')+'</th><th>'+T('تاريخ المغادرة','Left Date')+'</th>';
+  html+='<th>'+T('السبب','Reason')+'</th><th>'+T('الإجازات المسجلة','Leaves')+'</th>';
+  html+='</tr></thead><tbody>'+rows+'</tbody></table>';
+  html+='<p style="margin-top:16px;font-size:10px;color:#aaa">'+T('صدر بتاريخ','Generated')+': '+fmtF(new Date())+' — '+T('فريق الدعم الفني | المجدوعي السيارات','IT Support Team | Almajdouie Motors')+'</p>';
+  html+='</body></html>';
+  window.open(URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'})),'_blank');
 };
 
 window.addUser=function(){
@@ -357,6 +415,14 @@ function showSyncBadge(ok) {
   el.style.opacity = '1';
   setTimeout(function(){ el.style.opacity = '0.4'; }, 3000);
 }
+/* ── Employee Archive ── */
+var ARCHIVE = (function(){
+  try{var s=localStorage.getItem('jadwal_archive');return s?JSON.parse(s):[];}catch(e){return [];}
+})();
+function saveArchive(){
+  try{localStorage.setItem('jadwal_archive',JSON.stringify(ARCHIVE));}catch(e){}
+  if(window._db)window._db.collection('schedule').doc('jadwal_archive').set({data:ARCHIVE,updated:new Date()});
+}
 var REF=new Date('2026-01-04');
 
 /* ── Custom Labels ── */
@@ -372,6 +438,14 @@ function getLabel(key){ return CUSTOM_LABELS[key]||DEFAULT_LABELS[key]||key; }
 function saveLabels(){
   try{localStorage.setItem('jadwal_labels',JSON.stringify(CUSTOM_LABELS));}catch(e){}
   if(window._db)window._db.collection('schedule').doc('jadwal_labels').set({data:CUSTOM_LABELS,updated:new Date()});
+}
+/* ── Employee Archive ── */
+var ARCHIVE = (function(){
+  try{var s=localStorage.getItem('jadwal_archive');return s?JSON.parse(s):[];}catch(e){return [];}
+})();
+function saveArchive(){
+  try{localStorage.setItem('jadwal_archive',JSON.stringify(ARCHIVE));}catch(e){}
+  if(window._db)window._db.collection('schedule').doc('jadwal_archive').set({data:ARCHIVE,updated:new Date()});
 }
 var REF=new Date('2026-01-04');
 
@@ -704,11 +778,21 @@ window.saveEmp=function(){
 window.editEmp=function(id){editingEmp=id;openForm='emp';activeTab='employees';render();};
 window.delEmp=function(id){
   var emp=findEmp(id);if(!emp)return;
-  var msg=emp.core?'تحذير: موظف اساسي. هل غادر الشركة؟':'حذف الموظف نهائياً؟';
-  if(!confirm(msg))return;
+  var reason=prompt(T('سبب إنهاء الخدمة (اختياري):','Reason for leaving (optional):'))||'';
+  if(reason===null)return; /* cancelled */
+  /* Archive the employee */
+  var archived=JSON.parse(JSON.stringify(emp));
+  archived.archivedAt=new Date().toISOString();
+  archived.archivedReason=reason;
+  archived.leavesCount=LEAVES.filter(function(lv){return lv.empId===id;}).length;
+  ARCHIVE.push(archived);
+  saveArchive();
+  /* Remove from active */
   EMPS=EMPS.filter(function(e){return e.id!==id;});
   LEAVES=LEAVES.filter(function(lv){return lv.empId!==id;});
-  saveState();render();
+  saveState();
+  alert(T('✅ تم أرشفة الموظف — يمكن مراجعته من تقرير الأرشيف','✅ Employee archived — view in Archive Report'));
+  render();
 };
 window.togActive=function(id){
   var e=findEmp(id);if(!e)return;
@@ -1545,7 +1629,10 @@ function render(){
   h+='</div></div>';
   /* Right side info */
   h+='<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">';
-  if(currentUser)h+='<div style="display:flex;align-items:center;gap:8px"><span style="color:#a8c8f0;font-size:10px">&#128100; '+currentUser.name+'</span><button onclick="doLogout()" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:5px;padding:3px 10px;font-size:10px;cursor:pointer">&#128275; خروج</button></div>';
+  if(currentUser){
+    var roleBadge=isAdmin()?'':'<span style="background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700">'+T('مشاهدة فقط','View Only')+'</span> ';
+    h+='<div style="display:flex;align-items:center;gap:8px">'+roleBadge+'<span style="color:#a8c8f0;font-size:10px">&#128100; '+currentUser.name+'</span><button onclick="doLogout()" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:5px;padding:3px 10px;font-size:10px;cursor:pointer">&#128275; خروج</button></div>';
+  }
   h+='<p style="color:#a8c8f0;font-size:9.5px;text-align:left;line-height:1.6;margin:0">'+T('أحد-خميس','Sun-Thu')+': '+morningTime()+'<br>'+T('السبت','Sat')+': 10:00am-7:00pm</p>';
   h+='<span id="sync-badge" style="font-size:9px;background:#166534;color:#fff;border-radius:4px;padding:2px 7px;opacity:0.4;transition:opacity 1s">☁ '+T('متزامن','Synced')+'</span>';
   h+='</div>';
@@ -1587,12 +1674,24 @@ function render(){
   if(wkLv.length)h+='<span style="background:#f3e5f5;color:#6a1b9a;font-size:10.5px;font-weight:700;border-radius:6px;padding:4px 9px">&#128197; '+wkLv.length+' اجازة</span>';
   h+='</div>';
   h+='<div class="tabs">';
-  var tabs=[['schedule','&#128203; '+T('الجدول','Schedule')],['leaves','&#128197; '+T('الاجازات','Leaves')+' ('+LEAVES.length+')'],['holidays','&#127466;&#127462; '+T('الإجازات الرسمية','Official Holidays')],['employees','&#128101; '+T('الموظفون','Employees')],['email','&#9993; '+T('ارسال الجداول','Send Schedules')]].concat(isAdmin()?[['users','&#128100; '+T('المستخدمون','Users')+'('+USERS.length+')']]:[]);
+  var tabs=isAdmin()?
+    [['schedule','&#128203; '+T('الجدول','Schedule')],
+     ['leaves','&#128197; '+T('الاجازات','Leaves')+' ('+LEAVES.length+')'],
+     ['holidays','&#127466;&#127462; '+T('الإجازات الرسمية','Official Holidays')],
+     ['employees','&#128101; '+T('الموظفون','Employees')],
+     ['email','&#9993; '+T('ارسال الجداول','Send Schedules')],
+     ['users','&#128100; '+T('المستخدمون','Users')+'('+USERS.length+')']]
+    :[['schedule','&#128203; '+T('الجدول','Schedule')]];
   for(var ti=0;ti<tabs.length;ti++){
     h+='<div class="tab'+(activeTab===tabs[ti][0]?' active':'')+'" onclick="setTab(\''+tabs[ti][0]+'\')">'+tabs[ti][1]+'</div>';
   }
   h+='</div>';
   if(activeTab==='schedule')h+=renderSchedule(abdLv,pool);
+  else if(!isAdmin()){
+    /* viewer: redirect to schedule */
+    activeTab='schedule';
+    h+=renderSchedule(abdLv,pool);
+  }
   else if(activeTab==='leaves')h+=renderLeaves();
   else if(activeTab==='holidays')h+=renderHolidays();
   else if(activeTab==='users')h+=renderUsers();
