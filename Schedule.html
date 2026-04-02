@@ -640,19 +640,33 @@ function baseShifts(emp,ws){
     if(emp.fixed)return [N,N,N,N,N,O,O];
     if(emp.rotates){ /* fall through to rotation logic below */ }
     else if(emp.category==='sup'){
-      /* rotate on-call Friday — skip supervisors on leave that Friday */
-      var fridayDate=aD(ws,5); /* الجمعة = يوم 5 من الأسبوع */
+      /* rotate on-call Friday — skip on-leave AND skip last week's on-call */
+      var fridayDate=aD(ws,5);
+      var lastWeekSun=new Date(ws.getTime()-7*86400000);
+      var lastFriday=aD(lastWeekSun,5);
+      /* Find who was on-call last week */
+      var allSups=EMPS.filter(function(e){return e.active&&e.category==='sup';});
+      var lastPool=allSups.filter(function(e){return !onLeave(e.id,lastFriday);});
+      var lastWeekNum=Math.abs(Math.round((lastWeekSun-REF)/(7*86400000)));
+      var lastOnCallId=lastPool.length>0?lastPool[lastWeekNum%lastPool.length].id:null;
+      /* This week: exclude on-leave AND last week's on-call */
       var supPool=EMPS.filter(function(e){
-        return e.active&&e.category==='sup'&&!onLeave(e.id,fridayDate);
+        return e.active&&e.category==='sup'&&!onLeave(e.id,fridayDate)&&e.id!==lastOnCallId;
       });
+      /* fallback: if all excluded, allow last week's person (better than nobody) */
+      if(supPool.length===0){
+        supPool=EMPS.filter(function(e){
+          return e.active&&e.category==='sup'&&!onLeave(e.id,fridayDate);
+        });
+      }
       var sn2=supPool.length;
       if(sn2>0){
         var weekNum=Math.abs(Math.round((ws-REF)/(7*86400000)));
         var swk=weekNum%sn2;
         var onCallEmp=supPool[swk];
-        if(onCallEmp&&onCallEmp.id===emp.id)return [W,W,W,W,W,OC,O]; /* هذا الأسبوع أون كول */
+        if(onCallEmp&&onCallEmp.id===emp.id)return [W,W,W,W,W,OC,O];
       }
-      return [W,W,W,W,W,O,O]; /* باقي الأسابيع إجازة جمعة */
+      return [W,W,W,W,W,O,O];
     }
     else if(emp.category==='mgr')return [W,W,W,W,W,O,O]; /* المدير: إجازة جمعة دائماً */
     else return [W,W,W,W,W,O,O];
@@ -1755,7 +1769,14 @@ function renderSchedule(abdLv,pool){
   if(mE)h+='&#9728; '+T('سبت صباحي','Sat Morning')+' &larr; <b style="color:#0d47a1">'+mE.name.split(' ')[0]+'</b> &nbsp;|&nbsp; ';
   /* who is on-call this Friday */
   var fridayThisWeek=aD(curSun,5);
-  var supPool2=EMPS.filter(function(e){return e.active&&e.category==='sup'&&!onLeave(e.id,fridayThisWeek);});
+  var _lastSun=new Date(curSun.getTime()-7*86400000);
+  var _lastFri=aD(_lastSun,5);
+  var _allSups2=EMPS.filter(function(e){return e.active&&e.category==='sup';});
+  var _lastPool2=_allSups2.filter(function(e){return !onLeave(e.id,_lastFri);});
+  var _lastWn=Math.abs(Math.round((_lastSun-REF)/(7*86400000)));
+  var _lastOCId=_lastPool2.length>0?_lastPool2[_lastWn%_lastPool2.length].id:null;
+  var supPool2=EMPS.filter(function(e){return e.active&&e.category==='sup'&&!onLeave(e.id,fridayThisWeek)&&e.id!==_lastOCId;});
+  if(supPool2.length===0)supPool2=EMPS.filter(function(e){return e.active&&e.category==='sup'&&!onLeave(e.id,fridayThisWeek);});
   var onCallThisWeek=supPool2.length>0?supPool2[Math.abs(Math.round((curSun-REF)/(7*86400000)))%supPool2.length]:null;
   h+='&#128274; '+T('الجمعة','Fri')+': ';
   if(onCallThisWeek)h+='<b style="color:#c2410c">'+T('أون كول','On-Call')+': '+onCallThisWeek.name.split(' ')[0]+'</b>';
