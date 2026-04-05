@@ -283,6 +283,58 @@ window.exportArchiveReport=function(){
   window.open(URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'})),'_blank');
 };
 
+window.editCell=function(empId, dayIdx){
+  if(!isAdmin()) return;
+  var emp=findEmp(empId);
+  if(!emp) return;
+  var dt=aD(curSun,dayIdx);
+  var curShifts=getShifts(emp,curSun);
+  var cur=curShifts[dayIdx];
+  var dayName=(LANG==='en'?DAYS_EN:DAYS_AR)[dayIdx]+' '+fmtF(dt);
+
+  var opts=[
+    {v:M, label:T('صباحي','Morning')},
+    {v:N, label:T('ليلي','Night')},
+    {v:A, label:T('مسائي','Afternoon')},
+    {v:O, label:T('إجازة','Day Off')},
+    {v:L, label:T('إجازة خاصة','Vacation')},
+    {v:OC,label:T('أون كول','On-Call')},
+    {v:C, label:T('بديل ليلي','Night Cover')},
+  ];
+
+  /* Build modal */
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9998;display:flex;align-items:center;justify-content:center';
+  var box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:14px;padding:24px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2);text-align:center;direction:rtl';
+  box.innerHTML='<h3 style="color:#1a3558;font-size:14px;margin:0 0 4px">&#9998; '+T('تعديل يدوي','Manual Edit')+'</h3>'+
+    '<p style="color:#888;font-size:11px;margin:0 0 16px">'+emp.name+' — '+dayName+'</p>'+
+    opts.map(function(o){
+      var isCur=o.v===cur;
+      return '<button onclick="applyCellEdit(\''+empId+'\','+dayIdx+',\''+o.v+'\',this.parentNode.parentNode)" '+
+        'style="display:block;width:100%;margin-bottom:7px;padding:9px;border:2px solid '+(isCur?'#1a3558':'#e0eaf5')+';border-radius:8px;background:'+(isCur?'#1a3558':'#fff')+';color:'+(isCur?'#fff':'#1a3558')+';font-size:13px;font-weight:'+(isCur?'700':'400')+';cursor:pointer">'+
+        o.label+(isCur?' ✓':'')+'</button>';
+    }).join('')+
+    '<button onclick="this.parentNode.parentNode.remove()" style="margin-top:6px;padding:7px 20px;border:1px solid #e0eaf5;border-radius:7px;background:#f8fafd;color:#666;font-size:12px;cursor:pointer">'+T('إلغاء','Cancel')+'</button>';
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  overlay.onclick=function(ev){if(ev.target===overlay)overlay.remove();};
+};
+
+window.applyCellEdit=function(empId,dayIdx,newShift,overlayEl){
+  /* Save per-day override: empId_date_dayIdx */
+  var dt=aD(curSun,dayIdx);
+  var key=empId+'_'+fmtI(curSun)+'_d'+dayIdx;
+  if(newShift==='clear'||newShift===getShifts(findEmp(empId),curSun)[dayIdx]){
+    delete OVERRIDES[key];
+  } else {
+    OVERRIDES[key]=newShift;
+  }
+  saveOverrides();
+  overlayEl.remove();
+  render();
+};
+
 window.addUser=function(){
   var un=document.getElementById('nu-user').value.trim();
   var pw=document.getElementById('nu-pass').value.trim();
@@ -699,6 +751,9 @@ function getShifts(emp,ws){
   for(var d=0;d<7;d++){
     var dt=aD(ws,d);
     var wd=dt.getDay();
+    /* 0. Per-day manual override — highest priority */
+    var dayKey=emp.id+'_'+fmtI(ws)+'_d'+d;
+    if(OVERRIDES[dayKey]!==undefined){b[d]=OVERRIDES[dayKey];continue;}
     /* 1. Official holiday — highest priority */
     var hol=isHoliday(dt);
     if(hol){
@@ -1891,7 +1946,13 @@ function renderSchedule(abdLv,pool){
         } else {
           cellContent=shH(sh[d2],e.category,e.region,d2);
         }
-        h+='<td '+tdAttr+'>'+cellContent+'</td>';
+        /* Add click to edit if admin */
+        var cellClick='';
+        if(isAdmin()){
+          var ovk=overrideKey(e.id,curSun)+'_d'+d2;
+          cellClick=' onclick="editCell(\''+e.id+'\','+d2+')" style="cursor:pointer" title="'+T('انقر للتعديل','Click to edit')+'"';
+        }
+        h+='<td '+tdAttr+cellClick+'>'+cellContent+'</td>';
       }
 
       h+='</tr>';
