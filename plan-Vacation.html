@@ -1,94 +1,91 @@
-<div class="bg-white p-6 rounded-xl shadow-md mb-8 border-l-4 border-green-500">
-    <div class="flex justify-between items-center mb-4">
-        <h2 class="font-bold text-blue-900" id="sectionEmp">1. Employee Database</h2>
-        <div class="flex gap-2">
-            <button onclick="exportEmployees()" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded text-xs font-bold border border-emerald-300 hover:bg-emerald-200 transition">
-                Export Employees (Excel)
-            </button>
-            <label class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-xs font-bold border border-orange-300 hover:bg-orange-200 cursor-pointer transition">
-                Import Employees (Excel)
-                <input type="file" id="importEmpFile" class="hidden" accept=".xlsx, .xls">
-            </label>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input id="newEmpId" type="text" placeholder="Employee ID" class="border p-2 rounded-lg outline-none focus:ring-2 focus:ring-green-400">
-        <input id="newEmpName" type="text" placeholder="Full Name" class="border p-2 rounded-lg outline-none focus:ring-2 focus:ring-green-400">
-        <input id="newEmpDept" type="text" placeholder="Department" class="border p-2 rounded-lg outline-none focus:ring-2 focus:ring-green-400">
-        <select id="newEmpRole" class="border p-2 rounded-lg bg-gray-50">
-            <option value="Employee">Employee</option>
-            <option value="Supervisor">Supervisor</option>
-            <option value="Manager">Manager</option>
-            <option value="Director">Director</option>
-        </select>
-        <button onclick="addNewEmployee()" class="bg-green-600 text-white font-bold py-2 rounded-lg md:col-span-4 hover:bg-green-700 transition shadow-md">
-            Add Employee to Database
-        </button>
-    </div>
-</div>
-
-<script type="module">
-    // ... (تأكد من وجود استيراد Firebase و initializeApp في بداية السكريبت كما في الأكواد السابقة)
-    
-    // --- وظيفة تصدير الموظفين إلى إكسل ---
-    window.exportEmployees = async () => {
-        try {
-            const snap = await getDocs(empCol); // جلب قائمة الموظفين فقط
-            const data = snap.docs.map(doc => {
-                const e = doc.data();
-                return {
-                    "Employee ID": e.empId,
-                    "Full Name": e.name,
-                    "Department": e.dept,
-                    "Role": e.role
-                };
-            });
-            
-            if (data.length === 0) return alert("No employees found to export!");
-
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Employees_Database");
-            XLSX.writeFile(wb, "Almajdouie_Employees_List.xlsx");
-        } catch (error) {
-            console.error("Export Error:", error);
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee & Vacation Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Tajawal', sans-serif; }
+        /* تصميم مخصص للبار والخلفية */
+        .bg-custom { 
+            background-image: url('https://i.ibb.co/vzYpXfN/almajdouie-logo.png'); 
+            background-size: cover; background-position: center; 
+            background-color: rgba(255, 255, 255, 0.95); background-blend-mode: overlay; 
         }
-    };
+    </style>
+</head>
+<body class="bg-slate-100 p-4 md:p-10">
 
-    // --- وظيفة استيراد الموظفين من إكسل ---
-    document.getElementById('importEmpFile').onchange = (e) => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
+    <div class="max-w-7xl mx-auto">
         
-        reader.onload = async (event) => {
-            try {
-                const data = event.target.result;
-                const workbook = XLSX.read(data, { type: 'binary' });
-                const sheetName = workbook.SheetNames[0];
-                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-8 border-green-600">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 class="text-2xl font-bold text-blue-900">1. Employee Database</h2>
+                
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="exportEmployees()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-md transition">
+                        Export Employees
+                    </button>
+                    
+                    <label class="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-orange-600 cursor-pointer shadow-md transition">
+                        Import From Excel
+                        <input type="file" id="importEmpFile" class="hidden" accept=".xlsx, .xls">
+                    </label>
+                </div>
+            </div>
 
-                let addedCount = 0;
-                for (const row of rows) {
-                    const empData = {
-                        empId: String(row["Employee ID"] || row["ID"] || ""),
-                        name: row["Full Name"] || row["Name"] || "",
-                        dept: row["Department"] || row["Dept"] || "",
-                        role: row["Role"] || "Employee"
-                    };
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <input id="newEmpId" type="text" placeholder="Employee ID" class="border-2 p-3 rounded-lg outline-none focus:border-green-500 transition">
+                <input id="newEmpName" type="text" placeholder="Full Name" class="border-2 p-3 rounded-lg outline-none focus:border-green-500 transition">
+                <input id="newEmpDept" type="text" placeholder="Department" class="border-2 p-3 rounded-lg outline-none focus:border-green-500 transition">
+                <select id="newEmpRole" class="border-2 p-3 rounded-lg bg-gray-50 outline-none">
+                    <option value="Employee">Employee</option>
+                    <option value="Supervisor">Supervisor</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Director">Director</option>
+                </select>
+                <button onclick="addNewEmployee()" class="bg-green-600 text-white font-bold py-3 rounded-lg md:col-span-4 hover:bg-green-700 shadow-lg transform active:scale-95 transition">
+                    + Add Employee to Database
+                </button>
+            </div>
+        </div>
 
-                    if (empData.empId && empData.name) {
-                        // إضافة الموظف لقاعدة البيانات
-                        await addDoc(empCol, empData);
-                        addedCount++;
-                    }
-                }
-                alert(`Successfully imported ${addedCount} employees!`);
-            } catch (err) {
-                console.error("Import Error:", err);
-                alert("Error reading Excel file. Check column headers.");
-            }
-        };
-        reader.readAsBinaryString(file);
-    };
-</script>
+        <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-8 border-blue-800">
+            <h2 class="text-2xl font-bold text-blue-900 mb-6">2. Vacation Planner (Linked)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-bold text-gray-600 mb-1">Select Registered Employee</label>
+                    <select id="selectEmployee" class="border-2 p-3 rounded-lg w-full bg-blue-50 font-bold outline-none focus:border-blue-800">
+                        <option value="">-- Choose from Database --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-600 mb-1">Vacation Starts</label>
+                    <input id="vacFrom" type="date" class="border-2 p-3 rounded-lg w-full outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-600 mb-1">Vacation Ends</label>
+                    <input id="vacTo" type="date" class="border-2 p-3 rounded-lg w-full outline-none">
+                </div>
+                <button id="addVacBtn" class="bg-blue-800 text-white font-bold py-3 rounded-lg md:col-span-3 hover:bg-blue-900 shadow-lg transition">
+                    Submit Linked Vacation Plan
+                </button>
+            </div>
+        </div>
+
+        <div class="text-center text-gray-400 py-10">
+            Timeline and Vacation Table will appear here based on your database...
+        </div>
+
+    </div>
+
+    <script type="module">
+        // تأكد من إضافة بيانات Firebase الخاصة بك هنا لكي تعمل الأزرار
+        console.log("System Ready...");
+    </script>
+
+</body>
+</html>
