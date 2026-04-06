@@ -1,276 +1,43 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl" id="htmlTag">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vacation System - Enterprise</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Tajawal', sans-serif; transition: all 0.3s ease; }
-    </style>
-</head>
-<body class="bg-slate-50 p-4 md:p-8">
+// --- دالة الإضافة الذكية (تسمح بتعدد الإجازات لنفس الموظف) ---
+async function checkAndAdd(data) {
+    const startDate = new Date(data.from);
+    const key = `${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
+    const t = translations[currentLang];
 
-    <div class="max-w-7xl mx-auto">
-        <div class="flex flex-wrap justify-between items-center mb-8 gap-4 bg-white p-6 rounded-xl shadow-sm border-b-2 border-blue-600">
-            <h1 id="title" class="text-2xl md:text-3xl font-bold text-blue-900 pr-4">نظام تخطيط الإجازات السنوية</h1>
-            <div class="flex flex-wrap gap-2">
-                <button onclick="exportToExcel()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-bold shadow-sm flex items-center gap-2">
-                    <span id="btnExport">تصدير Excel</span>
-                </button>
-                <label class="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 font-bold shadow-sm cursor-pointer flex items-center gap-2">
-                    <span id="btnImport">استيراد Excel</span>
-                    <input type="file" id="importFile" class="hidden" accept=".xlsx, .xls">
-                </label>
-                <button onclick="toggleLanguage()" class="bg-white border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 font-bold">
-                    EN / عربي
-                </button>
-            </div>
-        </div>
+    // جلب كافة الإجازات المسجلة في هذا الشهر لهذا المسمى الوظيفي
+    const q = query(vacCollection, where("monthKey", "==", key), where("role", "==", data.role));
+    const snap = await getDocs(q);
+    
+    // استخراج الأرقام الوظيفية الفريدة الموجودة حالياً في هذا الشهر
+    const existingEmpIds = new Set();
+    snap.forEach(doc => {
+        existingEmpIds.add(doc.data().empId);
+    });
 
-        <div class="bg-white p-6 rounded-xl shadow-md mb-8 border-t-4 border-blue-600">
-            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                <div>
-                    <label id="labelID" class="block text-sm font-bold mb-1 text-gray-600">الرقم الوظيفي</label>
-                    <input id="empId" type="text" placeholder="ID" class="border p-2 rounded-lg w-full outline-none focus:ring-2 focus:ring-blue-400">
-                </div>
-                <div>
-                    <label id="labelName" class="block text-sm font-bold mb-1 text-gray-600">الاسم الكامل</label>
-                    <input id="empName" type="text" placeholder="Full Name" class="border p-2 rounded-lg w-full outline-none focus:ring-2 focus:ring-blue-400">
-                </div>
-                <div>
-                    <label id="labelDept" class="block text-sm font-bold mb-1 text-gray-600">قسم الإدارة</label>
-                    <input id="empDept" type="text" placeholder="Department" class="border p-2 rounded-lg w-full outline-none focus:ring-2 focus:ring-blue-400">
-                </div>
-                <div>
-                    <label id="labelRole" class="block text-sm font-bold mb-1 text-gray-600">المسمى الوظيفي</label>
-                    <select id="empRole" class="border p-2 rounded-lg w-full bg-gray-50">
-                        <option value="Employee" id="optEmp">موظف</option>
-                        <option value="Supervisor" id="optSup">مشرف</option>
-                        <option value="Manager" id="optMgr">مدير</option>
-                        <option value="Director" id="optDir">دايريكتور</option>
-                    </select>
-                </div>
-                <div>
-                    <label id="labelFrom" class="block text-sm font-bold mb-1 text-gray-600">من تاريخ</label>
-                    <input id="dateFrom" type="date" class="border p-2 rounded-lg w-full">
-                </div>
-                <div>
-                    <label id="labelTo" class="block text-sm font-bold mb-1 text-gray-600">إلى تاريخ</label>
-                    <input id="dateTo" type="date" class="border p-2 rounded-lg w-full">
-                </div>
-                <div class="flex items-end lg:col-span-2">
-                    <button id="addBtn" class="bg-blue-600 text-white w-full py-2.5 rounded-lg hover:bg-blue-700 font-bold transition shadow-md text-lg">إضافة الخطة</button>
-                </div>
-            </div>
-            <p id="errorMsg" class="text-red-500 mt-4 hidden font-bold text-center bg-red-50 p-2 rounded border border-red-200"></p>
-        </div>
+    // تعريف الحدود القصوى (عدد الأشخاص المختلفين المسموح بهم)
+    const limits = {
+        "Employee": 1,
+        "Supervisor": 2,
+        "Manager": 1,
+        "Director": 1
+    };
 
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-right border-collapse" id="mainTable">
-                    <thead class="bg-blue-600 text-white">
-                        <tr>
-                            <th class="p-4" id="thID">الرقم</th>
-                            <th class="p-4" id="thName">الاسم</th>
-                            <th class="p-4" id="thDept">القسم</th>
-                            <th class="p-4" id="thRole">المسمى</th>
-                            <th class="p-4" id="thFrom">من</th>
-                            <th class="p-4" id="thTo">إلى</th>
-                            <th class="p-4 text-center" id="thAction">الإجراء</th>
-                        </tr>
-                    </thead>
-                    <tbody id="vacationTable"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, where, getDocs } 
-        from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        // ⚠️ استبدل بالبيانات الخاصة بك
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
+    // التحقق: إذا كان الموظف الجديد ليس من ضمن الموجودين أصلاً، وهل وصلنا للحد الأقصى؟
+    if (!existingEmpIds.has(data.empId) && existingEmpIds.size >= (limits[data.role] || 1)) {
+        return { 
+            success: false, 
+            msg: currentLang === 'ar' 
+                ? `⚠️ تعارض: يوجد موظف آخر حجز هذا الشهر. مسموح بـ ${limits[data.role]} فقط.` 
+                : `⚠️ Conflict: Another person already booked this month. Limit is ${limits[data.role]}.`
         };
+    }
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const vacCollection = collection(db, "vacations");
-
-        // --- الترجمة ---
-        let currentLang = 'ar';
-        const translations = {
-            ar: {
-                title: "نظام تخطيط الإجازات السنوية",
-                labelID: "الرقم الوظيفي", labelName: "الاسم الكامل", labelDept: "قسم الإدارة", labelRole: "المسمى الوظيفي", labelFrom: "من تاريخ", labelTo: "إلى تاريخ",
-                addBtn: "إضافة الخطة", btnExport: "تصدير Excel", btnImport: "استيراد Excel",
-                thID: "الرقم", thName: "الاسم", thDept: "القسم", thRole: "المسمى", thFrom: "من", thTo: "إلى", thAction: "الإجراء",
-                optEmp: "موظف", optSup: "مشرف", optMgr: "مدير", optDir: "دايريكتور",
-                errConflict: "⚠️ تعارض: تم تجاوز الحد المسموح به لهذا المسمى في شهر ",
-                delConfirm: "هل أنت متأكد من حذف هذا الطلب؟", btnDel: "حذف"
-            },
-            en: {
-                title: "Annual Vacation Planner",
-                labelID: "Employee ID", labelName: "Full Name", labelDept: "Department", labelRole: "Job Title", labelFrom: "From Date", labelTo: "To Date",
-                addBtn: "Add Plan", btnExport: "Export Excel", btnImport: "Import Excel",
-                thID: "ID", thName: "Name", thDept: "Dept", thRole: "Title", thFrom: "From", thTo: "To", thAction: "Action",
-                optEmp: "Employee", optSup: "Supervisor", optMgr: "Manager", optDir: "Director",
-                errConflict: "⚠️ Conflict: Limit exceeded for this title in month ",
-                delConfirm: "Are you sure you want to delete this?", btnDel: "Delete"
-            }
-        };
-
-        window.toggleLanguage = () => {
-            currentLang = currentLang === 'ar' ? 'en' : 'ar';
-            document.getElementById('htmlTag').dir = currentLang === 'ar' ? 'rtl' : 'ltr';
-            const t = translations[currentLang];
-            document.getElementById('title').innerText = t.title;
-            document.getElementById('labelID').innerText = t.labelID;
-            document.getElementById('labelName').innerText = t.labelName;
-            document.getElementById('labelDept').innerText = t.labelDept;
-            document.getElementById('labelRole').innerText = t.labelRole;
-            document.getElementById('labelFrom').innerText = t.labelFrom;
-            document.getElementById('labelTo').innerText = t.labelTo;
-            document.getElementById('addBtn').innerText = t.addBtn;
-            document.getElementById('btnExport').innerText = t.btnExport;
-            document.getElementById('btnImport').innerText = t.btnImport;
-            document.getElementById('thID').innerText = t.thID;
-            document.getElementById('thName').innerText = t.thName;
-            document.getElementById('thDept').innerText = t.thDept;
-            document.getElementById('thRole').innerText = t.thRole;
-            document.getElementById('thFrom').innerText = t.thFrom;
-            document.getElementById('thTo').innerText = t.thTo;
-            document.getElementById('thAction').innerText = t.thAction;
-            document.getElementById('optEmp').innerText = t.optEmp;
-            document.getElementById('optSup').innerText = t.optSup;
-            document.getElementById('optMgr').innerText = t.optMgr;
-            document.getElementById('optDir').innerText = t.optDir;
-        };
-
-        // --- منطق الإضافة والتحقق ---
-        async function checkAndAdd(data) {
-            const startDate = new Date(data.from);
-            const key = `${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
-            const q = query(vacCollection, where("monthKey", "==", key), where("role", "==", data.role));
-            const snap = await getDocs(q);
-            const t = translations[currentLang];
-            
-            // تعريف الحدود القصوى
-            const limits = {
-                "Employee": 1,
-                "Supervisor": 2,
-                "Manager": 1,
-                "Director": 1
-            };
-
-            if (snap.size >= (limits[data.role] || 1)) {
-                return {success: false, msg: t.errConflict + key};
-            }
-
-            await addDoc(vacCollection, {...data, monthKey: key, createdAt: new Date()});
-            return {success: true};
-        }
-
-        document.getElementById('addBtn').onclick = async () => {
-            const data = {
-                empId: document.getElementById('empId').value,
-                name: document.getElementById('empName').value,
-                dept: document.getElementById('empDept').value,
-                role: document.getElementById('empRole').value,
-                from: document.getElementById('dateFrom').value,
-                to: document.getElementById('dateTo').value
-            };
-            if(!data.empId || !data.name || !data.from || !data.to) return alert("الرجاء إكمال كافة الخانات");
-            
-            const res = await checkAndAdd(data);
-            if(!res.success) showError(res.msg);
-            else {
-                document.getElementById('errorMsg').classList.add('hidden');
-                document.getElementById('empId').value = ""; document.getElementById('empName').value = "";
-            }
-        };
-
-        // --- الألوان بناءً على المسمى ---
-        function getRoleBadge(role) {
-            const t = translations[currentLang];
-            const badges = {
-                "Employee": { text: t.optEmp, class: "bg-green-100 text-green-700" },
-                "Supervisor": { text: t.optSup, class: "bg-purple-100 text-purple-700" },
-                "Manager": { text: t.optMgr, class: "bg-blue-100 text-blue-700" },
-                "Director": { text: t.optDir, class: "bg-orange-100 text-orange-700" }
-            };
-            const b = badges[role] || badges["Employee"];
-            return `<span class="px-2 py-1 rounded-md text-xs font-bold ${b.class}">${b.text}</span>`;
-        }
-
-        // --- تحديث الجدول الحي ---
-        onSnapshot(vacCollection, (snap) => {
-            const tbody = document.getElementById('vacationTable');
-            tbody.innerHTML = "";
-            snap.forEach(docSnap => {
-                const v = docSnap.data();
-                tbody.innerHTML += `
-                    <tr class="border-b hover:bg-gray-50 transition">
-                        <td class="p-4 text-gray-500 font-medium">${v.empId}</td>
-                        <td class="p-4 font-bold text-gray-800">${v.name}</td>
-                        <td class="p-4 text-gray-600">${v.dept}</td>
-                        <td class="p-4">${getRoleBadge(v.role)}</td>
-                        <td class="p-4 text-gray-600">${v.from}</td>
-                        <td class="p-4 text-gray-600">${v.to}</td>
-                        <td class="p-4 text-center">
-                            <button class="text-red-500 hover:text-red-700 font-bold" onclick="deleteVacation('${docSnap.id}')">
-                                ${translations[currentLang].btnDel}
-                            </button>
-                        </td>
-                    </tr>`;
-            });
-        });
-
-        // --- تصدير واستيراد ---
-        window.exportToExcel = async () => {
-            const snap = await getDocs(vacCollection);
-            const data = snap.docs.map(doc => {
-                const v = doc.data();
-                return { "رقم الموظف": v.empId, "الاسم الكامل": v.name, "القسم": v.dept, "المسمى": v.role, "من": v.from, "إلى": v.to };
-            });
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Vacations");
-            XLSX.writeFile(wb, "Vacation_Plan_Full.xlsx");
-        };
-
-        document.getElementById('importFile').onchange = (e) => {
-            const reader = new FileReader();
-            reader.onload = async (ev) => {
-                const wb = XLSX.read(ev.target.result, { type: 'binary' });
-                const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                for(let r of rows) {
-                    await checkAndAdd({
-                        empId: r["رقم الموظف"] || r["ID"],
-                        name: r["الاسم الكامل"] || r["Name"],
-                        dept: r["القسم"] || r["Dept"],
-                        role: r["المسمى"] || r["Role"],
-                        from: r["من"] || r["From"],
-                        to: r["إلى"] || r["To"]
-                    });
-                }
-                alert("تم استيراد البيانات بنجاح");
-            };
-            reader.readAsBinaryString(e.target.files[0]);
-        };
-
-        window.deleteVacation = async (id) => { if(confirm(translations[currentLang].delConfirm)) await deleteDoc(doc(db, "vacations", id)); };
-        function showError(m) { const e = document.getElementById('errorMsg'); e.innerText = m; e.classList.remove('hidden'); }
-    </script>
-</body>
-</html>
+    // إذا مر الفحص، يتم إضافة الإجازة (سواء كانت الأولى أو العاشرة للموظف)
+    await addDoc(vacCollection, {
+        ...data,
+        monthKey: key,
+        createdAt: new Date()
+    });
+    
+    return { success: true };
+}
