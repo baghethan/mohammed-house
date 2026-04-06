@@ -1,91 +1,104 @@
-<!DOCTYPE html>
-<html lang="en" dir="ltr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Employee & Vacation Manager</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Tajawal', sans-serif; }
-        /* تصميم مخصص للبار والخلفية */
-        .bg-custom { 
-            background-image: url('https://i.ibb.co/vzYpXfN/almajdouie-logo.png'); 
-            background-size: cover; background-position: center; 
-            background-color: rgba(255, 255, 255, 0.95); background-blend-mode: overlay; 
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, onSnapshot, query, where } 
+    from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // 1. ⚠️ ضع بيانات Firebase الخاصة بك هنا (مهم جداً)
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const empCol = collection(db, "employees");
+    const vacCol = collection(db, "vacations");
+
+    let allEmployees = []; // لتخزين الموظفين محلياً وتحديث القائمة
+
+    // --- وظيفة: إضافة موظف جديد للقاعدة ---
+    window.addNewEmployee = async () => {
+        const id = document.getElementById('newEmpId').value;
+        const name = document.getElementById('newEmpName').value;
+        const dept = document.getElementById('newEmpDept').value;
+        const role = document.getElementById('newEmpRole').value;
+
+        if (!id || !name) return alert("الرجاء إدخال الرقم الوظيفي والاسم!");
+
+        try {
+            await addDoc(empCol, { empId: id, name: name, dept: dept, role: role });
+            alert("تم إضافة الموظف لقاعدة البيانات بنجاح ✅");
+            // مسح الحقول بعد الإضافة
+            document.getElementById('newEmpId').value = "";
+            document.getElementById('newEmpName').value = "";
+            document.getElementById('newEmpDept').value = "";
+        } catch (e) {
+            console.error("Error adding employee: ", e);
         }
-    </style>
-</head>
-<body class="bg-slate-100 p-4 md:p-10">
+    };
 
-    <div class="max-w-7xl mx-auto">
+    // --- وظيفة: تحديث القائمة المنسدلة تلقائياً (Dropdown) ---
+    onSnapshot(empCol, (snap) => {
+        const select = document.getElementById('selectEmployee');
+        select.innerHTML = '<option value="">-- Choose from Database --</option>';
+        allEmployees = [];
+
+        snap.forEach(doc => {
+            const emp = doc.data();
+            allEmployees.push(emp);
+            // إضافة الاسم للقائمة المنسدلة
+            const option = document.createElement('option');
+            option.value = emp.empId;
+            option.innerText = `${emp.name} (${emp.empId})`;
+            select.appendChild(option);
+        });
+        console.log("Database updated: ", allEmployees.length, " employees found.");
+    });
+
+    // --- وظيفة: تصدير الموظفين إلى إكسل (Fixed) ---
+    window.exportEmployees = async () => {
+        const snap = await getDocs(empCol);
+        const data = snap.docs.map(doc => doc.data());
         
-        <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-8 border-green-600">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <h2 class="text-2xl font-bold text-blue-900">1. Employee Database</h2>
-                
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="exportEmployees()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-emerald-700 shadow-md transition">
-                        Export Employees
-                    </button>
-                    
-                    <label class="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-orange-600 cursor-pointer shadow-md transition">
-                        Import From Excel
-                        <input type="file" id="importEmpFile" class="hidden" accept=".xlsx, .xls">
-                    </label>
-                </div>
-            </div>
+        if (data.length === 0) return alert("لا يوجد موظفين لتصديرهم!");
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <input id="newEmpId" type="text" placeholder="Employee ID" class="border-2 p-3 rounded-lg outline-none focus:border-green-500 transition">
-                <input id="newEmpName" type="text" placeholder="Full Name" class="border-2 p-3 rounded-lg outline-none focus:border-green-500 transition">
-                <input id="newEmpDept" type="text" placeholder="Department" class="border-2 p-3 rounded-lg outline-none focus:border-green-500 transition">
-                <select id="newEmpRole" class="border-2 p-3 rounded-lg bg-gray-50 outline-none">
-                    <option value="Employee">Employee</option>
-                    <option value="Supervisor">Supervisor</option>
-                    <option value="Manager">Manager</option>
-                    <option value="Director">Director</option>
-                </select>
-                <button onclick="addNewEmployee()" class="bg-green-600 text-white font-bold py-3 rounded-lg md:col-span-4 hover:bg-green-700 shadow-lg transform active:scale-95 transition">
-                    + Add Employee to Database
-                </button>
-            </div>
-        </div>
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Employees");
+        XLSX.writeFile(workbook, "Employee_Database.xlsx");
+    };
 
-        <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-8 border-blue-800">
-            <h2 class="text-2xl font-bold text-blue-900 mb-6">2. Vacation Planner (Linked)</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                    <label class="block text-sm font-bold text-gray-600 mb-1">Select Registered Employee</label>
-                    <select id="selectEmployee" class="border-2 p-3 rounded-lg w-full bg-blue-50 font-bold outline-none focus:border-blue-800">
-                        <option value="">-- Choose from Database --</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-600 mb-1">Vacation Starts</label>
-                    <input id="vacFrom" type="date" class="border-2 p-3 rounded-lg w-full outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-600 mb-1">Vacation Ends</label>
-                    <input id="vacTo" type="date" class="border-2 p-3 rounded-lg w-full outline-none">
-                </div>
-                <button id="addVacBtn" class="bg-blue-800 text-white font-bold py-3 rounded-lg md:col-span-3 hover:bg-blue-900 shadow-lg transition">
-                    Submit Linked Vacation Plan
-                </button>
-            </div>
-        </div>
+    // --- وظيفة: إضافة خطة إجازة مرتبطة بالموظف المختار ---
+    document.getElementById('addVacBtn').onclick = async () => {
+        const empId = document.getElementById('selectEmployee').value;
+        const from = document.getElementById('vacFrom').value;
+        const to = document.getElementById('vacTo').value;
 
-        <div class="text-center text-gray-400 py-10">
-            Timeline and Vacation Table will appear here based on your database...
-        </div>
+        if (!empId || !from || !to) return alert("يرجى اختيار الموظف والتواريخ!");
 
-    </div>
+        // العثور على بيانات الموظف من القائمة التي جلبناها
+        const empData = allEmployees.find(e => e.empId === empId);
 
-    <script type="module">
-        // تأكد من إضافة بيانات Firebase الخاصة بك هنا لكي تعمل الأزرار
-        console.log("System Ready...");
-    </script>
+        try {
+            // إضافة الإجازة مع بيانات الموظف كاملة
+            const start = new Date(from);
+            const key = `${start.getMonth() + 1}-${start.getFullYear()}`;
 
-</body>
-</html>
+            await addDoc(vacCol, {
+                ...empData,
+                from: from,
+                to: to,
+                monthKey: key,
+                createdAt: new Date()
+            });
+
+            alert(`تم ربط إجازة الموظف ${empData.name} بنجاح ✅`);
+        } catch (e) {
+            alert("حدث خطأ أثناء الربط!");
+        }
+    };
+</script>
