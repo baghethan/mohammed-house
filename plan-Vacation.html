@@ -3,34 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Vacation System - Excel & Precision Edition</title>
+    <title>Almajdouie Vacation System - Precision Final</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Tajawal', sans-serif; background-color: #f1f5f9; margin: 0; }
-        .vacation-bar { height: 24px; border-radius: 6px; position: absolute; z-index: 20; top: 50%; transform: translateY(-50%); box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.4); }
-        :root { --info-width: 680px; --name-w: 300px; --date-w: 130px; --days-w: 120px; --row-h: 60px; }
-        .chart-row { display: flex; border-bottom: 1px solid #e2e8f0; height: var(--row-h); align-items: center; background: white; }
+        :root { --info-w: 680px; --row-h: 60px; }
+        
+        .vacation-bar { 
+            height: 24px; border-radius: 6px; position: absolute; z-index: 20; 
+            top: 50%; transform: translateY(-50%); box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+        }
+
+        .chart-row { display: flex; border-bottom: 1px solid #e2e8f0; height: var(--row-h); align-items: center; background: white; width: 100%; }
         .chart-row:nth-child(even) { background-color: #f8fafc; }
-        .info-cols { display: flex; width: var(--info-width); flex-shrink: 0; border-inline-end: 3px solid #1e3a8a; height: 100%; position: sticky; inset-inline-start: 0; z-index: 40; background: white; }
-        .col-name { width: var(--name-w); padding: 0 20px; flex-shrink: 0; }
-        .col-date { width: var(--date-w); text-align: center; justify-content: center; border-inline-end: 1px solid #f1f5f9; flex-shrink: 0; }
-        .col-days { width: var(--days-w); text-align: center; justify-content: center; flex-shrink: 0; }
-        .cell { display: flex; align-items: center; height: 100%; font-size: 13px; }
-        .name-txt { font-weight: 900; color: #0f172a; font-size: 14px; text-transform: uppercase; }
-        .date-txt { font-weight: 700; color: #64748b; font-family: sans-serif; font-size: 11px; }
-        .days-badge { background: #dcfce7; color: #166534; font-weight: 900; padding: 4px 12px; border-radius: 8px; font-size: 12px; }
-        .timeline-wrapper { flex-grow: 1; overflow-x: auto; background: white; position: relative; }
-        .timeline-content { min-width: 1600px; position: relative; height: 100%; }
+
+        /* الأعمدة الجانبية الثابتة */
+        .info-cols { display: flex; width: var(--info-w); flex-shrink: 0; border-inline-end: 3px solid #1e3a8a; height: 100%; position: sticky; inset-inline-start: 0; z-index: 40; background: inherit; }
+        .col-name { width: 300px; padding: 0 20px; flex-shrink: 0; display: flex; align-items: center; }
+        .col-date { width: 130px; text-align: center; justify-content: center; border-inline-end: 1px solid #f1f5f9; flex-shrink: 0; display: flex; align-items: center; }
+        .col-days { width: 120px; text-align: center; justify-content: center; flex-shrink: 0; display: flex; align-items: center; }
+
+        .name-txt { font-weight: 900; color: #0f172a; font-size: 13px; text-transform: uppercase; }
+        .days-badge { background: #dcfce7; color: #166534; font-weight: 900; padding: 4px 12px; border-radius: 8px; font-size: 11px; }
+
+        /* منطقة التايم لاين */
+        .timeline-wrapper { flex-grow: 1; overflow-x: auto; background: white; }
+        .timeline-content { min-width: 1500px; position: relative; height: 100%; display: flex; flex-direction: column; }
+        
         .month-header-cell { display: flex; align-items: center; justify-content: center; border-inline-end: 1px solid #334155; font-weight: 900; font-size: 11px; }
         .grid-line { border-inline-end: 1px solid #f1f5f9; height: 100%; position: absolute; top: 0; }
+
         .nav-btn { background: white; color: #1e3a8a; padding: 12px 20px; border-radius: 12px; font-weight: 700; border: 1px solid #e2e8f0; transition: 0.3s; }
-        .nav-btn.active { background: #1e3a8a; color: white; border-color: #1e3a8a; }
+        .nav-btn.active { background: #1e3a8a; color: white; }
         .section-content { display: none; }
         .section-content.active { display: block; }
-        .excel-btn { display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 12px; padding: 8px 16px; border-radius: 10px; transition: 0.2s; }
+        .excel-btn { display: flex; align-items: center; gap: 6px; font-weight: bold; font-size: 12px; padding: 8px 16px; border-radius: 10px; }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -39,9 +49,9 @@
         <div id="mainHeader" class="flex justify-between items-center mb-8 bg-white p-6 rounded-3xl shadow-sm border-b-4 border-blue-900">
             <img src="https://cafs.org.sa/wp-content/uploads/2023/03/Logo-Almajdouie-Holding-Company.jpg" class="h-14 w-auto">
             <div class="flex gap-3">
-                <button onclick="switchTab('employees')" id="btn-employees" class="nav-btn active">Staff 👥</button>
+                <button onclick="switchTab('employees')" id="btn-employees" class="nav-btn active">Staff Database 👥</button>
                 <button onclick="switchTab('leaves')" id="btn-leaves" class="nav-btn">Vacations 🗓️</button>
-                <button onclick="switchTab('schedule')" id="btn-schedule" class="nav-btn">Schedule View 📊</button>
+                <button onclick="switchTab('schedule')" id="btn-schedule" class="nav-btn">Final Schedule 📊</button>
                 <button onclick="toggleLanguage()" class="border-2 border-blue-900 text-blue-900 px-5 py-2 rounded-xl font-black">AR / EN</button>
             </div>
         </div>
@@ -49,30 +59,25 @@
         <div id="sec-employees" class="section-content active">
             <div class="bg-white p-8 rounded-3xl shadow-xl border-t-8 border-emerald-500">
                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-black">Staff Database</h2>
+                    <h2 class="text-2xl font-black">Employee Registry</h2>
                     <div class="flex gap-2">
-                        <button onclick="downloadStaffExcel()" class="excel-btn bg-slate-700 text-white hover:bg-slate-800">Download Excel 📥</button>
-                        <label class="excel-btn bg-orange-500 text-white cursor-pointer hover:bg-orange-600">
-                            Upload Excel 📤
-                            <input type="file" id="importStaffFile" class="hidden" accept=".xlsx, .xls">
+                        <button onclick="exportStaff()" class="excel-btn bg-slate-700 text-white">Download Staff 📥</button>
+                        <label class="excel-btn bg-orange-500 text-white cursor-pointer">
+                            Upload Staff 📤
+                            <input type="file" id="upStaff" class="hidden" accept=".xlsx, .xls">
                         </label>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                    <input id="newEmpId" type="text" placeholder="ID" class="border-2 p-3 rounded-2xl outline-none">
-                    <input id="newEmpName" type="text" placeholder="Full Name" class="border-2 p-3 rounded-2xl outline-none">
-                    <input id="newEmpDept" type="text" placeholder="Dept" class="border-2 p-3 rounded-2xl outline-none">
-                    <select id="newEmpRole" class="border-2 p-3 rounded-2xl bg-gray-50">
-                        <option value="Employee">Employee</option>
-                        <option value="Supervisor">Supervisor</option>
-                        <option value="Manager">Manager</option>
-                        <option value="Director">Director</option>
-                    </select>
-                    <button onclick="addNewEmployee()" class="bg-emerald-600 text-white font-black py-4 rounded-2xl md:col-span-4 shadow-lg hover:bg-emerald-700 transition">+ Save Member</button>
+                    <input id="newId" type="text" placeholder="ID" class="border-2 p-3 rounded-2xl">
+                    <input id="newName" type="text" placeholder="Full Name" class="border-2 p-3 rounded-2xl">
+                    <input id="newDept" type="text" placeholder="Dept" class="border-2 p-3 rounded-2xl">
+                    <select id="newRole" class="border-2 p-3 rounded-2xl"><option value="Employee">Employee</option><option value="Supervisor">Supervisor</option><option value="Manager">Manager</option></select>
+                    <button onclick="addEmp()" class="bg-emerald-600 text-white font-black py-4 rounded-2xl md:col-span-4">+ Register Staff</button>
                 </div>
                 <table class="w-full text-left">
                     <thead class="bg-slate-50 text-xs font-bold uppercase"><tr><th class="p-4">ID</th><th class="p-4">Name</th><th class="p-4 text-center">Action</th></tr></thead>
-                    <tbody id="registeredEmpTable"></tbody>
+                    <tbody id="staffTable"></tbody>
                 </table>
             </div>
         </div>
@@ -82,52 +87,48 @@
                 <div class="flex justify-between items-center mb-8">
                     <h2 class="text-2xl font-black">Vacation Planning</h2>
                     <div class="flex gap-2">
-                        <button onclick="downloadVacExcel()" class="excel-btn bg-slate-700 text-white hover:bg-slate-800">Download Excel 📥</button>
-                        <label class="excel-btn bg-blue-600 text-white cursor-pointer hover:bg-blue-700">
-                            Upload Excel 📤
-                            <input type="file" id="importVacFile" class="hidden" accept=".xlsx, .xls">
+                        <button onclick="exportVac()" class="excel-btn bg-slate-700 text-white">Download Vacations 📥</button>
+                        <label class="excel-btn bg-blue-600 text-white cursor-pointer">
+                            Upload Vacations 📤
+                            <input type="file" id="upVac" class="hidden" accept=".xlsx, .xls">
                         </label>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <select id="selectEmployee" class="border-2 p-4 rounded-2xl bg-slate-50 font-black">
-                        <option value="">-- Choose Employee --</option>
-                    </select>
-                    <input id="vacFrom" type="date" class="border-2 p-4 rounded-2xl">
-                    <input id="vacTo" type="date" class="border-2 p-4 rounded-2xl">
-                    <button id="addVacBtn" class="bg-blue-900 text-white font-black py-4 rounded-2xl md:col-span-3">Confirm Vacation</button>
+                    <select id="selEmp" class="border-2 p-4 rounded-2xl bg-slate-50 font-black"></select>
+                    <input id="vFrom" type="date" class="border-2 p-4 rounded-2xl">
+                    <input id="vTo" type="date" class="border-2 p-4 rounded-2xl">
+                    <button onclick="addVac()" class="bg-blue-900 text-white font-black py-4 rounded-2xl md:col-span-3">Confirm Dates</button>
                 </div>
             </div>
-            <div id="vacDeleteList" class="bg-white p-6 rounded-3xl shadow-lg">
-                <h3 class="font-bold mb-4 text-blue-900 border-b pb-2">Active Vacations (Admin Delete)</h3>
-                <div id="vacListTable" class="space-y-2"></div>
-            </div>
+            <div id="adminVacList" class="bg-white p-6 rounded-3xl shadow-lg"></div>
         </div>
 
         <div id="sec-schedule" class="section-content">
             <div class="flex justify-end mb-6">
-                <button onclick="copyChartToClipboard()" class="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:bg-blue-700 transition">Copy for Outlook 📸</button>
+                <button onclick="copyChart()" class="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black shadow-xl">Copy for Outlook 📸</button>
             </div>
             <div id="captureArea" class="bg-white rounded-[40px] shadow-2xl overflow-hidden border p-10">
                 <div id="reportHeader" class="flex justify-between items-center mb-10 pb-8 border-b-4 border-slate-100">
                     <img src="https://cafs.org.sa/wp-content/uploads/2023/03/Logo-Almajdouie-Holding-Company.jpg" class="h-28 w-auto">
-                    <div class="text-end" id="brandingText">
+                    <div class="text-end" id="brandTxt">
                         <h2 class="text-4xl font-black text-slate-800 uppercase tracking-tighter">Annual Vacation Schedule - 2026</h2>
-                        <p class="text-slate-400 font-bold tracking-widest">Almajdouie Motors - Official Report</p>
+                        <p class="text-slate-400 font-bold uppercase tracking-widest">Almajdouie Motors - Official Report</p>
                     </div>
                 </div>
+
                 <div class="timeline-wrapper">
                     <div class="timeline-content">
-                        <div class="flex bg-slate-900 text-white font-black uppercase tracking-widest rounded-t-2xl">
+                        <div class="flex bg-slate-900 text-white font-black uppercase rounded-t-2xl">
                             <div class="info-cols bg-slate-900 border-r border-slate-700">
-                                <div class="col-name cell border-r border-slate-700 text-center justify-center">Employee / Role</div>
-                                <div class="col-date cell border-r border-slate-700">Start Date</div>
-                                <div class="col-date cell border-r border-slate-700">End Date</div>
-                                <div class="col-days cell">Work Days</div>
+                                <div class="col-name justify-center">Employee / Role</div>
+                                <div class="col-date">From</div>
+                                <div class="col-date">To</div>
+                                <div class="col-days">Days</div>
                             </div>
-                            <div id="monthsContainer" class="flex-grow flex"></div>
+                            <div id="monthRow" class="flex-grow flex"></div>
                         </div>
-                        <div id="ganttContainer" class="border border-t-0 border-slate-100 rounded-b-2xl"></div>
+                        <div id="ganttBody" class="border border-t-0 border-slate-100 rounded-b-2xl"></div>
                     </div>
                 </div>
             </div>
@@ -154,16 +155,16 @@
         const vacCol = collection(db, "vacations");
 
         const months = [
-            { en: "Jan", ar: "يناير", days: 31 }, { en: "Feb", ar: "فبراير", days: 28 },
-            { en: "Mar", ar: "مارس", days: 31 }, { en: "Apr", ar: "أبريل", days: 30 },
-            { en: "May", ar: "مايو", days: 31 }, { en: "Jun", ar: "يونيو", days: 30 },
-            { en: "Jul", ar: "يوليو", days: 31 }, { en: "Aug", ar: "أغسطس", days: 31 },
-            { en: "Sep", ar: "سبتمبر", days: 30 }, { en: "Oct", ar: "أكتوبر", days: 31 },
-            { en: "Nov", ar: "نوفمبر", days: 30 }, { en: "Dec", ar: "ديسمبر", days: 31 }
+            { en: "JAN", ar: "يناير", days: 31 }, { en: "FEB", ar: "فبراير", days: 28 },
+            { en: "MAR", ar: "مارس", days: 31 }, { en: "APR", ar: "أبريل", days: 30 },
+            { en: "MAY", ar: "مايو", days: 31 }, { en: "JUN", ar: "يونيو", days: 30 },
+            { en: "JUL", ar: "يوليو", days: 31 }, { en: "AUG", ar: "أغسطس", days: 31 },
+            { en: "SEP", ar: "سبتمبر", days: 30 }, { en: "OCT", ar: "أكتوبر", days: 31 },
+            { en: "NOV", ar: "نوفمبر", days: 30 }, { en: "DEC", ar: "ديسمبر", days: 31 }
         ];
 
-        let allEmployees = [];
-        let currentLang = 'en';
+        let allE = [];
+        let curL = 'en';
 
         window.switchTab = (t) => {
             document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
@@ -173,152 +174,126 @@
         };
 
         window.toggleLanguage = () => {
-            currentLang = currentLang === 'en' ? 'ar' : 'en';
-            document.getElementById('htmlTag').dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            curL = curL === 'en' ? 'ar' : 'en';
+            document.getElementById('htmlTag').dir = curL === 'ar' ? 'rtl' : 'ltr';
             const h1 = document.getElementById('mainHeader');
             const h2 = document.getElementById('reportHeader');
-            [h1, h2].forEach(h => h.style.flexDirection = currentLang === 'ar' ? 'row-reverse' : 'row');
-            document.getElementById('brandingText').style.textAlign = currentLang === 'ar' ? 'left' : 'right';
-            renderMonths();
+            [h1, h2].forEach(h => h.style.flexDirection = curL === 'ar' ? 'row-reverse' : 'row');
+            document.getElementById('brandTxt').style.textAlign = curL === 'ar' ? 'left' : 'right';
+            initMonths();
         };
 
-        const renderMonths = () => {
-            const container = document.getElementById('monthsContainer');
-            container.innerHTML = months.map(m => {
-                const width = (m.days / 365) * 100;
-                return `<div class="month-header-cell" style="width: ${width}%">${currentLang === 'ar' ? m.ar : m.en}</div>`;
-            }).join('');
+        const initMonths = () => {
+            const row = document.getElementById('monthRow');
+            row.innerHTML = months.map(m => `<div class="month-header-cell" style="width: ${(m.days / 365) * 100}%">${curL === 'ar' ? m.ar : m.en}</div>`).join('');
         };
-        renderMonths();
+        initMonths();
 
-        const getDays = (s, e) => {
-            let count = 0, cur = new Date(s), stop = new Date(e);
-            while (cur <= stop) {
-                if (cur.getDay() !== 5 && cur.getDay() !== 6) count++;
+        const getWDays = (s, e) => {
+            let c = 0, cur = new Date(s), stp = new Date(e);
+            while (cur <= stp) {
+                if (cur.getDay() !== 5 && cur.getDay() !== 6) c++;
                 cur.setDate(cur.getDate() + 1);
             }
-            return count;
+            return c;
         };
 
-        window.copyChartToClipboard = () => {
-            html2canvas(document.getElementById('captureArea'), { scale: 3, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
-                canvas.toBlob(blob => {
-                    navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => alert("Copied! ✅"));
-                });
-            });
+        // الرفع والتنزيل
+        window.exportStaff = async () => {
+            const s = await getDocs(empCol);
+            const d = s.docs.map(x => ({ ID: x.data().empId, Name: x.data().name, Role: x.data().role }));
+            XLSX.writeFile(XLSX.utils.book_new().constructor(), XLSX.utils.json_to_sheet(d), "Staff.xlsx");
         };
 
-        window.deleteData = async (c, id) => { if(confirm("Confirm Delete?")) await deleteDoc(doc(db, c, id)); };
-
-        // ✅ ميزات التحميل Excel
-        window.downloadStaffExcel = async () => {
-            const snap = await getDocs(empCol);
-            const data = snap.docs.map(d => ({ ID: d.data().empId, Name: d.data().name, Dept: d.data().dept, Role: d.data().role }));
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Staff");
-            XLSX.writeFile(wb, "Almajdouie_Staff_List.xlsx");
-        };
-
-        window.downloadVacExcel = async () => {
-            const snap = await getDocs(vacCol);
-            const data = snap.docs.map(d => ({ EmployeeID: d.data().empId, Name: d.data().name, From: d.data().from, To: d.data().to }));
-            const ws = XLSX.utils.json_to_sheet(data);
+        window.exportVac = async () => {
+            const s = await getDocs(vacCol);
+            const d = s.docs.map(x => ({ EmployeeID: x.data().empId, From: x.data().from, To: x.data().to }));
+            const ws = XLSX.utils.json_to_sheet(d);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Vacations");
-            XLSX.writeFile(wb, "Almajdouie_Vacation_List.xlsx");
+            XLSX.writeFile(wb, "Vacations.xlsx");
         };
 
-        // ✅ ميزات الرفع من Excel
-        document.getElementById('importStaffFile').onchange = (e) => {
-            const reader = new FileReader();
-            reader.onload = async (ev) => {
+        document.getElementById('upStaff').onchange = (e) => {
+            const r = new FileReader();
+            r.onload = async (ev) => {
                 const rows = XLSX.utils.sheet_to_json(XLSX.read(ev.target.result, {type:'binary'}).Sheets[XLSX.read(ev.target.result, {type:'binary'}).SheetNames[0]]);
-                for(let r of rows) {
-                    await addDoc(empCol, { empId: String(r.ID || r.empId), name: String(r.Name || r.name), dept: String(r.Dept || ""), role: String(r.Role || "Employee") });
-                }
-                alert("Staff Imported! ✅");
+                for(let x of rows) await addDoc(empCol, { empId: String(x.ID || x.empId), name: x.Name || x.name, role: x.Role || "Employee" });
+                alert("Imported!");
             };
-            reader.readAsBinaryString(e.target.files[0]);
+            r.readAsBinaryString(e.target.files[0]);
         };
 
-        document.getElementById('importVacFile').onchange = (e) => {
-            const reader = new FileReader();
-            reader.onload = async (ev) => {
+        document.getElementById('upVac').onchange = (e) => {
+            const r = new FileReader();
+            r.onload = async (ev) => {
                 const rows = XLSX.utils.sheet_to_json(XLSX.read(ev.target.result, {type:'binary'}).Sheets[XLSX.read(ev.target.result, {type:'binary'}).SheetNames[0]]);
-                for(let r of rows) {
-                    const emp = allEmployees.find(emp => emp.empId == (r.EmployeeID || r.ID));
-                    if(emp) await addDoc(vacCol, { ...emp, from: r.From || r.StartDate, to: r.To || r.EndDate });
+                for(let x of rows) {
+                    const emp = allE.find(e => e.empId == (x.EmployeeID || x.ID));
+                    if(emp) await addDoc(vacCol, { ...emp, from: x.From || x.StartDate, to: x.To || x.EndDate });
                 }
-                alert("Vacations Imported! ✅");
+                alert("Imported!");
             };
-            reader.readAsBinaryString(e.target.files[0]);
+            r.readAsBinaryString(e.target.files[0]);
         };
 
+        // المزامنة
         onSnapshot(empCol, (snap) => {
-            const select = document.getElementById('selectEmployee');
-            const table = document.getElementById('registeredEmpTable');
-            select.innerHTML = '<option value="">-- Choose Employee --</option>';
-            table.innerHTML = "";
-            allEmployees = [];
+            const sel = document.getElementById('selEmp');
+            const tbl = document.getElementById('staffTable');
+            sel.innerHTML = '<option value="">-- Choose --</option>';
+            tbl.innerHTML = ""; allE = [];
             snap.forEach(d => {
-                const e = d.data();
-                allEmployees.push({ ...e, fireId: d.id });
-                let opt = document.createElement('option');
-                opt.value = e.empId; opt.textContent = e.name;
-                select.appendChild(opt);
-                table.innerHTML += `<tr class="border-b"><td class="p-4 font-bold text-slate-400 text-xs">${e.empId}</td><td class="p-4 font-bold text-slate-800">${e.name}</td><td class="p-4 text-center"><button class="text-red-500 font-bold text-xs" onclick="deleteData('employees', '${d.id}')">Remove</button></td></tr>`;
+                const e = d.data(); allE.push({ ...e, fireId: d.id });
+                sel.innerHTML += `<option value="${e.empId}">${e.name}</option>`;
+                tbl.innerHTML += `<tr class="border-b"><td class="p-4 font-bold text-slate-400">${e.empId}</td><td class="p-4 font-bold">${e.name}</td><td class="p-4 text-center"><button onclick="window.del('employees', '${d.id}')" class="text-red-500 font-bold">X</button></td></tr>`;
             });
         });
 
         onSnapshot(vacCol, (snap) => {
-            const gantt = document.getElementById('ganttContainer');
-            const deleteList = document.getElementById('vacListTable');
-            gantt.innerHTML = ""; deleteList.innerHTML = "";
+            const body = document.getElementById('ganttBody');
+            const admin = document.getElementById('adminVacList');
+            body.innerHTML = ""; admin.innerHTML = "";
             const colors = { employee: "#3b82f6", supervisor: "#8b5cf6", manager: "#10b981", director: "#f59e0b" };
+            
             let vData = [];
             snap.forEach(d => vData.push({ ...d.data(), id: d.id }));
-            
-            vData.sort((a, b) => a.name.localeCompare(b.name) || new Date(a.from) - new Date(b.from));
+            vData.sort((a,b) => a.name.localeCompare(b.name) || new Date(a.from) - new Date(b.from));
 
             vData.forEach(v => {
-                const days = getDays(v.from, v.to);
-                const roleK = String(v.role).toLowerCase();
+                const days = getWDays(v.from, v.to);
                 const startDay = (new Date(v.from) - new Date(2026,0,1)) / (1000*3600*24);
-                const endDay = (new Date(v.to) - new Date(2026,0,1)) / (1000*3600*24);
-                const left = (startDay / 365) * 100;
-                const width = ((endDay - startDay) / 365) * 100;
-
-                deleteList.innerHTML += `<div class="flex justify-between items-center p-3 border-b text-sm"><span><b>${v.name}</b> (${v.from} to ${v.to})</span><button onclick="deleteData('vacations', '${v.id}')" class="text-red-500 font-bold">X</button></div>`;
+                const endDay = (new Date(v.to) - new Date(2026,0,1)) / (1000*3600*24) + 1;
+                
+                admin.innerHTML += `<div class="p-2 border-b flex justify-between"><span>${v.name} (${v.from})</span><button onclick="window.del('vacations', '${v.id}')" class="text-red-500">X</button></div>`;
 
                 const row = document.createElement('div');
                 row.className = "chart-row";
                 row.innerHTML = `
-                    <div class="info-cols bg-white">
-                        <div class="col-name cell border-r border-slate-100"><div class="flex flex-col"><span class="name-txt uppercase">${v.name}</span><span class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">${v.role}</span></div></div>
-                        <div class="col-date cell border-r border-slate-100 justify-center"><span class="date-txt">${v.from}</span></div>
-                        <div class="col-date cell border-r border-slate-100 justify-center"><span class="date-txt">${v.to}</span></div>
-                        <div class="col-days cell justify-center"><span class="days-badge">${days}D</span></div>
+                    <div class="info-cols">
+                        <div class="col-name"><div class="flex flex-col"><span class="name-txt uppercase">${v.name}</span><span class="text-[9px] text-slate-400 font-bold uppercase">${v.role}</span></div></div>
+                        <div class="col-date"><span class="font-bold text-gray-500 text-xs">${v.from}</span></div>
+                        <div class="col-date"><span class="font-bold text-gray-500 text-xs">${v.to}</span></div>
+                        <div class="col-days"><span class="days-badge">${days}D</span></div>
                     </div>
-                    <div class="timeline-cell"><div class="absolute inset-0 flex pointer-events-none">${months.map(m => `<div class="h-full border-inline-end border-slate-100" style="width: ${(m.days / 365) * 100}%"></div>`).join('')}</div>
-                    <div class="vacation-bar" style="${currentLang === 'ar' ? 'right' : 'left'}:${left}%; width:${Math.max(width, 1.2)}%; background-color:${colors[roleK] || '#64748b'}"></div></div>`;
-                gantt.appendChild(row);
+                    <div class="timeline-cell relative h-full flex-grow">
+                        <div class="absolute inset-0 flex pointer-events-none">${months.map(m => `<div class="h-full border-inline-end border-slate-100" style="width: ${(m.days / 365) * 100}%"></div>`).join('')}</div>
+                        <div class="vacation-bar" style="${curL === 'ar' ? 'right' : 'left'}:${(startDay/365)*100}%; width:${((endDay-startDay)/365)*100}%; background-color:${colors[String(v.role).toLowerCase()] || '#64748b'}"></div>
+                    </div>`;
+                body.appendChild(row);
             });
         });
 
-        window.addNewEmployee = async () => {
-            const id = document.getElementById('newEmpId').value;
-            const name = document.getElementById('newEmpName').value;
-            if(id && name) await addDoc(empCol, { empId: id, name, dept: document.getElementById('newEmpDept').value, role: document.getElementById('newEmpRole').value });
+        window.del = async (c, id) => { if(confirm("Confirm?")) await deleteDoc(doc(db, c, id)); };
+        window.addEmp = async () => { await addDoc(empCol, { empId: document.getElementById('newId').value, name: document.getElementById('newName').value, dept: document.getElementById('newDept').value, role: document.getElementById('newRole').value }); };
+        window.addVac = async () => {
+            const e = allE.find(x => x.empId == document.getElementById('selEmp').value);
+            if(e) await addDoc(vacCol, { ...e, from: document.getElementById('vFrom').value, to: document.getElementById('vTo').value });
         };
-
-        document.getElementById('addVacBtn').onclick = async () => {
-            const empId = document.getElementById('selectEmployee').value;
-            const from = document.getElementById('vacFrom').value;
-            const to = document.getElementById('vacTo').value;
-            const emp = allEmployees.find(e => e.empId == empId);
-            if(emp && from && to) await addDoc(vacCol, { ...emp, from, to });
-            alert("Saved! ✅");
+        window.copyChart = () => {
+            html2canvas(document.getElementById('captureArea'), { scale: 3, useCORS: true }).then(c => {
+                c.toBlob(b => navigator.clipboard.write([new ClipboardItem({ "image/png": b })]).then(() => alert("Copied!")));
+            });
         };
     </script>
 </body>
