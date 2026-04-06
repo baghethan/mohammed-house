@@ -1,43 +1,53 @@
-// --- دالة الإضافة الذكية (تسمح بتعدد الإجازات لنفس الموظف) ---
+// --- دالة الإضافة الذكية (تأكد أنها داخل نطاق المتغيراتtranslations و currentLang) ---
 async function checkAndAdd(data) {
-    const startDate = new Date(data.from);
-    const key = `${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
-    const t = translations[currentLang];
+    try {
+        const startDate = new Date(data.from);
+        if (isNaN(startDate)) {
+            throw new Error("تاريخ غير صحيح");
+        }
 
-    // جلب كافة الإجازات المسجلة في هذا الشهر لهذا المسمى الوظيفي
-    const q = query(vacCollection, where("monthKey", "==", key), where("role", "==", data.role));
-    const snap = await getDocs(q);
-    
-    // استخراج الأرقام الوظيفية الفريدة الموجودة حالياً في هذا الشهر
-    const existingEmpIds = new Set();
-    snap.forEach(doc => {
-        existingEmpIds.add(doc.data().empId);
-    });
+        const key = `${startDate.getMonth() + 1}-${startDate.getFullYear()}`;
+        const t = (typeof translations !== 'undefined') ? translations[currentLang] : { errConflict: "Conflict in " };
 
-    // تعريف الحدود القصوى (عدد الأشخاص المختلفين المسموح بهم)
-    const limits = {
-        "Employee": 1,
-        "Supervisor": 2,
-        "Manager": 1,
-        "Director": 1
-    };
+        // جلب الإجازات الموجودة في هذا الشهر لهذا المسمى
+        const q = query(vacCollection, where("monthKey", "==", key), where("role", "==", data.role));
+        const snap = await getDocs(q);
 
-    // التحقق: إذا كان الموظف الجديد ليس من ضمن الموجودين أصلاً، وهل وصلنا للحد الأقصى؟
-    if (!existingEmpIds.has(data.empId) && existingEmpIds.size >= (limits[data.role] || 1)) {
-        return { 
-            success: false, 
-            msg: currentLang === 'ar' 
-                ? `⚠️ تعارض: يوجد موظف آخر حجز هذا الشهر. مسموح بـ ${limits[data.role]} فقط.` 
-                : `⚠️ Conflict: Another person already booked this month. Limit is ${limits[data.role]}.`
+        // استخراج أرقام الموظفين الموجودين فعلياً في هذا الشهر
+        const existingEmpIds = new Set();
+        snap.forEach(doc => {
+            existingEmpIds.add(doc.data().empId);
+        });
+
+        // الحدود القصوى بناءً على المسمى الوظيفي
+        const limits = { 
+            "Employee": 1, 
+            "Supervisor": 2, 
+            "Manager": 1, 
+            "Director": 1 
         };
-    }
 
-    // إذا مر الفحص، يتم إضافة الإجازة (سواء كانت الأولى أو العاشرة للموظف)
-    await addDoc(vacCollection, {
-        ...data,
-        monthKey: key,
-        createdAt: new Date()
-    });
-    
-    return { success: true };
+        // فحص التعارض:
+        // إذا كان الموظف (بناءً على رقمه الوظيفي) غير موجود في القائمة الحالية، 
+        // ووصلنا للحد الأقصى للمسموح به، يظهر الخطأ.
+        if (!existingEmpIds.has(data.empId) && existingEmpIds.size >= (limits[data.role] || 1)) {
+            return { 
+                success: false, 
+                msg: (t.errConflict || "⚠️ تعارض: الحد الأقصى مكتمل في شهر ") + key 
+            };
+        }
+
+        // إذا مر الفحص، يتم الإضافة للسحابة
+        await addDoc(vacCollection, {
+            ...data,
+            monthKey: key,
+            createdAt: new Date()
+        });
+
+        return { success: true };
+
+    } catch (error) {
+        console.error("Error in checkAndAdd:", error);
+        return { success: false, msg: "حدث خطأ فني، يرجى مراجعة الـ Console" };
+    }
 }
