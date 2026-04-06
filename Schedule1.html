@@ -130,10 +130,6 @@ body{background-image:url('data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2w
 #app{position:relative;z-index:1;display:none;}.card{position:relative;z-index:1;background:#fff;overflow:hidden;}
 </style></head>
 <body>
-    <div style="text-align: center; background-color: #ffffff; padding: 20px; margin-bottom: 20px; border-radius: 8px; border-bottom: 4px solid #004c8c; box-shadow: 0 4px 10px rgba(0,0,0,0.1); direction: rtl;">
-    <img src="logo.png" alt="شعار المجدوعي للسيارات" style="max-height: 80px; object-fit: contain;">
-    <h2 style="color: #004c8c; margin: 10px 0 0 0; font-family: 'Segoe UI', Tahoma, sans-serif;">جدول الدوام الأسبوعي - المجدوعي للسيارات</h2>
-</div>
 <div id="overlay"></div><div id="login-screen" style="display:flex;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;background:rgba(10,25,50,0.85)">
   <div style="background:#fff;border-radius:16px;padding:36px 40px;width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.3);text-align:center">
     <img id="_logo1_login" style="height:44px;margin-bottom:6px"><img id="_logo2_login" style="height:36px;margin-bottom:20px">
@@ -287,6 +283,20 @@ window.exportArchiveReport=function(){
   window.open(URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'})),'_blank');
 };
 
+window.setContractDur=function(months){
+  if(!months)return;
+  var startEl=document.getElementById('f-cstart');
+  if(!startEl||!startEl.value)return;
+  var start=pd(startEl.value);
+  var end=new Date(start);
+  end.setMonth(end.getMonth()+parseInt(months));
+  var endEl=document.getElementById('f-cend');
+  if(endEl)endEl.value=fmtI(end);
+};
+window.toggleContractFields=function(cat){
+  var el=document.getElementById('contract-fields');
+  if(el)el.style.display=(cat==='tra'||cat==='tam')?'grid':'none';
+};
 window.editCell=function(empId, dayIdx){
   if(!isAdmin()) return;
   var emp=findEmp(empId);
@@ -2250,6 +2260,23 @@ function renderEmployees(){
       h+='<option value="yes"'+(rotYes?' selected':'')+'>نعم - يدخل دورة الجمعة والسبت</option>';
       h+='</select></div>';
     }
+    h+='</div>';
+    /* Contract dates for trainee/probation */
+    var eEmp2=editingEmp?findEmp(editingEmp):null;
+    var curCatVal=eEmp2?eEmp2.category:'emp';
+    h+='<div id="contract-fields" style="display:'+(curCatVal==='tra'||curCatVal==='tam'?'grid':'none')+';grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">';
+    h+='<div><label>'+T('تاريخ بداية العقد','Contract Start')+' *</label>';
+    h+='<input type="date" id="f-cstart" value="'+(eEmp2&&eEmp2.contractStart?eEmp2.contractStart:'')+'"></div>';
+    h+='<div><label>'+T('تاريخ نهاية العقد','Contract End')+' *</label>';
+    h+='<input type="date" id="f-cend" value="'+(eEmp2&&eEmp2.contractEnd?eEmp2.contractEnd:'')+'"></div>';
+    h+='<div style="grid-column:1/-1"><label>'+T('المدة','Duration')+'</label>';
+    h+='<select id="f-cdur" onchange="setContractDur(this.value)">';
+    h+='<option value="">'+T('تحديد يدوي','Manual')+'</option>';
+    h+='<option value="3">3 '+T('أشهر','months')+'</option>';
+    h+='<option value="6">6 '+T('أشهر','months')+'</option>';
+    h+='<option value="9">9 '+T('أشهر','months')+'</option>';
+    h+='<option value="12">12 '+T('شهراً','months')+'</option>';
+    h+='</select></div>';
     h+='</div>';
     h+='<div class="fnote">&#128274; البريد يجب ان يكون <b>@almajdouie.com</b> فقط</div>';
     h+='<div class="fbtn-row"><button class="nb bg" onclick="saveEmp()" style="padding:7px 16px;font-size:12px">&#10004; '+(isEdit?'حفظ التعديلات':'إضافة للجدول')+'</button>';
