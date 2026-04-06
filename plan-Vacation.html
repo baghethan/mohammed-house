@@ -3,58 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Vacation System - Official Report</title>
+    <title>Almajdouie Vacation System - V3 Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #1e293b; transition: all 0.3s; }
-        
-        .vacation-bar { 
-            height: 22px; border-radius: 11px; position: absolute; z-index: 20; 
-            top: 50%; transform: translateY(-50%); box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
-        }
-
-        .grid-line { border-right: 1px solid #eef2f6; height: 100%; position: absolute; top: 0; }
-        
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .vacation-bar { height: 20px; border-radius: 10px; position: absolute; z-index: 20; top: 50%; transform: translateY(-50%); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .grid-line { border-inline-end: 1px solid #edf2f7; height: 100%; position: absolute; top: 0; }
         .nav-btn { background: white; color: #334155; padding: 12px 24px; border-radius: 14px; font-weight: 600; border: 1px solid #e2e8f0; transition: 0.3s; }
         .nav-btn.active { background: #1e3a8a; color: white; border-color: #1e3a8a; box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2); }
-        
         .section-content { display: none; }
-        .section-content.active { display: block; animation: fadeIn 0.4s ease; }
+        .section-content.active { display: block; animation: fadeIn 0.5s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .chart-row { display: flex; border-bottom: 1px solid #f1f5f9; height: 60px; align-items: center; }
-        .chart-row:nth-child(even) { background-color: #fafbfc; }
-        
-        /* ضبط عرض الأعمدة بدقة لمنع التداخل */
+        .chart-row { display: flex; border-bottom: 1px solid #f1f5f9; height: 55px; align-items: center; }
+        .chart-row:nth-child(even) { background-color: #fcfdfe; }
         .info-cols { display: flex; width: 680px; flex-shrink: 0; border-inline-end: 2px solid #e2e8f0; height: 100%; background: white; position: sticky; inset-inline-start: 0; z-index: 30; }
-        
         .col-name { width: 300px; padding: 0 20px; flex-shrink: 0; }
         .col-date { width: 130px; text-align: center; justify-content: center; border-inline-end: 1px solid #f1f5f9; flex-shrink: 0; }
         .col-days { width: 120px; text-align: center; justify-content: center; flex-shrink: 0; }
-
-        .cell { display: flex; align-items: center; height: 100%; font-size: 12px; }
-        .name-txt { font-weight: 700; color: #0f172a; font-size: 13px; line-height: 1.2; }
-        .date-txt { color: #64748b; font-weight: 600; font-family: 'monospace'; font-size: 11px; }
+        .name-txt { font-weight: 700; color: #0f172a; font-size: 13px; }
         .days-badge { background: #dcfce7; color: #166534; font-weight: 800; padding: 4px 12px; border-radius: 8px; font-size: 11px; }
-
-        /* توسيع المخطط الزمني لمنع تلاصق الشهور */
-        .timeline-cell { flex-grow: 1; position: relative; height: 100%; background: #ffffff; min-width: 1200px; }
-        .month-label { display: flex; align-items: center; justify-content: center; border-inline-end: 1px solid #334155; }
+        /* حل تلاصق الشهور عبر زيادة العرض الأدنى */
+        .timeline-wrapper { flex-grow: 1; overflow-x: auto; position: relative; }
+        .timeline-content { min-width: 1800px; position: relative; }
     </style>
 </head>
 <body class="p-4 md:p-8">
 
-    <div class="max-w-[1800px] mx-auto">
-        <div id="mainHeader" class="flex justify-between items-center mb-10 bg-white p-6 rounded-3xl shadow-sm border-b-4 border-blue-900">
-            <img src="https://cafs.org.sa/wp-content/uploads/2023/03/Logo-Almajdouie-Holding-Company.jpg" alt="Logo" class="h-12 w-auto">
+    <div class="max-w-[1900px] mx-auto">
+        <div id="mainHeader" class="flex justify-between items-center mb-8 bg-white p-6 rounded-3xl shadow-sm border-b-4 border-blue-900">
+            <div class="logo-container">
+                <span class="text-blue-900 font-black text-2xl tracking-tighter">ALMAJDOUIE</span>
+            </div>
             <div class="flex gap-3">
-                <button onclick="switchTab('employees')" id="btn-employees" class="nav-btn active">Staff Database</button>
-                <button onclick="switchTab('leaves')" id="btn-leaves" class="nav-btn">Vacations</button>
+                <button onclick="switchTab('employees')" id="btn-employees" class="nav-btn active">Employees</button>
+                <button onclick="switchTab('leaves')" id="btn-leaves" class="nav-btn">Add Vacation</button>
                 <button onclick="switchTab('schedule')" id="btn-schedule" class="nav-btn">Schedule View 📊</button>
-                <button onclick="toggleLanguage()" class="border-2 border-blue-900 text-blue-900 px-4 py-2 rounded-xl font-bold hover:bg-blue-50">AR/EN</button>
+                <button onclick="toggleLang()" class="border-2 border-blue-900 text-blue-900 px-4 py-2 rounded-xl font-bold">AR/EN</button>
             </div>
         </div>
 
@@ -62,16 +49,16 @@
             <div class="bg-white p-8 rounded-3xl shadow-xl border-t-8 border-emerald-500">
                 <h2 class="text-2xl font-bold mb-6">Staff Registry</h2>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                    <input id="newEmpId" type="text" placeholder="ID" class="border-2 p-3 rounded-2xl outline-none focus:border-emerald-500">
-                    <input id="newEmpName" type="text" placeholder="Name" class="border-2 p-3 rounded-2xl outline-none focus:border-emerald-500">
-                    <input id="newEmpDept" type="text" placeholder="Dept" class="border-2 p-3 rounded-2xl outline-none focus:border-emerald-500">
-                    <select id="newEmpRole" class="border-2 p-3 rounded-2xl">
+                    <input id="newEmpId" type="text" placeholder="ID" class="border-2 p-3 rounded-2xl outline-none">
+                    <input id="newEmpName" type="text" placeholder="Full Name" class="border-2 p-3 rounded-2xl outline-none">
+                    <input id="newEmpDept" type="text" placeholder="Dept" class="border-2 p-3 rounded-2xl outline-none">
+                    <select id="newEmpRole" class="border-2 p-3 rounded-2xl bg-gray-50">
                         <option value="Employee">Employee</option>
                         <option value="Supervisor">Supervisor</option>
                         <option value="Manager">Manager</option>
                         <option value="Director">Director</option>
                     </select>
-                    <button onclick="addNewEmployee()" class="bg-emerald-600 text-white font-bold py-4 rounded-2xl md:col-span-4 shadow-lg">+ Add Member</button>
+                    <button onclick="addNewEmployee()" class="bg-emerald-600 text-white font-bold py-4 rounded-2xl md:col-span-4">+ Register Staff</button>
                 </div>
                 <table class="w-full text-left"><tbody id="registeredEmpTable"></tbody></table>
             </div>
@@ -84,16 +71,155 @@
                     <select id="selectEmployee" class="border-2 p-4 rounded-2xl bg-slate-50 font-bold"></select>
                     <input id="vacFrom" type="date" class="border-2 p-4 rounded-2xl">
                     <input id="vacTo" type="date" class="border-2 p-4 rounded-2xl">
-                    <button id="addVacBtn" class="bg-blue-900 text-white font-bold py-4 rounded-2xl md:col-span-3">Confirm Vacation</button>
+                    <button id="addVacBtn" class="bg-blue-900 text-white font-bold py-4 rounded-2xl md:col-span-3">Confirm Dates</button>
                 </div>
             </div>
         </div>
 
         <div id="sec-schedule" class="section-content">
             <div class="flex justify-end mb-6">
-                <button onclick="copyChartToClipboard()" class="bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold shadow-xl hover:bg-blue-700 transition">
+                <button onclick="copyChartToClipboard()" class="bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold shadow-xl flex items-center gap-2">
                     Copy for Outlook 📸
                 </button>
             </div>
             
-            <div id="captureArea" class="bg-white rounded-[40px] shadow-2xl overflow-hidden border border-slate-2
+            <div id="captureArea" class="bg-white rounded-[40px] shadow-2xl overflow-hidden border border-slate-200 p-10">
+                <div id="reportHeader" class="flex justify-between items-center mb-10 pb-8 border-b-2 border-slate-100">
+                    <div class="flex flex-col">
+                        <h2 class="text-4xl font-black text-slate-800 uppercase tracking-tighter" id="reportTitle">Staff Vacation Schedule</h2>
+                        <span class="text-slate-400 font-bold">ALMAJDOUIE MOTORS - 2026</span>
+                    </div>
+                    <div class="report-logo">
+                        <span class="text-blue-900 font-black text-3xl">ALMAJDOUIE</span>
+                    </div>
+                </div>
+
+                <div class="timeline-wrapper">
+                    <div class="timeline-content">
+                        <div class="flex bg-slate-900 text-white font-bold text-[11px] uppercase tracking-widest rounded-t-2xl">
+                            <div class="info-cols bg-slate-900 border-r border-slate-700">
+                                <div class="col-name cell border-r border-slate-700 text-center justify-center">Employee / Role</div>
+                                <div class="col-date cell border-r border-slate-700">From</div>
+                                <div class="col-date cell border-r border-slate-700">To</div>
+                                <div class="col-days cell">Days</div>
+                            </div>
+                            <div class="flex-grow grid grid-cols-12">
+                                ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map(m => `<div class="py-5 border-r border-slate-700 text-center">${m}</div>`).join('')}
+                            </div>
+                        </div>
+                        <div id="ganttContainer" class="border border-t-0 border-slate-100 rounded-b-2xl"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, doc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
+            authDomain: "baghethan-ba325.firebaseapp.com",
+            projectId: "baghethan-ba325",
+            storageBucket: "baghethan-ba325.firebasestorage.app",
+            messagingSenderId: "944819735112",
+            appId: "1:944819735112:web:07315600da39377320667d"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const empCol = collection(db, "employees");
+        const vacCol = collection(db, "vacations");
+
+        let allEmployees = [];
+        let currentLang = 'en';
+
+        window.toggleLang = () => {
+            currentLang = currentLang === 'en' ? 'ar' : 'en';
+            document.getElementById('htmlTag').dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            const h1 = document.getElementById('mainHeader');
+            const h2 = document.getElementById('reportHeader');
+            [h1, h2].forEach(h => {
+                h.style.flexDirection = currentLang === 'ar' ? 'row-reverse' : 'row';
+            });
+        };
+
+        window.switchTab = (t) => {
+            document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`sec-${t}`).classList.add('active');
+            document.getElementById(`btn-${t}`).classList.add('active');
+        };
+
+        const getDays = (s, e) => {
+            let count = 0, cur = new Date(s), stop = new Date(e);
+            while (cur <= stop) {
+                if (cur.getDay() !== 5 && cur.getDay() !== 6) count++;
+                cur.setDate(cur.getDate() + 1);
+            }
+            return count;
+        };
+
+        window.copyChartToClipboard = () => {
+            html2canvas(document.getElementById('captureArea'), { scale: 3, useCORS: true }).then(canvas => {
+                canvas.toBlob(blob => {
+                    navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => alert("Copied! ✅"));
+                });
+            });
+        };
+
+        onSnapshot(empCol, (snap) => {
+            const select = document.getElementById('selectEmployee');
+            const table = document.getElementById('registeredEmpTable');
+            select.innerHTML = '<option value="">-- Choose Staff --</option>';
+            table.innerHTML = "";
+            snap.forEach(d => {
+                const e = d.data();
+                allEmployees.push({ ...e, fireId: d.id });
+                select.innerHTML += `<option value="${e.empId}">${e.name}</option>`;
+                table.innerHTML += `<tr class="border-b"><td class="p-4 font-bold text-slate-400 text-xs">${e.empId}</td><td class="p-4 font-bold">${e.name}</td><td class="p-4 text-xs font-bold text-blue-700">${e.role}</td><td class="p-4 text-right"><button class="text-red-400 font-bold" onclick="deleteData('employees', '${d.id}')">Remove</button></td></tr>`;
+            });
+        });
+
+        onSnapshot(vacCol, (snap) => {
+            const gantt = document.getElementById('ganttContainer');
+            gantt.innerHTML = "";
+            const colors = { employee: "#3b82f6", supervisor: "#8b5cf6", manager: "#10b981", director: "#f59e0b" };
+            let vData = [];
+            snap.forEach(d => vData.push({ ...d.data(), id: d.id }));
+            vData.sort((a, b) => a.name.localeCompare(b.name));
+
+            vData.forEach(v => {
+                const days = getDays(v.from, v.to);
+                const roleK = String(v.role).toLowerCase();
+                const startP = (new Date(v.from) - new Date(2026,0,1)) / (1000*3600*24*365) * 100;
+                const endP = (new Date(v.to) - new Date(2026,0,1)) / (1000*3600*24*365) * 100;
+
+                const row = document.createElement('div');
+                row.className = "chart-row";
+                row.innerHTML = `
+                    <div class="info-cols bg-white">
+                        <div class="col-name cell border-r border-slate-100">
+                            <div class="flex flex-col"><span class="name-txt uppercase">${v.name}</span><span class="text-[9px] text-slate-400 font-bold uppercase">${v.role}</span></div>
+                        </div>
+                        <div class="col-date cell border-r border-slate-100 justify-center"><span class="date-txt">${v.from}</span></div>
+                        <div class="col-date cell border-r border-slate-100 justify-center"><span class="date-txt">${v.to}</span></div>
+                        <div class="col-days cell justify-center"><span class="days-badge">${days}D</span></div>
+                    </div>
+                    <div class="timeline-cell">
+                        <div class="absolute inset-0 grid grid-cols-12 pointer-events-none">${Array(12).fill('<div class="grid-line"></div>').join('')}</div>
+                        <div class="vacation-bar" style="left:${startP}%; width:${Math.max(endP-startP, 1.2)}%; background-color:${colors[roleK] || '#64748b'}"></div>
+                    </div>
+                `;
+                gantt.appendChild(row);
+            });
+        });
+
+        window.addNewEmployee = async () => {
+            const id = document.getElementById('newEmpId').value.trim();
+            const name = document.getElementById('newEmpName').value.trim();
+            if(id && name) await addDoc(empCol, { empId: id, name, dept: document.getElementById('newEmpDept').value, role: document.getElementById('newEmpRole').value });
+        };
+
+        document.getElementById('addVacBtn
