@@ -3,29 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Vacation System - Professional Edition</title>
+    <title>Almajdouie Vacation System - Precision Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Tajawal', sans-serif; background-color: #f1f5f9; transition: all 0.3s; }
-        .vacation-bar { height: 22px; border-radius: 11px; position: absolute; z-index: 20; top: 50%; transform: translateY(-50%); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .grid-line { border-inline-end: 1px solid #eef2f6; height: 100%; position: absolute; top: 0; }
+        body { font-family: 'Tajawal', sans-serif; background-color: #f1f5f9; margin: 0; }
+        
+        /* ضبط البار الملون */
+        .vacation-bar { 
+            height: 22px; border-radius: 11px; position: absolute; z-index: 20; 
+            top: 50%; transform: translateY(-50%); box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+
+        /* الثوابت - لضمان المحاذاة التامة */
+        :root {
+            --info-width: 680px;
+            --name-w: 300px;
+            --date-w: 130px;
+            --days-w: 120px;
+            --row-h: 55px;
+        }
+
+        /* سطر الشارت */
+        .chart-row { display: flex; border-bottom: 1px solid #e2e8f0; height: var(--row-h); align-items: center; background: white; }
+        .chart-row:nth-child(even) { background-color: #f8fafc; }
+
+        /* الأعمدة الجانبية */
+        .info-cols { display: flex; width: var(--info-width); flex-shrink: 0; border-inline-end: 3px solid #1e3a8a; height: 100%; position: sticky; inset-inline-start: 0; z-index: 40; background: white; }
+        
+        .col-name { width: var(--name-w); padding: 0 20px; flex-shrink: 0; }
+        .col-date { width: var(--date-w); text-align: center; justify-content: center; border-inline-end: 1px solid #f1f5f9; flex-shrink: 0; }
+        .col-days { width: var(--days-w); text-align: center; justify-content: center; flex-shrink: 0; }
+
+        .cell { display: flex; align-items: center; height: 100%; font-size: 12px; }
+        .name-txt { font-weight: 900; color: #0f172a; font-size: 13px; text-transform: uppercase; }
+        .days-badge { background: #dcfce7; color: #166534; font-weight: 900; padding: 4px 12px; border-radius: 8px; font-size: 11px; }
+
+        /* منطقة التايم لاين */
+        .timeline-wrapper { flex-grow: 1; overflow-x: auto; background: white; position: relative; }
+        .timeline-content { min-width: 1800px; position: relative; height: 100%; }
+        
+        .month-header-cell { display: flex; align-items: center; justify-content: center; border-inline-end: 1px solid #334155; font-weight: 900; font-size: 11px; }
+        .grid-line { border-inline-end: 1px solid #f1f5f9; height: 100%; position: absolute; top: 0; }
+
         .nav-btn { background: white; color: #334155; padding: 12px 20px; border-radius: 12px; font-weight: 700; border: 1px solid #e2e8f0; transition: 0.3s; }
         .nav-btn.active { background: #1e3a8a; color: white; border-color: #1e3a8a; }
         .section-content { display: none; }
         .section-content.active { display: block; }
-        .chart-row { display: flex; border-bottom: 1px solid #f1f5f9; height: 55px; align-items: center; background: white; }
-        .info-cols { display: flex; width: 680px; flex-shrink: 0; border-inline-end: 3px solid #1e3a8a; height: 100%; background: white; position: sticky; inset-inline-start: 0; z-index: 30; }
-        .col-name { width: 300px; padding: 0 20px; flex-shrink: 0; }
-        .col-date { width: 130px; text-align: center; justify-content: center; border-inline-end: 1px solid #f1f5f9; flex-shrink: 0; }
-        .col-days { width: 120px; text-align: center; justify-content: center; flex-shrink: 0; }
-        .name-txt { font-weight: 900; color: #0f172a; font-size: 13px; }
-        .days-badge { background: #dcfce7; color: #166534; font-weight: 900; padding: 4px 12px; border-radius: 8px; font-size: 11px; }
-        .timeline-wrapper { flex-grow: 1; overflow-x: auto; background: white; }
-        .timeline-content { min-width: 1800px; position: relative; height: 100%; }
-        .month-header-cell { display: flex; align-items: center; justify-content: center; border-inline-end: 1px solid #334155; font-weight: 900; font-size: 11px; }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -34,73 +60,69 @@
         <div id="mainHeader" class="flex justify-between items-center mb-8 bg-white p-6 rounded-3xl shadow-sm border-b-4 border-blue-900">
             <img id="mainLogo" src="https://cafs.org.sa/wp-content/uploads/2023/03/Logo-Almajdouie-Holding-Company.jpg" class="h-14 w-auto">
             <div class="flex gap-3">
-                <button onclick="switchTab('employees')" id="btn-employees" class="nav-btn active">Staff 👥</button>
-                <button onclick="switchTab('leaves')" id="btn-leaves" class="nav-btn">Vacations 🗓️</button>
-                <button onclick="switchTab('schedule')" id="btn-schedule" class="nav-btn">Schedule 📊</button>
+                <button onclick="switchTab('employees')" id="btn-employees" class="nav-btn active">Staff Registry</button>
+                <button onclick="switchTab('leaves')" id="btn-leaves" class="nav-btn">Add Vacations</button>
+                <button onclick="switchTab('schedule')" id="btn-schedule" class="nav-btn">Schedule View 📊</button>
                 <button onclick="toggleLanguage()" class="border-2 border-blue-900 text-blue-900 px-5 py-2 rounded-xl font-black">AR / EN</button>
             </div>
         </div>
 
         <div id="sec-employees" class="section-content active">
             <div class="bg-white p-8 rounded-3xl shadow-xl border-t-8 border-emerald-500">
-                <h2 class="text-2xl font-black mb-6">Staff Registry</h2>
+                <h2 class="text-2xl font-black mb-6">Employee Management</h2>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                    <input id="newEmpId" type="text" placeholder="ID" class="border-2 p-3 rounded-2xl outline-none focus:border-emerald-500">
-                    <input id="newEmpName" type="text" placeholder="Name" class="border-2 p-3 rounded-2xl outline-none focus:border-emerald-500">
-                    <input id="newEmpDept" type="text" placeholder="Dept" class="border-2 p-3 rounded-2xl outline-none focus:border-emerald-500">
-                    <select id="newEmpRole" class="border-2 p-3 rounded-2xl">
+                    <input id="newEmpId" type="text" placeholder="ID" class="border-2 p-3 rounded-2xl outline-none">
+                    <input id="newEmpName" type="text" placeholder="Full Name" class="border-2 p-3 rounded-2xl outline-none">
+                    <input id="newEmpDept" type="text" placeholder="Dept" class="border-2 p-3 rounded-2xl outline-none">
+                    <select id="newEmpRole" class="border-2 p-3 rounded-2xl bg-gray-50">
                         <option value="Employee">Employee</option>
                         <option value="Supervisor">Supervisor</option>
                         <option value="Manager">Manager</option>
                         <option value="Director">Director</option>
                     </select>
-                    <button onclick="addNewEmployee()" class="bg-emerald-600 text-white font-black py-4 rounded-2xl md:col-span-4 shadow-lg hover:bg-emerald-700 transition">+ Add Member</button>
+                    <button onclick="addNewEmployee()" class="bg-emerald-600 text-white font-black py-4 rounded-2xl md:col-span-4 shadow-lg hover:bg-emerald-700 transition">+ Register Staff</button>
                 </div>
-                <div id="empList" class="bg-slate-50 rounded-2xl p-4">
-                     <table class="w-full text-left">
-                        <thead><tr class="text-xs font-bold uppercase text-slate-400"><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2 text-center">Action</th></tr></thead>
-                        <tbody id="registeredEmpTable"></tbody>
-                     </table>
-                </div>
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 text-xs font-bold uppercase"><tr><th class="p-4">ID</th><th class="p-4">Name</th><th class="p-4 text-center">Action</th></tr></thead>
+                    <tbody id="registeredEmpTable"></tbody>
+                </table>
             </div>
         </div>
 
         <div id="sec-leaves" class="section-content">
             <div class="bg-white p-10 rounded-3xl shadow-xl border-t-8 border-blue-900">
-                <h2 class="text-2xl font-black mb-8">Vacation Entry</h2>
+                <h2 class="text-2xl font-black mb-8">New Vacation Record</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <select id="selectEmployee" class="border-2 p-4 rounded-2xl bg-slate-50 font-black"></select>
-                    <input id="vacFrom" type="date" class="border-2 p-4 rounded-2xl font-bold">
-                    <input id="vacTo" type="date" class="border-2 p-4 rounded-2xl font-bold">
-                    <button id="addVacBtn" class="bg-blue-900 text-white font-black py-4 rounded-2xl md:col-span-3">Confirm Dates</button>
+                    <input id="vacFrom" type="date" class="border-2 p-4 rounded-2xl">
+                    <input id="vacTo" type="date" class="border-2 p-4 rounded-2xl">
+                    <button id="addVacBtn" class="bg-blue-900 text-white font-black py-4 rounded-2xl md:col-span-3">Confirm & Save</button>
                 </div>
             </div>
         </div>
 
         <div id="sec-schedule" class="section-content">
             <div class="flex justify-end mb-6">
-                <button onclick="copyChartToClipboard()" class="bg-blue-600 text-white px-12 py-4 rounded-2xl font-black shadow-xl hover:bg-blue-700 transition">
-                    Copy for Outlook 📸
-                </button>
+                <button onclick="copyChartToClipboard()" class="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black shadow-xl hover:bg-blue-700 transition">Copy for Outlook 📸</button>
             </div>
             
             <div id="captureArea" class="bg-white rounded-[40px] shadow-2xl overflow-hidden border p-10">
                 <div id="reportHeader" class="flex justify-between items-center mb-10 pb-8 border-b-4 border-slate-100">
                     <img src="https://cafs.org.sa/wp-content/uploads/2023/03/Logo-Almajdouie-Holding-Company.jpg" class="h-28 w-auto">
                     <div class="text-end" id="brandingText">
-                        <h2 class="text-3xl font-black text-slate-800 uppercase tracking-tighter">Annual Vacation Schedule - 2026</h2>
-                        <p class="text-slate-400 font-bold tracking-widest">ALMAJDOUIE MOTORS OFFICIAL REPORT</p>
+                        <h2 class="text-4xl font-black text-slate-800 uppercase tracking-tighter">Annual Vacation Schedule - 2026</h2>
+                        <p class="text-slate-400 font-bold uppercase tracking-widest">Almajdouie Motors - Official Report</p>
                     </div>
                 </div>
 
                 <div class="timeline-wrapper">
                     <div class="timeline-content">
-                        <div id="headerRow" class="flex bg-slate-900 text-white font-black uppercase tracking-widest rounded-t-2xl">
+                        <div class="flex bg-slate-900 text-white font-black uppercase tracking-widest rounded-t-2xl">
                             <div class="info-cols bg-slate-900 border-r border-slate-700">
                                 <div class="col-name cell border-r border-slate-700 text-center justify-center">Employee / Role</div>
                                 <div class="col-date cell border-r border-slate-700">Start Date</div>
                                 <div class="col-date cell border-r border-slate-700">End Date</div>
-                                <div class="col-days cell">Work Days</div>
+                                <div class="col-days cell">Days</div>
                             </div>
                             <div id="monthsContainer" class="flex-grow flex"></div>
                         </div>
@@ -178,7 +200,7 @@
         };
 
         window.copyChartToClipboard = () => {
-            html2canvas(document.getElementById('captureArea'), { scale: 3, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
+            html2canvas(document.getElementById('captureArea'), { scale: 3, useCORS: true }).then(canvas => {
                 canvas.toBlob(blob => {
                     navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => alert("Copied! ✅"));
                 });
@@ -194,7 +216,7 @@
                 const e = d.data();
                 allEmployees.push({ ...e, fireId: d.id });
                 select.innerHTML += `<option value="${e.empId}">${e.name}</option>`;
-                table.innerHTML += `<tr class="border-b"><td class="p-2 font-bold text-slate-400 text-xs">${e.empId}</td><td class="p-2 font-bold">${e.name}</td><td class="p-2 text-center"><button class="text-red-500 font-bold text-xs" onclick="deleteData('employees', '${d.id}')">Remove</button></td></tr>`;
+                table.innerHTML += `<tr class="border-b"><td class="p-4 font-bold text-slate-400 text-xs">${e.empId}</td><td class="p-4 font-bold text-slate-800">${e.name}</td><td class="p-4 text-center"><button class="text-red-500 font-bold text-xs" onclick="deleteData('employees', '${d.id}')">Remove</button></td></tr>`;
             });
         });
 
