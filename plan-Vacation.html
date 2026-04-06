@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Vacation System - Organized View</title>
+    <title>نظام المجدوعي - الدقة الاحترافية</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -11,14 +11,21 @@
     <style>
         body { font-family: 'Tajawal', sans-serif; background-color: #f1f5f9; margin: 0; }
         
+        /* قياسات ثابتة للمحاذاة 100% */
+        :root {
+            --info-width: 680px; /* مجموع عرض أعمدة الاسم والتواريخ والأيام */
+            --name-w: 300px;
+            --date-w: 130px;
+            --days-w: 120px;
+            --row-h: 60px;
+        }
+
         .vacation-bar { 
             height: 24px; border-radius: 6px; position: absolute; z-index: 20; 
             top: 50%; transform: translateY(-50%); 
             box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            border: 1px solid rgba(255,255,255,0.4);
         }
-
-        /* قياسات ثابتة للمحاذاة التامة 100% */
-        :root { --info-width: 680px; --name-w: 300px; --date-w: 130px; --days-w: 120px; --row-h: 60px; }
 
         .chart-row { display: flex; border-bottom: 1px solid #e2e8f0; height: var(--row-h); align-items: center; background: white; }
         .chart-row:nth-child(even) { background-color: #f8fafc; }
@@ -31,11 +38,11 @@
 
         .cell { display: flex; align-items: center; height: 100%; font-size: 13px; }
         .name-txt { font-weight: 900; color: #0f172a; font-size: 14px; text-transform: uppercase; }
-        .date-txt { font-weight: 700; color: #64748b; font-family: sans-serif; font-size: 12px; }
+        .date-txt { font-weight: 700; color: #64748b; font-family: sans-serif; font-size: 11px; }
         .days-badge { background: #dcfce7; color: #166534; font-weight: 900; padding: 4px 12px; border-radius: 8px; font-size: 12px; }
 
         .timeline-wrapper { flex-grow: 1; overflow-x: auto; background: white; position: relative; }
-        .timeline-content { min-width: 1800px; position: relative; height: 100%; }
+        .timeline-content { min-width: 1500px; position: relative; height: 100%; }
         
         .month-header-cell { display: flex; align-items: center; justify-content: center; border-inline-end: 1px solid #334155; font-weight: 900; font-size: 11px; }
         .grid-line { border-inline-end: 1px solid #f1f5f9; height: 100%; position: absolute; top: 0; }
@@ -52,9 +59,9 @@
         <div id="mainHeader" class="flex justify-between items-center mb-8 bg-white p-6 rounded-3xl shadow-sm border-b-4 border-blue-900">
             <img id="mainLogo" src="https://cafs.org.sa/wp-content/uploads/2023/03/Logo-Almajdouie-Holding-Company.jpg" class="h-14 w-auto">
             <div class="flex gap-3">
-                <button onclick="switchTab('employees')" id="btn-employees" class="nav-btn active">Staff Database 👥</button>
-                <button onclick="switchTab('leaves')" id="btn-leaves" class="nav-btn">Add Vacations 🗓️</button>
-                <button onclick="switchTab('schedule')" id="btn-schedule" class="nav-btn">Organized Chart 📊</button>
+                <button onclick="switchTab('employees')" id="btn-employees" class="nav-btn active">Staff 👥</button>
+                <button onclick="switchTab('leaves')" id="btn-leaves" class="nav-btn">Vacations 🗓️</button>
+                <button onclick="switchTab('schedule')" id="btn-schedule" class="nav-btn">Final Schedule 📊</button>
                 <button onclick="toggleLanguage()" class="border-2 border-blue-900 text-blue-900 px-5 py-2 rounded-xl font-black">AR / EN</button>
             </div>
         </div>
@@ -63,19 +70,18 @@
             <div class="bg-white p-8 rounded-3xl shadow-xl border-t-8 border-emerald-500">
                 <h2 class="text-2xl font-black mb-6">Staff Database</h2>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                    <input id="newEmpId" type="text" placeholder="ID" class="border-2 p-3 rounded-2xl outline-none">
+                    <input id="newEmpId" type="text" placeholder="Employee ID" class="border-2 p-3 rounded-2xl outline-none">
                     <input id="newEmpName" type="text" placeholder="Full Name" class="border-2 p-3 rounded-2xl outline-none">
-                    <input id="newEmpDept" type="text" placeholder="Dept" class="border-2 p-3 rounded-2xl outline-none">
-                    <select id="newEmpRole" class="border-2 p-3 rounded-2xl bg-gray-50">
+                    <input id="newEmpDept" type="text" placeholder="Department" class="border-2 p-3 rounded-2xl outline-none">
+                    <select id="newEmpRole" class="border-2 p-3 rounded-2xl">
                         <option value="Employee">Employee</option>
                         <option value="Supervisor">Supervisor</option>
                         <option value="Manager">Manager</option>
-                        <option value="Director">Director</option>
                     </select>
-                    <button onclick="addNewEmployee()" class="bg-emerald-600 text-white font-black py-4 rounded-2xl md:col-span-4 shadow-lg hover:bg-emerald-700 transition">+ Save Member</button>
+                    <button onclick="addNewEmployee()" class="bg-emerald-600 text-white font-black py-4 rounded-2xl md:col-span-4 shadow-lg hover:bg-emerald-700 transition">+ Register Staff</button>
                 </div>
                 <table class="w-full text-left">
-                    <thead class="bg-slate-50 text-xs font-bold uppercase"><tr><th class="p-4">ID</th><th class="p-4">Name</th><th class="p-4 text-center">Action</th></tr></thead>
+                    <thead class="bg-slate-50 text-xs font-bold"><tr><th class="p-4">ID</th><th class="p-4">Name</th><th class="p-4 text-center">Action</th></tr></thead>
                     <tbody id="registeredEmpTable"></tbody>
                 </table>
             </div>
@@ -85,15 +91,13 @@
             <div class="bg-white p-10 rounded-3xl shadow-xl border-t-8 border-blue-900">
                 <h2 class="text-2xl font-black mb-8">Link Vacation Dates</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <select id="selectEmployee" class="border-2 p-4 rounded-2xl bg-slate-50 font-black">
-                        <option value="">-- Choose Employee --</option>
-                    </select>
+                    <select id="selectEmployee" class="border-2 p-4 rounded-2xl bg-slate-50 font-black"></select>
                     <input id="vacFrom" type="date" class="border-2 p-4 rounded-2xl">
                     <input id="vacTo" type="date" class="border-2 p-4 rounded-2xl">
                     <button id="addVacBtn" class="bg-blue-900 text-white font-black py-4 rounded-2xl md:col-span-3">Confirm Vacation</button>
                 </div>
+                <div id="vacList" class="mt-8 space-y-2"></div>
             </div>
-            <div id="vacList" class="mt-8 bg-white p-6 rounded-3xl shadow-lg"></div>
         </div>
 
         <div id="sec-schedule" class="section-content">
@@ -106,7 +110,7 @@
                     <img src="https://cafs.org.sa/wp-content/uploads/2023/03/Logo-Almajdouie-Holding-Company.jpg" class="h-28 w-auto">
                     <div class="text-end" id="brandingText">
                         <h2 class="text-4xl font-black text-slate-800 uppercase tracking-tighter">Annual Vacation Schedule - 2026</h2>
-                        <p class="text-slate-400 font-bold uppercase tracking-widest">Almajdouie Holding - Individual Report</p>
+                        <p class="text-slate-400 font-bold tracking-widest">ALMAJDOUIE MOTORS OFFICIAL REPORT</p>
                     </div>
                 </div>
 
@@ -114,10 +118,10 @@
                     <div class="timeline-content">
                         <div class="flex bg-slate-900 text-white font-black uppercase tracking-widest rounded-t-2xl">
                             <div class="info-cols bg-slate-900 border-r border-slate-700">
-                                <div class="col-name cell border-r border-slate-700 text-center justify-center">Employee / Role</div>
+                                <div class="col-name cell border-r border-slate-700 text-center justify-center">Employee / Position</div>
                                 <div class="col-date cell border-r border-slate-700">Start Date</div>
                                 <div class="col-date cell border-r border-slate-700">End Date</div>
-                                <div class="col-days cell">Work Days</div>
+                                <div class="col-days cell">Days</div>
                             </div>
                             <div id="monthsContainer" class="flex-grow flex"></div>
                         </div>
@@ -159,13 +163,7 @@
         let allEmployees = [];
         let currentLang = 'en';
 
-        window.switchTab = (t) => {
-            document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`sec-${t}`).classList.add('active');
-            document.getElementById(`btn-${t}`).classList.add('active');
-        };
-
+        // دالة تبديل اللغة (تتحكم في الاتجاه والشعار)
         window.toggleLanguage = () => {
             currentLang = currentLang === 'en' ? 'ar' : 'en';
             document.getElementById('htmlTag').dir = currentLang === 'ar' ? 'rtl' : 'ltr';
@@ -176,6 +174,7 @@
             renderMonths();
         };
 
+        // رسم رأس الجدول (الشهور) بدقة الأيام
         const renderMonths = () => {
             const container = document.getElementById('monthsContainer');
             container.innerHTML = months.map(m => {
@@ -184,6 +183,13 @@
             }).join('');
         };
         renderMonths();
+
+        window.switchTab = (t) => {
+            document.querySelectorAll('.section-content').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`sec-${t}`).classList.add('active');
+            document.getElementById(`btn-${t}`).classList.add('active');
+        };
 
         const getDays = (s, e) => {
             let count = 0, cur = new Date(s), stop = new Date(e);
@@ -197,13 +203,14 @@
         window.copyChartToClipboard = () => {
             html2canvas(document.getElementById('captureArea'), { scale: 3, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
                 canvas.toBlob(blob => {
-                    navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => alert("Copied! ✅"));
+                    navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => alert("Copied! ✅ Open Outlook and Paste."));
                 });
             });
         };
 
         window.deleteData = async (c, id) => { if(confirm("Confirm Delete?")) await deleteDoc(doc(db, c, id)); };
 
+        // مزامنة الموظفين
         onSnapshot(empCol, (snap) => {
             const select = document.getElementById('selectEmployee');
             const table = document.getElementById('registeredEmpTable');
@@ -213,55 +220,47 @@
             snap.forEach(d => {
                 const e = d.data();
                 allEmployees.push({ ...e, fireId: d.id });
-                let opt = document.createElement('option');
-                opt.value = e.empId; opt.textContent = e.name;
-                select.appendChild(opt);
-                table.innerHTML += `<tr class="border-b"><td class="p-4 font-bold text-slate-400 text-xs">${e.empId}</td><td class="p-4 font-bold text-slate-800">${e.name}</td><td class="p-4 text-center"><button class="text-red-500 font-bold text-xs" onclick="deleteData('employees', '${d.id}')">Remove</button></td></tr>`;
+                select.innerHTML += `<option value="${e.empId}">${e.name}</option>`;
+                table.innerHTML += `<tr class="border-b"><td class="p-4 font-bold text-slate-400 text-xs">${e.empId}</td><td class="p-4 font-bold">${e.name}</td><td class="p-4 text-center"><button class="text-red-500 font-bold" onclick="deleteData('employees', '${d.id}')">Remove</button></td></tr>`;
             });
         });
 
+        // مزامنة الإجازات والشارت
         onSnapshot(vacCol, (snap) => {
             const gantt = document.getElementById('ganttContainer');
             const vacList = document.getElementById('vacList');
-            gantt.innerHTML = "";
-            vacList.innerHTML = "";
-            
+            gantt.innerHTML = ""; vacList.innerHTML = "";
             const colors = { employee: "#3b82f6", supervisor: "#8b5cf6", manager: "#10b981", director: "#f59e0b" };
+            
             let vData = [];
             snap.forEach(d => vData.push({ ...d.data(), id: d.id }));
             
-            // ✅ الفرز: حسب الاسم ثم حسب تاريخ البداية
+            // الفرز: حسب الاسم ثم حسب التاريخ (الموظف المتكرر تحت بعض)
             vData.sort((a, b) => a.name.localeCompare(b.name) || new Date(a.from) - new Date(b.from));
 
             vData.forEach(v => {
                 const days = getDays(v.from, v.to);
                 const roleK = String(v.role).toLowerCase();
                 const startDay = (new Date(v.from) - new Date(2026,0,1)) / (1000*3600*24);
-                const endDay = (new Date(v.to) - new Date(2026,0,1)) / (1000*3600*24);
+                const endDay = (new Date(v.to) - new Date(2026,0,1)) / (1000*3600*24) + 1;
                 
                 const left = (startDay / 365) * 100;
                 const width = ((endDay - startDay) / 365) * 100;
 
-                // إضافة لقائمة الحذف في تبويب الإجازات
-                vacList.innerHTML += `<div class="flex justify-between items-center p-3 border-b"><span><b>${v.name}</b> (${v.from} to ${v.to})</span><button onclick="deleteData('vacations', '${v.id}')" class="text-red-500 font-bold">X</button></div>`;
+                vacList.innerHTML += `<div class="flex justify-between items-center p-3 bg-white border-b rounded-lg"><span><b>${v.name}</b> (${v.from} to ${v.to})</span><button onclick="deleteData('vacations', '${v.id}')" class="text-red-500 font-bold">X</button></div>`;
 
-                // إضافة للشارت كسطر مستقل
                 const row = document.createElement('div');
                 row.className = "chart-row";
                 row.innerHTML = `
                     <div class="info-cols bg-white">
-                        <div class="col-name cell border-r border-slate-100">
-                            <div class="flex flex-col"><span class="name-txt uppercase">${v.name}</span><span class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">${v.role}</span></div>
-                        </div>
-                        <div class="col-date cell border-r border-slate-100 justify-center"><span class="date-txt">${v.from}</span></div>
-                        <div class="col-date cell border-r border-slate-100 justify-center"><span class="date-txt">${v.to}</span></div>
+                        <div class="col-name cell border-r"><div class="flex flex-col"><span class="name-txt uppercase">${v.name}</span><span class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">${v.role}</span></div></div>
+                        <div class="col-date cell border-r justify-center"><span class="date-txt">${v.from}</span></div>
+                        <div class="col-date cell border-r justify-center"><span class="date-txt">${v.to}</span></div>
                         <div class="col-days cell justify-center"><span class="days-badge">${days}D</span></div>
                     </div>
-                    <div class="timeline-cell">
-                        <div class="absolute inset-0 flex pointer-events-none">
-                            ${months.map(m => `<div class="h-full border-inline-end border-slate-100" style="width: ${(m.days / 365) * 100}%"></div>`).join('')}
-                        </div>
-                        <div class="vacation-bar" style="${currentLang === 'ar' ? 'right' : 'left'}:${left}%; width:${Math.max(width, 1.2)}%; background-color:${colors[roleK] || '#64748b'}"></div>
+                    <div class="timeline-cell relative flex-grow h-full">
+                        <div class="absolute inset-0 flex pointer-events-none">${months.map(m => `<div class="h-full border-inline-end border-slate-100" style="width: ${(m.days / 365) * 100}%"></div>`).join('')}</div>
+                        <div class="vacation-bar" style="${currentLang === 'ar' ? 'right' : 'left'}:${left}%; width:${Math.max(width, 0.8)}%; background-color:${colors[roleK] || '#64748b'}"></div>
                     </div>
                 `;
                 gantt.appendChild(row);
@@ -279,10 +278,8 @@
             const from = document.getElementById('vacFrom').value;
             const to = document.getElementById('vacTo').value;
             const emp = allEmployees.find(e => e.empId == empId);
-            if(emp && from && to) {
-                await addDoc(vacCol, { ...emp, from, to });
-                alert("Saved! ✅");
-            }
+            if(emp && from && to) await addDoc(vacCol, { ...emp, from, to });
+            alert("Saved!");
         };
     </script>
 </body>
