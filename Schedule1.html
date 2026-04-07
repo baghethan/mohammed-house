@@ -1,96 +1,573 @@
 <!DOCTYPE html>
-<html dir="rtl" lang="ar">
+<html dir="ltr" lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام المجدوعي للسيارات</title>
-    <style>
-        *{box-sizing:border-box;margin:0;padding:0}
-        body{font-family:'Segoe UI',Tahoma,sans-serif; direction:rtl; padding:20px; background-color: #f0f2f5;}
-        
-        /* شاشة تسجيل الدخول */
-        #login-screen {
-            max-width: 400px; margin: 100px auto; background: white; padding: 30px;
-            border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center;
-        }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; }
-        .btn-login { width: 100%; padding: 12px; background: #0369a1; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-
-        /* شاشة النظام الأساسية (مخفية في البداية) */
-        #main-system { display: none; max-width: 850px; margin: auto; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; }
-
-        /* التبويبات */
-        .tabs-header { display: flex; background: #e2e8f0; border-bottom: 3px solid #0369a1; }
-        .tab-btn { flex: 1; padding: 15px; border: none; background: none; cursor: pointer; font-weight: bold; color: #475569; }
-        .tab-btn.active { background: #0369a1; color: #fff; }
-        .tab-content { display: none; padding: 20px; }
-        .tab-content.active { display: block; }
-
-        /* زر الإجازة المعدل */
-        .btn-vacation { display: inline-block; font-size: 18px; font-weight: bold; background: #0369a1; color: #fff !important; border-radius: 10px; padding: 15px 40px; text-decoration: none; margin-top: 20px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Branch Visit Schedule — MMC IT Support</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Tahoma,sans-serif;background:#f1f5f9;color:#1a3558;}
+.top{background:#1a3558;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.top h1{color:#fff;font-size:16px;font-weight:700;}
+.top .sub{color:#a8c8f0;font-size:11px;margin-top:2px;}
+.top a{color:#fff;background:rgba(255,255,255,0.15);border-radius:6px;padding:5px 12px;text-decoration:none;font-size:11px;white-space:nowrap;}
+.top a:hover{background:rgba(255,255,255,0.25);}
+/* Tabs */
+.tabs{background:#fff;display:flex;gap:0;border-bottom:2px solid #e2e8f0;}
+.tab{padding:10px 20px;font-size:13px;cursor:pointer;color:#64748b;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;}
+.tab.active{color:#1a3558;border-bottom-color:#1a3558;}
+.tab-content{display:none;}.tab-content.active{display:block;}
+/* Filters */
+.filters{background:#fff;padding:10px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-bottom:1px solid #e2e8f0;}
+.filters select,.filters input{border:1px solid #d0d8e8;border-radius:6px;padding:6px 10px;font-size:12px;color:#1a3558;background:#fff;}
+.filters button{background:#1a3558;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;}
+.count-badge{background:#e0eaf5;color:#1a3558;border-radius:5px;padding:4px 10px;font-size:11px;font-weight:700;}
+/* Stats */
+.stats{display:flex;gap:10px;padding:12px 16px;flex-wrap:wrap;}
+.stat-card{background:#fff;border-radius:10px;padding:12px 18px;flex:1;min-width:110px;border:1px solid #e2e8f0;text-align:center;}
+.stat-card .n{font-size:20px;font-weight:800;color:#1a3558;}
+.stat-card .l{font-size:10px;color:#888;margin-top:2px;}
+/* Table */
+.table-wrap{background:#fff;border-radius:12px;margin:0 16px 16px;border:1px solid #e2e8f0;overflow:auto;box-shadow:0 2px 8px rgba(0,0,0,0.05);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{background:#1a3558;color:#fff;padding:10px 12px;text-align:left;font-size:11px;white-space:nowrap;position:sticky;top:0;z-index:10;}
+tbody tr{border-bottom:1px solid #f1f5f9;transition:background 0.1s;}
+tbody tr:hover{background:#f8fafd;}
+tbody tr.row-done{background:#f0fdf4!important;}
+tbody tr.row-scheduled{background:#eff6ff!important;}
+tbody tr.row-skip{background:#f8fafd!important;}
+tbody td{padding:8px 12px;vertical-align:middle;}
+/* Badges */
+.brand-badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;white-space:nowrap;}
+.br-Hyundai{background:#003399;color:#fff;} .br-Changan{background:#cc0000;color:#fff;}
+.br-Genesis{background:#1a1a1a;color:#fff;} .br-Stellantis{background:#6d1b9a;color:#fff;}
+.br-Multi{background:#0369a1;color:#fff;}
+.type-badge{background:#e0eaf5;color:#1a3558;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;}
+.status-sel{border:1px solid #d0d8e8;border-radius:5px;padding:4px 6px;font-size:11px;cursor:pointer;}
+.emp-select{border:1px solid #d0d8e8;border-radius:5px;padding:4px 6px;font-size:11px;cursor:pointer;min-width:140px;}
+.date-input{border:1px solid #d0d8e8;border-radius:5px;padding:4px 7px;font-size:11px;width:130px;}
+.note-input{border:1px solid #d0d8e8;border-radius:5px;padding:4px 7px;font-size:11px;width:130px;}
+.warn{background:#fef3c7;color:#92400e;border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700;}
+.empty{text-align:center;padding:40px;color:#94a3b8;font-size:14px;}
+/* Chart section */
+.chart-section{padding:16px;background:#fff;margin:0 16px 16px;border-radius:12px;border:1px solid #e2e8f0;}
+.chart-section h3{font-size:14px;color:#1a3558;margin-bottom:14px;}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+canvas{max-height:260px;}
+/* Month selector */
+.month-bar{background:#fff;padding:10px 16px;display:flex;gap:10px;align-items:center;border-bottom:1px solid #e2e8f0;}
+.month-bar select,.month-bar input{border:1px solid #d0d8e8;border-radius:6px;padding:6px 10px;font-size:12px;}
+.btn{padding:6px 14px;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;}
+.btn-primary{background:#1a3558;color:#fff;} .btn-green{background:#166534;color:#fff;} .btn-blue{background:#1565c0;color:#fff;}
+</style>
 </head>
 <body>
 
-    <div id="login-screen">
-        <h2 style="color:#0369a1; margin-bottom:20px;">تسجيل الدخول</h2>
-        <input type="text" id="username" placeholder="اسم المستخدم">
-        <input type="password" id="password" placeholder="كلمة المرور">
-        <button class="btn-login" onclick="checkLogin()">دخول</button>
-        <p id="error-msg" style="color:red; font-size:12px; margin-top:10px; display:none;">خطأ في اسم المستخدم أو كلمة المرور!</p>
-    </div>
+<div class="top">
+  <div>
+    <h1>🏢 Branch Visit Schedule — MMC IT Support</h1>
+    <div class="sub">Almajdouie Motors — Branch Maintenance Planning</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <span id="sync-badge" style="font-size:10px;background:#166534;color:#fff;border-radius:4px;padding:3px 8px;opacity:0.5">☁ Synced</span>
+    <a href="https://baghethan.com/Schedule.html">📋 Duty Schedule</a>
+  </div>
+</div>
 
-    <div id="main-system">
-        <div class="tabs-header">
-            <button class="tab-btn active" onclick="openTab(event, 'schedule-tab')">📅 جدول الدوام</button>
-            <button class="tab-btn" onclick="openTab(event, 'vacation-tab')">📝 خطة الإجازات</button>
-        </div>
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('visits')">📅 Weekly Visit Planner</div>
+  <div class="tab" onclick="showTab('report')">📊 Monthly Report</div>
+</div>
 
-        <div id="schedule-tab" class="tab-content active">
-            <h2 style="text-align:center; color:#0369a1;">جدول الدوام الأسبوعي</h2>
-            <div id="schedule-data" style="margin-top:20px;">
-                <p style="text-align:center;">مرحباً بك.. جاري تحميل جدولك الخاص.</p>
-            </div>
-        </div>
+<!-- ══════════ TAB 1: VISITS ══════════ -->
+<div class="tab-content active" id="tab-visits">
 
-        <div id="vacation-tab" class="tab-content">
-            <div style="text-align: center;">
-                <h2>نظام خطة الإجازات</h2>
-                <p>اضغط على الزر أدناه للانتقال لصفحة التخطيط</p>
-                <a href="https://baghethan.com/plan-Vacation.html" target="_blank" class="btn-vacation">
-                    <span style="font-size:24px; vertical-align:middle; margin-left:8px;">&#128197;</span> تخطيط الإجازة
-                </a>
-            </div>
-        </div>
-    </div>
+<div class="filters">
+  <select id="f-week" onchange="applyFilters()">
+    <option value="">All weeks</option>
+  </select>
+  <select id="f-region" onchange="applyFilters()">
+    <option value="">All Regions</option>
+    <option>Eastern</option><option>Westeren</option><option>Centeral</option>
+  </select>
+  <select id="f-brand" onchange="applyFilters()">
+    <option value="">All Brands</option>
+    <option>Hyundai</option><option>Changan</option><option>Genesis</option>
+    <option>Stellantis</option><option>Multi Brand</option>
+  </select>
+  <select id="f-status" onchange="applyFilters()">
+    <option value="">All Status</option>
+    <option value="pending">Pending</option>
+    <option value="scheduled">Scheduled</option>
+    <option value="done">Done</option>
+  </select>
+  <select id="f-emp" onchange="applyFilters()">
+    <option value="">All Employees</option>
+  </select>
+  <input type="text" id="f-search" placeholder="🔍 Search..." oninput="applyFilters()" style="width:160px">
+  <button onclick="resetFilters()">Reset</button>
+  <span class="count-badge" id="count-badge">38 branches</span>
+</div>
+
+<div class="stats">
+  <div class="stat-card"><div class="n" id="s-total">38</div><div class="l">Total</div></div>
+  <div class="stat-card"><div class="n" id="s-scheduled" style="color:#1565c0">0</div><div class="l">Scheduled</div></div>
+  <div class="stat-card"><div class="n" id="s-done" style="color:#166534">0</div><div class="l">Done</div></div>
+  <div class="stat-card"><div class="n" id="s-pending" style="color:#d97706">38</div><div class="l">Pending</div></div>
+  <div class="stat-card"><div class="n" id="s-warn" style="color:#dc2626">0</div><div class="l">⚠ Leave Conflict</div></div>
+</div>
+
+<div class="table-wrap">
+<table>
+<thead><tr>
+  <th>#</th><th>Branch</th><th>Brand/Type</th><th>City</th>
+  <th>Week</th><th>Assigned To</th><th>Visit Date</th><th>Status</th><th>Notes</th>
+</tr></thead>
+<tbody id="tbody"></tbody>
+</table>
+<div class="empty" id="empty-state" style="display:none">No branches match your filters</div>
+</div>
+
+<div style="padding:10px 16px;display:flex;gap:8px;flex-wrap:wrap;background:#fff;border-top:1px solid #e2e8f0;margin:0 16px 16px;border-radius:0 0 12px 12px">
+  <button class="btn btn-green" onclick="exportPDF()">📄 Export Full Report</button>
+  <button class="btn btn-blue" onclick="exportWeekPlan()">📋 Export Week Plan</button>
+  <button class="btn" style="background:#dc2626;color:#fff" onclick="clearAll()">🗑 Clear All</button>
+</div>
+</div>
+
+<!-- ══════════ TAB 2: REPORT ══════════ -->
+<div class="tab-content" id="tab-report">
+<div class="month-bar">
+  <label style="font-size:12px;font-weight:700">Report Month:</label>
+  <input type="month" id="rpt-month" onchange="renderReport()">
+  <button class="btn btn-primary" onclick="renderReport()">Generate</button>
+  <button class="btn btn-green" onclick="exportReportPDF()">📄 Export PDF</button>
+</div>
+
+<div class="stats" id="rpt-stats" style="display:none"></div>
+
+<div class="chart-section" id="rpt-charts" style="display:none">
+  <h3>📊 Monthly Visit Overview</h3>
+  <div class="chart-grid">
+    <div><canvas id="chart-status"></canvas></div>
+    <div><canvas id="chart-emp"></canvas></div>
+    <div><canvas id="chart-brand"></canvas></div>
+    <div><canvas id="chart-week"></canvas></div>
+  </div>
+</div>
+
+<div class="table-wrap" id="rpt-table-wrap" style="display:none;margin-top:0">
+<table>
+<thead><tr>
+  <th>Branch</th><th>Brand</th><th>City</th><th>Assigned To</th>
+  <th>Visit Date</th><th>Status</th><th>Notes</th>
+</tr></thead>
+<tbody id="rpt-tbody"></tbody>
+</table>
+</div>
+</div>
 
 <script>
-    // وظيفة التحقق من تسجيل الدخول
-    function checkLogin() {
-        var user = document.getElementById('username').value;
-        var pass = document.getElementById('password').value;
+firebase.initializeApp({
+  apiKey:"AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
+  authDomain:"baghethan-ba325.firebaseapp.com",
+  projectId:"baghethan-ba325",
+  storageBucket:"baghethan-ba325.firebasestorage.app",
+  messagingSenderId:"944819735112",
+  appId:"1:944819735112:web:07315600da39377320667d"
+});
+var DB = firebase.firestore();
 
-        // يمكنك تغيير "admin" و "1234" بما تفضله
-        if (user === "admin" && pass === "1234") {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('main-system').style.display = 'block';
-        } else {
-            document.getElementById('error-msg').style.display = 'block';
-        }
-    }
+var BRANCHES = [{"id": "CNGN-DMM-1", "type": "1S", "brand": "Changan", "name": "Changan Dhahran Qeshla", "city": "Dammam", "region": "Eastern", "contactShowroom": "Hashem Ahmed Al-Ali 0542297470", "contactService": "", "contactSpare": "", "coords": "26.3627, 50.17802"}, {"id": "CNGN-KHB-2", "type": "3S", "brand": "Changan", "name": "Changan Khobar - Tamimi", "city": "Khobar", "region": "Eastern", "contactShowroom": "Mutaib Sameer Al-Muslim 0559233337", "contactService": "Mukhtar Fadhel Alabdrabulridha 0544583202", "contactSpare": "Abdullah Mazin Alramahi 0545680036", "coords": "26.33716, 50.19817"}, {"id": "CNGN-KHB-1", "type": "1S", "brand": "Changan", "name": "Changan Karawan Tower", "city": "Khobar", "region": "Eastern", "contactShowroom": "Ahmad Saleh Al-Ghamdi 0551599390", "contactService": "", "contactSpare": "", "coords": "26.318555, 50.216056"}, {"id": "CNGN-DMM-2", "type": "2S", "brand": "Changan", "name": "Changan Alkhaldia - Service", "city": "Dammam", "region": "Eastern", "contactShowroom": "", "contactService": "Mohammed Mahmoud Matar 0564114985", "contactSpare": "Mohmmad Abdulbaset Eltayeb 0546570363", "coords": "26.40208, 50.17073"}, {"id": "MMS-DMM-3", "type": "2S", "brand": "Changan", "name": "Changan Khair - Service", "city": "Dammam", "region": "Eastern", "contactShowroom": "", "contactService": "Hamdi Mohammed Mohammed 0556310555", "contactSpare": "Abdullah Mohammed Bawazir 0598505500", "coords": "26.44396, 50.04225"}, {"id": "GEN-KHB-1", "type": "1S", "brand": "Genesis", "name": "Genesis khobar", "city": "Khobar", "region": "Eastern", "contactShowroom": "Abdullah Ali Al-Duhaim 0561611131", "contactService": "", "contactSpare": "", "coords": "26.362830, 50.186364"}, {"id": "PCA-KHB-1", "type": "3S", "brand": "Stellantis", "name": "Peugeot Khobar", "city": "Khobar", "region": "Eastern", "contactShowroom": "Mohammed Muid Al Shihri 0590066667", "contactService": "Mohammad Awni Odeh 0593235522", "contactSpare": "Amr Saadeldein Hassoba 0541571057", "coords": "26.319856, 50.209314"}, {"id": "HQ-DMM", "type": "3S", "brand": "Hyundai", "name": "Hyundai 91 HQ", "city": "Dammam", "region": "Eastern", "contactShowroom": "Hussain Ali Bajwi 0504773367", "contactService": "Ossama Shogaa Abdul Azim 0538166683", "contactSpare": "Yasser Bafaqas 0534847021", "coords": "26.400945, 50.051463"}, {"id": "MMSM-KHB-1", "type": "3S", "brand": "Hyundai", "name": "Hyundai Khobar", "city": "Khobar", "region": "Eastern", "contactShowroom": "Mohammad Yehya Maslebi 0555889763", "contactService": "Rami Mohammed Qaqa 0506658679", "contactSpare": "Abdul Hakeem Khaja 0508862294", "coords": "26.31767, 50.21066"}, {"id": "MMSM-KHB-2", "type": "1S", "brand": "Hyundai", "name": "Hyundai Thuqbah - Showroom", "city": "Khobar", "region": "Eastern", "contactShowroom": "Abdulrheem Ahmed Alkhalfan 0565205500", "contactService": "", "contactSpare": "", "coords": "26.285429, 50.189966"}, {"id": "MMS-THQ-2", "type": "2S", "brand": "Hyundai", "name": "Hyundai Thuqbah - Service", "city": "Khobar", "region": "Eastern", "contactShowroom": "", "contactService": "Ali Ezzeldeen Ibrahim 0551541565", "contactSpare": "Imteyaz Ramzanali Timalia 0595205469", "coords": "26.254208, 50.199228"}, {"id": "MMP-DMM-3", "type": "S1", "brand": "Hyundai", "name": "Hyundai Khdoriah - Spare Parts", "city": "Dammam", "region": "Eastern", "contactShowroom": "", "contactService": "", "contactSpare": "Hani Jumah Al Ali 0509082940", "coords": "26.448461, 50.055211"}, {"id": "MMSM-DMM-2", "type": "1S", "brand": "Hyundai", "name": "Hyundai Jarir", "city": "Dammam", "region": "Eastern", "contactShowroom": "Naif Hassan Sahari 0557015815", "contactService": "", "contactSpare": "", "coords": "26.410089, 50.110040"}, {"id": "MMS-DMM-2", "type": "1S", "brand": "Hyundai", "name": "Hyundai Al Khodaryah - Service", "city": "Dammam", "region": "Eastern", "contactShowroom": "", "contactService": "Ali Mohammed Beirouty 0502062673", "contactSpare": "", "coords": "26.450849, 50.034180"}, {"id": "MMSM-QTF-1", "type": "3S", "brand": "Hyundai", "name": "Hyundai Sihat", "city": "Qatef", "region": "Eastern", "contactShowroom": "Majed Abdullah Al Basha 0563355302", "contactService": "Mohammad Yousef Abu Awad 0536181815", "contactSpare": "Tawfik Mohammed Qasem 0502902938", "coords": "26.50412, 50.03771"}, {"id": "MMS-HSA-1", "type": "2S", "brand": "Hyundai", "name": "Hyundai Hassa Indestrial - Service", "city": "Hassa", "region": "Eastern", "contactShowroom": "", "contactService": "Jasem Ahmed Al Nazal 0599409559", "contactSpare": "Mohammad Ali Alabdallah 0506967890", "coords": "25.404583, 49.479291"}, {"id": "MMSM-HSA-1", "type": "3S", "brand": "Hyundai", "name": "Hyundai Dhahran road", "city": "Hassa", "region": "Eastern", "contactShowroom": "Ibrahim Eissa Abdulrahman AL Hekan 0541114119", "contactService": "Abdullah Abdulgani Al Ibrahim 0506733393", "contactSpare": "Sultan Ali Al-Farhan 0544363281", "coords": "25.441442, 49.57073"}, {"id": "CNGN-HSA-1", "type": "2S", "brand": "Changan", "name": "Changan Hassa - Service", "city": "Hassa", "region": "Eastern", "contactShowroom": "", "contactService": "Yaser Ahmed Al-Masri 0557996640", "contactSpare": "Abdulhamid Ali Al-Sultan 0557677663", "coords": "25.361743, 49.55257"}, {"id": "MMSM-HSA-2", "type": "1S", "brand": "Hyundai", "name": "Hyundai Qatar road", "city": "Hassa", "region": "Eastern", "contactShowroom": "Anwar Essa Aljaafar 0561166141", "contactService": "", "contactSpare": "", "coords": "25.34302, 49.615107"}, {"id": "MMSM-HSA-3", "type": "3S", "brand": "Hyundai", "name": "Hyundai Salmania", "city": "Hassa", "region": "Eastern", "contactShowroom": "Ali Hussain Al Abdullatif 0540389998", "contactService": "Mohammad Mostafa Alaeraj 0508241116", "contactSpare": "Fadil Heji Al Hassan 0509288189", "coords": "25.361153, 49.550744"}, {"id": "MMSM-JUB-1", "type": "3S", "brand": "Hyundai", "name": "Hyundai Jubail", "city": "Jubail", "region": "Eastern", "contactShowroom": "Nawaf Muteb Alorayir 0546971624", "contactService": "Ahmed Abdulrahman Alghamdi 0594044087", "contactSpare": "Abdullah Saleh Albukhawwah 0507798852", "coords": "26.980729, 49.648035"}, {"id": "MMSM-ARR-1", "type": "3S", "brand": "Hyundai", "name": "Hyundai Arar", "city": "Arar", "region": "Eastern", "contactShowroom": "Khalil Ibrahim Abdullah 0599355433", "contactService": "Abdulsalam Aqeel AlhussAin 0544231999", "contactSpare": "Talal Awad AL Anzi 0508516637", "coords": "30.967941, 41.030363"}, {"id": "MMSM-HAF-1", "type": "3S", "brand": "Hyundai", "name": "Hyundai Hafer albaten", "city": "Hafer albaten", "region": "Eastern", "contactShowroom": "Bader Salem Aqil 0505949098", "contactService": "Fares Hamad Jamal 0503174086", "contactSpare": "Yousef Almutairy 0508444083", "coords": "28.40643, 45.96685"}, {"id": "CNPC-DMM-1", "type": "1S", "brand": "Changan", "name": "Changan warehouse", "city": "Dammam", "region": "Eastern", "contactShowroom": "", "contactService": "", "contactSpare": "Saleh Abdullah Kaabi 0552826100", "coords": "26.39927, 50.16122"}, {"id": "PCA-KHB-2", "type": "", "brand": "Stellantis", "name": "", "city": "Khobar", "region": "Eastern", "contactShowroom": "", "contactService": "", "contactSpare": "", "coords": "Need the location"}, {"id": "PCA-JED-1", "type": "3S", "brand": "Multi Brand", "name": "Peugeot Automall", "city": "Jeddah", "region": "Westeren", "contactShowroom": "Saleh Mohmmad Hafiz 0557917634", "contactService": "Mahmoud Elsayed Akl 0548972520", "contactSpare": "Zeeshanjawid Sayedjawaid 0572873839", "coords": "21.64854, 39.11281"}, {"id": "PCA-JED-2", "type": "", "brand": "Stellantis", "name": "Peugeot  Workshop Asfan - Service", "city": "Jeddah", "region": "Westeren", "contactShowroom": "", "contactService": "Mahmoud Elsayed Akl 0548972520", "contactSpare": "Zeeshanjawid Sayedjawaid 0572873839", "coords": ""}, {"id": "CNGN-JED-4", "type": "3S", "brand": "Multi Brand", "name": "Changan Jeddah Sultan", "city": "Jeddah", "region": "Westeren", "contactShowroom": "Mohammed Omar Balubaid 0540085184", "contactService": "Ahmed Salah Habib 0597602066", "contactSpare": "Tawfiq Saleh Aqeel 0567078738", "coords": "21.608057, 39.141912"}, {"id": "SLN-JED-1", "type": "1S", "brand": "Hyundai", "name": "Asfan Autosolution - Service", "city": "Jeddah", "region": "Westeren", "contactShowroom": "", "contactService": "", "contactSpare": "Abdullah Sadiq Alkadi 0502267095", "coords": ""}, {"id": "CNGN-JED-5", "type": "2S", "brand": "Changan", "name": "Changan Workshop Asfan - Service", "city": "Jeddah", "region": "Westeren", "contactShowroom": "", "contactService": "Mohamed Saad Eid 0552625088", "contactSpare": "Tawfiq Saleh Aqeel 0567078738", "coords": "21.923561, 39.311567"}, {"id": "CNGN-JED-6", "type": "1S", "brand": "Changan", "name": "Changan Warehouse", "city": "Jeddah", "region": "Westeren", "contactShowroom": "", "contactService": "", "contactSpare": "Mostafa Bakr 0544882887", "coords": "21.30493, 39.17382"}, {"id": "CNPC-RYD-1", "type": "S3", "brand": "Multi Brand", "name": "changan exit 13", "city": "Riyadh", "region": "Centeral", "contactShowroom": "Sami Abdullah Alhmami - 0533309596", "contactService": "Hazim Abdulhalem Elfawair - 0565083583", "contactSpare": "Alaa Eldeen Adel Nuri - 0504541898", "coords": "24.71754, 46.75932"}, {"id": "CNGN-RYD-3", "type": "S3", "brand": "Multi Brand", "name": "peugeot exit 13", "city": "Riyadh", "region": "Centeral", "contactShowroom": "Hany Mohamed Al-Jared - 0590983299‬", "contactService": "Ahmed Shehab Elasra -   0556364068", "contactSpare": "Ali Ibrahim Alghamdi - 0566257257", "coords": "26.4605, 50.11643"}, {"id": "PCA-RYD-1", "type": "S2", "brand": "Multi Brand", "name": "North industry", "city": "Riyadh", "region": "Centeral", "contactShowroom": "", "contactService": "Haytham Elsayed Elshiekh -  0564803157", "contactSpare": "Mohammed Babiker -  0501023470", "coords": "24.74405, 46.80325"}, {"id": "PCA-RYD-1", "type": "S2", "brand": "Multi Brand", "name": "North industry", "city": "Riyadh", "region": "Centeral", "contactShowroom": "", "contactService": "Ahmed Hamad Al-Bdairat -  561766096", "contactSpare": "Sari Alhassan Aseri  -  0536340827", "coords": "24.74405, 46.80325"}, {"id": "PCA-RYD-1", "type": "S2", "brand": "Multi Brand", "name": "changan exit 25", "city": "Riyadh", "region": "Centeral", "contactShowroom": "", "contactService": "Haytham Elsayed Elshiekh -  0564803157", "contactSpare": "Mohammed Babiker -  0501023470", "coords": "24.74405, 46.80325"}, {"id": "PCA-RYD-1", "type": "S2", "brand": "Multi Brand", "name": "changan exit 17", "city": "Riyadh", "region": "Centeral", "contactShowroom": "", "contactService": "Ahmed Hamad Al-Bdairat -  0561766096", "contactSpare": "Ahmed Mohmmad Hassan - 0505628372", "coords": "24.74405, 46.80325"}, {"id": "PCA-RYD-2", "type": "", "brand": "Stellantis", "name": "Stellantis exit 5", "city": "Riyadh", "region": "Centeral", "contactShowroom": "Mahmoud Mohammed Hejazi -  0550224989", "contactService": "", "contactSpare": "", "coords": "24.74405, 46.80325"}];
+var EMPLOYEES = []; /* loaded from Firebase */
+var VISITS = {};    /* loaded from Firebase */
+var LEAVES = [];    /* loaded from Firebase */
+var CHARTS = {};
 
-    // وظيفة التبديل بين التبويبات
-    function openTab(evt, tabName) {
-        var tabcontent = document.getElementsByClassName("tab-content");
-        for (var i = 0; i < tabcontent.length; i++) tabcontent[i].classList.remove("active");
-        
-        var tablinks = document.getElementsByClassName("tab-btn");
-        for (var i = 0; i < tablinks.length; i++) tablinks[i].classList.remove("active");
-        
-        document.getElementById(tabName).classList.add("active");
-        evt.currentTarget.classList.add("active");
+/* ── Load from Firebase ── */
+function loadAll(cb){
+  DB.collection('schedule').get().then(function(snap){
+    snap.forEach(function(doc){
+      var d=doc.data();
+      if(doc.id==='jadwal_v6'&&d.data){
+        if(d.data.emps)EMPLOYEES=d.data.emps.filter(function(e){return e.active;});
+        if(d.data.leaves)LEAVES=d.data.leaves;
+      }
+      if(doc.id==='branch_visits'&&d.data)VISITS=d.data;
+    });
+    cb();
+  }).catch(function(){cb();});
+}
+
+function saveVisits(){
+  DB.collection('schedule').doc('branch_visits').set({data:VISITS,updated:new Date()})
+    .then(function(){showSync(true);}).catch(function(){showSync(false);});
+}
+
+function showSync(ok){
+  var el=document.getElementById('sync-badge');
+  if(!el)return;
+  el.textContent=ok?'☁ Synced':'⚠ Sync Error';
+  el.style.background=ok?'#166534':'#dc2626';
+  el.style.opacity='1';
+  setTimeout(function(){el.style.opacity='0.5';},3000);
+}
+
+/* ── Helpers ── */
+function getWeekLabel(dateStr){
+  if(!dateStr)return '';
+  var d=new Date(dateStr);
+  var sun=new Date(d);sun.setDate(d.getDate()-d.getDay());
+  var sat=new Date(sun);sat.setDate(sun.getDate()+6);
+  return fmtD(sun)+' → '+fmtD(sat);
+}
+function fmtD(d){return d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear();}
+function fmtMonth(d){return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];}
+
+function isEmpOnLeave(empId,dateStr){
+  if(!dateStr||!empId||!LEAVES.length)return false;
+  var d=new Date(dateStr);d.setHours(0,0,0,0);
+  return LEAVES.some(function(lv){
+    if(lv.empId!==empId)return false;
+    var s=new Date(lv.startDate);s.setHours(0,0,0,0);
+    var e=new Date(lv.endDate);e.setHours(0,0,0,0);
+    return d>=s&&d<=e;
+  });
+}
+
+function getBrandClass(b){
+  if(b==='Hyundai')return 'br-Hyundai';
+  if(b==='Changan')return 'br-Changan';
+  if(b==='Genesis')return 'br-Genesis';
+  if(b.includes('Stellantis'))return 'br-Stellantis';
+  return 'br-Multi';
+}
+
+/* ── Build week options ── */
+function buildWeekOptions(){
+  var sel=document.getElementById('f-week');
+  var weeks={};
+  BRANCHES.forEach(function(b){
+    var v=VISITS[b.id]||{};
+    if(v.date)weeks[getWeekLabel(v.date)]=true;
+  });
+  Object.keys(weeks).sort().forEach(function(w){
+    var o=document.createElement('option');o.value=w;o.textContent=w;sel.appendChild(o);
+  });
+}
+
+/* ── Build employee filter ── */
+function buildEmpFilter(){
+  var sel=document.getElementById('f-emp');
+  sel.innerHTML='<option value="">All Employees</option>';
+  EMPLOYEES.forEach(function(e){
+    var o=document.createElement('option');o.value=e.id;o.textContent=e.name;sel.appendChild(o);
+  });
+}
+
+/* ── Filters ── */
+var filtered=BRANCHES.slice();
+function applyFilters(){
+  var region=document.getElementById('f-region').value;
+  var brand=document.getElementById('f-brand').value;
+  var status=document.getElementById('f-status').value;
+  var empId=document.getElementById('f-emp').value;
+  var week=document.getElementById('f-week').value;
+  var search=document.getElementById('f-search').value.toLowerCase();
+  filtered=BRANCHES.filter(function(b){
+    var v=VISITS[b.id]||{};
+    if(region&&b.region!==region)return false;
+    if(brand&&b.brand!==brand)return false;
+    if(status&&(v.status||'pending')!==status)return false;
+    if(empId&&v.empId!==empId)return false;
+    if(week&&getWeekLabel(v.date)!==week)return false;
+    if(search&&!(b.name.toLowerCase().includes(search)||b.city.toLowerCase().includes(search)||b.id.toLowerCase().includes(search)))return false;
+    return true;
+  });
+  renderTable();
+}
+function resetFilters(){
+  ['f-region','f-brand','f-status','f-emp','f-week'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('f-search').value='';
+  filtered=BRANCHES.slice();
+  renderTable();
+}
+
+/* ── Render Table ── */
+function renderTable(){
+  var tbody=document.getElementById('tbody');
+  var sc=0,dn=0,pe=0,warnCount=0;
+  var html='';
+
+  if(!filtered.length){
+    document.getElementById('empty-state').style.display='block';
+    tbody.innerHTML='';
+  } else {
+    document.getElementById('empty-state').style.display='none';
+    filtered.forEach(function(b,i){
+      var v=VISITS[b.id]||{};
+      var status=v.status||'pending';
+      var emp=v.empId?EMPLOYEES.find(function(e){return e.id===v.empId;}):null;
+      var onLeave=emp&&v.date&&isEmpOnLeave(v.empId,v.date);
+      var rowClass=status==='done'?'row-done':status==='scheduled'?'row-scheduled':status==='skip'?'row-skip':'';
+      if(status==='scheduled')sc++;
+      else if(status==='done')dn++;
+      else pe++;
+      if(onLeave)warnCount++;
+
+      /* Employee select */
+      var empOpts='<option value="">— Assign —</option>';
+      EMPLOYEES.forEach(function(e){
+        var ol=v.date&&isEmpOnLeave(e.id,v.date);
+        empOpts+='<option value="'+e.id+'"'+(v.empId===e.id?' selected':'')+
+          (ol?' style="color:#dc2626"':'')+'>'+e.name+(ol?' ⚠':'')+'</option>';
+      });
+
+      html+='<tr class="'+rowClass+'" id="row-'+b.id+'">';
+      html+='<td style="color:#94a3b8;font-size:10px">'+(i+1)+'</td>';
+      html+='<td><div style="font-weight:700;color:#1a3558;font-size:12px">'+b.name+'</div><div style="font-size:9px;color:#aaa">'+b.id+'</div></td>';
+      html+='<td><span class="brand-badge '+getBrandClass(b.brand)+'">'+b.brand+'</span> <span class="type-badge">'+b.type+'</span></td>';
+      html+='<td style="font-size:11px">'+b.city+'<br><span style="color:#888;font-size:10px">'+b.region+'</span></td>';
+      html+='<td style="font-size:11px;color:#555">'+(v.date?getWeekLabel(v.date):'—')+'</td>';
+      html+='<td>';
+      html+='<select class="emp-select" onchange="setVisit(\''+b.id+'\',\'empId\',this.value)">'+empOpts+'</select>';
+      if(onLeave)html+='<div class="warn" style="margin-top:4px">⚠ On Leave on '+v.date+'</div>';
+      html+='</td>';
+      html+='<td><input type="date" class="date-input" value="'+(v.date||'')+'" onchange="setVisit(\''+b.id+'\',\'date\',this.value)"></td>';
+      html+='<td>';
+      html+='<select class="status-sel" onchange="setVisit(\''+b.id+'\',\'status\',this.value)">';
+      ['pending','scheduled','done','skip'].forEach(function(s){
+        var labels={pending:'⏳ Pending',scheduled:'📅 Scheduled',done:'✅ Done',skip:'⏭ Skip'};
+        html+='<option value="'+s+'"'+(status===s?' selected':'')+'>'+labels[s]+'</option>';
+      });
+      html+='</select></td>';
+      html+='<td><input class="note-input" type="text" value="'+(v.note||'')+'" placeholder="Notes..." onchange="setVisit(\''+b.id+'\',\'note\',this.value)"></td>';
+      html+='</tr>';
+    });
+    tbody.innerHTML=html;
+  }
+  document.getElementById('s-total').textContent=filtered.length;
+  document.getElementById('s-scheduled').textContent=sc;
+  document.getElementById('s-done').textContent=dn;
+  document.getElementById('s-pending').textContent=pe;
+  document.getElementById('s-warn').textContent=warnCount;
+  document.getElementById('count-badge').textContent=filtered.length+' branches';
+}
+
+function setVisit(id,key,val){
+  if(!VISITS[id])VISITS[id]={};
+  VISITS[id][key]=val;
+  if(key==='empId'||key==='date'){
+    /* Check leave conflict */
+    var v=VISITS[id];
+    var emp=v.empId?EMPLOYEES.find(function(e){return e.id===v.empId;}):null;
+    if(emp&&v.date&&isEmpOnLeave(v.empId,v.date)){
+      if(!confirm('⚠ '+emp.name+' is on leave on '+v.date+'!\nAssign anyway?')){
+        VISITS[id][key]=key==='empId'?'':v.date;
+        renderTable();return;
+      }
     }
+  }
+  saveVisits();
+  renderTable();
+}
+
+/* ── Tab switching ── */
+function showTab(id){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.tab-content').forEach(function(t){t.classList.remove('active');});
+  document.getElementById('tab-'+id).classList.add('active');
+  event.target.classList.add('active');
+  if(id==='report'){var now=new Date();document.getElementById('rpt-month').value=now.getFullYear()+'-'+(String(now.getMonth()+1).padStart(2,'0'));renderReport();}
+}
+
+/* ── Monthly Report ── */
+function renderReport(){
+  var month=document.getElementById('rpt-month').value;
+  if(!month)return;
+  var ym=month.substring(0,7);
+
+  var inMonth=BRANCHES.filter(function(b){
+    var v=VISITS[b.id]||{};
+    return v.date&&v.date.startsWith(ym);
+  });
+
+  /* Stats */
+  var sc=0,dn=0,pe=0,wn=0;
+  inMonth.forEach(function(b){
+    var v=VISITS[b.id]||{};var s=v.status||'pending';
+    if(s==='scheduled')sc++;else if(s==='done')dn++;else pe++;
+    if(v.empId&&v.date&&isEmpOnLeave(v.empId,v.date))wn++;
+  });
+
+  document.getElementById('rpt-stats').style.display='flex';
+  document.getElementById('rpt-stats').innerHTML=
+    '<div class="stat-card"><div class="n">'+inMonth.length+'</div><div class="l">Total Visits</div></div>'+
+    '<div class="stat-card"><div class="n" style="color:#166534">'+dn+'</div><div class="l">Done</div></div>'+
+    '<div class="stat-card"><div class="n" style="color:#1565c0">'+sc+'</div><div class="l">Scheduled</div></div>'+
+    '<div class="stat-card"><div class="n" style="color:#d97706">'+pe+'</div><div class="l">Pending</div></div>'+
+    '<div class="stat-card"><div class="n" style="color:#dc2626">'+wn+'</div><div class="l">Leave Conflicts</div></div>';
+
+  if(!inMonth.length){
+    document.getElementById('rpt-charts').style.display='none';
+    document.getElementById('rpt-table-wrap').style.display='none';
+    return;
+  }
+
+  document.getElementById('rpt-charts').style.display='block';
+  document.getElementById('rpt-table-wrap').style.display='block';
+
+  /* Chart 1: Status donut */
+  buildChart('chart-status','doughnut','Visit Status',
+    ['Done','Scheduled','Pending'],[dn,sc,pe],['#166534','#1565c0','#d97706']);
+
+  /* Chart 2: By Employee bar */
+  var empMap={};
+  inMonth.forEach(function(b){
+    var v=VISITS[b.id]||{};
+    var e=v.empId?EMPLOYEES.find(function(x){return x.id===v.empId;}):null;
+    var nm=e?e.name.split(' ')[0]:'Unassigned';
+    empMap[nm]=(empMap[nm]||0)+1;
+  });
+  buildChart('chart-emp','bar','Visits per Employee',Object.keys(empMap),Object.values(empMap),
+    Object.keys(empMap).map(function(_,i){return ['#1a3558','#0369a1','#166534','#7c3aed','#d97706'][i%5];}));
+
+  /* Chart 3: By Brand */
+  var brandMap={};
+  inMonth.forEach(function(b){brandMap[b.brand]=(brandMap[b.brand]||0)+1;});
+  var bColors={'Hyundai':'#003399','Changan':'#cc0000','Genesis':'#1a1a1a','Stellantis':'#6d1b9a','Multi Brand':'#0369a1'};
+  buildChart('chart-brand','bar','Visits per Brand',Object.keys(brandMap),Object.values(brandMap),
+    Object.keys(brandMap).map(function(b){return bColors[b]||'#888';}));
+
+  /* Chart 4: By Week */
+  var weekMap={};
+  inMonth.forEach(function(b){
+    var v=VISITS[b.id]||{};
+    if(!v.date)return;
+    var d=new Date(v.date);var sun=new Date(d);sun.setDate(d.getDate()-d.getDay());
+    var lbl='W/'+fmtD(sun);
+    weekMap[lbl]=(weekMap[lbl]||0)+1;
+  });
+  var wks=Object.keys(weekMap).sort();
+  buildChart('chart-week','bar','Visits per Week',wks,wks.map(function(w){return weekMap[w];}),
+    wks.map(function(){return '#0369a1';}));
+
+  /* Table */
+  var rows='';
+  inMonth.sort(function(a,b){return ((VISITS[a.id]||{}).date||'')>((VISITS[b.id]||{}).date||'')?1:-1;})
+  .forEach(function(b){
+    var v=VISITS[b.id]||{};var s=v.status||'pending';
+    var emp=v.empId?EMPLOYEES.find(function(e){return e.id===v.empId;}):null;
+    var ol=emp&&v.date&&isEmpOnLeave(v.empId,v.date);
+    var sLabels={done:'✅ Done',scheduled:'📅 Scheduled',pending:'⏳ Pending',skip:'⏭ Skip'};
+    rows+='<tr style="background:'+(ol?'#fef3c7':s==='done'?'#f0fdf4':s==='scheduled'?'#eff6ff':'#fff')+';">';
+    rows+='<td style="padding:7px 10px;font-weight:600;color:#1a3558;font-size:12px">'+b.name+'</td>';
+    rows+='<td style="padding:7px 10px;font-size:11px">'+b.brand+'</td>';
+    rows+='<td style="padding:7px 10px;font-size:11px">'+b.city+'</td>';
+    rows+='<td style="padding:7px 10px;font-size:11px">'+(emp?emp.name:'—')+(ol?' <span class="warn">⚠ Leave</span>':'')+'</td>';
+    rows+='<td style="padding:7px 10px;font-size:11px">'+(v.date||'—')+'</td>';
+    rows+='<td style="padding:7px 10px;font-size:11px">'+sLabels[s]+'</td>';
+    rows+='<td style="padding:7px 10px;font-size:11px">'+(v.note||'—')+'</td>';
+    rows+='</tr>';
+  });
+  document.getElementById('rpt-tbody').innerHTML=rows;
+}
+
+function buildChart(id,type,label,labels,data,colors){
+  if(CHARTS[id])CHARTS[id].destroy();
+  var ctx=document.getElementById(id).getContext('2d');
+  CHARTS[id]=new Chart(ctx,{
+    type:type,
+    data:{labels:labels,datasets:[{label:label,data:data,backgroundColor:colors,borderRadius:6}]},
+    options:{responsive:true,plugins:{legend:{position:type==='doughnut'?'right':'top',labels:{font:{size:11}}}},
+      scales:type==='doughnut'?{}:{y:{beginAtZero:true,ticks:{stepSize:1}}}}
+  });
+}
+
+function exportReportPDF(){
+  var month=document.getElementById('rpt-month').value;
+  var ym=month?month.substring(0,7):'';
+  var inMonth=BRANCHES.filter(function(b){var v=VISITS[b.id]||{};return v.date&&v.date.startsWith(ym);});
+  if(!inMonth.length){alert('No visits in this month');return;}
+  var rows='';var sc=0,dn=0,pe=0,wn=0;
+  inMonth.sort(function(a,b){return ((VISITS[a.id]||{}).date||'')>((VISITS[b.id]||{}).date||'')?1:-1;})
+  .forEach(function(b,i){
+    var v=VISITS[b.id]||{};var s=v.status||'pending';
+    var emp=v.empId?EMPLOYEES.find(function(e){return e.id===v.empId;}):null;
+    var ol=emp&&v.date&&isEmpOnLeave(v.empId,v.date);
+    if(s==='scheduled')sc++;else if(s==='done')dn++;else pe++;if(ol)wn++;
+    var sLabels={done:'✅ Done',scheduled:'📅 Scheduled',pending:'⏳ Pending',skip:'⏭ Skip'};
+    rows+='<tr style="background:'+(ol?'#fef3c7':i%2?'#f8fafd':'#fff')+';border-bottom:1px solid #e2e8f0">';
+    rows+='<td style="padding:6px 8px;font-weight:600">'+b.name+'</td>';
+    rows+='<td style="padding:6px 8px">'+b.brand+'</td>';
+    rows+='<td style="padding:6px 8px">'+b.city+'</td>';
+    rows+='<td style="padding:6px 8px">'+(emp?emp.name:'—')+(ol?' ⚠':'')+'</td>';
+    rows+='<td style="padding:6px 8px">'+(v.date||'—')+'</td>';
+    rows+='<td style="padding:6px 8px">'+sLabels[s]+'</td>';
+    rows+='<td style="padding:6px 8px">'+(v.note||'—')+'</td></tr>';
+  });
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Visit Report '+month+'</title>';
+  html+='<style>body{font-family:Arial;margin:20px;color:#1a3558;}h1{font-size:18px;}table{width:100%;border-collapse:collapse;font-size:12px;}th{background:#1a3558;color:#fff;padding:8px;text-align:left;}@media print{button{display:none!important;}}</style></head><body>';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">';
+  html+='<div><h1>🏢 Branch Visit Report — '+month+'</h1><p style="color:#555;font-size:12px">MMC IT Support | Generated: '+new Date().toLocaleDateString()+'</p></div>';
+  html+='<div style="display:flex;gap:8px">';
+  ['Done:'+dn+':#d1fae5:#065f46','Scheduled:'+sc+':#dbeafe:#1e40af','Pending:'+pe+':#fef3c7:#92400e','Conflicts:'+wn+':#fee2e2:#dc2626'].forEach(function(x){
+    var p=x.split(':');
+    html+='<div style="background:'+p[2]+';padding:8px 12px;border-radius:8px;text-align:center"><div style="font-size:18px;font-weight:800;color:'+p[3]+'">'+p[1]+'</div><div style="font-size:10px;color:'+p[3]+'">'+p[0]+'</div></div>';
+  });
+  html+='</div></div>';
+  html+='<button onclick="window.print()" style="padding:8px 18px;background:#1a3558;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;margin-bottom:14px">🖨 Print / PDF</button>';
+  html+='<table><thead><tr><th>Branch</th><th>Brand</th><th>City</th><th>Technician</th><th>Date</th><th>Status</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
+  window.open(URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'})),'_blank');
+}
+
+function exportPDF(){
+  var rows='';
+  BRANCHES.forEach(function(b,i){
+    var v=VISITS[b.id]||{};var s=v.status||'pending';
+    var emp=v.empId?EMPLOYEES.find(function(e){return e.id===v.empId;}):null;
+    var ol=emp&&v.date&&isEmpOnLeave(v.empId,v.date);
+    var sLabels={done:'✅ Done',scheduled:'📅 Scheduled',pending:'⏳ Pending',skip:'⏭ Skip'};
+    rows+='<tr style="background:'+(ol?'#fef3c7':s==='done'?'#f0fdf4':s==='scheduled'?'#eff6ff':'#fff')+'"><td>'+(i+1)+'</td><td style="font-weight:600">'+b.name+'</td><td>'+b.brand+'</td><td>'+b.city+'</td><td>'+(emp?emp.name:'—')+(ol?' ⚠':'')+'</td><td>'+(v.date||'—')+'</td><td>'+sLabels[s]+'</td><td>'+(v.note||'—')+'</td></tr>';
+  });
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Branch Report</title><style>body{font-family:Arial;margin:20px;}table{width:100%;border-collapse:collapse;font-size:11px;}th{background:#1a3558;color:#fff;padding:7px;text-align:left;}td{padding:6px 7px;border-bottom:1px solid #f0f0f0;}@media print{button{display:none!important;}}</style></head><body>';
+  html+='<h1 style="font-size:16px;color:#1a3558">🏢 Full Branch Visit Report — MMC IT Support</h1>';
+  html+='<button onclick="window.print()" style="padding:8px 18px;background:#1a3558;color:#fff;border:none;border-radius:6px;cursor:pointer;margin:10px 0">🖨 Print</button>';
+  html+='<table><thead><tr><th>#</th><th>Branch</th><th>Brand</th><th>City</th><th>Technician</th><th>Date</th><th>Status</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
+  window.open(URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'})),'_blank');
+}
+
+function exportWeekPlan(){
+  var week=document.getElementById('f-week').value;
+  var data=BRANCHES.filter(function(b){var v=VISITS[b.id]||{};return v.date&&(!week||getWeekLabel(v.date)===week);});
+  if(!data.length){alert('No visits in selected week');return;}
+  var rows='';
+  data.sort(function(a,b){return ((VISITS[a.id]||{}).date||'')>((VISITS[b.id]||{}).date||'')?1:-1;})
+  .forEach(function(b){
+    var v=VISITS[b.id]||{};var emp=v.empId?EMPLOYEES.find(function(e){return e.id===v.empId;}):null;
+    var ol=emp&&v.date&&isEmpOnLeave(v.empId,v.date);
+    rows+='<tr><td style="font-weight:600">'+v.date+'</td><td>'+b.name+'</td><td>'+b.brand+'</td><td>'+b.city+'</td><td>'+(emp?emp.name:'—')+(ol?' ⚠ ON LEAVE':'')+'</td><td>'+(v.note||'—')+'</td></tr>';
+  });
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Week Plan</title><style>body{font-family:Arial;margin:20px;}table{width:100%;border-collapse:collapse;font-size:12px;}th{background:#1a3558;color:#fff;padding:8px;text-align:left;}td{padding:7px;border-bottom:1px solid #e2e8f0;}@media print{button{display:none!important;}}</style></head><body>';
+  html+='<h1 style="font-size:16px;color:#1a3558">📅 Weekly Visit Plan'+(week?' — '+week:'')+'</h1>';
+  html+='<button onclick="window.print()" style="padding:8px 18px;background:#1a3558;color:#fff;border:none;border-radius:6px;cursor:pointer;margin:10px 0">🖨 Print</button>';
+  html+='<table><thead><tr><th>Date</th><th>Branch</th><th>Brand</th><th>City</th><th>Technician</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
+  window.open(URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'})),'_blank');
+}
+
+function clearAll(){if(!confirm('Clear all visit data?'))return;VISITS={};saveVisits();renderTable();}
+
+/* ── Init ── */
+loadAll(function(){
+  buildEmpFilter();
+  buildWeekOptions();
+  filtered=BRANCHES.slice();
+  renderTable();
+});
 </script>
-
 </body>
 </html>
