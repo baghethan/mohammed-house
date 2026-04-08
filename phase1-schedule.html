@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - Scheduling v8.5</title>
+    <title>Almajdouie Motors - Scheduling v8.6</title>
     <style>
         :root {
             --primary-blue: #0d2149;
@@ -61,7 +61,7 @@
             <img src="LOGO-almajdouie.png" class="logo-img" style="max-height:50px">
             <div>
                 <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div style="font-size: 10px; color: #555;">Scheduling System v8.5</div>
+                <div style="font-size: 10px; color: #555;">Scheduling System v8.6</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -119,7 +119,7 @@
             <button class="btn-tool" style="background: #e65100; color:white" onclick="window.addAnnualLeave()">Add Annual Leave</button>
         </div>
         <table>
-            <thead><tr><th>Employee Name</th><th>From Date</th><th>To Date</th><th>Action</th></tr></thead>
+            <thead><tr><th>Employee Name</th><th>From</th><th>To</th><th>Action</th></tr></thead>
             <tbody id="annualBody"></tbody>
         </table>
     </div>
@@ -127,7 +127,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, doc, onSnapshot, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyBsvEEHEgBuw9pDml-Om90mm8MLDw8gWs",
@@ -161,8 +161,10 @@
     onSnapshot(doc(db, "schedule", "jadwal_holidays"), (snap) => {
         if(snap.exists()){ holidayDuties = snap.data().duties || []; window.renderAll(); }
     });
+    // الاستماع لحقل vacations
     onSnapshot(doc(db, "schedule", "jadwal_annual_leave"), (snap) => {
         if(snap.exists()){ vacationsList = snap.data().vacations || []; window.renderAll(); }
+        else { vacationsList = []; window.renderAll(); }
     });
 
     window.renderAll = () => {
@@ -206,7 +208,7 @@
             for(let d=0; d<7; d++) {
                 let cellDate = new Date(start); cellDate.setDate(start.getDate() + d); cellDate.setHours(0,0,0,0);
                 
-                // 1. Check Annual Vacation (Highest Priority)
+                // 1. Check Annual Vacation
                 const activeVac = vacationsList.find(v => {
                     const ds = new Date(v.start + 'T00:00:00'); ds.setHours(0,0,0,0);
                     const de = new Date(v.end + 'T00:00:00'); de.setHours(0,0,0,0);
@@ -240,7 +242,7 @@
                 } else if (d === 6) { // Sat
                     if (emp.id === currentThuMan) { shift = t.work; badgeClass = "Work"; icon = "🏢"; }
                     else { shift = t.off; badgeClass = "Off"; }
-                } else { // Normal Days
+                } else {
                     shift = emp.fixed ? t.night : t.morning; badgeClass = emp.fixed ? "Night" : "Morning"; icon = emp.fixed ? "🌙" : "☀️";
                 }
                 row += `<td><span class="badge ${badgeClass}">${icon} ${shift}</span></td>`;
@@ -251,7 +253,7 @@
     };
 
     function updateUILists() {
-        // Admin
+        // Admin UI
         document.getElementById('adminList').innerHTML = employees.map((e, i) => `
             <tr>
                 <td style="text-align:left"><b>${e.name}</b></td>
@@ -271,13 +273,11 @@
         document.getElementById('hEmpSelect').innerHTML = emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
         document.getElementById('aEmpSelect').innerHTML = emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
         
-        // Holiday Table
         document.getElementById('holidayBody').innerHTML = holidayDuties.map((d, i) => {
             const e = employees.find(x => String(x.id) === String(d.empId));
-            return `<tr><td>${d.name}</td><td>${e?e.name:'-'}</td><td>${d.start} to ${d.end}</td><td><button onclick="window.delDuty(${i})" style="color:red">X</button></td></tr>`;
+            return `<tr><td>${d.name}</td><td>${e?e.name:'-'}</td><td>${d.start} / ${d.end}</td><td><button onclick="window.delDuty(${i})" style="color:red">X</button></td></tr>`;
         }).join('');
 
-        // Annual Vacations Table (using vacationsList)
         document.getElementById('annualBody').innerHTML = vacationsList.map((v, i) => {
             const e = employees.find(x => String(x.id) === String(v.empId));
             return `<tr><td><b>${e?e.name:'-'}</b></td><td>${v.start}</td><td>${v.end}</td><td><button onclick="window.delAnnual(${i})" style="color:red">Delete</button></td></tr>`;
@@ -294,25 +294,39 @@
         document.getElementById('newEmpName').value = "";
     };
 
+    window.addAnnualLeave = async () => {
+        const id = document.getElementById('aEmpSelect').value, s = document.getElementById('aStart').value, e = document.getElementById('aEnd').value;
+        if(!s || !e) return;
+        
+        const docRef = doc(db, "schedule", "jadwal_annual_leave");
+        const docSnap = await getDoc(docRef);
+        
+        let newList = [...vacationsList, { empId: id, start: s, end: e }];
+        
+        if (docSnap.exists()) {
+            await updateDoc(docRef, { vacations: newList });
+        } else {
+            // إعادة إنشاء المستند إذا كان ممسوحاً
+            await setDoc(docRef, { vacations: newList });
+        }
+        alert("Success!");
+    };
+
+    window.delAnnual = async (i) => {
+        let a = [...vacationsList]; a.splice(i, 1);
+        await updateDoc(doc(db, "schedule", "jadwal_annual_leave"), { vacations: a });
+    };
+
+    // وظائف المساعدة العامة
     window.deleteEmployee = async (i) => { if(confirm("Delete?")) { let a = [...employees]; a.splice(i,1); await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); } };
     window.toggleProp = async (i, p) => { let a = [...employees]; a[i][p] = !a[i][p]; await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); };
     window.updateRot = async (i, v) => { let a = [...employees]; a[i].rotType = v; await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); };
-
     window.addHolidayDuty = async () => {
         const id = document.getElementById('hEmpSelect').value, s = document.getElementById('hStart').value, e = document.getElementById('hEnd').value, n = document.getElementById('hName').value;
         if(!s || !e || !n) return;
         await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: [...holidayDuties, { empId: id, start: s, end: e, name: n }] });
     };
     window.delDuty = async (i) => { let a = [...holidayDuties]; a.splice(i,1); await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: a }); };
-
-    window.addAnnualLeave = async () => {
-        const id = document.getElementById('aEmpSelect').value, s = document.getElementById('aStart').value, e = document.getElementById('aEnd').value;
-        if(!s || !e) return;
-        // Updating 'vacations' field in Firestore
-        await updateDoc(doc(db, "schedule", "jadwal_annual_leave"), { vacations: [...vacationsList, { empId: id, start: s, end: e }] });
-        alert("Added to vacations!");
-    };
-    window.delAnnual = async (i) => { let a = [...vacationsList]; a.splice(i,1); await updateDoc(doc(db, "schedule", "jadwal_annual_leave"), { vacations: a }); };
 
     window.setCurrentWeek = () => {
         let now = new Date(); now.setHours(0,0,0,0);
