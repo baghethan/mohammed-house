@@ -2,143 +2,119 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>جدول الدوام الأسبوعي</title>
+    <title>نظام جدولة الموظفين الذكي</title>
     <style>
         :root {
             --morning: #e3f2fd; --morning-text: #1976d2;
             --evening: #fff3e0; --evening-text: #f57c00;
             --night: #f3e5f5; --night-text: #7b1fa2;
-            --off: #eeeeee; --off-text: #757575;
-            --friday: #ffebee; --friday-text: #c62828;
+            --off: #f1f1f1; --off-text: #9e9e9e;
+            --friday: #e8f5e9; --friday-text: #2e7d32;
         }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f9; padding: 20px; }
-        .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #333; }
-        .controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 25px; background: #f9f9f9; padding: 15px; border-radius: 10px; }
-        input[type="date"] { padding: 8px; border-radius: 5px; border: 1px solid #ddd; font-size: 16px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #edf2f7; padding: 12px; text-align: center; }
-        th { background: #f8fafc; color: #4a5568; font-weight: 600; }
-        .badge { padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; display: inline-block; min-width: 60px; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; padding: 30px; }
+        .card { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; }
+        .controls { background: #fafafa; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: center; border: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; color: #555; }
+        .badge { padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: bold; display: inline-block; }
         .morning { background: var(--morning); color: var(--morning-text); }
         .evening { background: var(--evening); color: var(--evening-text); }
         .night { background: var(--night); color: var(--night-text); }
         .off { background: var(--off); color: var(--off-text); }
-        .friday-shift { background: var(--friday); color: var(--friday-text); }
-        .emp-name { font-weight: bold; color: #2d3748; text-align: right; }
+        .weekend { background: var(--friday); color: var(--friday-text); }
+        .name-col { font-weight: bold; text-align: right; width: 220px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>جدول الدوام الأسبوعي الذكي</h2>
-    
-    <div class="controls">
-        <label>اختر تاريخ بداية الأسبوع (الأحد): </label>
-        <input type="date" id="datePicker" onchange="generateSchedule()">
+<div class="card">
+    <div class="header">
+        <h2>جدول الدوام السنوي (نظام 5 أيام عمل)</h2>
+        <div class="controls">
+            <label>تاريخ بداية الأسبوع (الأحد): </label>
+            <input type="date" id="dateInput" onchange="updateTable()">
+        </div>
     </div>
 
-    <table id="scheduleTable">
+    <table id="schedule">
         <thead>
-            <tr id="headerRow">
+            <tr id="daysHeader">
                 <th>الموظف</th>
-                <!-- التواريخ ستظهر هنا -->
-            </tr>
+                </tr>
         </thead>
-        <tbody id="tableBody">
-            <!-- البيانات ستظهر هنا -->
-        </tbody>
+        <tbody id="tableBody"></tbody>
     </table>
+    
+    <div style="margin-top: 20px; font-size: 0.9em; color: #666;">
+        * ملاحظة: عبدالرحمن ثابت (ليل). حمد وزياد يتبادلان أدوار التغطية لضمان وجود مسؤول مكتب دائماً.
+    </div>
 </div>
 
 <script>
-    // تعيين تاريخ اليوم تلقائياً عند الفتح
-    document.getElementById('datePicker').valueAsDate = new Date();
+    // تعيين التاريخ ليوم الأحد الحالي
+    const today = new Date();
+    const sunday = new Date(today.setDate(today.getDate() - today.getDay()));
+    document.getElementById('dateInput').valueAsDate = sunday;
 
-    const employees = [
-        { id: 'abdulrahman', name: 'Abdulrahman Al-Sulaimani', type: 'fixed-night' },
-        { id: 'hamad', name: 'Hamad Al-Khathran (مكتب)', type: 'rotation-a' },
-        { id: 'essa', name: 'Essa Swaydi Alsalami', type: 'rotation-a' },
-        { id: 'ziyad', name: 'Ziyad Althaqfiy (مكتب)', type: 'rotation-b' },
-        { id: 'saleh', name: 'Saleh Aljuraydi', type: 'rotation-b' }
-    ];
-
-    const days = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+    const dayNames = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
     function getWeekNumber(d) {
         d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-        var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        return Math.ceil((((d - new Date(Date.UTC(d.getUTCFullYear(), 0, 1))) / 86400000) + 1) / 7);
     }
 
-    function generateSchedule() {
-        const selectedDate = new Date(document.getElementById('datePicker').value);
-        const startOfWeek = new Date(selectedDate);
-        // التعديل لتبدأ من يوم الأحد
-        startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay());
-        
-        const weekNum = getWeekNumber(startOfWeek);
+    function updateTable() {
+        const startDay = new Date(document.getElementById('dateInput').value);
+        const weekNum = getWeekNumber(startDay);
         const isEven = weekNum % 2 === 0;
 
-        // تحديث الهيدر بالتواريخ
-        let headerHtml = '<th>الموظف</th>';
-        for (let i = 0; i < 7; i++) {
-            let d = new Date(startOfWeek);
-            d.setDate(startOfWeek.getDate() + i);
-            headerHtml += `<th>${days[i]}<br><small>${d.toLocaleDateString('en-GB')}</small></th>`;
+        // تحديث رؤوس الجدول
+        let header = '<th>الموظف</th>';
+        for(let i=0; i<7; i++) {
+            let d = new Date(startDay);
+            d.setDate(startDay.getDate() + i);
+            header += `<th>${dayNames[i]}<br><small style="font-weight:normal">${d.toLocaleDateString('en-GB')}</small></th>`;
         }
-        document.getElementById('headerRow').innerHTML = headerHtml;
+        document.getElementById('daysHeader').innerHTML = header;
 
-        let bodyHtml = '';
-        employees.forEach(emp => {
-            bodyHtml += `<tr><td class="emp-name">${emp.name}</td>`;
-            for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
-                bodyHtml += `<td>${getShiftBadge(emp, dayIdx, isEven)}</td>`;
-            }
-            bodyHtml += `</tr>`;
-        });
-        document.getElementById('tableBody').innerHTML = bodyHtml;
-    }
-
-    function getShiftBadge(emp, dayIdx, isEven) {
-        // 0=الأحد, 1=الاثنين... 5=الجمعة, 6=السبت
-
-        // 1. عبدالرحمن (ليل ثابت الأحد-الخميس)
-        if (emp.id === 'abdulrahman') {
-            if (dayIdx >= 0 && dayIdx <= 4) return '<span class="badge night">ليلي</span>';
-            return '<span class="badge off">أوف</span>';
-        }
-
-        // 2. توزيع الجمعة (شخص واحد بالتناوب)
-        if (dayIdx === 5) {
-            if (isEven && emp.id === 'ziyad') return '<span class="badge friday-shift">جمعة</span>';
-            if (!isEven && emp.id === 'hamad') return '<span class="badge friday-shift">جمعة</span>';
-            return '<span class="badge off">أوف</span>';
-        }
-
-        // 3. توزيع السبت (شخصين بالتناوب)
-        if (dayIdx === 6) {
-            if (isEven && (emp.type === 'rotation-b')) return '<span class="badge morning">صباحي</span>';
-            if (!isEven && (emp.type === 'rotation-a')) return '<span class="badge morning">صباحي</span>';
-            return '<span class="badge off">أوف</span>';
-        }
-
-        // 4. الأيام العادية (أحد - خميس)
-        if (isEven) {
-            // الأسبوع الزوجي: B صباحي، A مسائي
-            if (emp.type === 'rotation-b') return '<span class="badge morning">صباحي</span>';
-            return '<span class="badge evening">مسائي</span>';
+        // تحديد الأدوار (Rotation)
+        // الدور A: إجازة خميس/جمعة، يعمل سبت
+        // الدور B: إجازة أربعاء/خميس، يعمل جمعة/سبت
+        // الأدوار C و D: إجازة جمعة/سبت
+        
+        let p1, p2, p3, p4;
+        if(isEven) {
+            p1 = { name: "Hamad Al-Khathran (مكتب)", role: "A" };
+            p2 = { name: "Ziyad Althaqfiy (مكتب)", role: "B" };
+            p3 = { name: "Essa Swaydi Alsalami", role: "C" };
+            p4 = { name: "Saleh Aljuraydi", role: "D" };
         } else {
-            // الأسبوع الفردي: A صباحي، B مسائي
-            if (emp.type === 'rotation-a') return '<span class="badge morning">صباحي</span>';
-            return '<span class="badge evening">مسائي</span>';
+            p1 = { name: "Ziyad Althaqfiy (مكتب)", role: "A" };
+            p2 = { name: "Hamad Al-Khathran (مكتب)", role: "B" };
+            p3 = { name: "Saleh Aljuraydi", role: "C" };
+            p4 = { name: "Essa Swaydi Alsalami", role: "D" };
         }
+
+        const emps = [
+            { name: "Abdulrahman Al-Sulaimani", role: "FIXED" },
+            p1, p2, p3, p4
+        ];
+
+        let html = '';
+        emps.forEach(emp => {
+            html += `<tr><td class="name-col">${emp.name}</td>`;
+            for(let d=0; d<7; d++) {
+                html += `<td>${getBadge(emp, d)}</td>`;
+            }
+            html += `</tr>`;
+        });
+        document.getElementById('tableBody').innerHTML = html;
     }
 
-    // تشغيل الدالة فور التحميل
-    generateSchedule();
-</script>
-
-</body>
-</html>
+    function getBadge(emp, day) {
+        // عبدالرحمن: ليل ثابت أحد-خميس
+        if(emp.role === "FIXED") {
+            return (day >= 0 && day <= 4) ? '<span class="badge night">
