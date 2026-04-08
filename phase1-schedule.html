@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - Scheduling v9.5</title>
+    <title>Almajdouie Motors - Scheduling v9.6</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
             --primary-blue: #0d2149;
@@ -46,17 +47,16 @@
         .editable-cell:hover { background: #f0f0f0; }
 
         /* Gantt Chart Styles */
-        .gantt-container { overflow-x: auto; margin-top: 30px; border: 1px solid #eee; padding: 10px; border-radius: 10px; }
-        .gantt-grid { display: grid; grid-template-columns: 150px repeat(12, 1fr); min-width: 1000px; }
-        .gantt-header-cell { padding: 10px; background: #f1f1f1; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 11px; }
+        .gantt-container { overflow-x: auto; margin-top: 15px; border: 1px solid #eee; padding: 20px; border-radius: 12px; background: white; }
+        .gantt-grid { display: grid; grid-template-columns: 160px repeat(12, 1fr); min-width: 1100px; }
+        .gantt-header-cell { padding: 10px; background: #0d2149; color: white; border: 1px solid #1a2e5a; text-align: center; font-weight: bold; font-size: 11px; }
         .gantt-row { display: contents; }
-        .gantt-name { padding: 10px; border: 1px solid #eee; font-weight: bold; background: #fafafa; }
-        .gantt-months-container { display: grid; grid-template-columns: repeat(12, 1fr); grid-column: 2 / 14; border: 1px solid #eee; position: relative; height: 40px; }
-        .month-slot { border-right: 1px solid #f0f0f0; }
-        .vacation-bar { position: absolute; height: 20px; background: var(--plan-bar); top: 10px; border-radius: 10px; color: white; font-size: 9px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; overflow: hidden; }
+        .gantt-name { padding: 12px; border: 1px solid #eee; font-weight: bold; background: #fcfcfc; font-size: 11px; display: flex; align-items: center; }
+        .gantt-months-container { display: grid; grid-template-columns: repeat(12, 1fr); grid-column: 2 / 14; border-bottom: 1px solid #eee; border-right: 1px solid #eee; position: relative; height: 45px; }
+        .month-slot { border-left: 1px solid #f0f0f0; }
+        .vacation-bar { position: absolute; height: 24px; background: var(--plan-bar); top: 10px; border-radius: 12px; color: white; font-size: 9px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.15); white-space: nowrap; font-weight: bold; z-index: 5; }
 
         .form-box { padding: 15px; border-radius: 10px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-        .btn-action { border: none; border-radius: 6px; padding: 6px 12px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; min-width: 90px; }
     </style>
 </head>
 <body>
@@ -76,7 +76,7 @@
             <img src="LOGO-almajdouie.png" style="max-height:45px">
             <div>
                 <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div style="font-size: 10px; color: #555;">Scheduling System v9.5</div>
+                <div style="font-size: 10px; color: #555;">Scheduling System v9.6</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -110,8 +110,12 @@
             <button class="btn-tool" style="background:#00796b; color:white" onclick="window.addVacationPlan()">Add to Plan</button>
         </div>
         
-        <h3 style="color: var(--primary-blue); margin-top: 20px;">📅 Yearly Vacation Timeline</h3>
-        <div class="gantt-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px;">
+            <h3 style="color: var(--primary-blue); margin: 0;">📅 Yearly Vacation Timeline</h3>
+            <button class="btn-tool" style="background: #ff5722; color: white;" onclick="window.downloadChart()">📸 Download Chart as Image</button>
+        </div>
+
+        <div class="gantt-container" id="ganttCaptureArea">
             <div class="gantt-grid" id="ganttChart">
                 <div class="gantt-header-cell">Employee</div>
                 <div class="gantt-header-cell">Jan</div><div class="gantt-header-cell">Feb</div>
@@ -120,7 +124,7 @@
                 <div class="gantt-header-cell">Jul</div><div class="gantt-header-cell">Aug</div>
                 <div class="gantt-header-cell">Sep</div><div class="gantt-header-cell">Oct</div>
                 <div class="gantt-header-cell">Nov</div><div class="gantt-header-cell">Dec</div>
-                </div>
+            </div>
         </div>
 
         <h3 style="color: var(--primary-blue); margin-top: 30px;">📋 Plan List</h3>
@@ -166,6 +170,7 @@
         return `${y}-${m}-${day}`;
     };
 
+    // Listeners
     onSnapshot(doc(db, "schedule", "jadwal_v6"), (snap) => { employees = snap.exists() ? snap.data().data?.emps : []; window.renderAll(); });
     onSnapshot(doc(db, "schedule", "jadwal_holidays"), (snap) => { holidayDuties = snap.exists() ? snap.data().duties : []; window.renderAll(); });
     onSnapshot(doc(db, "schedule", "jadwal_annual_leave"), (snap) => { vacationsList = snap.exists() ? snap.data().vacations : []; window.renderAll(); });
@@ -173,24 +178,16 @@
     onSnapshot(collection(db, "vacations"), (snap) => { planList = snap.docs.map(d => ({ id: d.id, ...d.data() })); window.renderAll(); });
 
     window.renderAll = () => {
-        const dp = document.getElementById('datePicker');
-        if(!dp.value) return;
+        const dp = document.getElementById('datePicker'); if(!dp.value) return;
         const start = new Date(dp.value.replace(/-/g, '/'));
         
-        const t = { 
-            onCall: currentLang==='ar'?'أون كول':'On Call', night: currentLang==='ar'?'ليلي':'Night', 
-            off: currentLang==='ar'?'أوف':'Off', h: currentLang==='ar'?'إجازة':'Holiday',
-            work: currentLang==='ar'?'دوام':'Work', morning: currentLang==='ar'?'صباحي':'Morning',
-            national: currentLang==='ar'?'اليوم الوطني':'National Day', annual: currentLang==='ar'?'إجازة سنوية':'Annual Leave'
-        };
-
+        const t = { onCall: 'On Call', night: 'Night', off: 'Off', h: 'Holiday', work: 'Work', morning: 'Morning', national: 'National Day', annual: 'Annual Leave' };
         const weekNum = Math.ceil(((start - new Date(start.getFullYear(), 0, 1)) / 86400000 + new Date(start.getFullYear(), 0, 1).getDay() + 1) / 7);
         const thuPool = employees.filter(e => e.rotType === 'thu' && e.active);
         const friPool = employees.filter(e => e.rotType === 'fri' && e.active);
         let curThu = thuPool.length > 0 ? thuPool[weekNum % thuPool.length].id : null;
         let curFri = friPool.length > 0 ? friPool[weekNum % friPool.length].id : null;
 
-        // Header
         let h = `<th>Employee</th>`;
         const daysArr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         for(let i=0; i<7; i++) {
@@ -199,13 +196,11 @@
         }
         document.getElementById('headerDates').innerHTML = h;
 
-        // Rows
         document.getElementById('scheduleBody').innerHTML = employees.filter(e => e.active).map(emp => {
             let row = `<tr><td style="text-align:left; font-weight:bold;">${emp.name}</td>`;
             for(let d=0; d<7; d++) {
                 let cellD = new Date(start.getTime()); cellD.setDate(start.getDate()+d); cellD.setHours(0,0,0,0);
-                const dateKey = formatLocal(cellD);
-                const overrideKey = `${emp.id}_${dateKey}`;
+                const dateKey = formatLocal(cellD), overrideKey = `${emp.id}_${dateKey}`;
                 let shift = manualOverrides[overrideKey], bC = "Morning", icon = "";
 
                 if (!shift) {
@@ -270,58 +265,50 @@
     // --- Gantt Chart Rendering Logic ---
     function renderGantt(activeEmps) {
         const chart = document.getElementById('ganttChart');
-        // Clear previous rows (keep header)
         const headerCells = Array.from(chart.children).slice(0, 13);
         chart.innerHTML = "";
         headerCells.forEach(c => chart.appendChild(c));
 
         activeEmps.forEach(emp => {
-            const row = document.createElement('div');
-            row.className = 'gantt-row';
-            
-            const nameCell = document.createElement('div');
-            nameCell.className = 'gantt-name';
-            nameCell.innerText = emp.name;
-            row.appendChild(nameCell);
+            const row = document.createElement('div'); row.className = 'gantt-row';
+            const nameCell = document.createElement('div'); nameCell.className = 'gantt-name';
+            nameCell.innerText = emp.name; row.appendChild(nameCell);
 
-            const monthsContainer = document.createElement('div');
-            monthsContainer.className = 'gantt-months-container';
+            const monthsContainer = document.createElement('div'); monthsContainer.className = 'gantt-months-container';
             for(let i=0; i<12; i++) {
-                const slot = document.createElement('div');
-                slot.className = 'month-slot';
-                monthsContainer.appendChild(slot);
+                const slot = document.createElement('div'); slot.className = 'month-slot'; monthsContainer.appendChild(slot);
             }
 
-            // Draw bars for this employee
             const empPlans = planList.filter(p => String(p.empId) === String(emp.id) || p.name === emp.name);
             empPlans.forEach(p => {
                 const dFrom = new Date(p.from.replace(/-/g, '/'));
                 const dTo = new Date(p.to.replace(/-/g, '/'));
+                const startDay = (dFrom - new Date(dFrom.getFullYear(), 0, 1)) / 86400000;
+                const endDay = (dTo - new Date(dTo.getFullYear(), 0, 1)) / 86400000;
                 
-                // Calculate percentage positions
-                const startDayOfYear = (dFrom - new Date(dFrom.getFullYear(), 0, 1)) / 86400000;
-                const endDayOfYear = (dTo - new Date(dTo.getFullYear(), 0, 1)) / 86400000;
-                
-                const left = (startDayOfYear / 365) * 100;
-                const width = ((endDayOfYear - startDayOfYear) / 365) * 100;
-
-                const bar = document.createElement('div');
-                bar.className = 'vacation-bar';
-                bar.style.left = left + "%";
-                bar.style.width = width + "%";
+                const bar = document.createElement('div'); bar.className = 'vacation-bar';
+                bar.style.left = (startDay/365*100) + "%"; bar.style.width = ((endDay-startDay)/365*100) + "%";
                 bar.innerText = p.from.split('-')[1] + "/" + p.from.split('-')[2];
                 monthsContainer.appendChild(bar);
             });
-
-            row.appendChild(monthsContainer);
-            chart.appendChild(row);
+            row.appendChild(monthsContainer); chart.appendChild(row);
         });
     }
 
+    // --- Download Chart as Image Logic ---
+    window.downloadChart = () => {
+        const element = document.getElementById('ganttCaptureArea');
+        html2canvas(element, { backgroundColor: "#ffffff", scale: 2 }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `Vacation_Timeline_${new Date().getFullYear()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+    };
+
     window.toggleExclusiveNight = async (i) => {
         let list = [...employees]; const on = !list[i].fixed;
-        if(on) { list = list.map(e => ({ ...e, fixed: false })); list[i].fixed = true; }
-        else { list[i].fixed = false; }
+        if(on) { list = list.map(e => ({ ...e, fixed: false })); list[i].fixed = true; } else { list[i].fixed = false; }
         await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": list });
     };
 
@@ -333,13 +320,12 @@
     window.deleteEmployee = async (i) => { if(confirm("Del?")) { let a = [...employees]; a.splice(i,1); await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); } };
     window.toggleProp = async (i, p) => { let a = [...employees]; a[i][p] = !a[i][p]; await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); };
     window.updateRot = async (i, v) => { let a = [...employees]; a[i].rotType = v; await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); };
-    
     window.addVacationPlan = async () => {
         const id = document.getElementById('pEmpSelect').value, s = document.getElementById('pStart').value, e = document.getElementById('pEnd').value;
         const emp = emps.find(x => x.id === id); if(!s || !e) return;
         await addDoc(collection(db, "vacations"), { empId: id, name: emp.name, from: s, to: e, role: "Employee" });
     };
-    window.delPlan = async (id) => { if(confirm("Del Plan?")) await deleteDoc(doc(db, "vacations", id)); };
+    window.delPlan = async (id) => { if(confirm("Del?")) await deleteDoc(doc(db, "vacations", id)); };
     window.addHolidayDuty = async () => {
         const id = document.getElementById('hEmpSelect').value, s = document.getElementById('hStart').value, e = document.getElementById('hEnd').value, n = document.getElementById('hName').value;
         await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: [...holidayDuties, { empId: id, start: s, end: e, name: n }] });
