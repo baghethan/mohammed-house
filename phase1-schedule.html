@@ -2,23 +2,43 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام إدارة الدوام - النسخة الاحترافية V7</title>
+    <title>نظام إدارة الجدولة الاحترافي</title>
     <style>
         :root {
-            --primary-dark: #1a237e;
+            --primary-dark: #0d2149;
             --morning: #d1e9ff; --morning-text: #007bff;
             --evening: #fff3cd; --evening-text: #856404;
             --night: #f3e5f5; --night-text: #7b1fa2;
             --off: #e9ecef; --off-text: #6c757d;
             --leave: #f8d7da; --leave-text: #721c24;
-            --logout-bg: #ffebee; --logout-text: #c62828;
+            --logout: #ffebee; --logout-text: #c62828;
         }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f1f4f9; margin: 0; padding: 20px; }
-        .container { max-width: 1400px; margin: auto; }
 
-        /* شريط الأدوات الجديد المطابق للصورة */
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            margin: 0;
+            padding: 20px;
+            /* إضافة الخلفية هنا */
+            background-image: url('image_dba186.jpg'); /* استبدل هذا باسم ملف الصورة لديك */
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(13, 33, 73, 0.3); /* طبقة زرقاء شفافة خفيفة فوق الصورة */
+            z-index: -1;
+        }
+
+        .container { max-width: 1400px; margin: auto; position: relative; }
+
+        /* شريط الأدوات العلوي */
         .toolbar { 
-            background: #0d2149; 
+            background: rgba(13, 33, 73, 0.85); 
+            backdrop-filter: blur(10px);
             padding: 15px 25px; 
             border-radius: 12px; 
             display: flex; 
@@ -26,7 +46,9 @@
             gap: 10px; 
             margin-bottom: 20px;
             flex-wrap: wrap;
+            border: 1px solid rgba(255,255,255,0.1);
         }
+
         .btn-tool {
             background: white;
             color: #0d2149;
@@ -36,31 +58,50 @@
             font-weight: bold;
             font-size: 14px;
             cursor: pointer;
-            transition: 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 5px;
+            transition: 0.3s;
         }
-        .btn-tool:hover { background: #e3f2fd; }
-        .btn-logout {
-            background: var(--logout-bg);
-            color: var(--logout-text);
-        }
-        .btn-logout:hover { background: #ffcdd2; }
 
-        /* التبويبات */
+        .btn-tool:hover { background: #e3f2fd; transform: translateY(-2px); }
+        .btn-logout { background: var(--logout); color: var(--logout-text); }
+
+        /* التبويبات بنمط شفاف */
         .tabs { display: flex; gap: 5px; margin-bottom: -1px; }
-        .tab { padding: 12px 25px; background: #e0e0e0; border-radius: 12px 12px 0 0; cursor: pointer; font-weight: bold; color: #666; border: 1px solid #ccc; border-bottom: none; }
-        .tab.active { background: white; color: #1a237e; border-top: 4px solid #1a237e; }
-        
-        .content-card { background: white; padding: 30px; border-radius: 0 15px 15px 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); min-height: 500px; }
+        .tab { 
+            padding: 12px 25px; 
+            background: rgba(255, 255, 255, 0.6); 
+            backdrop-filter: blur(5px);
+            border-radius: 12px 12px 0 0; 
+            cursor: pointer; 
+            font-weight: bold; 
+            color: #333; 
+            border: 1px solid rgba(255,255,255,0.3);
+            border-bottom: none;
+        }
+        .tab.active { 
+            background: white; 
+            color: var(--primary-dark); 
+            border-top: 4px solid var(--primary-dark); 
+        }
+
+        /* الكارت الرئيسي بنظام Glassmorphism */
+        .content-card { 
+            background: rgba(255, 255, 255, 0.9); 
+            backdrop-filter: blur(10px);
+            padding: 30px; 
+            border-radius: 0 15px 15px 15px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2); 
+            min-height: 500px;
+            border: 1px solid rgba(255,255,255,0.4);
+        }
+
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
         /* الجداول */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
-        th, td { border: 1px solid #f0f0f0; padding: 12px; text-align: center; }
-        th { background: #fafafa; color: #444; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; }
+        th, td { border: 1px solid #eee; padding: 12px; text-align: center; }
+        th { background: #f8f9fa; color: #444; font-size: 14px; }
+        
         .badge { border-radius: 10px; padding: 4px 12px; font-size: 12px; font-weight: bold; display: inline-block; min-width: 65px; }
         .صباحي { background: var(--morning); color: var(--morning-text); }
         .مسائي { background: var(--evening); color: var(--evening-text); }
@@ -68,17 +109,27 @@
         .أوف { background: var(--off); color: var(--off-text); }
         .إجازة { background: var(--leave); color: var(--leave-text); }
 
-        .form-box { background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #eee; }
-        .btn-action { background: #4a90e2; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .form-box { background: #fdfdfd; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #eee; }
+        .btn-action { background: var(--primary-dark); color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+        
+        @media print {
+            .toolbar, .tabs, .form-box, .btn-action { display: none; }
+            body { background: white; }
+            .content-card { box-shadow: none; border: none; }
+        }
     </style>
 </head>
 <body>
 
+<div class="overlay"></div>
+
 <div class="container">
     <div class="toolbar">
         <button class="btn-tool btn-logout" onclick="logout()">تسجيل الخروج</button>
-        <button class="btn-tool" onclick="exportExcel()">تصدير Excel</button>
-        <button class="btn-tool" onclick="copyOutlook()">نسخ Outlook</button>
+        <button class="btn-tool" onclick="alert('تصدير Excel...')">تصدير Excel</button>
+        <button class="btn-tool" onclick="alert('نسخ للـ Outlook...')">نسخ Outlook</button>
         <button class="btn-tool" onclick="window.print()">طباعة / PDF</button>
         <button class="btn-tool" onclick="changeWeek(7)">الأسبوع التالي</button>
         <button class="btn-tool" onclick="setCurrentWeek()">الأسبوع الحالي</button>
@@ -93,10 +144,8 @@
 
     <div class="content-card">
         <div id="schedule-tab" class="tab-content active">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 id="currentWeekTitle" style="margin:0; color:#2c3e50;">جدول الدوام</h2>
-                <input type="date" id="dateInput" onchange="renderAll()" style="padding:5px; border-radius:5px; border:1px solid #ccc;">
-            </div>
+            <h2 id="weekTitle" style="color: var(--primary-dark); margin-top: 0;">جدول الدوام (الجمعة أوف - السبت موظف واحد)</h2>
+            <input type="date" id="dateInput" onchange="renderSchedule()" style="margin-bottom: 15px;">
             <table>
                 <thead>
                     <tr id="headerRow">
@@ -108,70 +157,68 @@
         </div>
 
         <div id="admin-tab" class="tab-content">
-            <h3 id="formTitle">إضافة موظف جديد</h3>
+            <h3>إضافة وتعديل الموظفين</h3>
             <div class="form-box">
                 <input type="hidden" id="editEmpId">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; align-items: flex-end;">
-                    <input type="text" id="empName" placeholder="الاسم الكامل" style="padding:10px; border-radius:5px; border:1px solid #ddd;">
-                    <select id="empCatSelect" style="padding:10px; border-radius:5px; border:1px solid #ddd;"></select>
-                    <select id="empRole" style="padding:10px; border-radius:5px; border:1px solid #ddd;">
+                <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+                    <input type="text" id="empName" placeholder="اسم الموظف">
+                    <select id="empCatSelect"></select>
+                    <select id="empRole">
                         <option value="MORNING">صباحي</option>
                         <option value="EVENING">مسائي</option>
                         <option value="FIXED">ليلي (ثابت)</option>
                     </select>
-                    <label style="font-size:12px;"><input type="checkbox" id="inRotation" checked> تدوير السبت</label>
-                    <button class="btn-action" onclick="handleEmployeeAction()">حفظ البيانات</button>
+                    <label style="font-weight:bold; font-size:13px;"><input type="checkbox" id="inRotation" checked> تدوير السبت</label>
+                    <button class="btn-action" onclick="handleEmployee()">حفظ الموظف</button>
                 </div>
             </div>
-            <table id="adminListTable">
+            <table id="adminTable">
                 <thead><tr><th>الاسم</th><th>الفئة</th><th>النظام</th><th>تدوير</th><th>إجراءات</th></tr></thead>
-                <tbody id="adminListBody"></tbody>
+                <tbody id="adminBody"></tbody>
             </table>
         </div>
 
         <div id="leave-tab" class="tab-content">
             <h3>تسجيل إجازة طويلة</h3>
             <div class="form-box">
-                <div style="display: flex; gap: 15px;">
-                    <select id="leaveEmpSelect" style="padding:10px; flex:1;"></select>
-                    <input type="date" id="leaveStart" style="padding:10px;">
-                    <input type="date" id="leaveEnd" style="padding:10px;">
-                    <button class="btn-action" onclick="addLongLeave()">تسجيل</button>
+                <div style="display: flex; gap: 10px;">
+                    <select id="leaveEmpSelect" style="flex:1"></select>
+                    <input type="date" id="leaveStart">
+                    <input type="date" id="leaveEnd">
+                    <button class="btn-action" style="background: orange;" onclick="addLeave()">تسجيل إجازة</button>
                 </div>
             </div>
-            <tbody id="leaveListBody"></tbody>
-        </table>
+            <table>
+                <thead><tr><th>الموظف</th><th>من</th><th>إلى</th><th>حذف</th></tr></thead>
+                <tbody id="leaveBody"></tbody>
+            </table>
         </div>
     </div>
 </div>
 
 <script>
-    // البيانات الافتراضية
+    // البيانات
     let employees = JSON.parse(localStorage.getItem('employees')) || [
         { id: 1, name: "Abdulrahman Ghulam Al-Sulaimani", cat: "مدير", role: "FIXED", inRotation: false },
         { id: 2, name: "Hamad Rashid Al-Khathran", cat: "مشرف", role: "MORNING", inRotation: true },
-        { id: 3, name: "Ziyad Fawaz Althaqfiy", cat: "مشرف", role: "EVENING", inRotation: true },
-        { id: 4, name: "Essa Alsalami", cat: "موظف اساسي", role: "MORNING", inRotation: false },
-        { id: 5, name: "Saleh Aljuraydi", cat: "موظف اساسي", role: "EVENING", inRotation: false }
+        { id: 3, name: "Ziyad Fawaz Althaqfiy", cat: "مشرف", role: "EVENING", inRotation: true }
     ];
-    let categories = JSON.parse(localStorage.getItem('categories')) || ["موظف اساسي", "مشرف", "مدير", "متدرب", "التمهير"];
+    let categories = ["موظف اساسي", "مشرف", "مدير", "متدرب", "التمهير"];
     let longLeaves = JSON.parse(localStorage.getItem('longLeaves')) || [];
+    const dayNames = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
-    window.onload = () => {
-        setCurrentWeek();
-    };
+    window.onload = () => { setCurrentWeek(); };
 
     function save() {
         localStorage.setItem('employees', JSON.stringify(employees));
         localStorage.setItem('longLeaves', JSON.stringify(longLeaves));
     }
 
-    // وظائف شريط الأدوات الجديد
     function changeWeek(days) {
-        let current = new Date(document.getElementById('dateInput').value);
-        current.setDate(current.getDate() + days);
-        document.getElementById('dateInput').valueAsDate = current;
-        renderAll();
+        let d = new Date(document.getElementById('dateInput').value);
+        d.setDate(d.getDate() + days);
+        document.getElementById('dateInput').valueAsDate = d;
+        renderSchedule();
     }
 
     function setCurrentWeek() {
@@ -181,22 +228,19 @@
         renderAll();
     }
 
-    function logout() {
-        if(confirm("هل تريد تسجيل الخروج؟ سيتم إغلاق الجلسة.")) {
-            alert("تم تسجيل الخروج بنجاح.");
-            // هنا يمكنك إضافة إعادة توجيه لصفحة الدخول إذا كانت متوفرة
-        }
+    function showTab(id, btn) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(id).classList.add('active'); btn.classList.add('active');
+        renderAll();
     }
 
-    function exportExcel() { alert("جاري تجهيز ملف Excel..."); }
-    function copyOutlook() { alert("تم نسخ الجدول بتنسيق Outlook."); }
-
-    // وظائف الجدول الأساسية
     function renderAll() {
-        renderAdminList();
         renderSchedule();
-        renderLeaveUI();
+        renderAdmin();
+        renderLeaves();
         document.getElementById('empCatSelect').innerHTML = categories.map(c => `<option>${c}</option>`).join('');
+        document.getElementById('leaveEmpSelect').innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
     }
 
     function renderSchedule() {
@@ -204,15 +248,17 @@
         const isEven = Math.ceil(start.getDate() / 7) % 2 === 0;
         const rotating = employees.filter(e => e.inRotation);
 
-        document.getElementById('scheduleBody').innerHTML = employees.map(emp => {
-            let row = `<tr><td style="text-align:right; font-weight:bold;">${emp.name}</td><td>${emp.cat}</td>`;
+        let html = '';
+        employees.forEach(emp => {
+            html += `<tr><td style="text-align:right; font-weight:bold;">${emp.name}</td><td>${emp.cat}</td>`;
             for(let d=0; d<7; d++) {
                 let curr = new Date(start); curr.setDate(start.getDate()+d);
                 let s = calculateShift(emp, d, isEven, curr, rotating);
-                row += `<td><span class="badge ${s}">${s}</span></td>`;
+                html += `<td><span class="badge ${s}">${s}</span></td>`;
             }
-            return row + `</tr>`;
-        }).join('');
+            html += `</tr>`;
+        });
+        document.getElementById('scheduleBody').innerHTML = html;
     }
 
     function calculateShift(emp, day, isEven, currDate, rotating) {
@@ -221,53 +267,54 @@
             currDate.setHours(0,0,0,0); s.setHours(0,0,0,0); e.setHours(0,0,0,0);
             return l.empId===emp.id && currDate>=s && currDate<=e; 
         })) return "إجازة";
-        if(day === 5) return "أوف";
+        
+        if(day === 5) return "أوف"; // الجمعة
         if(emp.role === "FIXED") return (day <= 4) ? "ليلي" : "أوف";
-        if(day === 6) {
+        
+        if(day === 6) { // السبت
             const idx = rotating.findIndex(r => r.id === emp.id);
-            return (idx !== -1 && ((idx === 0 && !isEven) || (idx === 1 && isEven))) ? "صباحي" : "أوف";
+            if(idx === -1) return "أوف";
+            return ((idx === 0 && !isEven) || (idx === 1 && isEven)) ? "صباحي" : "أوف";
         }
-        if(day === 4) {
+        if(day === 4) { // الخميس أوف لمداوم السبت لضمان 5 أيام عمل
             const idx = rotating.findIndex(r => r.id === emp.id);
             if(idx !== -1 && ((idx === 0 && !isEven) || (idx === 1 && isEven))) return "أوف";
         }
         return (emp.role === "MORNING") ? "صباحي" : "مسائي";
     }
 
-    // بقية وظائف الإدارة (إضافة، حذف، تعديل)
-    function handleEmployeeAction() {
+    function handleEmployee() {
         const name = document.getElementById('empName').value;
         if(!name) return;
         employees.push({ id: Date.now(), name, cat: document.getElementById('empCatSelect').value, role: document.getElementById('empRole').value, inRotation: document.getElementById('inRotation').checked });
+        document.getElementById('empName').value = "";
         save(); renderAll();
     }
 
-    function deleteEmp(id) {
-        employees = employees.filter(e => e.id !== id);
-        save(); renderAll();
-    }
-
-    function renderAdminList() {
-        document.getElementById('adminListBody').innerHTML = employees.map(e => `
+    function renderAdmin() {
+        document.getElementById('adminBody').innerHTML = employees.map(e => `
             <tr><td>${e.name}</td><td>${e.cat}</td><td>${e.role}</td><td>${e.inRotation?'✅':'🛑'}</td>
-            <td><button class="btn-action" style="background:red;" onclick="deleteEmp(${e.id})">حذف</button></td></tr>
+            <td><button onclick="deleteEmp(${e.id})" style="background:red; color:white; border:none; border-radius:5px; cursor:pointer;">حذف</button></td></tr>
         `).join('');
     }
 
-    function showTab(id, btn) {
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.getElementById(id).classList.add('active'); btn.classList.add('active');
-    }
+    function deleteEmp(id) { employees = employees.filter(e => e.id !== id); save(); renderAll(); }
 
-    function addLongLeave() {
+    function addLeave() {
         longLeaves.push({ id: Date.now(), empId: parseInt(document.getElementById('leaveEmpSelect').value), start: document.getElementById('leaveStart').value, end: document.getElementById('leaveEnd').value });
         save(); renderAll();
     }
 
-    function renderLeaveUI() {
-        document.getElementById('leaveEmpSelect').innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+    function renderLeaves() {
+        document.getElementById('leaveBody').innerHTML = longLeaves.map(l => {
+            const emp = employees.find(e => e.id === l.empId);
+            return `<tr><td>${emp?emp.name:'-'}</td><td>${l.start}</td><td>${l.end}</td><td><button onclick="deleteLeave(${l.id})">حذف</button></td></tr>`;
+        }).join('');
     }
+
+    function deleteLeave(id) { longLeaves = longLeaves.filter(l => l.id !== id); save(); renderAll(); }
+    
+    function logout() { if(confirm("تسجيل الخروج؟")) location.reload(); }
 </script>
 </body>
 </html>
