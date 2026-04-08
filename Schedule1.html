@@ -1,584 +1,230 @@
 <!DOCTYPE html>
-<html dir="ltr" lang="en">
+<html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Branch Visit Planner — MMC IT</title>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<style>
-*{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:Arial,Tahoma,sans-serif;background:#f1f5f9;color:#1a3558;}
-/* Header */
-.top{background:#1a3558;padding:13px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
-.top h1{color:#fff;font-size:15px;font-weight:700;}
-.top .sub{color:#a8c8f0;font-size:10px;margin-top:2px;}
-.top a{color:#fff;background:rgba(255,255,255,0.15);border-radius:6px;padding:4px 10px;text-decoration:none;font-size:11px;}
-/* Tabs */
-.tabs{background:#fff;display:flex;border-bottom:2px solid #e2e8f0;}
-.tab{padding:10px 18px;font-size:12px;cursor:pointer;color:#64748b;font-weight:600;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;}
-.tab.active{color:#1a3558;border-bottom-color:#1a3558;}
-.tab-pane{display:none;}.tab-pane.active{display:block;}
-/* Layout: sidebar + main */
-.layout{display:flex;gap:0;height:calc(100vh - 90px);}
-.sidebar{width:280px;min-width:240px;background:#fff;border-left:1px solid #e2e8f0;overflow-y:auto;flex-shrink:0;}
-.main{flex:1;overflow-y:auto;padding:12px;}
-/* Sidebar sections */
-.sidebar-section{border-bottom:1px solid #f1f5f9;}
-.sidebar-header{padding:10px 14px;font-size:11px;font-weight:700;color:#475569;background:#f8fafd;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
-.sidebar-header:hover{background:#f1f5f9;}
-.city-item{padding:9px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;border-bottom:1px solid #f8fafd;transition:background 0.1s;}
-.city-item:hover{background:#f0f9ff;}
-.city-item.active{background:#dbeafe;color:#1e40af;font-weight:700;}
-.city-name{font-size:12px;}
-.city-count{background:#e0eaf5;color:#1a3558;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;}
-.city-item.active .city-count{background:#bfdbfe;color:#1e40af;}
-/* Cards grid */
-.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
-.branch-card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;overflow:hidden;transition:box-shadow 0.15s;}
-.branch-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.09);}
-.branch-card.status-done{border-color:#86efac;}
-.branch-card.status-scheduled{border-color:#93c5fd;}
-.branch-card.status-skip{border-color:#d1d5db;opacity:0.7;}
-.card-header{padding:10px 12px;border-bottom:1px solid #f1f5f9;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
-.card-name{font-weight:700;font-size:12px;color:#1a3558;line-height:1.3;}
-.card-id{font-size:9px;color:#aaa;margin-top:2px;}
-.card-body{padding:10px 12px;}
-.card-field{margin-bottom:8px;}
-.card-field label{font-size:9px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:3px;}
-.card-field input,.card-field select,.card-field textarea{width:100%;border:1px solid #e2e8f0;border-radius:6px;padding:5px 8px;font-size:11px;color:#1a3558;background:#fff;font-family:Arial;}
-.card-field textarea{resize:vertical;min-height:40px;}
-.card-actions{padding:8px 12px;background:#f8fafd;display:flex;align-items:center;gap:6px;border-top:1px solid #f1f5f9;}
-/* Badges */
-.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;white-space:nowrap;}
-.b-Hyundai{background:#003399;color:#fff;} .b-Changan{background:#cc0000;color:#fff;}
-.b-Genesis{background:#1a1a1a;color:#fff;} .b-Stellantis{background:#6d1b9a;color:#fff;}
-.b-Multi{background:#0369a1;color:#fff;} .b-other{background:#475569;color:#fff;}
-.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px;}
-.d-pending{background:#fcd34d;} .d-scheduled{background:#60a5fa;} .d-done{background:#34d399;} .d-skip{background:#d1d5db;}
-/* Warning */
-.leave-warn{background:#fef3c7;color:#92400e;border-radius:4px;padding:4px 8px;font-size:10px;font-weight:700;margin-top:4px;display:none;}
-/* Add branch form */
-.add-form{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:14px;margin-bottom:14px;}
-.add-form h3{font-size:13px;color:#1a3558;margin-bottom:12px;font-weight:700;}
-.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:10px;}
-.form-grid label{font-size:10px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:3px;}
-.form-grid input,.form-grid select{width:100%;border:1px solid #e2e8f0;border-radius:6px;padding:6px 9px;font-size:12px;color:#1a3558;}
-/* Stats bar */
-.stats-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
-.sc{background:#fff;border-radius:8px;padding:8px 14px;flex:1;min-width:90px;text-align:center;border:1px solid #e2e8f0;}
-.sc .n{font-size:18px;font-weight:800;} .sc .l{font-size:10px;color:#888;}
-/* Chart section */
-.chart-wrap{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:14px;margin-bottom:12px;}
-.chart-wrap h3{font-size:12px;color:#1a3558;margin-bottom:10px;font-weight:700;}
-.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-canvas{max-height:220px;}
-/* Month picker */
-.month-bar{background:#fff;padding:10px 14px;display:flex;gap:8px;align-items:center;border-bottom:1px solid #e2e8f0;flex-wrap:wrap;}
-/* Buttons */
-.btn{padding:6px 13px;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:700;}
-.btn-primary{background:#1a3558;color:#fff;} .btn-green{background:#166534;color:#fff;}
-.btn-blue{background:#1565c0;color:#fff;} .btn-red{background:#dc2626;color:#fff;}
-.btn-gray{background:#475569;color:#fff;} .btn-amber{background:#d97706;color:#fff;}
-/* Sync */
-#sync{font-size:10px;background:#166534;color:#fff;border-radius:4px;padding:3px 8px;opacity:0.5;transition:opacity 0.5s;}
-/* Empty */
-.empty{text-align:center;padding:40px;color:#94a3b8;font-size:13px;}
-@media(max-width:700px){.layout{flex-direction:column;height:auto;}.sidebar{width:100%;max-height:200px;}.chart-grid{grid-template-columns:1fr;}}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weekly Schedule / جدول الدوام الأسبوعي</title>
+  <meta name="description" content="Single-file weekly schedule app with Firebase Auth/Firestore, localStorage, Excel, Outlook ICS, and bilingual UI." />
+
+  <!-- Firebase compat CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/firebase@12.11.0/firebase-app-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/firebase@12.11.0/firebasenet/npm/firebase@12.11.0/firebase-firestore-compat.js"></script>
+
+  <!-- SheetJS -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.200f172a;--bg2:#1d4ed8;--surface:#ffffff;--surface2:#f8fafc;--border:#d7deea;
+      --text:#102036;--muted:#6b7280;--primary:#1d4ed8;--primary-hover:#1e40af;--success:#16a34a;
+      --danger:#dc2626;--warning:#d97706;--info:#0369a1;--shadow:0 16px 40px rgba(15,23,42,.12);
+      --rad-xl:24px;--rad-lg:16px;--rad-md:12px;--font:"Segoe UI",Tahoma,sans-serif;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;min-height:100vh;font-family:var(--font);color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,.10), transparent 25%),
+        linear-gradient(135deg, rgba(15,23,42,.97), rgba(29,78,216,.93));
+    }
+    .container{max-width:1500px;margin:0 auto;padding:20px}
+    .card{background:rgba(255,255,255,.98);border-radius:var(--rad-xl);box-shadow:var(--shadow);overflow:hidden}
+    .hero{background:linear-gradient(135deg,var(--bg1),var(--bg2));color:#fff;padding:24px 28px}
+    .hero h1{margin:0 0 6px;font-size:2rem}
+    .hero p{margin:0;opacity:.92}
+    .login-card{max-width:820px;margin:56px auto}
+    .content{padding:18px}
+    .grid{display:grid;gap:14px}
+    .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+    .field{display:flex;flex-direction:column;gap:8px}
+    label{font-weight:700;font-size:.95rem}
+    input,select,textarea{
+      width:100%;border:1px solid var(--border);background:#fff;border-radius:var(--rad-md);
+      padding:12px 14px;font:inherit;color:var(--text)
+    }
+    input:focus,select:focus,textarea:focus{
+      outline:none;border-color:rgba(29,78,216,.45);box-shadow:0 0 0 4px rgba(29,78,216,.12)
+    }
+    .toolbar,.actions,.tabs,.legend,.inline{
+      display:flex;gap:10px;flex-wrap:wrap;align-items:center
+    }
+    .toolbar{justify-content:space-between;padding:18px 20px 0}
+    .btn{
+      border:none;border-radius:12px;padding:11px 16px;font:inherit;font-weight:700;cursor:pointer;
+      transition:.15s transform ease,.2s background ease
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn:active{transform:translateY(0)}
+    .btn-primary{background:var(--primary);color:#fff}
+    .btn-primary:hover{background:var(--primary-hover)}
+    .btn-secondary{background:#eef2ff;color:#1e3a8a}
+    .btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}
+    .btn-danger{background:#fee2e2;color:var(--danger)}
+    .btn-success{background:#dcfce7;color:var(--success)}
+    .btn-warning{background:#fef3c7;color:var(--warning)}
+    .btn-sm{padding:8px 12px;font-size:.88rem}
+
+    .status-grid{padding:16px 20px 0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+    .stat{
+      background:var(--surface2);border:1px solid var(--border);border-radius:var(--rad-lg);
+      padding:14px;display:flex;flex-direction:column;gap:8px
+    }
+    .stat .label{color:var(--muted);font-size:.9rem}
+    .badge{
+      display:inline-flex;align-items:center;justify-content:center;border-radius:999px;
+      padding:6px 10px;font-size:.84rem;font-weight:700;gap:6px
+    }
+    .badge-success{background:#dcfce7;color:var(--success)}
+    .badge-danger{background:#fee2e2;color:var(--danger)}
+    .badge-info{background:#e0f2fe;color:var(--info)}
+    .badge-primary{background:#dbeafe;color:var(--primary)}
+    .badge-warning{background:#fef3c7;color:var(--warning)}
+
+    .tabs-wrap{padding:16px 20px 0}
+    .tab{
+      border:1px solid var(--border);background:#fff;color:var(--text);padding:10px 16px;border-radius:999px;
+      cursor:pointer;font-weight:700
+    }
+    .tab.active,.tab:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+    .panel{padding:20px}
+    .panel.hidden{display:none!important}
+    .section{
+      background:#fff;border:1px solid var(--border);border-radius:var(--rad-lg);padding:18px
+    }
+    .section+.section{margin-top:16px}
+    .section-head{
+      display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px
+    }
+    .section-head h3{margin:0}
+    .legend-item{
+      display:inline-flex;align-items:center;justify-content:center;border-radius:999px;
+      padding:6px 12px;font-size:.84rem;font-weight:700
+    }
+    .shift-morning{background:#dbeafe;color:#1d4ed8}
+    .shift-night{background:#ede9fe;color:#6d28d9}
+    .shift-afternoon{background:#fef3c7;color:#b45309}
+    .shift-leave{background:#fee2e2;color:#b91c1c}
+    .shift-cover{background:#dcfce7;color:#15803d}
+    .shift-oncall{background:#e0f2fe;color:#0369a1}
+    .shift-off{background:#e5e7eb;color:#374151}
+
+    .table-wrap{
+      width:100%;overflow:auto;border:1px solid var(--border);border-radius:16px;background:#fff
+    }
+    table{width:100%;border-collapse:collapse;min-width:1100px}
+    th,td{padding:12px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap}
+    thead th{position:sticky;top:0;background:#f8fafc;z-index:1}
+    tbody tr:hover{background:#f8fbff}
+    .mini-card{border:1px solid var(--border);background:var(--surface2);border-radius:16px;padding:14px}
+    .mini-card h4{margin:0 0 8px}
+    .mini-card p{margin:6px 0;color:var(--muted)}
+    .notice{
+      border-radius:14px;padding:12px 14px;font-weight:700;display:none;margin-bottom:12px
+    }
+    .notice.show{display:block}
+    .notice.success{background:#dcfce7;color:var(--success)}
+    .notice.error{background:#fee2e2;color:var(--danger)}
+    .notice.info{background:#e0f2fe;color:var(--info)}
+    .mono{font-family:Consolas,Monaco,monospace;direction:ltr;text-align:left}
+    .helper,.muted{color:var(--muted);font-size:.92rem}
+    .checkbox{display:flex;gap:10px;align-items:center}
+    .checkbox input{width:auto}
+    .hidden{display:none!important}
+    .footer-note{padding:0 20px 20px;color:rgba(255,255,255,.92);font-size:.92rem;text-align:center}
+
+    @media print{
+      body{background:#fff!important}
+      .tabs-wrap,.toolbar .actions,#loginScreen,.footer-note,.print-hide,.notice{display:none!important}
+      #app{display:block!important}
+      .card,.section{box-shadow:none!important;border:none!important}
+      .panel{padding:0!important}
+      #scheduleTab{display:block!important}
+      .table-wrap{border:1px solid #ddd}
+    }
+    @media (max-width:1100px){
+      .g3{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+    @media (max-width:780px){
+      .container{padding:12px}
+      .g2,.g3,.g4,.status-grid{grid-template-columns:1fr}
+      .toolbar,.actions,.tabs,.legend,.inline{flex-direction:column;align-items:stretch}
+      .btn,.tab{width:100%}
+    }
+  </style>
 </head>
 <body>
-<div class="top">
-  <div><h1>🏢 Branch Visit Planner — MMC IT Support</h1>
-  <div class="sub">Almajdouie Motors — Branch Maintenance Planning</div></div>
-  <div style="display:flex;gap:8px;align-items:center">
-    <span id="sync">☁ Synced</span>
-    <a href="https://baghethan.com/Schedule.html">📋 Duty Schedule</a>
-  </div>
-</div>
-
-<div class="tabs">
-  <div class="tab active" onclick="switchTab('plan',this)">📅 Visit Planner</div>
-  <div class="tab" onclick="switchTab('report',this)">📊 Monthly Report</div>
-  <div class="tab" onclick="switchTab('branches',this)">🏢 Manage Branches</div>
-</div>
-
-<!-- ═══════ TAB: PLANNER ═══════ -->
-<div class="tab-pane active" id="tab-plan">
-<div class="layout">
-  <!-- Sidebar: Cities -->
-  <div class="sidebar">
-    <div class="sidebar-section">
-      <div class="sidebar-header" onclick="setCityFilter('')" id="city-all" style="cursor:pointer">
-        🌍 All Cities <span id="city-all-count" class="city-count">0</span>
+  <div class="container">
+    <!-- Login -->
+    <section id="loginScreen" class="card login-card">
+      <div class="hero">
+        <h1 data-i18n="appTitle">جدول الدوام الأسبوعي</h1>
+        <p data-i18n="appSubtitle">المجدوعي السيارات — نسخة HTML واحدة متقدمة</p>
       </div>
-    </div>
-    <div id="city-list"></div>
-  </div>
-
-  <!-- Main: Cards -->
-  <div class="main">
-    <!-- Filters row -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
-      <select id="f-brand" onchange="renderCards()" style="border:1px solid #d0d8e8;border-radius:6px;padding:6px 9px;font-size:12px">
-        <option value="">All Brands</option>
-        <option>Hyundai</option><option>Changan</option><option>Genesis</option>
-        <option>Stellantis</option><option>Multi Brand</option>
-      </select>
-      <select id="f-status" onchange="renderCards()" style="border:1px solid #d0d8e8;border-radius:6px;padding:6px 9px;font-size:12px">
-        <option value="">All Status</option>
-        <option value="pending">Pending</option>
-        <option value="scheduled">Scheduled</option>
-        <option value="done">Done</option>
-      </select>
-      <select id="f-emp" onchange="renderCards()" style="border:1px solid #d0d8e8;border-radius:6px;padding:6px 9px;font-size:12px">
-        <option value="">All Employees</option>
-      </select>
-      <input id="f-search" type="text" placeholder="🔍 Search..." oninput="renderCards()" style="border:1px solid #d0d8e8;border-radius:6px;padding:6px 9px;font-size:12px;width:160px">
-      <button class="btn btn-green" onclick="exportPDF()">📄 PDF</button>
-      <span style="font-size:11px;color:#888;margin-right:auto" id="plan-count"></span>
-    </div>
-
-    <!-- Stats -->
-    <div class="stats-bar" id="plan-stats"></div>
-
-    <!-- Cards -->
-    <div class="card-grid" id="card-grid"></div>
-    <div class="empty" id="plan-empty" style="display:none">No branches found</div>
-  </div>
-</div>
-</div>
-
-<!-- ═══════ TAB: REPORT ═══════ -->
-<div class="tab-pane" id="tab-report">
-<div class="month-bar">
-  <label style="font-size:12px;font-weight:700">Month:</label>
-  <input type="month" id="rpt-month">
-  <button class="btn btn-primary" onclick="renderReport()">Generate</button>
-  <button class="btn btn-green" onclick="exportReportPDF()">📄 Export PDF</button>
-</div>
-<div style="padding:12px">
-  <div class="stats-bar" id="rpt-stats"></div>
-  <div class="chart-wrap" id="rpt-charts" style="display:none">
-    <h3>📊 Visit Overview</h3>
-    <div class="chart-grid">
-      <div><canvas id="ch-status"></canvas></div>
-      <div><canvas id="ch-emp"></canvas></div>
-      <div><canvas id="ch-brand"></canvas></div>
-      <div><canvas id="ch-city"></canvas></div>
-    </div>
-  </div>
-  <div class="chart-wrap" id="rpt-table-wrap" style="display:none">
-    <h3>📋 Visit Details</h3>
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead><tr id="rpt-thead" style="background:#1a3558;color:#fff"></tr></thead>
-      <tbody id="rpt-tbody"></tbody>
-    </table>
-  </div>
-</div>
-</div>
-
-<!-- ═══════ TAB: BRANCHES ═══════ -->
-<div class="tab-pane" id="tab-branches">
-<div style="padding:14px">
-  <!-- Add form -->
-  <div class="add-form">
-    <h3>➕ Add New Branch</h3>
-    <div class="form-grid">
-      <div><label>Branch Name *</label><input id="nb-name" placeholder="e.g. Hyundai Khobar Main"></div>
-      <div><label>Hostname / ID</label><input id="nb-id" placeholder="e.g. MMSM-KHB-3"></div>
-      <div><label>Brand</label>
-        <select id="nb-brand">
-          <option>Hyundai</option><option>Changan</option><option>Genesis</option>
-          <option>Stellantis</option><option>Multi Brand</option><option>Other</option>
-        </select>
+      <div class="content">
+        <div id="loginNotice" class="notice"></div>
+        <form id="loginForm" class="grid g2">
+          <div class="field">
+            <label for="username" data-i18n="loginUser">اسم المستخدم / البريد</label>
+            <input id="username" type="text" data-i18n-placeholder="loginUserPlaceholder" placeholder="أدخل اسم المستخدم أو البريد" required />
+          </div>
+          <div class="field">
+            <label for="password" data-i18n="loginPassword">كلمة المرور</label>
+            <input id="password" type="password" data-i18n-placeholder="loginPasswordPlaceholder" placeholder="أدخل كلمة المرور" required />
+          </div>
+          <div class="field" style="grid-column:1/-1">
+            <div class="actions">
+              <button class="btn btn-primary" type="submit" data-i18n="loginBtn">دخول</button>
+              <button id="registerBtn" class="btn btn-success" type="button" data-i18n="registerBtn">إنشاء حساب Firebase</button>
+            </div>
+            <p class="helper" data-i18n="loginHelp">محليًا: admin / 1234 أو viewer / 1234 — وعند تفعيل Firebase Auth استخدم البريد وكلمة المرور.</p>
+          </div>
+        </form>
       </div>
-      <div><label>Type</label>
-        <select id="nb-type"><option>1S</option><option>2S</option><option>3S</option><option>Other</option></select>
+    </section>
+
+    <!-- App -->
+    <main id="app" class="card hidden">
+      <div class="hero">
+        <div class="toolbar" style="padding:0">
+          <div>
+            <h1 data-i18n="appTitle">جدول الدوام الأسبوعي</h1>
+            <p data-i18n="mainSubtitle">إدارة الجداول، الموظفين، الإجازات، الأرشيف، الإعدادات، والمزامنة</p>
+          </div>
+          <div class="actions">
+            <button id="prevWeekBtn" class="btn btn-secondary" type="button" data-i18n="prevWeek">الأسبوع السابق</button>
+            <button id="todayBtn" class="btn btn-secondary" type="button" data-i18n="currentWeek">الأسبوع الحالي</button>
+            <button id="nextWeekBtn" class="btn btn-secondary" type="button" data-i18n="nextWeek">الأسبوع التالي</button>
+            <button id="printPdfBtn" class="btn btn-outline" type="button" data-i18n="printPdf">طباعة / PDF</button>
+            <button id="copyOutlookBtn" class="btn btn-outline" type="button" data-i18n="copyOutlook">نسخ Outlook</button>
+            <button id="exportExcelBtn" class="btn btn-outline" type="button" data-i18n="exportExcel">تصدير Excel</button>
+            <button id="exportIcsBtn" class="btn btn-outline" type="button" data-i18n="exportIcs">ملف Outlook Calendar</button>
+            <button id="logoutBtn" class="btn btn-danger" type="button" data-i18n="logout">تسجيل الخروج</button>
+          </div>
+        </div>
       </div>
-      <div><label>City *</label><input id="nb-city" placeholder="e.g. Khobar" list="city-datalist">
-        <datalist id="city-datalist"></datalist>
-      </div>
-      <div><label>Region</label>
-        <select id="nb-region">
-          <option>Eastern</option><option>Western</option><option>Central</option><option>Other</option>
-        </select>
-      </div>
-      <div><label>Contact Showroom</label><input id="nb-cs" placeholder="Name 05xxxxxxxx"></div>
-      <div><label>Contact Service</label><input id="nb-cv" placeholder="Name 05xxxxxxxx"></div>
-    </div>
-    <button class="btn btn-green" onclick="addBranch()">✅ Add Branch</button>
-  </div>
 
-  <!-- Branch list table -->
-  <div class="chart-wrap">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <h3 style="margin:0">🏢 All Branches (<span id="br-count">0</span>)</h3>
-      <input id="br-search" type="text" placeholder="🔍 Filter..." oninput="renderBranchList()" style="border:1px solid #d0d8e8;border-radius:6px;padding:5px 9px;font-size:12px;width:200px">
-    </div>
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead><tr style="background:#1a3558;color:#fff">
-        <th style="padding:8px 10px;text-align:left">#</th>
-        <th style="padding:8px 10px;text-align:left">Branch Name</th>
-        <th style="padding:8px 10px;text-align:left">ID</th>
-        <th style="padding:8px 10px;text-align:left">Brand</th>
-        <th style="padding:8px 10px;text-align:left">Type</th>
-        <th style="padding:8px 10px;text-align:left">City</th>
-        <th style="padding:8px 10px;text-align:left">Region</th>
-        <th style="padding:8px 10px;text-align:left">Actions</th>
-      </tr></thead>
-      <tbody id="br-tbody"></tbody>
-    </table>
-  </div>
-</div>
-</div>
-
-<script>
-firebase.initializeApp({
-  apiKey:"AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
-  authDomain:"baghethan-ba325.firebaseapp.com",
-  projectId:"baghethan-ba325",
-  storageBucket:"baghethan-ba325.firebasestorage.app",
-  messagingSenderId:"944819735112",
-  appId:"1:944819735112:web:07315600da39377320667d"
-});
-var DB=firebase.firestore();
-var BRANCHES=[]; var VISITS={}; var EMPLOYEES=[]; var LEAVES=[];
-var activeCity=''; var CHARTS={};
-
-function loadAll(cb){
-  DB.collection('schedule').get().then(function(snap){
-    snap.forEach(function(doc){
-      var d=doc.data();
-      if(doc.id==='jadwal_v6'&&d.data){
-        if(d.data.emps)EMPLOYEES=d.data.emps.filter(function(e){return e.active;});
-        if(d.data.leaves)LEAVES=d.data.leaves;
-      }
-      if(doc.id==='branch_visits'&&d.data)VISITS=d.data.visits||{};
-      if(doc.id==='branch_list'&&d.data)BRANCHES=d.data.branches||[];
-    });
-    cb();
-  }).catch(function(){cb();});
-}
-
-function saveVisits(){
-  DB.collection('schedule').doc('branch_visits').set({visits:VISITS,updated:new Date()})
-    .then(function(){flash(true);}).catch(function(){flash(false);});
-}
-function saveBranches(){
-  DB.collection('schedule').doc('branch_list').set({branches:BRANCHES,updated:new Date()})
-    .then(function(){flash(true);}).catch(function(){flash(false);});
-}
-function flash(ok){
-  var el=document.getElementById('sync');
-  el.textContent=ok?'☁ Synced':'⚠ Error';el.style.background=ok?'#166534':'#dc2626';el.style.opacity='1';
-  setTimeout(function(){el.style.opacity='0.5';},3000);
-}
-
-function isOnLeave(empId,dateStr){
-  if(!empId||!dateStr)return false;
-  var d=new Date(dateStr);d.setHours(0,0,0,0);
-  return LEAVES.some(function(lv){
-    if(lv.empId!==empId)return false;
-    var s=new Date(lv.startDate);s.setHours(0,0,0,0);
-    var e=new Date(lv.endDate);e.setHours(0,0,0,0);
-    return d>=s&&d<=e;
-  });
-}
-function brandClass(b){
-  if(b==='Hyundai')return 'b-Hyundai';if(b==='Changan')return 'b-Changan';
-  if(b==='Genesis')return 'b-Genesis';if(b&&b.includes('Stellantis'))return 'b-Stellantis';
-  if(b==='Multi Brand')return 'b-Multi';return 'b-other';
-}
-function dotClass(s){return 'd-'+(s||'pending');}
-function statusLabel(s){return{pending:'⏳ Pending',scheduled:'📅 Scheduled',done:'✅ Done',skip:'⏭ Skip'}[s]||'⏳ Pending';}
-
-/* ── Sidebar cities ── */
-function renderSidebar(){
-  var cities={};
-  getFiltered().forEach(function(b){cities[b.city]=(cities[b.city]||0)+1;});
-  var all=getFiltered().length;
-  document.getElementById('city-all-count').textContent=all;
-
-  var html='';
-  Object.keys(cities).sort().forEach(function(city){
-    html+='<div class="city-item'+(activeCity===city?' active':'')+'" onclick="setCityFilter(''+city+'')">'+
-      '<span class="city-name">📍 '+city+'</span>'+
-      '<span class="city-count">'+cities[city]+'</span></div>';
-  });
-  document.getElementById('city-list').innerHTML=html;
-
-  /* datalist for add form */
-  var dl=document.getElementById('city-datalist');
-  dl.innerHTML=Object.keys(cities).sort().map(function(c){return '<option value="'+c+'">';}).join('');
-}
-
-function setCityFilter(city){activeCity=city;renderCards();}
-
-function getFiltered(){
-  var brand=document.getElementById('f-brand').value;
-  var status=document.getElementById('f-status').value;
-  var empId=document.getElementById('f-emp').value;
-  var search=(document.getElementById('f-search').value||'').toLowerCase();
-  return BRANCHES.filter(function(b){
-    if(activeCity&&b.city!==activeCity)return false;
-    if(brand&&b.brand!==brand)return false;
-    var v=VISITS[b.id]||{};
-    if(status&&(v.status||'pending')!==status)return false;
-    if(empId&&v.empId!==empId)return false;
-    if(search&&!(b.name.toLowerCase().includes(search)||b.city.toLowerCase().includes(search)||(b.id||'').toLowerCase().includes(search)))return false;
-    return true;
-  });
-}
-
-function renderCards(){
-  renderSidebar();
-  var data=getFiltered();
-  var grid=document.getElementById('card-grid');
-  var sc=0,dn=0,pe=0,wn=0;
-  if(!data.length){document.getElementById('plan-empty').style.display='block';grid.innerHTML='';
-  }else{
-    document.getElementById('plan-empty').style.display='none';
-    var empOpts=EMPLOYEES.map(function(e){return '<option value="'+e.id+'">'+e.name+'</option>';}).join('');
-    var html='';
-    data.forEach(function(b){
-      var v=VISITS[b.id]||{};var s=v.status||'pending';
-      var emp=v.empId?EMPLOYEES.find(function(e){return e.id===v.empId;}):null;
-      var ol=emp&&isOnLeave(v.empId,v.date);
-      if(s==='scheduled')sc++;else if(s==='done')dn++;else pe++;if(ol)wn++;
-      html+='<div class="branch-card status-'+s+'" id="card-'+b.id+'">';
-      html+='<div class="card-header">';
-      html+='<div style="flex:1"><div class="card-name">'+b.name+'</div>';
-      html+='<div class="card-id">'+b.id+'</div>';
-      html+='<div style="margin-top:4px"><span class="badge '+brandClass(b.brand)+'">'+b.brand+'</span> ';
-      html+='<span class="badge" style="background:#e0eaf5;color:#1a3558">'+b.type+'</span> ';
-      html+='<span style="font-size:10px;color:#888">📍 '+b.city+'</span></div></div>';
-      html+='<div class="status-dot '+dotClass(s)+'" title="'+statusLabel(s)+'"></div>';
-      html+='</div>';
-      html+='<div class="card-body">';
-      /* Assign employee */
-      html+='<div class="card-field"><label>Assigned To</label>';
-      html+='<select onchange="setV(''+b.id+'','empId',this.value)">';
-      html+='<option value="">— Assign Employee —</option>';
-      EMPLOYEES.forEach(function(e){
-        var eol=v.date&&isOnLeave(e.id,v.date);
-        html+='<option value="'+e.id+'"'+(v.empId===e.id?' selected':'')+(eol?' style="color:#dc2626"':'')+'>'+e.name+(eol?' ⚠':'')+'</option>';
-      });
-      html+='</select>';
-      if(ol)html+='<div class="leave-warn" style="display:block">⚠ '+emp.name+' is on leave on '+v.date+'</div>';
-      html+='</div>';
-      /* Date */
-      html+='<div class="card-field"><label>Visit Date</label>';
-      html+='<input type="date" value="'+(v.date||'')+'" onchange="setV(''+b.id+'','date',this.value)"></div>';
-      /* Status */
-      html+='<div class="card-field"><label>Status</label>';
-      html+='<select onchange="setV(''+b.id+'','status',this.value)">';
-      ['pending','scheduled','done','skip'].forEach(function(st){
-        html+='<option value="'+st+'"'+(s===st?' selected':'')+'>'+statusLabel(st)+'</option>';
-      });
-      html+='</select></div>';
-      /* Notes */
-      html+='<div class="card-field"><label>Notes</label>';
-      html+='<textarea onchange="setV(''+b.id+'','note',this.value)" placeholder="Visit notes...">'+(v.note||'')+'</textarea></div>';
-      html+='</div>';
-      /* Actions */
-      html+='<div class="card-actions" style="justify-content:flex-end">';
-      html+='<button class="btn btn-red" onclick="deleteBranch(''+b.id+'')">🗑</button>';
-      html+='</div>';
-      html+='</div>';
-    });
-    grid.innerHTML=html;
-  }
-  /* Stats */
-  document.getElementById('plan-count').textContent=data.length+' branches';
-  document.getElementById('plan-stats').innerHTML=
-    '<div class="sc"><div class="n">'+data.length+'</div><div class="l">Total</div></div>'+
-    '<div class="sc"><div class="n" style="color:#1565c0">'+sc+'</div><div class="l">Scheduled</div></div>'+
-    '<div class="sc"><div class="n" style="color:#166534">'+dn+'</div><div class="l">Done</div></div>'+
-    '<div class="sc"><div class="n" style="color:#d97706">'+pe+'</div><div class="l">Pending</div></div>'+
-    '<div class="sc"><div class="n" style="color:#dc2626">'+wn+'</div><div class="l">⚠ Conflicts</div></div>';
-}
-
-function setV(id,key,val){
-  if(!VISITS[id])VISITS[id]={};
-  if(key==='empId'&&val){
-    var v=VISITS[id];
-    if(v.date&&isOnLeave(val,v.date)){
-      var emp=EMPLOYEES.find(function(e){return e.id===val;});
-      if(!confirm('⚠ '+(emp?emp.name:val)+' is on LEAVE on '+v.date+'!\nAssign anyway?')){renderCards();return;}
-    }
-  }
-  VISITS[id][key]=val;
-  saveVisits();renderCards();
-}
-
-/* ── Add Branch ── */
-function addBranch(){
-  var name=document.getElementById('nb-name').value.trim();
-  var city=document.getElementById('nb-city').value.trim();
-  if(!name||!city){alert('Branch name and city are required');return;}
-  var id=document.getElementById('nb-id').value.trim()||('BR-'+Date.now());
-  if(BRANCHES.find(function(b){return b.id===id;})){alert('ID already exists');return;}
-  BRANCHES.push({
-    id:id,name:name,city:city,
-    brand:document.getElementById('nb-brand').value,
-    type:document.getElementById('nb-type').value,
-    region:document.getElementById('nb-region').value,
-    contactShowroom:document.getElementById('nb-cs').value.trim(),
-    contactService:document.getElementById('nb-cv').value.trim()
-  });
-  saveBranches();
-  ['nb-name','nb-id','nb-cs','nb-cv','nb-city'].forEach(function(id){document.getElementById(id).value='';});
-  renderCards();renderBranchList();
-}
-
-function deleteBranch(id){
-  if(!confirm('Delete this branch?'))return;
-  BRANCHES=BRANCHES.filter(function(b){return b.id!==id;});
-  delete VISITS[id];
-  saveBranches();saveVisits();renderCards();renderBranchList();
-}
-
-/* ── Branch List ── */
-function renderBranchList(){
-  var q=(document.getElementById('br-search').value||'').toLowerCase();
-  var data=BRANCHES.filter(function(b){return !q||b.name.toLowerCase().includes(q)||b.city.toLowerCase().includes(q)||(b.id||'').toLowerCase().includes(q);});
-  document.getElementById('br-count').textContent=BRANCHES.length;
-  var html='';
-  data.forEach(function(b,i){
-    html+='<tr style="background:'+(i%2?'#f8fafd':'#fff')+';border-bottom:1px solid #f1f5f9">';
-    html+='<td style="padding:7px 10px;color:#aaa;font-size:10px">'+(i+1)+'</td>';
-    html+='<td style="padding:7px 10px;font-weight:600;color:#1a3558">'+b.name+'</td>';
-    html+='<td style="padding:7px 10px;font-size:11px;color:#888">'+b.id+'</td>';
-    html+='<td style="padding:7px 10px"><span class="badge '+brandClass(b.brand)+'">'+b.brand+'</span></td>';
-    html+='<td style="padding:7px 10px"><span class="badge" style="background:#e0eaf5;color:#1a3558">'+b.type+'</span></td>';
-    html+='<td style="padding:7px 10px;font-size:11px">'+b.city+'</td>';
-    html+='<td style="padding:7px 10px;font-size:11px;color:#888">'+b.region+'</td>';
-    html+='<td style="padding:7px 10px"><button class="btn btn-red" onclick="deleteBranch(''+b.id+'')" style="padding:3px 8px;font-size:11px">🗑</button></td>';
-    html+='</tr>';
-  });
-  document.getElementById('br-tbody').innerHTML=html||'<tr><td colspan="8" style="padding:20px;text-align:center;color:#aaa">No branches yet — add one above</td></tr>';
-}
-
-/* ── Report ── */
-function renderReport(){
-  var month=document.getElementById('rpt-month').value;if(!month)return;
-  var ym=month.substring(0,7);
-  var inM=BRANCHES.filter(function(b){var v=VISITS[b.id]||{};return v.date&&v.date.startsWith(ym);});
-  var sc=0,dn=0,pe=0,wn=0;
-  inM.forEach(function(b){
-    var v=VISITS[b.id]||{};var s=v.status||'pending';
-    if(s==='scheduled')sc++;else if(s==='done')dn++;else pe++;
-    if(v.empId&&v.date&&isOnLeave(v.empId,v.date))wn++;
-  });
-  document.getElementById('rpt-stats').innerHTML=
-    '<div class="sc"><div class="n">'+inM.length+'</div><div class="l">Total</div></div>'+
-    '<div class="sc"><div class="n" style="color:#166534">'+dn+'</div><div class="l">Done</div></div>'+
-    '<div class="sc"><div class="n" style="color:#1565c0">'+sc+'</div><div class="l">Scheduled</div></div>'+
-    '<div class="sc"><div class="n" style="color:#d97706">'+pe+'</div><div class="l">Pending</div></div>'+
-    '<div class="sc"><div class="n" style="color:#dc2626">'+wn+'</div><div class="l">⚠ Conflicts</div></div>';
-  if(!inM.length){document.getElementById('rpt-charts').style.display='none';document.getElementById('rpt-table-wrap').style.display='none';return;}
-  document.getElementById('rpt-charts').style.display='block';
-  document.getElementById('rpt-table-wrap').style.display='block';
-
-  mkChart('ch-status','doughnut','Status',['Done','Scheduled','Pending'],[dn,sc,pe],['#166534','#1565c0','#d97706']);
-  var em={};inM.forEach(function(b){var v=VISITS[b.id]||{};var e=v.empId?EMPLOYEES.find(function(x){return x.id===v.empId;}):null;var nm=e?e.name.split(' ')[0]:'—';em[nm]=(em[nm]||0)+1;});
-  mkChart('ch-emp','bar','By Employee',Object.keys(em),Object.values(em),Object.keys(em).map(function(_,i){return['#1a3558','#0369a1','#166534','#7c3aed','#d97706'][i%5];}));
-  var bm={};inM.forEach(function(b){bm[b.brand]=(bm[b.brand]||0)+1;});
-  mkChart('ch-brand','bar','By Brand',Object.keys(bm),Object.values(bm),Object.keys(bm).map(function(b){return{'Hyundai':'#003399','Changan':'#cc0000','Genesis':'#333','Stellantis':'#6d1b9a','Multi Brand':'#0369a1'}[b]||'#888';}));
-  var cm={};inM.forEach(function(b){cm[b.city]=(cm[b.city]||0)+1;});
-  mkChart('ch-city','bar','By City',Object.keys(cm),Object.values(cm),Object.keys(cm).map(function(){return'#0369a1';}));
-
-  var rows='';
-  inM.sort(function(a,b){return((VISITS[a.id]||{}).date||'')>((VISITS[b.id]||{}).date||'')?1:-1;})
-  .forEach(function(b,i){
-    var v=VISITS[b.id]||{};var s=v.status||'pending';
-    var emp=v.empId?EMPLOYEES.find(function(e){return e.id===v.empId;}):null;
-    var ol=emp&&v.date&&isOnLeave(v.empId,v.date);
-    rows+='<tr style="background:'+(ol?'#fef3c7':i%2?'#f8fafd':'#fff')+';border-bottom:1px solid #f1f5f9">';
-    ['<td style="padding:7px 10px;font-weight:600">'+b.name+'</td>',
-     '<td style="padding:7px 10px">'+b.brand+'</td>',
-     '<td style="padding:7px 10px">'+b.city+'</td>',
-     '<td style="padding:7px 10px">'+(emp?emp.name:'—')+(ol?' <span style="background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 5px;font-size:10px">⚠ Leave</span>':'')+'</td>',
-     '<td style="padding:7px 10px">'+(v.date||'—')+'</td>',
-     '<td style="padding:7px 10px">'+statusLabel(s)+'</td>',
-     '<td style="padding:7px 10px">'+(v.note||'—')+'</td>'
-    ].forEach(function(c){rows+=c;});
-    rows+='</tr>';
-  });
-  document.getElementById('rpt-thead').innerHTML='<th style="padding:8px 10px;text-align:left">Branch</th><th style="padding:8px 10px;text-align:left">Brand</th><th style="padding:8px 10px;text-align:left">City</th><th style="padding:8px 10px;text-align:left">Technician</th><th style="padding:8px 10px;text-align:left">Date</th><th style="padding:8px 10px;text-align:left">Status</th><th style="padding:8px 10px;text-align:left">Notes</th>';
-  document.getElementById('rpt-tbody').innerHTML=rows;
-}
-
-function mkChart(id,type,label,labels,data,colors){
-  if(CHARTS[id])CHARTS[id].destroy();
-  CHARTS[id]=new Chart(document.getElementById(id).getContext('2d'),{
-    type:type,data:{labels:labels,datasets:[{label:label,data:data,backgroundColor:colors,borderRadius:4}]},
-    options:{responsive:true,plugins:{legend:{position:type==='doughnut'?'right':'top',labels:{font:{size:10}}}},
-    scales:type==='doughnut'?{}:{y:{beginAtZero:true,ticks:{stepSize:1,font:{size:10}}}}}
-  });
-}
-
-function exportPDF(){
-  var data=getFiltered();if(!data.length){alert('No data');return;}
-  var sc=0,dn=0,pe=0;var rows='';
-  data.forEach(function(b,i){
-    var v=VISITS[b.id]||{};var s=v.status||'pending';
-    var emp=v.empId?EMPLOYEES.find(function(e){return e.id===v.empId;}):null;
-    var ol=emp&&v.date&&isOnLeave(v.empId,v.date);
-    if(s==='scheduled')sc++;else if(s==='done')dn++;else pe++;
-    rows+='<tr style="background:'+(ol?'#fef3c7':i%2?'#f8fafd':'#fff')+'"><td>'+(i+1)+'</td><td style="font-weight:600">'+b.name+'</td><td>'+b.brand+'</td><td>'+b.city+'</td><td>'+(emp?emp.name:'—')+(ol?' ⚠':'')+'</td><td>'+(v.date||'—')+'</td><td>'+statusLabel(s)+'</td><td>'+(v.note||'—')+'</td></tr>';
-  });
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial;margin:20px;}table{width:100%;border-collapse:collapse;font-size:11px;}th{background:#1a3558;color:#fff;padding:8px;text-align:left;}td{padding:6px 8px;border-bottom:1px solid #f0f0f0;}@media print{button{display:none!important;}}</style></head><body>';
-  html+='<div style="display:flex;justify-content:space-between;margin-bottom:14px"><div><h1 style="font-size:16px;color:#1a3558;margin:0">🏢 Branch Visit Report</h1><p style="color:#555;font-size:11px">'+new Date().toLocaleDateString()+'&nbsp;|&nbsp;'+data.length+' branches</p></div>';
-  html+='<div style="display:flex;gap:8px">';
-  [['Done',dn,'#d1fae5','#065f46'],['Scheduled',sc,'#dbeafe','#1e40af'],['Pending',pe,'#fef3c7','#92400e']].forEach(function(x){html+='<div style="background:'+x[2]+';padding:6px 12px;border-radius:8px;text-align:center"><div style="font-size:16px;font-weight:800;color:'+x[3]+'">'+x[1]+'</div><div style="font-size:9px;color:'+x[3]+'">'+x[0]+'</div></div>';});
-  html+='</div></div>';
-  html+='<button onclick="window.print()" style="padding:7px 16px;background:#1a3558;color:#fff;border:none;border-radius:6px;cursor:pointer;margin-bottom:12px">🖨 Print</button>';
-  html+='<table><thead><tr><th>#</th><th>Branch</th><th>Brand</th><th>City</th><th>Technician</th><th>Date</th><th>Status</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
-  window.open(URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'})),'_blank');
-}
-
-function exportReportPDF(){
-  var month=document.getElementById('rpt-month').value;
-  var ym=month?month.substring(0,7):'';
-  var data=BRANCHES.filter(function(b){var v=VISITS[b.id]||{};return v.date&&v.date.startsWith(ym);});
-  if(!data.length){alert('No visits in this month');return;}
-  var rows='';var sc=0,dn=0,pe=0,wn=0;
-  data.sort(function(a,b){return((VISITS[a.id]||{}).date||'')>((VISITS[b.id]||{}).date||'')?1:-1;})
-  .forEach(function(b,i){
-    var v=VISITS[b.id]||{};var s=v.status||'pending';
-    var emp=v.empId?EMPLOYEES.find(function(e){return e.id===v.empId;}):null;
-    var ol=emp&&v.date&&isOnLeave(v.empId,v.date);
-    if(s==='scheduled')sc++;else if(s==='done')dn++;else pe++;if(ol)wn++;
-    rows+='<tr style="background:'+(ol?'#fef3c7':i%2?'#f8fafd':'#fff')+'"><td style="font-weight:600">'+b.name+'</td><td>'+b.brand+'</td><td>'+b.city+'</td><td>'+(emp?emp.name:'—')+(ol?' ⚠':'')+'</td><td>'+(v.date||'—')+'</td><td>'+statusLabel(s)+'</td><td>'+(v.note||'—')+'</td></tr>';
-  });
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial;margin:20px;}h1{font-size:16px;color:#1a3558;}table{width:100%;border-collapse:collapse;font-size:11px;}th{background:#1a3558;color:#fff;padding:8px;text-align:left;}td{padding:6px 8px;border-bottom:1px solid #f0f0f0;}@media print{button{display:none!important;}}</style></head><body>';
-  html+='<div style="display:flex;justify-content:space-between;margin-bottom:14px"><div><h1>🏢 Monthly Report — '+month+'</h1><p style="color:#555;font-size:11px">'+data.length+' visits | Generated '+new Date().toLocaleDateString()+'</p></div>';
-  html+='<div style="display:flex;gap:8px">';
-  [['Done',dn,'#d1fae5','#065f46'],['Scheduled',sc,'#dbeafe','#1e40af'],['Pending',pe,'#fef3c7','#92400e'],['Conflicts',wn,'#fee2e2','#dc2626']].forEach(function(x){html+='<div style="background:'+x[2]+';padding:6px 12px;border-radius:8px;text-align:center"><div style="font-size:16px;font-weight:800;color:'+x[3]+'">'+x[1]+'</div><div style="font-size:9px;color:'+x[3]+'">'+x[0]+'</div></div>';});
-  html+='</div></div>';
-  html+='<button onclick="window.print()" style="padding:7px 16px;background:#1a3558;color:#fff;border:none;border-radius:6px;cursor:pointer;margin-bottom:12px">🖨 Print</button>';
-  html+='<table><thead><tr><th>Branch</th><th>Brand</th><th>City</th><th>Technician</th><th>Date</th><th>Status</th><th>Notes</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
-  window.open(URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'})),'_blank');
-}
-
-function switchTab(id,el){
-  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
-  document.querySelectorAll('.tab-pane').forEach(function(t){t.classList.remove('active');});
-  el.classList.add('active');
-  document.getElementById('tab-'+id).classList.add('active');
-  if(id==='report'){var n=new Date();document.getElementById('rpt-month').value=n.getFullYear()+'-'+(String(n.getMonth()+1).padStart(2,'0'));renderReport();}
-  if(id==='branches')renderBranchList();
-}
-
-function buildEmpFilter(){
-  var sel=document.getElementById('f-emp');
-  EMPLOYEES.forEach(function(e){var o=document.createElement('option');o.value=e.id;o.textContent=e.name;sel.appendChild(o);});
-}
-
-loadAll(function(){buildEmpFilter();renderCards();renderBranchList();});
-</script>
-</body>
-</html>
+      <div class="status-grid">
+        <div class="stat">
+          <span class="label" data-i18n="region">المنطقة</span>
+          <select id="regionSelect">
+            <option value="eastern">الشرقية</option>
+            <option value="riyadh">الرياض</option>
+            <option value="jeddah">جدة</option>
+          </select>
+        </div>
+        <div class="stat">
+          <span class="label" data-i18n="language">اللغة</span>
+          <select id="langSelect">
+            <option value="ar">العربية</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div class="stat">
+          <span class="label" data-i18n="week">الأسبوع</span>
+          <strong id="weekRange">--</strong>
+        </div>
+        <div class="stat">
+          <span class="label" data-i18n="syncStatus">حالة المزامنة</span>
+          <span id="syncBadge" class="badge badge-info">محلي فقط</span>
