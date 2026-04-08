@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام الجدولة - إدارة الفئات</title>
+    <title>نظام إدارة الدوام - التحكم الكامل</title>
     <style>
         :root {
             --primary: #4a90e2; --bg: #f1f4f9;
@@ -13,44 +13,61 @@
             --leave: #f8d7da; --leave-text: #721c24;
         }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); margin: 0; padding: 20px; }
-        .container { max-width: 1350px; margin: auto; }
+        .container { max-width: 1400px; margin: auto; }
+        
+        /* القوائم العلوية */
         .tabs { display: flex; gap: 5px; margin-bottom: -1px; }
         .tab { padding: 12px 25px; background: #e0e0e0; border-radius: 12px 12px 0 0; cursor: pointer; font-weight: bold; color: #666; border: 1px solid #ccc; border-bottom: none; }
         .tab.active { background: white; color: var(--primary); border-top: 4px solid var(--primary); }
+        
         .content-card { background: white; padding: 30px; border-radius: 0 15px 15px 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); min-height: 500px; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+
+        /* الجداول */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #f0f0f0; padding: 12px; text-align: center; }
         th { background: #fafafa; color: #444; font-size: 14px; }
-        .badge { border-radius: 10px; padding: 4px 12px; font-size: 12px; font-weight: bold; display: inline-block; }
+        .emp-name-cell { font-weight: bold; text-align: right; color: #333; }
+        
+        /* الأوسمة ملونة */
+        .badge { border-radius: 10px; padding: 4px 12px; font-size: 12px; font-weight: bold; display: inline-block; min-width: 60px; }
         .صباحي { background: var(--morning); color: var(--morning-text); }
         .مسائي { background: var(--evening); color: var(--evening-text); }
         .ليلي { background: var(--night); color: var(--night-text); }
         .أوف { background: var(--off); color: var(--off-text); }
         .إجازة { background: var(--leave); color: var(--leave-text); }
+
+        /* لوحة التحكم */
         .form-box { background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #eee; }
-        .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; align-items: flex-end; }
-        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; align-items: flex-end; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         .btn-add { background: var(--primary); color: white; }
-        .btn-delete { background: #ff4d4d; color: white; padding: 5px 10px; font-size: 11px; }
-        .cat-tag { display: inline-flex; align-items: center; background: #eee; padding: 5px 10px; border-radius: 15px; margin: 5px; font-size: 13px; }
+        .btn-delete { background: #ff4d4d; color: white; padding: 6px 12px; font-size: 12px; border-radius: 5px; border: none; cursor: pointer; }
+        .btn-delete:hover { background: #cc0000; }
+        
+        .cat-tag { display: inline-flex; align-items: center; background: #fff; border: 1px solid #ddd; padding: 5px 15px; border-radius: 20px; margin: 5px; font-size: 13px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="tabs">
-        <div class="tab active" onclick="showTab('schedule-tab', this)">📅 الجدول الأسبوعي</div>
-        <div class="tab" onclick="showTab('admin-tab', this)">👥 الموظفين والفئات</div>
-        <div class="tab" onclick="showTab('leave-tab', this)">🏖️ الإجازات</div>
+        <div class="tab active" onclick="showTab('schedule-tab', this)">📅 جدول الدوام الأسبوعي</div>
+        <div class="tab" onclick="showTab('admin-tab', this)">👥 إدارة الموظفين والفئات</div>
+        <div class="tab" onclick="showTab('leave-tab', this)">🏖️ الإجازات الطويلة</div>
     </div>
 
     <div class="content-card">
+        
+        <!-- التبويب الأول: الجدول -->
         <div id="schedule-tab" class="tab-content active">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin:0;">عرض الجدول الأسبوعي</h2>
-                <input type="date" id="dateInput" onchange="renderSchedule()">
+                <h2 style="margin:0; color:#2c3e50;">جدول الدوام (الجمعة أوف - السبت موظف)</h2>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <label>اختر الأسبوع:</label>
+                    <input type="date" id="dateInput" onchange="renderSchedule()">
+                </div>
             </div>
             <table>
                 <thead><tr id="headerRow"><th>الموظف</th><th>الفئة</th></tr></thead>
@@ -58,37 +75,54 @@
             </table>
         </div>
 
+        <!-- التبويب الثاني: الإدارة -->
         <div id="admin-tab" class="tab-content">
-            <h3 style="color:var(--primary)">1. إدارة الفئات (المسميات الوظيفية)</h3>
+            <h3 style="color:var(--primary)">إدارة المسميات الوظيفية (الفئات)</h3>
             <div class="form-box">
                 <div class="grid-inputs">
-                    <input type="text" id="catName" placeholder="أدخل فئة جديدة (مثلاً: طالب)">
+                    <input type="text" id="catName" placeholder="إضافة فئة جديدة...">
                     <button class="btn btn-add" style="background:#6c757d" onclick="addCategory()">+ إضافة فئة</button>
                 </div>
                 <div id="categoriesList" style="margin-top:15px;"></div>
             </div>
 
-            <h3 style="color:var(--primary)">2. إضافة موظف جديد</h3>
+            <h3 style="color:var(--primary)">إدارة الموظفين (إضافة وحذف)</h3>
             <div class="form-box">
                 <div class="grid-inputs">
-                    <input type="text" id="empName" placeholder="اسم الموظف">
-                    <select id="empCatSelect"></select> <select id="empRole">
-                        <option value="MORNING">صباحي</option>
-                        <option value="EVENING">مسائي</option>
-                        <option value="FIXED">ليلي (ثابت)</option>
-                    </select>
-                    <label><input type="checkbox" id="inRotation" checked> تدوير السبت</label>
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <label>اسم الموظف</label>
+                        <input type="text" id="empName" placeholder="الاسم الكامل">
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <label>الفئة</label>
+                        <select id="empCatSelect"></select>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <label>الشفت الأساسي</label>
+                        <select id="empRole">
+                            <option value="MORNING">صباحي (أحد-خميس)</option>
+                            <option value="EVENING">مسائي (أحد-خميس)</option>
+                            <option value="FIXED">ليلي (ثابت)</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; padding-bottom:12px;">
+                        <input type="checkbox" id="inRotation" checked>
+                        <label for="inRotation" style="font-size:12px; font-weight:bold;">يدخل في تدوير السبت</label>
+                    </div>
                     <button class="btn btn-add" onclick="addNewEmployee()">+ إضافة الموظف</button>
                 </div>
             </div>
 
-            <h3>قائمة الموظفين</h3>
+            <h3>قائمة الموظفين الحاليين</h3>
             <table>
-                <thead><tr><th>الاسم</th><th>الفئة</th><th>النظام</th><th>التدوير</th><th>إجراءات</th></tr></thead>
+                <thead>
+                    <tr><th>اسم الموظف</th><th>الفئة</th><th>النظام</th><th>حالة التدوير</th><th>إجراءات</th></tr>
+                </thead>
                 <tbody id="adminListBody"></tbody>
             </table>
         </div>
 
+        <!-- التبويب الثالث: الإجازات -->
         <div id="leave-tab" class="tab-content">
             <h2>تسجيل إجازة طويلة</h2>
             <div class="form-box">
@@ -96,27 +130,28 @@
                     <select id="leaveEmpSelect"></select>
                     <input type="date" id="leaveStart">
                     <input type="date" id="leaveEnd">
-                    <button class="btn btn-add" style="background:#f57c00;" onclick="addLongLeave()">تسجيل</button>
+                    <button class="btn btn-add" style="background:#f57c00;" onclick="addLongLeave()">تسجيل الإجازة</button>
                 </div>
             </div>
             <table>
-                <thead><tr><th>الموظف</th><th>البداية</th><th>النهاية</th><th>إجراءات</th></tr></thead>
+                <thead><tr><th>الموظف</th><th>تاريخ البدء</th><th>تاريخ الانتهاء</th><th>إجراءات</th></tr></thead>
                 <tbody id="leaveListBody"></tbody>
             </table>
         </div>
+
     </div>
 </div>
 
 <script>
-    // البيانات الافتراضية للفئات
+    // استعادة البيانات من التخزين المحلي
     let categories = JSON.parse(localStorage.getItem('categories')) || ["موظف اساسي", "مشرف", "مدير", "متدرب", "التمهير"];
-    
     let employees = JSON.parse(localStorage.getItem('employees')) || [
         { id: 1, name: "Abdulrahman Al-Sulaimani", cat: "مدير", role: "FIXED", inRotation: false },
         { id: 2, name: "Hamad Al-Khathran", cat: "مشرف", role: "MORNING", inRotation: true },
         { id: 3, name: "Ziyad Althaqfiy", cat: "مشرف", role: "EVENING", inRotation: true }
     ];
     let longLeaves = JSON.parse(localStorage.getItem('longLeaves')) || [];
+
     const dayNames = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
     window.onload = () => {
@@ -132,7 +167,6 @@
         localStorage.setItem('longLeaves', JSON.stringify(longLeaves));
     }
 
-    // إدارة الفئات
     function addCategory() {
         const val = document.getElementById('catName').value.trim();
         if(val && !categories.includes(val)) {
@@ -143,20 +177,37 @@
         categories = categories.filter(c => c !== cat); save(); renderAll();
     }
 
-    // إدارة الموظفين
     function addNewEmployee() {
-        const name = document.getElementById('empName').value;
-        if(!name) return;
-        employees.push({ id: Date.now(), name, cat: document.getElementById('empCatSelect').value, role: document.getElementById('empRole').value, inRotation: document.getElementById('inRotation').checked });
+        const name = document.getElementById('empName').value.trim();
+        if(!name) { alert("يرجى إدخال الاسم"); return; }
+        employees.push({
+            id: Date.now(),
+            name: name,
+            cat: document.getElementById('empCatSelect').value,
+            role: document.getElementById('empRole').value,
+            inRotation: document.getElementById('inRotation').checked
+        });
+        document.getElementById('empName').value = "";
         save(); renderAll();
+    }
+
+    function deleteEmp(id) {
+        if(confirm("هل أنت متأكد من حذف الموظف؟ سيتم حذفه من كافة الجداول.")) {
+            employees = employees.filter(e => e.id !== id);
+            longLeaves = longLeaves.filter(l => l.empId !== id);
+            save(); renderAll();
+        }
     }
 
     function addLongLeave() {
-        longLeaves.push({ id: Date.now(), empId: parseInt(document.getElementById('leaveEmpSelect').value), start: document.getElementById('leaveStart').value, end: document.getElementById('leaveEnd').value });
+        const empId = document.getElementById('leaveEmpSelect').value;
+        const start = document.getElementById('leaveStart').value;
+        const end = document.getElementById('leaveEnd').value;
+        if(!empId || !start || !end) return;
+        longLeaves.push({ id: Date.now(), empId: parseInt(empId), start, end });
         save(); renderAll();
     }
 
-    function deleteEmp(id) { employees = employees.filter(e => e.id !== id); save(); renderAll(); }
     function deleteLeave(id) { longLeaves = longLeaves.filter(l => l.id !== id); save(); renderAll(); }
 
     function showTab(id, btn) {
@@ -174,27 +225,36 @@
     }
 
     function renderCategories() {
-        const list = document.getElementById('categoriesList');
-        const select = document.getElementById('empCatSelect');
-        list.innerHTML = categories.map(c => `<span class="cat-tag">${c} <span style="cursor:pointer; color:red; margin-right:8px;" onclick="deleteCategory('${c}')">×</span></span>`).join('');
-        select.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+        document.getElementById('categoriesList').innerHTML = categories.map(c => `
+            <span class="cat-tag">${c} <span style="cursor:pointer; color:red; margin-right:10px;" onclick="deleteCategory('${c}')">×</span></span>
+        `).join('');
+        document.getElementById('empCatSelect').innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
     }
 
     function renderAdminList() {
-        document.getElementById('adminListBody').innerHTML = employees.map(e => `<tr><td>${e.name}</td><td>${e.cat}</td><td>${e.role}</td><td>${e.inRotation?'✅':'🛑'}</td><td><button class="btn btn-delete" onclick="deleteEmp(${e.id})">حذف</button></td></tr>`).join('');
+        document.getElementById('adminListBody').innerHTML = employees.map(e => `
+            <tr>
+                <td style="text-align:right; font-weight:bold;">${e.name}</td>
+                <td>${e.cat}</td>
+                <td>${e.role === 'FIXED' ? 'ليلي' : (e.role === 'MORNING' ? 'صباحي' : 'مسائي')}</td>
+                <td>${e.inRotation ? '✅ يدخل في التدوير' : '🛑 ثابت'}</td>
+                <td><button class="btn-delete" onclick="deleteEmp(${e.id})">مسح الموظف</button></td>
+            </tr>
+        `).join('');
     }
 
     function renderLeaveUI() {
         document.getElementById('leaveEmpSelect').innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
         document.getElementById('leaveListBody').innerHTML = longLeaves.map(l => {
             const emp = employees.find(e => e.id === l.empId);
-            return `<tr><td>${emp?emp.name:'-'}</td><td>${l.start}</td><td>${l.end}</td><td><button class="btn btn-delete" onclick="deleteLeave(${l.id})">حذف</button></td></tr>`;
+            return `<tr><td>${emp?emp.name:'-'}</td><td>${l.start}</td><td>${l.end}</td><td><button class="btn-delete" onclick="deleteLeave(${l.id})">إلغاء</button></td></tr>`;
         }).join('');
     }
 
     function renderSchedule() {
         const start = new Date(document.getElementById('dateInput').value);
         const isEven = Math.ceil(start.getDate() / 7) % 2 === 0;
+        
         let h = '<th>الموظف</th><th>الفئة</th>';
         for(let i=0; i<7; i++) {
             let d = new Date(start); d.setDate(start.getDate()+i);
@@ -202,14 +262,14 @@
         }
         document.getElementById('headerRow').innerHTML = h;
 
-        let b = ''; 
-        const rotating = employees.filter(e => e.inRotation);
+        let b = '';
+        const rotatingGroup = employees.filter(e => e.inRotation);
 
         employees.forEach(emp => {
-            b += `<tr><td style="text-align:right; font-weight:bold;">${emp.name}</td><td style="color:#888">${emp.cat}</td>`;
+            b += `<tr><td class="emp-name-cell">${emp.name}</td><td style="color:#888; font-size:12px;">${emp.cat}</td>`;
             for(let d=0; d<7; d++) {
                 let curr = new Date(start); curr.setDate(start.getDate()+d);
-                let shift = calculateShift(emp, d, isEven, curr, rotating);
+                let shift = calculateShift(emp, d, isEven, curr, rotatingGroup);
                 b += `<td><span class="badge ${shift}">${shift}</span></td>`;
             }
             b += `</tr>`;
@@ -217,19 +277,36 @@
         document.getElementById('scheduleBody').innerHTML = b;
     }
 
-    function calculateShift(emp, day, isEven, currDate, rotating) {
-        if(longLeaves.find(l => { let s=new Date(l.start); let e=new Date(l.end); currDate.setHours(0,0,0,0); return l.empId===emp.id && currDate>=s && currDate<=e; })) return "إجازة";
-        if(day === 5) return "أوف"; // الجمعة
+    function calculateShift(emp, day, isEven, currDate, rotatingGroup) {
+        // 1. فحص الإجازات الطويلة
+        if(longLeaves.find(l => { 
+            let s=new Date(l.start); let e=new Date(l.end); 
+            currDate.setHours(0,0,0,0); s.setHours(0,0,0,0); e.setHours(0,0,0,0);
+            return l.empId===emp.id && currDate>=s && currDate<=e; 
+        })) return "إجازة";
+
+        // 2. الجمعة دائماً أوف
+        if(day === 5) return "أوف";
+
+        // 3. عبدالرحمن / الشفت الليلي الثابت
         if(emp.role === "FIXED") return (day <= 4) ? "ليلي" : "أوف";
-        if(day === 6) { // السبت
-            const idx = rotating.findIndex(r => r.id === emp.id);
+
+        // 4. منطق تدوير السبت (لمن هم في مجموعة التدوير فقط)
+        if(day === 6) {
+            const idx = rotatingGroup.findIndex(r => r.id === emp.id);
+            if(idx === -1) return "أوف"; // ليس في مجموعة التدوير
+            // التناوب بين أول شخصين في القائمة (حمد وزياد) أو أي شخصين يتم تحديدهما
             if((idx === 0 && !isEven) || (idx === 1 && isEven)) return "صباحي";
             return "أوف";
         }
-        if(day === 4) { // الخميس أوف للمداوم السبت
-            const idx = rotating.findIndex(r => r.id === emp.id);
-            if((idx === 0 && !isEven) || (idx === 1 && isEven)) return "أوف";
+
+        // 5. تعويض يوم السبت (أوف الخميس لمن يعمل السبت) لضمان 5 أيام عمل
+        if(day === 4) {
+            const idx = rotatingGroup.findIndex(r => r.id === emp.id);
+            if(idx !== -1 && ((idx === 0 && !isEven) || (idx === 1 && isEven))) return "أوف";
         }
+
+        // 6. الأيام العادية (أحد - خميس)
         return (emp.role === "MORNING") ? "صباحي" : "مسائي";
     }
 </script>
