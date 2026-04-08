@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - Scheduling v9.4</title>
+    <title>Almajdouie Motors - Scheduling v9.5</title>
     <style>
         :root {
             --primary-blue: #0d2149;
@@ -15,7 +15,7 @@
             --morning-bg: #fff3e0; --morning-text: #ef6c00;
             --national-bg: #004d40; --national-text: #ffffff;
             --annual-bg: #ffe0b2; --annual-text: #e65100;
-            --plan-bg: #e0f2f1; --plan-text: #00796b;
+            --plan-bar: #4db6ac;
         }
 
         body { margin: 0; padding: 20px; font-family: 'Segoe UI', sans-serif; background: #f4f7f6; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
@@ -24,7 +24,7 @@
         .glass-container { width: 100%; max-width: 1250px; background: white; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); padding: 25px; min-height: 600px; }
         .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .tab { cursor: pointer; font-weight: bold; color: #555; padding: 10px 15px; border-radius: 8px; font-size: 13px; transition: 0.2s; background: #f8f9fa; border: 1px solid #ddd; }
+        .tab { cursor: pointer; font-weight: bold; color: #555; padding: 10px 15px; border-radius: 8px; font-size: 13px; background: #f8f9fa; border: 1px solid #ddd; }
         .tab.active { background: var(--primary-blue); color: white; border-color: var(--primary-blue); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
@@ -33,19 +33,27 @@
         th, td { padding: 10px 5px; text-align: center; border: 1px solid #f0f0f0; }
         th { background: #fbfbfb; color: var(--primary-blue); font-weight: 900; }
         
-        .editable-cell { cursor: pointer; transition: 0.2s; }
-        .editable-cell:hover { background: #f0f0f0; transform: scale(1.02); }
-
-        .badge { border-radius: 6px; padding: 6px 4px; font-size: 10px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; min-width: 95px; justify-content: center; pointer-events: none; }
+        .badge { border-radius: 6px; padding: 6px 4px; font-size: 10px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; min-width: 95px; justify-content: center; }
         .OnCall { background: var(--oncall-bg); color: var(--oncall-text); }
         .Night { background: var(--night-bg); color: var(--night-text); }
         .Off { background: var(--off-bg); color: var(--off-text); }
         .Holiday { background: var(--h-bg); color: var(--h-text); }
         .Work { background: var(--work-bg); color: var(--work-text); }
         .Morning { background: var(--morning-bg); color: var(--morning-text); }
-        .NationalDay { background: var(--national-bg); color: var(--national-text); }
         .Annual { background: var(--annual-bg); color: var(--annual-text); }
-        .Planned { background: var(--plan-bg); color: var(--plan-text); }
+        
+        .editable-cell { cursor: pointer; transition: 0.2s; }
+        .editable-cell:hover { background: #f0f0f0; }
+
+        /* Gantt Chart Styles */
+        .gantt-container { overflow-x: auto; margin-top: 30px; border: 1px solid #eee; padding: 10px; border-radius: 10px; }
+        .gantt-grid { display: grid; grid-template-columns: 150px repeat(12, 1fr); min-width: 1000px; }
+        .gantt-header-cell { padding: 10px; background: #f1f1f1; border: 1px solid #ddd; text-align: center; font-weight: bold; font-size: 11px; }
+        .gantt-row { display: contents; }
+        .gantt-name { padding: 10px; border: 1px solid #eee; font-weight: bold; background: #fafafa; }
+        .gantt-months-container { display: grid; grid-template-columns: repeat(12, 1fr); grid-column: 2 / 14; border: 1px solid #eee; position: relative; height: 40px; }
+        .month-slot { border-right: 1px solid #f0f0f0; }
+        .vacation-bar { position: absolute; height: 20px; background: var(--plan-bar); top: 10px; border-radius: 10px; color: white; font-size: 9px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); white-space: nowrap; overflow: hidden; }
 
         .form-box { padding: 15px; border-radius: 10px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         .btn-action { border: none; border-radius: 6px; padding: 6px 12px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; min-width: 90px; }
@@ -65,10 +73,10 @@
 <div class="glass-container">
     <div class="header-top">
         <div style="display: flex; align-items: center; gap: 15px;">
-            <img src="LOGO-almajdouie.png" class="logo-img" style="max-height:45px">
+            <img src="LOGO-almajdouie.png" style="max-height:45px">
             <div>
                 <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div style="font-size: 10px; color: #555;">Scheduling System v9.4</div>
+                <div style="font-size: 10px; color: #555;">Scheduling System v9.5</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -79,16 +87,12 @@
         <div class="tab" onclick="window.switchTab('admin', this)">👥 Employees</div>
         <div class="tab" onclick="window.switchTab('holidays', this)">🎊 Public Holidays</div>
         <div class="tab" onclick="window.switchTab('annual', this)">🌴 Annual Leave</div>
-        <div class="tab" onclick="window.switchTab('planning', this)">📅 Vacation Plan</div>
+        <div class="tab" onclick="window.switchTab('planning', this)">📅 Vacation Plan (Chart)</div>
     </div>
 
     <div id="schedule" class="tab-content active">
-        <div style="font-size: 11px; color: #666; margin-bottom: 10px;">💡 Click any cell to manually change shift or set as Off.</div>
         <input type="date" id="datePicker" onchange="window.renderAll()" style="margin-bottom:15px; padding:8px;">
-        <table>
-            <thead><tr id="headerDates"></tr></thead>
-            <tbody id="scheduleBody"></tbody>
-        </table>
+        <table><thead><tr id="headerDates"></tr></thead><tbody id="scheduleBody"></tbody></table>
     </div>
 
     <div id="admin" class="tab-content">
@@ -96,19 +100,31 @@
             <input type="text" id="newEmpName" placeholder="New Employee Name" style="flex:1; padding:8px;">
             <button class="btn-tool" style="background: var(--primary-blue); color:white" onclick="window.addEmployee()">+ Add Employee</button>
         </div>
-        <table>
-            <thead><tr><th>Name</th><th>Shift</th><th>Rotation</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody id="adminList"></tbody>
-        </table>
+        <table><thead><tr><th>Name</th><th>Shift</th><th>Rotation</th><th>Status</th><th>Action</th></tr></thead><tbody id="adminList"></tbody></table>
     </div>
 
     <div id="planning" class="tab-content">
         <div class="form-box" style="background: #e0f2f1;">
             <select id="pEmpSelect"></select>
             <input type="date" id="pStart"><input type="date" id="pEnd">
-            <button class="btn-tool" style="background:#00796b; color:white" onclick="window.addVacationPlan()">Add Plan</button>
+            <button class="btn-tool" style="background:#00796b; color:white" onclick="window.addVacationPlan()">Add to Plan</button>
         </div>
-        <table><thead><tr><th>Employee Name</th><th>From</th><th>To</th><th>Action</th></tr></thead><tbody id="planningBody"></tbody></table>
+        
+        <h3 style="color: var(--primary-blue); margin-top: 20px;">📅 Yearly Vacation Timeline</h3>
+        <div class="gantt-container">
+            <div class="gantt-grid" id="ganttChart">
+                <div class="gantt-header-cell">Employee</div>
+                <div class="gantt-header-cell">Jan</div><div class="gantt-header-cell">Feb</div>
+                <div class="gantt-header-cell">Mar</div><div class="gantt-header-cell">Apr</div>
+                <div class="gantt-header-cell">May</div><div class="gantt-header-cell">Jun</div>
+                <div class="gantt-header-cell">Jul</div><div class="gantt-header-cell">Aug</div>
+                <div class="gantt-header-cell">Sep</div><div class="gantt-header-cell">Oct</div>
+                <div class="gantt-header-cell">Nov</div><div class="gantt-header-cell">Dec</div>
+                </div>
+        </div>
+
+        <h3 style="color: var(--primary-blue); margin-top: 30px;">📋 Plan List</h3>
+        <table><thead><tr><th>Name</th><th>From</th><th>To</th><th>Action</th></tr></thead><tbody id="planningBody"></tbody></table>
     </div>
 
     <div id="holidays" class="tab-content">
@@ -139,43 +155,33 @@
     const db = getFirestore(app);
     let employees = [], holidayDuties = [], vacationsList = [], planList = [], manualOverrides = {}, currentLang = 'en';
 
-    const formatLocal = (d) => {
-        const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-    };
-
     window.switchTab = (id, btn) => {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.getElementById(id).classList.add('active'); btn.classList.add('active');
     };
 
-    window.toggleLanguage = () => {
-        currentLang = currentLang === 'en' ? 'ar' : 'en';
-        document.getElementById('mainHtml').dir = currentLang === 'ar' ? 'rtl' : 'ltr';
-        window.renderAll();
+    const formatLocal = (d) => {
+        const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
     };
 
-    // Listeners
-    onSnapshot(doc(db, "schedule", "jadwal_v6"), (snap) => { employees = snap.exists() ? (snap.data().data?.emps || []) : []; window.renderAll(); });
-    onSnapshot(doc(db, "schedule", "jadwal_holidays"), (snap) => { holidayDuties = snap.exists() ? (snap.data().duties || []) : []; window.renderAll(); });
-    onSnapshot(doc(db, "schedule", "jadwal_annual_leave"), (snap) => { vacationsList = snap.exists() ? (snap.data().vacations || []) : []; window.renderAll(); });
+    onSnapshot(doc(db, "schedule", "jadwal_v6"), (snap) => { employees = snap.exists() ? snap.data().data?.emps : []; window.renderAll(); });
+    onSnapshot(doc(db, "schedule", "jadwal_holidays"), (snap) => { holidayDuties = snap.exists() ? snap.data().duties : []; window.renderAll(); });
+    onSnapshot(doc(db, "schedule", "jadwal_annual_leave"), (snap) => { vacationsList = snap.exists() ? snap.data().vacations : []; window.renderAll(); });
     onSnapshot(doc(db, "schedule", "manual_overrides"), (snap) => { manualOverrides = snap.exists() ? snap.data() : {}; window.renderAll(); });
     onSnapshot(collection(db, "vacations"), (snap) => { planList = snap.docs.map(d => ({ id: d.id, ...d.data() })); window.renderAll(); });
 
     window.renderAll = () => {
         const dp = document.getElementById('datePicker');
         if(!dp.value) return;
-        const parts = dp.value.split('-');
-        const start = new Date(parts[0], parts[1]-1, parts[2]);
-        start.setHours(0,0,0,0);
-
+        const start = new Date(dp.value.replace(/-/g, '/'));
+        
         const t = { 
-            onCall: currentLang === 'ar' ? 'أون كول' : 'On Call', night: currentLang === 'ar' ? 'ليلي' : 'Night', 
-            off: currentLang === 'ar' ? 'أوف' : 'Off', h: currentLang === 'ar' ? 'إجازة' : 'Holiday',
-            work: currentLang === 'ar' ? 'دوام' : 'Work', morning: currentLang === 'ar' ? 'صباحي' : 'Morning',
-            national: currentLang === 'ar' ? 'اليوم الوطني' : 'National Day', annual: currentLang === 'ar' ? 'إجازة سنوية' : 'Annual Leave',
-            planned: currentLang === 'ar' ? 'مخطط له' : 'Planned'
+            onCall: currentLang==='ar'?'أون كول':'On Call', night: currentLang==='ar'?'ليلي':'Night', 
+            off: currentLang==='ar'?'أوف':'Off', h: currentLang==='ar'?'إجازة':'Holiday',
+            work: currentLang==='ar'?'دوام':'Work', morning: currentLang==='ar'?'صباحي':'Morning',
+            national: currentLang==='ar'?'اليوم الوطني':'National Day', annual: currentLang==='ar'?'إجازة سنوية':'Annual Leave'
         };
 
         const weekNum = Math.ceil(((start - new Date(start.getFullYear(), 0, 1)) / 86400000 + new Date(start.getFullYear(), 0, 1).getDay() + 1) / 7);
@@ -184,30 +190,28 @@
         let curThu = thuPool.length > 0 ? thuPool[weekNum % thuPool.length].id : null;
         let curFri = friPool.length > 0 ? friPool[weekNum % friPool.length].id : null;
 
-        let h = `<th>${currentLang === 'en' ? 'Employee' : 'الموظف'}</th>`;
-        const daysArr = currentLang === 'en' ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+        // Header
+        let h = `<th>Employee</th>`;
+        const daysArr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         for(let i=0; i<7; i++) {
             let d = new Date(start.getTime()); d.setDate(start.getDate()+i);
             h += `<th>${daysArr[i]}<br><small>${d.toLocaleDateString('en-GB')}</small></th>`;
         }
         document.getElementById('headerDates').innerHTML = h;
 
+        // Rows
         document.getElementById('scheduleBody').innerHTML = employees.filter(e => e.active).map(emp => {
             let row = `<tr><td style="text-align:left; font-weight:bold;">${emp.name}</td>`;
             for(let d=0; d<7; d++) {
                 let cellD = new Date(start.getTime()); cellD.setDate(start.getDate()+d); cellD.setHours(0,0,0,0);
                 const dateKey = formatLocal(cellD);
                 const overrideKey = `${emp.id}_${dateKey}`;
-
                 let shift = manualOverrides[overrideKey], bC = "Morning", icon = "";
 
                 if (!shift) {
                     const isAnn = vacationsList.find(v => String(v.empId) === String(emp.id) && cellD >= new Date(v.start.replace(/-/g, '/')) && cellD <= new Date(v.end.replace(/-/g, '/')));
-                    const isPlan = planList.find(p => (String(p.empId) === String(emp.id) || p.name === emp.name) && cellD >= new Date(p.from.replace(/-/g, '/')) && cellD <= new Date(p.to.replace(/-/g, '/')));
                     const isH = holidayDuties.find(duty => cellD >= new Date(duty.start.replace(/-/g, '/')) && cellD <= new Date(duty.end.replace(/-/g, '/')));
-
                     if (isAnn) { shift = t.annual; bC = "Annual"; icon = "🌴"; }
-                    else if (isPlan) { shift = t.planned; bC = "Planned"; icon = "📅"; }
                     else if (isH) {
                         if (String(isH.empId) === String(emp.id)) { shift = emp.fixed?t.night:t.onCall; bC = emp.fixed?"Night":"OnCall"; icon = emp.fixed?"🌙":"📞"; }
                         else { shift = t.h; bC = "Holiday"; icon = "🎊"; }
@@ -221,7 +225,6 @@
                     else if (shift === 'Off') { shift = t.off; bC = "Off"; icon = ""; }
                     else { shift = t.morning; bC = "Morning"; icon = "☀️"; }
                 }
-                
                 row += `<td class="editable-cell" onclick="window.promptOverride('${emp.id}', '${dateKey}', '${emp.name}')"><span class="badge ${bC}">${icon} ${shift}</span></td>`;
             }
             return row + "</tr>";
@@ -230,8 +233,7 @@
     };
 
     window.promptOverride = async (empId, date, name) => {
-        const choices = currentLang === 'ar' ? "1. ليلي | 2. أوف | 3. صباحي | 4. تلقائي" : "1. Night | 2. Off | 3. Morning | 4. Reset";
-        const res = prompt(`${name} (${date})\n${choices}`);
+        const res = prompt(`${name} (${date})\n1. Night | 2. Off | 3. Morning | 4. Reset`);
         let s = null;
         if(res === '1') s = 'Night'; if(res === '2') s = 'Off'; if(res === '3') s = 'Morning';
         if(res !== null) {
@@ -240,14 +242,6 @@
             if(s) updates[`${empId}_${date}`] = s; else delete updates[`${empId}_${date}`];
             await setDoc(docRef, updates);
         }
-    };
-
-    window.toggleExclusiveNight = async (i) => {
-        let list = [...employees];
-        const on = !list[i].fixed;
-        if(on) { list = list.map(e => ({ ...e, fixed: false })); list[i].fixed = true; }
-        else { list[i].fixed = false; }
-        await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": list });
     };
 
     function updateUI() {
@@ -266,10 +260,70 @@
                 <td><button onclick="window.deleteEmployee(${i})" style="color:red; background:none; border:none; cursor:pointer;">[X]</button></td>
             </tr>`).join('');
 
-        document.getElementById('planningBody').innerHTML = planList.map(p => `<tr><td>${p.name || employees.find(x=>x.id===p.empId)?.name}</td><td>${p.from}</td><td>${p.to}</td><td><button onclick="window.delPlan('${p.id}')" style="color:red">X</button></td></tr>`).join('');
+        document.getElementById('planningBody').innerHTML = planList.map(p => `<tr><td>${p.name || emps.find(x=>x.id===p.empId)?.name}</td><td>${p.from}</td><td>${p.to}</td><td><button onclick="window.delPlan('${p.id}')" style="color:red">X</button></td></tr>`).join('');
         document.getElementById('holidayBody').innerHTML = holidayDuties.map((d, i) => `<tr><td>${d.name}</td><td>${employees.find(x=>x.id===d.empId)?.name}</td><td>${d.start}/${d.end}</td><td><button onclick="window.delDuty(${i})" style="color:red">X</button></td></tr>`).join('');
         document.getElementById('annualBody').innerHTML = vacationsList.map((v, i) => `<tr><td>${employees.find(x=>x.id===v.empId)?.name}</td><td>${v.start}</td><td>${v.end}</td><td><button onclick="window.delAnnual(${i})" style="color:red">X</button></td></tr>`).join('');
+
+        renderGantt(emps);
     }
+
+    // --- Gantt Chart Rendering Logic ---
+    function renderGantt(activeEmps) {
+        const chart = document.getElementById('ganttChart');
+        // Clear previous rows (keep header)
+        const headerCells = Array.from(chart.children).slice(0, 13);
+        chart.innerHTML = "";
+        headerCells.forEach(c => chart.appendChild(c));
+
+        activeEmps.forEach(emp => {
+            const row = document.createElement('div');
+            row.className = 'gantt-row';
+            
+            const nameCell = document.createElement('div');
+            nameCell.className = 'gantt-name';
+            nameCell.innerText = emp.name;
+            row.appendChild(nameCell);
+
+            const monthsContainer = document.createElement('div');
+            monthsContainer.className = 'gantt-months-container';
+            for(let i=0; i<12; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'month-slot';
+                monthsContainer.appendChild(slot);
+            }
+
+            // Draw bars for this employee
+            const empPlans = planList.filter(p => String(p.empId) === String(emp.id) || p.name === emp.name);
+            empPlans.forEach(p => {
+                const dFrom = new Date(p.from.replace(/-/g, '/'));
+                const dTo = new Date(p.to.replace(/-/g, '/'));
+                
+                // Calculate percentage positions
+                const startDayOfYear = (dFrom - new Date(dFrom.getFullYear(), 0, 1)) / 86400000;
+                const endDayOfYear = (dTo - new Date(dTo.getFullYear(), 0, 1)) / 86400000;
+                
+                const left = (startDayOfYear / 365) * 100;
+                const width = ((endDayOfYear - startDayOfYear) / 365) * 100;
+
+                const bar = document.createElement('div');
+                bar.className = 'vacation-bar';
+                bar.style.left = left + "%";
+                bar.style.width = width + "%";
+                bar.innerText = p.from.split('-')[1] + "/" + p.from.split('-')[2];
+                monthsContainer.appendChild(bar);
+            });
+
+            row.appendChild(monthsContainer);
+            chart.appendChild(row);
+        });
+    }
+
+    window.toggleExclusiveNight = async (i) => {
+        let list = [...employees]; const on = !list[i].fixed;
+        if(on) { list = list.map(e => ({ ...e, fixed: false })); list[i].fixed = true; }
+        else { list[i].fixed = false; }
+        await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": list });
+    };
 
     window.addEmployee = async () => {
         const n = document.getElementById('newEmpName').value; if(!n) return;
@@ -279,12 +333,13 @@
     window.deleteEmployee = async (i) => { if(confirm("Del?")) { let a = [...employees]; a.splice(i,1); await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); } };
     window.toggleProp = async (i, p) => { let a = [...employees]; a[i][p] = !a[i][p]; await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); };
     window.updateRot = async (i, v) => { let a = [...employees]; a[i].rotType = v; await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); };
+    
     window.addVacationPlan = async () => {
         const id = document.getElementById('pEmpSelect').value, s = document.getElementById('pStart').value, e = document.getElementById('pEnd').value;
-        const emp = employees.find(x => x.id === id); if(!s || !e) return;
+        const emp = emps.find(x => x.id === id); if(!s || !e) return;
         await addDoc(collection(db, "vacations"), { empId: id, name: emp.name, from: s, to: e, role: "Employee" });
     };
-    window.delPlan = async (id) => { if(confirm("Del?")) await deleteDoc(doc(db, "vacations", id)); };
+    window.delPlan = async (id) => { if(confirm("Del Plan?")) await deleteDoc(doc(db, "vacations", id)); };
     window.addHolidayDuty = async () => {
         const id = document.getElementById('hEmpSelect').value, s = document.getElementById('hStart').value, e = document.getElementById('hEnd').value, n = document.getElementById('hName').value;
         await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: [...holidayDuties, { empId: id, start: s, end: e, name: n }] });
@@ -308,7 +363,6 @@
         document.getElementById('datePicker').value = formatLocal(c);
         window.renderAll();
     };
-
     window.setCurrentWeek();
 </script>
 </body>
