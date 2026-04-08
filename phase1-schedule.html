@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام إدارة الدوام - الجمعة أوف</title>
+    <title>نظام الجدولة - إدارة الفئات</title>
     <style>
         :root {
             --primary: #4a90e2; --bg: #f1f4f9;
@@ -30,11 +30,11 @@
         .أوف { background: var(--off); color: var(--off-text); }
         .إجازة { background: var(--leave); color: var(--leave-text); }
         .form-box { background: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #eee; }
-        .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: flex-end; }
+        .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; align-items: flex-end; }
         .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         .btn-add { background: var(--primary); color: white; }
-        .btn-delete { background: #ff4d4d; color: white; padding: 5px 12px; font-size: 11px; }
-        .sum-card { flex: 1; background: #fff; border: 1px solid #eee; padding: 20px; border-radius: 12px; text-align: center; }
+        .btn-delete { background: #ff4d4d; color: white; padding: 5px 10px; font-size: 11px; }
+        .cat-tag { display: inline-flex; align-items: center; background: #eee; padding: 5px 10px; border-radius: 15px; margin: 5px; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -42,39 +42,48 @@
 <div class="container">
     <div class="tabs">
         <div class="tab active" onclick="showTab('schedule-tab', this)">📅 الجدول الأسبوعي</div>
-        <div class="tab" onclick="showTab('admin-tab', this)">👥 الموظفين</div>
+        <div class="tab" onclick="showTab('admin-tab', this)">👥 الموظفين والفئات</div>
         <div class="tab" onclick="showTab('leave-tab', this)">🏖️ الإجازات</div>
     </div>
 
     <div class="content-card">
         <div id="schedule-tab" class="tab-content active">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin:0;">الجدول (الجمعة أوف - السبت موظف)</h2>
+                <h2 style="margin:0;">عرض الجدول الأسبوعي</h2>
                 <input type="date" id="dateInput" onchange="renderSchedule()">
             </div>
             <table>
                 <thead><tr id="headerRow"><th>الموظف</th><th>الفئة</th></tr></thead>
                 <tbody id="scheduleBody"></tbody>
             </table>
-            <div style="display:flex; gap:15px; margin-top:30px;" id="summaryArea"></div>
         </div>
 
         <div id="admin-tab" class="tab-content">
-            <h2>إضافة موظف</h2>
+            <h3 style="color:var(--primary)">1. إدارة الفئات (المسميات الوظيفية)</h3>
+            <div class="form-box">
+                <div class="grid-inputs">
+                    <input type="text" id="catName" placeholder="أدخل فئة جديدة (مثلاً: طالب)">
+                    <button class="btn btn-add" style="background:#6c757d" onclick="addCategory()">+ إضافة فئة</button>
+                </div>
+                <div id="categoriesList" style="margin-top:15px;"></div>
+            </div>
+
+            <h3 style="color:var(--primary)">2. إضافة موظف جديد</h3>
             <div class="form-box">
                 <div class="grid-inputs">
                     <input type="text" id="empName" placeholder="اسم الموظف">
-                    <select id="empCat"><option>موظف</option><option>مشرف</option><option>مدير</option></select>
-                    <select id="empRole">
+                    <select id="empCatSelect"></select> <select id="empRole">
                         <option value="MORNING">صباحي</option>
                         <option value="EVENING">مسائي</option>
                         <option value="FIXED">ليلي (ثابت)</option>
                     </select>
                     <label><input type="checkbox" id="inRotation" checked> تدوير السبت</label>
-                    <button class="btn btn-add" onclick="addNewEmployee()">+ إضافة</button>
+                    <button class="btn btn-add" onclick="addNewEmployee()">+ إضافة الموظف</button>
                 </div>
             </div>
-            <table id="adminListTable">
+
+            <h3>قائمة الموظفين</h3>
+            <table>
                 <thead><tr><th>الاسم</th><th>الفئة</th><th>النظام</th><th>التدوير</th><th>إجراءات</th></tr></thead>
                 <tbody id="adminListBody"></tbody>
             </table>
@@ -90,19 +99,22 @@
                     <button class="btn btn-add" style="background:#f57c00;" onclick="addLongLeave()">تسجيل</button>
                 </div>
             </div>
-            <tbody id="leaveListBody"></tbody>
-        </table>
+            <table>
+                <thead><tr><th>الموظف</th><th>البداية</th><th>النهاية</th><th>إجراءات</th></tr></thead>
+                <tbody id="leaveListBody"></tbody>
+            </table>
         </div>
     </div>
 </div>
 
 <script>
+    // البيانات الافتراضية للفئات
+    let categories = JSON.parse(localStorage.getItem('categories')) || ["موظف اساسي", "مشرف", "مدير", "متدرب", "التمهير"];
+    
     let employees = JSON.parse(localStorage.getItem('employees')) || [
         { id: 1, name: "Abdulrahman Al-Sulaimani", cat: "مدير", role: "FIXED", inRotation: false },
         { id: 2, name: "Hamad Al-Khathran", cat: "مشرف", role: "MORNING", inRotation: true },
-        { id: 3, name: "Ziyad Althaqfiy", cat: "مشرف", role: "EVENING", inRotation: true },
-        { id: 4, name: "Essa Alsalami", cat: "موظف", role: "MORNING", inRotation: false },
-        { id: 5, name: "Saleh Aljuraydi", cat: "موظف", role: "EVENING", inRotation: false }
+        { id: 3, name: "Ziyad Althaqfiy", cat: "مشرف", role: "EVENING", inRotation: true }
     ];
     let longLeaves = JSON.parse(localStorage.getItem('longLeaves')) || [];
     const dayNames = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
@@ -114,19 +126,28 @@
         renderAll();
     };
 
-    function save() { localStorage.setItem('employees', JSON.stringify(employees)); localStorage.setItem('longLeaves', JSON.stringify(longLeaves)); }
-
-    function showTab(id, btn) {
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.getElementById(id).classList.add('active'); btn.classList.add('active');
-        renderAll();
+    function save() {
+        localStorage.setItem('categories', JSON.stringify(categories));
+        localStorage.setItem('employees', JSON.stringify(employees));
+        localStorage.setItem('longLeaves', JSON.stringify(longLeaves));
     }
 
+    // إدارة الفئات
+    function addCategory() {
+        const val = document.getElementById('catName').value.trim();
+        if(val && !categories.includes(val)) {
+            categories.push(val); document.getElementById('catName').value = ""; save(); renderAll();
+        }
+    }
+    function deleteCategory(cat) {
+        categories = categories.filter(c => c !== cat); save(); renderAll();
+    }
+
+    // إدارة الموظفين
     function addNewEmployee() {
         const name = document.getElementById('empName').value;
         if(!name) return;
-        employees.push({ id: Date.now(), name, cat: document.getElementById('empCat').value, role: document.getElementById('empRole').value, inRotation: document.getElementById('inRotation').checked });
+        employees.push({ id: Date.now(), name, cat: document.getElementById('empCatSelect').value, role: document.getElementById('empRole').value, inRotation: document.getElementById('inRotation').checked });
         save(); renderAll();
     }
 
@@ -136,22 +157,44 @@
     }
 
     function deleteEmp(id) { employees = employees.filter(e => e.id !== id); save(); renderAll(); }
+    function deleteLeave(id) { longLeaves = longLeaves.filter(l => l.id !== id); save(); renderAll(); }
 
-    function renderAll() { renderSchedule(); renderAdminList(); updateLeaveUI(); }
+    function showTab(id, btn) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(id).classList.add('active'); btn.classList.add('active');
+        renderAll();
+    }
 
-    function updateLeaveUI() {
-        document.getElementById('leaveEmpSelect').innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+    function renderAll() {
+        renderCategories();
+        renderAdminList();
+        renderLeaveUI();
+        renderSchedule();
+    }
+
+    function renderCategories() {
+        const list = document.getElementById('categoriesList');
+        const select = document.getElementById('empCatSelect');
+        list.innerHTML = categories.map(c => `<span class="cat-tag">${c} <span style="cursor:pointer; color:red; margin-right:8px;" onclick="deleteCategory('${c}')">×</span></span>`).join('');
+        select.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
     }
 
     function renderAdminList() {
         document.getElementById('adminListBody').innerHTML = employees.map(e => `<tr><td>${e.name}</td><td>${e.cat}</td><td>${e.role}</td><td>${e.inRotation?'✅':'🛑'}</td><td><button class="btn btn-delete" onclick="deleteEmp(${e.id})">حذف</button></td></tr>`).join('');
     }
 
+    function renderLeaveUI() {
+        document.getElementById('leaveEmpSelect').innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        document.getElementById('leaveListBody').innerHTML = longLeaves.map(l => {
+            const emp = employees.find(e => e.id === l.empId);
+            return `<tr><td>${emp?emp.name:'-'}</td><td>${l.start}</td><td>${l.end}</td><td><button class="btn btn-delete" onclick="deleteLeave(${l.id})">حذف</button></td></tr>`;
+        }).join('');
+    }
+
     function renderSchedule() {
         const start = new Date(document.getElementById('dateInput').value);
-        const weekNum = Math.ceil(start.getDate() / 7);
-        const isEven = weekNum % 2 === 0;
-
+        const isEven = Math.ceil(start.getDate() / 7) % 2 === 0;
         let h = '<th>الموظف</th><th>الفئة</th>';
         for(let i=0; i<7; i++) {
             let d = new Date(start); d.setDate(start.getDate()+i);
@@ -159,48 +202,34 @@
         }
         document.getElementById('headerRow').innerHTML = h;
 
-        let b = ''; let counts = { صباحي:0, مسائي:0, ليلي:0, إجازات:0 };
+        let b = ''; 
         const rotating = employees.filter(e => e.inRotation);
 
         employees.forEach(emp => {
-            b += `<tr><td style="text-align:right; font-weight:bold;">${emp.name}</td><td>${emp.cat}</td>`;
+            b += `<tr><td style="text-align:right; font-weight:bold;">${emp.name}</td><td style="color:#888">${emp.cat}</td>`;
             for(let d=0; d<7; d++) {
                 let curr = new Date(start); curr.setDate(start.getDate()+d);
                 let shift = calculateShift(emp, d, isEven, curr, rotating);
                 b += `<td><span class="badge ${shift}">${shift}</span></td>`;
-                if(shift==="صباحي") counts.صباحي++; else if(shift==="مسائي") counts.مسائي++; else if(shift==="ليلي") counts.ليلي++; else if(shift==="إجازة") counts.إجازات++;
             }
             b += `</tr>`;
         });
         document.getElementById('scheduleBody').innerHTML = b;
-        document.getElementById('summaryArea').innerHTML = `<div class="sum-card"><h3>${counts.صباحي}</h3><p>صباحي</p></div><div class="sum-card"><h3>${counts.مسائي}</h3><p>مسائي</p></div><div class="sum-card"><h3>${counts.ليلي}</h3><p>ليلي</p></div>`;
     }
 
     function calculateShift(emp, day, isEven, currDate, rotating) {
-        // إجازة طويلة
         if(longLeaves.find(l => { let s=new Date(l.start); let e=new Date(l.end); currDate.setHours(0,0,0,0); return l.empId===emp.id && currDate>=s && currDate<=e; })) return "إجازة";
-
-        // الجمعة أوف للكل
-        if(day === 5) return "أوف";
-
-        // عبدالرحمن / ليلي ثابت
+        if(day === 5) return "أوف"; // الجمعة
         if(emp.role === "FIXED") return (day <= 4) ? "ليلي" : "أوف";
-
-        // السبت (موظف واحد بالتناوب)
-        if(day === 6) {
+        if(day === 6) { // السبت
             const idx = rotating.findIndex(r => r.id === emp.id);
-            if(idx === 0 && !isEven) return "صباحي";
-            if(idx === 1 && isEven) return "صباحي";
+            if((idx === 0 && !isEven) || (idx === 1 && isEven)) return "صباحي";
             return "أوف";
         }
-
-        // الخميس أوف للشخص اللي بيداوم السبت (عشان يكمل 5 أيام)
-        if(day === 4) {
+        if(day === 4) { // الخميس أوف للمداوم السبت
             const idx = rotating.findIndex(r => r.id === emp.id);
             if((idx === 0 && !isEven) || (idx === 1 && isEven)) return "أوف";
         }
-
-        // الأيام العادية (أحد - خميس)
         return (emp.role === "MORNING") ? "صباحي" : "مسائي";
     }
 </script>
