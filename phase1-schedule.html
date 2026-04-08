@@ -10,22 +10,63 @@
             --morning: #d1e9ff; --morning-text: #007bff;
             --night: #f3e5f5; --night-text: #7b1fa2;
             --off: rgba(220, 220, 220, 0.6); --off-text: #555;
+            --leave: #f8d7da; --leave-text: #721c24;
         }
-        body { margin: 0; padding: 20px; font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; }
-        .toolbar { width: 100%; max-width: 1200px; background: var(--primary-blue); padding: 12px; border-radius: 12px; display: flex; justify-content: flex-end; gap: 10px; margin: 0 auto 20px auto; }
-        .btn-tool { background: white; color: var(--primary-blue); border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .container { width: 95%; max-width: 1200px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 25px; margin: auto; }
-        .table-wrapper { width: 100%; overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+
+        body {
+            margin: 0; padding: 20px;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-image: url('image_dba186.png'); 
+            background-size: cover; background-position: center; background-attachment: fixed;
+            min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+        }
+
+        .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(13, 33, 73, 0.2); z-index: -1; }
+
+        .toolbar {
+            width: 100%; max-width: 1250px; background: rgba(13, 33, 73, 0.85);
+            backdrop-filter: blur(15px); padding: 12px 20px; border-radius: 12px;
+            display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 20px;
+        }
+
+        .btn-tool { background: white; color: var(--primary-blue); border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+
+        .glass-container {
+            width: 100%; max-width: 1200px; background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); padding: 25px;
+        }
+
+        .logo-img { max-height: 60px; }
+
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+        .tab { padding: 10px 20px; cursor: pointer; font-weight: bold; color: #666; transition: 0.3s; }
+        .tab.active { color: var(--primary-blue); border-bottom: 3px solid var(--primary-blue); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 12px; text-align: center; border: 1px solid #eee; }
-        th { background: #f8f9fa; color: var(--primary-blue); }
-        .badge { border-radius: 15px; padding: 5px 12px; font-size: 12px; font-weight: bold; display: inline-block; }
+        th { background: #f8f9fa; }
+
+        .badge { border-radius: 15px; padding: 4px 12px; font-size: 11px; font-weight: bold; display: inline-block; }
         .صباحي { background: var(--morning); color: var(--morning-text); }
         .ليلي { background: var(--night); color: var(--night-text); }
         .أوف { background: var(--off); color: var(--off-text); }
+        .إجازة { background: var(--leave); color: var(--leave-text); }
+
+        .form-box { background: #f9f9f9; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: flex-end; }
+        
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+        .btn-add { background: var(--primary-blue); color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-del { background: #ff4444; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+
+        @media print { .toolbar, .tabs, .form-box, .btn-del { display: none; } }
     </style>
 </head>
 <body>
+
+<div class="overlay"></div>
 
 <div class="toolbar">
     <button class="btn-tool" onclick="window.print()">طباعة PDF</button>
@@ -34,56 +75,133 @@
     <button class="btn-tool" onclick="changeWeek(-7)">الأسبوع السابق</button>
 </div>
 
-<div class="container">
-    <h2 style="text-align: center; color: var(--primary-blue);">جدول دوام الموظفين - متصل بـ Firebase</h2>
-    <div style="text-align: center; margin-bottom: 20px;">
-        <input type="date" id="datePicker" onchange="renderSchedule()" style="padding: 8px;">
+<div class="glass-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <img src="LOGO-almajdouie.png" alt="Logo" class="logo-img">
+            <div style="text-align: right; border-right: 2px solid #ddd; padding-right: 15px;">
+                <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">شركة المجدوعي للسيارات</div>
+                <div style="font-size: 10px; color: #555;">Almajdouie Motors Company</div>
+            </div>
+        </div>
+        <div style="font-weight: 800; font-size: 20px; color: var(--primary-blue);">نظام الجدولة الذكي</div>
     </div>
-    <div class="table-wrapper">
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('schedule', this)">📅 الجدول</div>
+        <div class="tab" onclick="switchTab('admin', this)">👥 الموظفين</div>
+        <div class="tab" onclick="switchTab('vacations', this)">🏖️ الإجازات</div>
+    </div>
+
+    <div id="schedule" class="tab-content active">
+        <input type="date" id="datePicker" onchange="renderAll()" style="margin-bottom: 10px;">
         <table>
             <thead><tr id="headerDates"></tr></thead>
-            <tbody id="scheduleBody">
-                <tr><td colspan="9">جاري الاتصال بقاعدة البيانات...</td></tr>
-            </tbody>
+            <tbody id="scheduleBody"></tbody>
+        </table>
+    </div>
+
+    <div id="admin" class="tab-content">
+        <div class="form-box">
+            <input type="text" id="newEmpName" placeholder="الاسم الكامل">
+            <select id="newEmpCat">
+                <option>موظف</option><option>مشرف</option><option>مدير</option><option>تمهير</option>
+            </select>
+            <select id="newEmpRole">
+                <option value="MORNING">صباحي</option>
+                <option value="FIXED">ليلي (ثابت)</option>
+            </select>
+            <button class="btn-add" onclick="addEmployee()">إضافة موظف</button>
+        </div>
+        <table>
+            <thead><tr><th>الاسم</th><th>الفئة</th><th>النظام</th><th>إجراء</th></tr></thead>
+            <tbody id="adminList"></tbody>
+        </table>
+    </div>
+
+    <div id="vacations" class="tab-content">
+        <div class="form-box">
+            <select id="vacationEmpSelect"></select>
+            <input type="date" id="vacationStart">
+            <input type="date" id="vacationEnd">
+            <button class="btn-add" style="background:#f57c00" onclick="addVacation()">تسجيل إجازة</button>
+        </div>
+        <table>
+            <thead><tr><th>الموظف</th><th>من</th><th>إلى</th><th>إجراء</th></tr></thead>
+            <tbody id="vacationList"></tbody>
         </table>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // بياناتك الحقيقية من الصورة التي أرسلتها
     const firebaseConfig = {
         apiKey: "AIzaSyBsvEEHEgBuw9pDml-Om90mm8MLDw8gWs",
         authDomain: "baghethan-ba325.firebaseapp.com",
         projectId: "baghethan-ba325",
         storageBucket: "baghethan-ba325.firebasestorage.app",
         messagingSenderId: "944819735112",
-        appId: "1:944819735112:web:07315600da39377320667d",
-        measurementId: "G-45X2SXD2E4"
+        appId: "1:944819735112:web:07315600da39377320667d"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+
     let employees = [];
+    let vacations = [];
 
-    async function fetchEmployees() {
-        try {
-            const querySnapshot = await getDocs(collection(db, "employees"));
-            employees = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            console.log("تم جلب الموظفين:", employees);
-            renderSchedule();
-        } catch (error) {
-            console.error("خطأ في جلب البيانات:", error);
-            document.getElementById('scheduleBody').innerHTML = `<tr><td colspan="9">خطأ: ${error.message}</td></tr>`;
-        }
-    }
+    // جلب البيانات المباشر (Real-time)
+    onSnapshot(collection(db, "employees"), (snapshot) => {
+        employees = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderAll();
+    });
 
-    window.renderSchedule = function() {
+    onSnapshot(collection(db, "vacations"), (snapshot) => {
+        vacations = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderAll();
+    });
+
+    // إضافة موظف لـ Firebase
+    window.addEmployee = async () => {
+        const name = document.getElementById('newEmpName').value;
+        const cat = document.getElementById('newEmpCat').value;
+        const role = document.getElementById('newEmpRole').value;
+        if(!name) return;
+        await addDoc(collection(db, "employees"), { name, cat, role });
+        document.getElementById('newEmpName').value = "";
+    };
+
+    // حذف موظف من Firebase
+    window.deleteEmployee = async (id) => {
+        if(confirm("حذف الموظف؟")) await deleteDoc(doc(db, "employees", id));
+    };
+
+    // إضافة إجازة لـ Firebase
+    window.addVacation = async () => {
+        const empId = document.getElementById('vacationEmpSelect').value;
+        const s = document.getElementById('vacationStart').value;
+        const e = document.getElementById('vacationEnd').value;
+        if(!s || !e) return;
+        await addDoc(collection(db, "vacations"), { empId, s, e });
+    };
+
+    window.deleteVacation = async (id) => {
+        await deleteDoc(doc(db, "vacations", id));
+    };
+
+    // العرض الرئيسي
+    window.renderAll = () => {
+        renderSchedule();
+        renderAdmin();
+        renderVacationList();
+    };
+
+    function renderSchedule() {
         const start = new Date(document.getElementById('datePicker').value);
         const dayNames = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
-
+        
         let h = '<th>الموظف</th><th>الفئة</th>';
         for(let i=0; i<7; i++) {
             let d = new Date(start); d.setDate(start.getDate() + i);
@@ -92,45 +210,69 @@
         document.getElementById('headerDates').innerHTML = h;
 
         let b = '';
-        if (employees.length === 0) {
-            b = '<tr><td colspan="9">لا يوجد موظفين في مجموعة employees</td></tr>';
-        } else {
-            employees.forEach(emp => {
-                b += `<tr><td style="font-weight:bold;">${emp.name || 'بدون اسم'}</td><td>${emp.cat || 'موظف'}</td>`;
-                for(let d=0; d<7; d++) {
-                    let curr = new Date(start); curr.setDate(start.getDate()+d);
-                    let shift = getShiftLogic(emp, d);
-                    b += `<td><span class="badge ${shift}">${shift}</span></td>`;
-                }
-                b += `</tr>`;
-            });
-        }
+        employees.forEach(emp => {
+            b += `<tr><td style="font-weight:bold;">${emp.name}</td><td>${emp.cat}</td>`;
+            for(let d=0; d<7; d++) {
+                let curr = new Date(start); curr.setDate(start.getDate()+d);
+                let shift = getShiftLogic(emp, d, curr);
+                b += `<td><span class="badge ${shift}">${shift}</span></td>`;
+            }
+            b += `</tr>`;
+        });
         document.getElementById('scheduleBody').innerHTML = b;
     }
 
-    function getShiftLogic(emp, day) {
-        if(day === 4 || day === 5 || day === 6) return "أوف"; 
-        if(emp.role === "FIXED" || emp.role === "night" || emp.role === "ليلي") return "ليلي";
-        return "صباحي";
+    function getShiftLogic(emp, day, curr) {
+        // فحص الإجازات
+        const isVac = vacations.find(v => {
+            let s = new Date(v.s); let e = new Date(v.e);
+            curr.setHours(0,0,0,0);
+            return v.empId === emp.id && curr >= s && curr <= e;
+        });
+        if(isVac) return "إجازة";
+
+        if(day === 4 || day === 5 || day === 6) return "أوف";
+        return (emp.role === "FIXED") ? "ليلي" : "صباحي";
     }
 
-    window.setCurrentWeek = function() {
+    function renderAdmin() {
+        document.getElementById('adminList').innerHTML = employees.map(e => `
+            <tr><td>${e.name}</td><td>${e.cat}</td><td>${e.role}</td>
+            <td><button class="btn-del" onclick="deleteEmployee('${e.id}')">حذف</button></td></tr>
+        `).join('');
+    }
+
+    function renderVacationList() {
+        document.getElementById('vacationEmpSelect').innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        document.getElementById('vacationList').innerHTML = vacations.map(v => {
+            const emp = employees.find(e => e.id === v.empId);
+            return `<tr><td>${emp?emp.name:'-'}</td><td>${v.s}</td><td>${v.e}</td>
+            <td><button class="btn-del" onclick="deleteVacation('${v.id}')">حذف</button></td></tr>`;
+        }).join('');
+    }
+
+    window.switchTab = (id, btn) => {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        btn.classList.add('active');
+    };
+
+    window.setCurrentWeek = () => {
         let today = new Date();
         let sun = new Date(today.setDate(today.getDate() - today.getDay()));
         document.getElementById('datePicker').valueAsDate = sun;
-        renderSchedule();
-    }
+        renderAll();
+    };
 
-    window.changeWeek = function(days) {
+    window.changeWeek = (days) => {
         let d = new Date(document.getElementById('datePicker').value);
         d.setDate(d.getDate() + days);
         document.getElementById('datePicker').valueAsDate = d;
-        renderSchedule();
-    }
+        renderAll();
+    };
 
-    // التشغيل عند التحميل
     document.getElementById('datePicker').valueAsDate = new Date();
-    fetchEmployees();
     setCurrentWeek();
 </script>
 </body>
