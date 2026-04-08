@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - Scheduling v9.0</title>
+    <title>Almajdouie Motors - Scheduling v9.1</title>
     <style>
         :root {
             --primary-blue: #0d2149;
@@ -40,7 +40,6 @@
         .Holiday { background: var(--h-bg); color: var(--h-text); }
         .Work { background: var(--work-bg); color: var(--work-text); }
         .Morning { background: var(--morning-bg); color: var(--morning-text); }
-        .NationalDay { background: var(--national-bg); color: var(--national-text); }
         .Annual { background: var(--annual-bg); color: var(--annual-text); }
         .Planned { background: var(--plan-bg); color: var(--plan-text); }
 
@@ -65,7 +64,7 @@
             <img src="LOGO-almajdouie.png" class="logo-img" style="max-height:45px">
             <div>
                 <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div style="font-size: 10px; color: #555;">Scheduling System v9.0</div>
+                <div style="font-size: 10px; color: #555;">Scheduling System v9.1</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -104,10 +103,7 @@
             <input type="date" id="pStart"><input type="date" id="pEnd">
             <button class="btn-tool" style="background:#00796b; color:white" onclick="window.addVacationPlan()">Add Plan</button>
         </div>
-        <table>
-            <thead><tr><th>Employee Name</th><th>From</th><th>To</th><th>Action</th></tr></thead>
-            <tbody id="planningBody"></tbody>
-        </table>
+        <table><thead><tr><th>Employee Name</th><th>From</th><th>To</th><th>Action</th></tr></thead><tbody id="planningBody"></tbody></table>
     </div>
 
     <div id="holidays" class="tab-content">
@@ -132,7 +128,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, collection, onSnapshot, updateDoc, setDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, doc, collection, onSnapshot, updateDoc, setDoc, deleteDoc, addDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyBsvEEHEgBuw9pDml-Om90mm8MLDw8gWs",
@@ -147,7 +143,12 @@
     const db = getFirestore(app);
     let employees = [], holidayDuties = [], vacationsList = [], planList = [], currentLang = 'en';
 
-    // --- Define Functions on Window Immediately to fix switchTab error ---
+    // مساعدة لتحويل التاريخ إلى نص YYYY-MM-DD محلياً بدون إزاحة توقيت
+    const formatLocal = (d) => {
+        const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
     window.switchTab = (id, btn) => {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -161,7 +162,7 @@
         window.renderAll();
     };
 
-    // --- Listeners ---
+    // Listeners
     onSnapshot(doc(db, "schedule", "jadwal_v6"), (snap) => {
         employees = snap.exists() ? (snap.data().data?.emps || []) : [];
         window.renderAll();
@@ -174,7 +175,6 @@
         vacationsList = snap.exists() ? (snap.data().vacations || []) : [];
         window.renderAll();
     });
-    // Updated Listener for the ROOT vacations collection
     onSnapshot(collection(db, "vacations"), (snap) => {
         planList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         window.renderAll();
@@ -184,6 +184,7 @@
         const dp = document.getElementById('datePicker');
         if(!dp.value) return;
         const parts = dp.value.split('-');
+        // إنشاء تاريخ محلي 100%
         const start = new Date(parts[0], parts[1]-1, parts[2]);
         start.setHours(0,0,0,0);
 
@@ -195,7 +196,11 @@
             planned: currentLang === 'ar' ? 'مخطط له' : 'Planned'
         };
 
-        const weekNum = Math.ceil(((start - new Date(start.getFullYear(), 0, 1)) / 86400000 + new Date(start.getFullYear(), 0, 1).getDay() + 1) / 7);
+        // حساب رقم الأسبوع للتدوير
+        const jan1 = new Date(start.getFullYear(), 0, 1);
+        const days = Math.floor((start - jan1) / 86400000);
+        const weekNum = Math.ceil((days + jan1.getDay() + 1) / 7);
+
         const thuPool = employees.filter(e => e.rotType === 'thu' && e.active);
         const friPool = employees.filter(e => e.rotType === 'fri' && e.active);
         let curThu = thuPool.length > 0 ? thuPool[weekNum % thuPool.length].id : null;
@@ -205,7 +210,8 @@
         let h = `<th>${currentLang === 'en' ? 'Employee' : 'الموظف'}</th>`;
         const daysArr = currentLang === 'en' ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
         for(let i=0; i<7; i++) {
-            let d = new Date(start); d.setDate(start.getDate()+i);
+            let d = new Date(start.getTime()); 
+            d.setDate(start.getDate()+i);
             h += `<th>${daysArr[i]}<br><small>${d.toLocaleDateString('en-GB')}</small></th>`;
         }
         document.getElementById('headerDates').innerHTML = h;
@@ -214,12 +220,13 @@
         document.getElementById('scheduleBody').innerHTML = employees.filter(e => e.active).map(emp => {
             let row = `<tr><td style="text-align:left; font-weight:bold;">${emp.name}</td>`;
             for(let d=0; d<7; d++) {
-                let cellD = new Date(start); cellD.setDate(start.getDate()+d); cellD.setHours(0,0,0,0);
+                let cellD = new Date(start.getTime()); 
+                cellD.setDate(start.getDate()+d);
+                cellD.setHours(0,0,0,0);
                 
-                // Check overlaps
-                const isAnn = vacationsList.find(v => String(v.empId) === String(emp.id) && cellD >= new Date(v.start+'T00:00:00') && cellD <= new Date(v.end+'T00:00:00'));
-                const isPlan = planList.find(p => (String(p.empId) === String(emp.id) || p.name === emp.name) && cellD >= new Date(p.from+'T00:00:00') && cellD <= new Date(p.to+'T00:00:00'));
-                const isH = holidayDuties.find(duty => cellD >= new Date(duty.start+'T00:00:00') && cellD <= new Date(duty.end+'T00:00:00'));
+                const isAnn = vacationsList.find(v => String(v.empId) === String(emp.id) && cellD >= new Date(v.start.replace(/-/g, '/')) && cellD <= new Date(v.end.replace(/-/g, '/')));
+                const isPlan = planList.find(p => (String(p.empId) === String(emp.id) || p.name === emp.name) && cellD >= new Date(p.from.replace(/-/g, '/')) && cellD <= new Date(p.to.replace(/-/g, '/')));
+                const isH = holidayDuties.find(duty => cellD >= new Date(duty.start.replace(/-/g, '/')) && cellD <= new Date(duty.end.replace(/-/g, '/')));
 
                 let shift = "", icon = "", bC = "Morning";
                 if (isAnn) { shift = t.annual; bC = "Annual"; icon = "🌴"; }
@@ -299,16 +306,19 @@
     window.delAnnual = async (i) => { let a = [...vacationsList]; a.splice(i,1); await updateDoc(doc(db, "schedule", "jadwal_annual_leave"), { vacations: a }); };
 
     window.setCurrentWeek = () => {
-        let now = new Date(); now.setHours(0,0,0,0);
-        let s = new Date(now.setDate(now.getDate() - now.getDay()));
-        document.getElementById('datePicker').value = s.toISOString().split('T')[0];
+        let now = new Date();
+        now.setHours(0,0,0,0);
+        // العودة إلى الأحد السابق
+        let diff = now.getDate() - now.getDay();
+        let sun = new Date(now.setDate(diff));
+        document.getElementById('datePicker').value = formatLocal(sun);
         window.renderAll();
     };
+
     window.changeWeek = (v) => {
-        let parts = document.getElementById('datePicker').value.split('-');
-        let c = new Date(parts[0], parts[1]-1, parts[2]);
-        c.setDate(c.getDate() + v);
-        document.getElementById('datePicker').value = c.toISOString().split('T')[0];
+        let current = new Date(document.getElementById('datePicker').value.replace(/-/g, '/'));
+        current.setDate(current.getDate() + v);
+        document.getElementById('datePicker').value = formatLocal(current);
         window.renderAll();
     };
 
