@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - Scheduling v7.5</title>
+    <title>Almajdouie Motors - Scheduling v7.6</title>
     <style>
         :root {
             --primary-blue: #0d2149;
@@ -13,6 +13,7 @@
             --h-bg: #ffebee; --h-text: #c62828;
             --work-bg: #e8f5e9; --work-text: #2e7d32;
             --morning-bg: #fff3e0; --morning-text: #ef6c00;
+            --national-bg: #004d40; --national-text: #ffffff;
         }
 
         body { margin: 0; padding: 20px; font-family: 'Segoe UI', sans-serif; background: #f4f7f6; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
@@ -30,14 +31,14 @@
         th, td { padding: 10px 8px; text-align: center; border: 1px solid #f0f0f0; }
         th { background: #fbfbfb; color: var(--primary-blue); }
         
-        /* Badges Styling */
-        .badge { border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; min-width: 100px; justify-content: center; }
+        .badge { border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; min-width: 110px; justify-content: center; }
         .OnCall, .أون_كول { background: var(--oncall-bg); color: var(--oncall-text); }
         .Night, .ليلي { background: var(--night-bg); color: var(--night-text); }
         .Off, .أوف { background: var(--off-bg); color: var(--off-text); }
         .Holiday, .إجازة { background: var(--h-bg); color: var(--h-text); }
         .Work, .دوام { background: var(--work-bg); color: var(--work-text); }
         .Morning, .صباحي { background: var(--morning-bg); color: var(--morning-text); }
+        .NationalDay, .اليوم_الوطني { background: var(--national-bg); color: var(--national-text); }
         
         .btn-action { border: none; border-radius: 6px; padding: 6px 12px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; }
     </style>
@@ -56,10 +57,10 @@
 <div class="glass-container">
     <div class="header-top">
         <div style="display: flex; align-items: center; gap: 15px;">
-            <img src="LOGO-almajdouie.png" class="logo-img" alt="Logo">
+            <img src="LOGO-almajdouie.png" class="logo-img">
             <div>
                 <div id="compN" style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div id="subN" style="font-size: 10px; color: #555;">Advanced Scheduling v7.5</div>
+                <div id="subN" style="font-size: 10px; color: #555;">Scheduling System v7.6</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -71,7 +72,7 @@
     </div>
 
     <div id="schedule" class="tab-content active">
-        <input type="date" id="datePicker" onchange="window.renderAll()" style="margin-bottom:15px; padding:8px; border-radius:5px; border:1px solid #ccc;">
+        <input type="date" id="datePicker" onchange="window.renderAll()" style="margin-bottom:15px; padding:8px;">
         <table>
             <thead><tr id="headerDates"></tr></thead>
             <tbody id="scheduleBody"></tbody>
@@ -131,7 +132,8 @@
             off: currentLang === 'ar' ? 'أوف' : 'Off', 
             h: currentLang === 'ar' ? 'إجازة' : 'Holiday',
             work: currentLang === 'ar' ? 'دوام' : 'Work',
-            morning: currentLang === 'ar' ? 'صباحي' : 'Morning'
+            morning: currentLang === 'ar' ? 'صباحي' : 'Morning',
+            national: currentLang === 'ar' ? 'اليوم الوطني' : 'National Day'
         };
         
         const firstDayOfYear = new Date(start.getFullYear(), 0, 1);
@@ -143,10 +145,10 @@
 
         // Header
         let h = `<th>${currentLang === 'en' ? 'Employee' : 'الموظف'}</th>`;
-        const days = currentLang === 'en' ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+        const daysArr = currentLang === 'en' ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
         for(let i=0; i<7; i++) {
             let d = new Date(start); d.setDate(start.getDate() + i);
-            h += `<th>${days[i]}<br><small>${d.toLocaleDateString('en-GB')}</small></th>`;
+            h += `<th>${daysArr[i]}<br><small>${d.toLocaleDateString('en-GB')}</small></th>`;
         }
         document.getElementById('headerDates').innerHTML = h;
 
@@ -156,7 +158,7 @@
             for(let d=0; d<7; d++) {
                 let cellDate = new Date(start); cellDate.setDate(start.getDate() + d); cellDate.setHours(0,0,0,0);
                 
-                // اليوم الوطني 23 سبتمبر
+                // كشف اليوم الوطني تلقائياً (23 سبتمبر)
                 const isNationalDay = (cellDate.getMonth() === 8 && cellDate.getDate() === 23);
                 
                 const activeH = holidayDuties.find(duty => {
@@ -167,31 +169,31 @@
 
                 let shift = "";
                 let icon = "";
+                let badgeClass = "Morning";
 
                 if (activeH) {
                     shift = (activeH.empId === emp.id) ? (emp.fixed ? t.night : t.onCall) : t.h;
+                    badgeClass = (activeH.empId === emp.id) ? (emp.fixed ? "Night" : "OnCall") : "Holiday";
                 } else if (isNationalDay) {
-                    shift = t.onCall; // اليوم الوطني أون كول
+                    shift = t.national; // يوم وطني
+                    badgeClass = "NationalDay";
+                    icon = "🇸🇦";
                 } else if (d === 5) { 
-                    shift = t.onCall; // الجمعة أون كول
+                    shift = t.onCall; // الجمعة
+                    badgeClass = "OnCall";
+                    icon = "📞";
                 } else if (d === 6) { 
-                    shift = t.work;   // السبت دوام
+                    shift = t.work; // السبت
+                    badgeClass = "Work";
+                    icon = "🏢";
                 } else if (d === 4 && emp.id === currentThuMan) {
-                    shift = t.off;    // أوف الخميس للمداور
+                    shift = t.off; // أوف الخميس للمداور
+                    badgeClass = "Off";
                 } else {
-                    shift = emp.fixed ? t.night : t.morning; // الأيام العادية صباحي أو ليلي
+                    shift = emp.fixed ? t.night : t.morning;
+                    badgeClass = emp.fixed ? "Night" : "Morning";
+                    icon = emp.fixed ? "🌙" : "☀️";
                 }
-
-                if(shift === t.onCall) icon = "📞";
-                if(shift === t.night) icon = "🌙";
-                if(shift === t.morning) icon = "☀️";
-                
-                let badgeClass = "Morning";
-                if(shift === t.onCall) badgeClass = "OnCall";
-                if(shift === t.night) badgeClass = "Night";
-                if(shift === t.work) badgeClass = "Work";
-                if(shift === t.off) badgeClass = "Off";
-                if(shift === t.h) badgeClass = "Holiday";
 
                 row += `<td><span class="badge ${badgeClass}">${icon} ${shift}</span></td>`;
             }
