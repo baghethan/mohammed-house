@@ -174,6 +174,7 @@
             <div class="section-head"><h3>إدارة الموظفين</h3></div>
             <form id="employeeForm" class="grid g4">
               <div class="field"><label for="empName">الاسم</label><input id="empName" type="text" required /></div>
+              <div class="field"><label for="empNo">الرقم الوظيفي</label><input id="empNo" type="text" placeholder="مثال: 1001" /></div>
               <div class="field"><label for="empTitle">المسمى الوظيفي</label><input id="empTitle" type="text" /></div>
               <div class="field"><label for="empCategory">نوع الموظف</label><select id="empCategory"><option value="rotating">متغير</option><option value="fixedNight">ثابت ليلي</option></select></div>
               <div class="field"><label for="empRegion">المنطقة</label><select id="empRegion"><option value="eastern">الشرقية</option><option value="riyadh">الرياض</option><option value="jeddah">جدة</option></select></div>
@@ -181,10 +182,15 @@
               <div class="field"><label for="empPhone">الجوال</label><input id="empPhone" type="tel" /></div>
               <div class="field"><label for="empOffPattern">نمط الأوف المفضل</label><select id="empOffPattern"><option value="auto">تلقائي</option><option value="thu-fri">الخميس/الجمعة</option><option value="wed-thu">الأربعاء/الخميس</option></select></div>
               <div class="field"><label for="empMaxShifts">أقصى عدد شفتات بالأسبوع</label><input id="empMaxShifts" type="number" min="1" max="7" value="5" /></div>
+              <div class="field" style="grid-column: span 3;"><label for="empExtra">خصائص إضافية مستقبلية (JSON أو ملاحظات)</label><textarea id="empExtra" rows="3" placeholder='مثال: {"branch":"HQ","skills":["SAP","Outlook"]}'></textarea></div>
               <div class="field" style="grid-column:1/-1;">
                 <div class="actions">
                   <button type="submit" class="btn btn-primary admin-only">حفظ الموظف</button>
                   <button type="reset" class="btn btn-secondary admin-only">تفريغ</button>
+                  <button type="button" id="btnExportEmployeesJson" class="btn btn-outline">تصدير الموظفين JSON</button>
+                  <button type="button" id="btnExportEmployeesExcel" class="btn btn-outline">تصدير الموظفين Excel</button>
+                  <button type="button" id="btnImportEmployees" class="btn btn-success admin-only">رفع ملف الموظفين للتعديل</button>
+                  <input id="importEmployeesFile" type="file" accept=".json,.csv,.xlsx,.xls" class="hidden" />
                 </div>
               </div>
             </form>
@@ -328,11 +334,11 @@
       year: new Date().getFullYear(),
       selectedWeekIndex: 0,
       employees: [
-        { id: uid(), name:'Abdulrahman Ghulam Al-Sulaimani', title:'', email:'', phone:'', category:'fixedNight', region:'eastern', offPattern:'auto', maxShifts:5 },
-        { id: uid(), name:'Essa Swaydi Alsalami', title:'', email:'', phone:'', category:'rotating', region:'eastern', offPattern:'auto', maxShifts:5 },
-        { id: uid(), name:'Saleh Sabri Aljuraydi', title:'', email:'', phone:'', category:'rotating', region:'eastern', offPattern:'auto', maxShifts:5 },
-        { id: uid(), name:'Hamad Rashid Al-Khathran', title:'', email:'', phone:'', category:'rotating', region:'eastern', offPattern:'auto', maxShifts:5 },
-        { id: uid(), name:'Ziyad Fawaz Althaqfiy', title:'', email:'', phone:'', category:'rotating', region:'eastern', offPattern:'auto', maxShifts:5 }
+        { id: uid(), name:'Abdulrahman Ghulam Al-Sulaimani', employeeNo:'', title:'', email:'', phone:'', extraProps:'', category:'fixedNight', region:'eastern', offPattern:'auto', maxShifts:5 },
+        { id: uid(), name:'Essa Swaydi Alsalami', employeeNo:'', title:'', email:'', phone:'', extraProps:'', category:'rotating', region:'eastern', offPattern:'auto', maxShifts:5 },
+        { id: uid(), name:'Saleh Sabri Aljuraydi', employeeNo:'', title:'', email:'', phone:'', extraProps:'', category:'rotating', region:'eastern', offPattern:'auto', maxShifts:5 },
+        { id: uid(), name:'Hamad Rashid Al-Khathran', employeeNo:'', title:'', email:'', phone:'', extraProps:'', category:'rotating', region:'eastern', offPattern:'auto', maxShifts:5 },
+        { id: uid(), name:'Ziyad Fawaz Althaqfiy', employeeNo:'', title:'', email:'', phone:'', extraProps:'', category:'rotating', region:'eastern', offPattern:'auto', maxShifts:5 }
       ],
       leaves: [],
       archive: [],
@@ -593,8 +599,9 @@
         const node = tpl.content.cloneNode(true);
         node.querySelector('.emp-name').textContent = emp.name;
         node.querySelector('.emp-meta').textContent = `${emp.title || '-'} • ${categoryLabel(emp.category)} • ${emp.region}`;
-        node.querySelector('.emp-contact').textContent = `${emp.email || '-'} • ${emp.phone || '-'}`;
-        node.querySelector('.emp-rules').textContent = `حد أسبوعي: ${emp.maxShifts || 5} • أوف مفضل: ${emp.offPattern === 'auto' ? 'تلقائي' : emp.offPattern === 'thu-fri' ? 'الخميس/الجمعة' : 'الأربعاء/الخميس'}`;
+        node.querySelector('.emp-contact').textContent = `الرقم الوظيفي: ${emp.employeeNo || '-'} • ${emp.email || '-'} • ${emp.phone || '-'}`;
+        const extraText = (emp.extraProps || '').toString().trim();
+        node.querySelector('.emp-rules').textContent = `حد أسبوعي: ${emp.maxShifts || 5} • أوف مفضل: ${emp.offPattern === 'auto' ? 'تلقائي' : emp.offPattern === 'thu-fri' ? 'الخميس/الجمعة' : 'الأربعاء/الخميس'}${extraText ? ' • خصائص: ' + extraText : ''}`;
         node.querySelector('.emp-load').textContent = 'تحميل';
         node.querySelector('.emp-archive').textContent = 'أرشفة';
         node.querySelector('.emp-delete').textContent = 'حذف';
@@ -606,18 +613,20 @@
       });
     }
 
-    function clearEmployeeForm(){ document.getElementById('employeeForm').reset(); delete document.getElementById('employeeForm').dataset.editId; document.getElementById('empMaxShifts').value = 5; }
+    function clearEmployeeForm(){ document.getElementById('employeeForm').reset(); delete document.getElementById('employeeForm').dataset.editId; document.getElementById('empMaxShifts').value = 5; document.getElementById('empExtra').value = ''; }
 
     function loadEmployeeToForm(id){
       if (!ensureAdmin()) return;
       const emp = state.employees.find(e => e.id === id);
       if (!emp) return;
       document.getElementById('empName').value = emp.name || '';
+      document.getElementById('empNo').value = emp.employeeNo || '';
       document.getElementById('empTitle').value = emp.title || '';
       document.getElementById('empCategory').value = emp.category || 'rotating';
       document.getElementById('empRegion').value = emp.region || 'eastern';
       document.getElementById('empEmail').value = emp.email || '';
       document.getElementById('empPhone').value = emp.phone || '';
+      document.getElementById('empExtra').value = emp.extraProps || '';
       document.getElementById('empOffPattern').value = emp.offPattern || 'auto';
       document.getElementById('empMaxShifts').value = emp.maxShifts || 5;
       document.getElementById('employeeForm').dataset.editId = emp.id;
@@ -632,11 +641,13 @@
       const emp = {
         id: editId || uid(),
         name: document.getElementById('empName').value.trim(),
+        employeeNo: document.getElementById('empNo').value.trim(),
         title: document.getElementById('empTitle').value.trim(),
         category: document.getElementById('empCategory').value,
         region: document.getElementById('empRegion').value,
         email: document.getElementById('empEmail').value.trim(),
         phone: document.getElementById('empPhone').value.trim(),
+        extraProps: document.getElementById('empExtra').value.trim(),
         offPattern: document.getElementById('empOffPattern').value,
         maxShifts: Math.min(7, Math.max(1, Number(document.getElementById('empMaxShifts').value) || 5))
       };
@@ -732,8 +743,8 @@
       const item = state.archive.find(a => a.archiveId === archiveId); if (!item) return;
       state.employees.push({
         id: item.originalId || uid(),
-        name: item.name, title: item.title, email: item.email, phone: item.phone,
-        category: item.category, region: item.region, offPattern: item.offPattern, maxShifts: item.maxShifts
+        name: item.name, employeeNo: item.employeeNo || '', title: item.title, email: item.email, phone: item.phone,
+        extraProps: item.extraProps || '', category: item.category, region: item.region, offPattern: item.offPattern, maxShifts: item.maxShifts
       });
       state.archive = state.archive.filter(a => a.archiveId !== archiveId);
       invalidateSchedule(); saveState(); renderAll(); showNotice('تمت استعادة الموظف من الأرشيف', 'success');
@@ -861,7 +872,7 @@
         });
       });
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(allRows), 'الجدول السنوي');
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.employees.map(emp => ({ الاسم:emp.name, الدور:categoryLabel(emp.category), المنطقة:emp.region, المسمى:emp.title, البريد:emp.email, الجوال:emp.phone, حد_أسبوعي:emp.maxShifts, أوف_مفضل:emp.offPattern }))), 'الموظفون');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.employees.map(emp => ({ الاسم:emp.name, الرقم_الوظيفي:emp.employeeNo || '', الدور:categoryLabel(emp.category), المنطقة:emp.region, المسمى:emp.title, البريد:emp.email, الجوال:emp.phone, خصائص_إضافية:emp.extraProps || '', حد_أسبوعي:emp.maxShifts, أوف_مفضل:emp.offPattern }))), 'الموظفون');
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.leaves.map(leave => ({ الموظف: (state.employees.find(e=>e.id===leave.employeeId)?.name) || leave.employeeId, النوع: leaveTypeLabel(leave.type), من: leave.start, إلى: leave.end, الملاحظات: leave.reason }))), 'الإجازات');
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.archive.map(item => ({ الاسم:item.name, الدور:categoryLabel(item.category), سبب:item.reason, تاريخ:item.archivedAt }))), 'الأرشيف');
       XLSX.writeFile(wb, `annual_schedule_${state.year}.xlsx`);
@@ -901,7 +912,92 @@ END:VCALENDAR`;
     }
     document.getElementById('exportIcsBtn').addEventListener('click', exportIcs);
 
-    document.getElementById('backupBtn').addEventListener('click', function(){
+    
+    function exportEmployeesJson(){
+      const blob = new Blob([JSON.stringify(state.employees, null, 2)], { type:'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob); const a = document.createElement('a');
+      a.href = url; a.download = `employees_${state.year}.json`; a.click(); URL.revokeObjectURL(url);
+      showNotice('تم تصدير ملف الموظفين JSON', 'success');
+    }
+
+    function normalizeImportedEmployee(raw){
+      const val = (keys) => {
+        for (const k of keys) {
+          if (raw[k] !== undefined && raw[k] !== null && String(raw[k]).trim() !== '') return String(raw[k]).trim();
+        }
+        return '';
+      };
+      const name = val(['الاسم','name','Name']);
+      if (!name) return null;
+      const categoryRaw = val(['نوع الموظف','category','Category','الدور']);
+      let category = 'rotating';
+      if (/fixednight|ثابت|night/i.test(categoryRaw)) category = 'fixedNight';
+      const region = val(['المنطقة','region','Region']) || 'eastern';
+      const offPatternRaw = val(['نمط الأوف','offPattern','OffPattern']);
+      let offPattern = 'auto';
+      if (/thu-?fri|الخميس\/الجمعة/.test(offPatternRaw)) offPattern = 'thu-fri';
+      else if (/wed-?thu|الأربعاء\/الخميس/.test(offPatternRaw)) offPattern = 'wed-thu';
+      return {
+        id: uid(),
+        name,
+        employeeNo: val(['الرقم الوظيفي','employeeNo','EmployeeNo','employee number','no','No']),
+        title: val(['المسمى الوظيفي','title','Title','jobTitle','Job Title']),
+        category,
+        region,
+        email: val(['البريد الإلكتروني','email','Email']),
+        phone: val(['الجوال','phone','Phone','mobile','Mobile']),
+        extraProps: val(['خصائص إضافية','extraProps','ExtraProps','notes','Notes']),
+        offPattern,
+        maxShifts: Math.min(7, Math.max(1, Number(val(['أقصى عدد شفتات بالأسبوع','maxShifts','MaxShifts'])) || 5))
+      };
+    }
+
+    function importEmployeesFromRows(rows){
+      const imported = rows.map(normalizeImportedEmployee).filter(Boolean);
+      if (!imported.length) { showNotice('لم يتم العثور على موظفين صالحين داخل الملف', 'error'); return; }
+      // preserve fixed night uniqueness if file contains none
+      if (!imported.some(e => e.category === 'fixedNight') && state.employees.some(e => e.category === 'fixedNight')) {
+        const fixed = state.employees.find(e => e.category === 'fixedNight');
+        imported.unshift({ ...fixed, id: uid() });
+      }
+      state.employees = imported;
+      // remove leaves for employees that no longer exist
+      const ids = new Set(state.employees.map(e => e.id));
+      state.leaves = state.leaves.filter(l => ids.has(l.employeeId));
+      invalidateSchedule(); saveState(); renderAll(); clearEmployeeForm();
+      showNotice('تم استيراد ملف الموظفين وتحديث الجدول', 'success');
+    }
+
+    function importEmployeesFile(file){
+      const ext = file.name.split('.').pop().toLowerCase();
+      const reader = new FileReader();
+      reader.onload = function(){
+        try {
+          if (ext === 'json') {
+            const parsed = JSON.parse(reader.result);
+            const rows = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.employees) ? parsed.employees : []);
+            importEmployeesFromRows(rows);
+            return;
+          }
+          if (typeof XLSX === 'undefined') {
+            showNotice('مكتبة Excel غير متاحة لقراءة الملف. تأكد من الإنترنت.', 'error');
+            return;
+          }
+          const data = new Uint8Array(reader.result);
+          const wb = XLSX.read(data, { type:'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+          importEmployeesFromRows(rows);
+        } catch (err) {
+          console.error(err);
+          showNotice('تعذر قراءة ملف الموظفين', 'error');
+        }
+      };
+      if (ext === 'json') reader.readAsText(file, 'utf-8');
+      else reader.readAsArrayBuffer(file);
+    }
+
+document.getElementById('backupBtn').addEventListener('click', function(){
       const blob = new Blob([JSON.stringify({ region:state.region, year:state.year, selectedWeekIndex:state.selectedWeekIndex, employees:state.employees, leaves:state.leaves, archive:state.archive, users:state.users }, null, 2)], { type:'application/json;charset=utf-8' });
       const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `annual_schedule_backup_${state.year}.json`; a.click(); URL.revokeObjectURL(url);
       showNotice('تم تصدير النسخة الاحتياطية', 'success');
@@ -944,7 +1040,23 @@ END:VCALENDAR`;
       showNotice('تمت إعادة ضبط البيانات', 'success');
     });
 
-    // bootstrap
+    
+    document.getElementById('btnExportEmployeesJson').addEventListener('click', exportEmployeesJson);
+    document.getElementById('btnExportEmployeesExcel').addEventListener('click', exportEmployeesExcel);
+    document.getElementById('btnImportEmployees').addEventListener('click', () => { if (ensureAdmin()) document.getElementById('importEmployeesFile').click(); });
+    document.getElementById('importEmployeesFile').addEventListener('change', function(e){ const file = e.target.files[0]; if (file) importEmployeesFile(file); e.target.value=''; });
+
+    function exportEmployeesExcel(){
+      if (!ensureAdmin()) return;
+      if (typeof XLSX === 'undefined') { showNotice('مكتبة Excel غير متاحة. تأكد من الإنترنت.', 'error'); return; }
+      const rows = state.employees.map(emp => ({ الاسم: emp.name, الرقم_الوظيفي: emp.employeeNo || '', المسمى_الوظيفي: emp.title || '', النوع: categoryLabel(emp.category), المنطقة: emp.region, البريد: emp.email || '', الجوال: emp.phone || '', خصائص_إضافية: emp.extraProps || '', أقصى_شفتات_أسبوعية: emp.maxShifts || 5, نمط_الأوف: emp.offPattern || 'auto' }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Employees');
+      XLSX.writeFile(wb, `employees_${state.year}.xlsx`);
+      showNotice('تم تصدير الموظفين Excel', 'success');
+    }
+
+// bootstrap
     populateYearSelect();
     document.getElementById('regionSelect').value = state.region;
     clearEmployeeForm();
