@@ -3,153 +3,346 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weekly Schedule / جدول الدوام الأسبوعي</title>
-  <meta name="description" content="Single-file weekly schedule app with Firebase Auth/Firestore, localStorage, Excel, Outlook ICS, and bilingual UI." />
+  <title>جدول الدوام الأسبوعي</title>
 
-  <!-- Firebase compat CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/firebase@12.11.0/firebase-app-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/firebase@12.11.0/firebasenet/npm/firebase@12.11.0/firebase-firestore-compat.js"></script>
+  <!-- SheetJS for Excel -->
+  <script src="https://cdn.sheetjs.com/"></script>
 
-  <!-- SheetJS -->
-  <script src="https://cdn.sheetjs.com/xlsx-0.200f172a;--bg2:#1d4ed8;--surface:#ffffff;--surface2:#f8fafc;--border:#d7deea;
-      --text:#102036;--muted:#6b7280;--primary:#1d4ed8;--primary-hover:#1e40af;--success:#16a34a;
-      --danger:#dc2626;--warning:#d97706;--info:#0369a1;--shadow:0 16px 40px rgba(15,23,42,.12);
-      --rad-xl:24px;--rad-lg:16px;--rad-md:12px;--font:"Segoe UI",Tahoma,sans-serif;
+  <style>
+    :root{
+      --bg1:#0f172a;
+      --bg2:#1d4ed8;
+      --surface:#ffffff;
+      --surface2:#f8fafc;
+      --border:#d7deea;
+      --text:#102036;
+      --muted:#6b7280;
+      --primary:#1d4ed8;
+      --primary-hover:#1e40af;
+      --success:#16a34a;
+      --danger:#dc2626;
+      --warning:#d97706;
+      --shadow:0 16px 40px rgba(15,23,42,.14);
     }
+
     *{box-sizing:border-box}
-    html{scroll-behavior:smooth}
     body{
-      margin:0;min-height:100vh;font-family:var(--font);color:var(--text);
+      margin:0;
+      font-family:"Segoe UI",Tahoma,sans-serif;
       background:
-        radial-gradient(circle at top left, rgba(255,255,255,.10), transparent 25%),
+        radial-gradient(circle at top left, rgba(255,255,255,.12), transparent 25%),
         linear-gradient(135deg, rgba(15,23,42,.97), rgba(29,78,216,.93));
+      color:var(--text);
+      min-height:100vh;
     }
-    .container{max-width:1500px;margin:0 auto;padding:20px}
-    .card{background:rgba(255,255,255,.98);border-radius:var(--rad-xl);box-shadow:var(--shadow);overflow:hidden}
-    .hero{background:linear-gradient(135deg,var(--bg1),var(--bg2));color:#fff;padding:24px 28px}
-    .hero h1{margin:0 0 6px;font-size:2rem}
-    .hero p{margin:0;opacity:.92}
-    .login-card{max-width:820px;margin:56px auto}
+
+    .container{
+      max-width:1400px;
+      margin:0 auto;
+      padding:20px;
+    }
+
+    .card{
+      background:rgba(255,255,255,.98);
+      border-radius:24px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .hero{
+      background:linear-gradient(135deg,var(--bg1),var(--bg2));
+      color:#fff;
+      padding:24px 28px;
+    }
+
+    .hero h1{
+      margin:0 0 6px;
+      font-size:2rem;
+    }
+
+    .hero p{
+      margin:0;
+      opacity:.92;
+    }
+
+    .login-card{
+      max-width:760px;
+      margin:60px auto;
+    }
+
     .content{padding:18px}
-    .grid{display:grid;gap:14px}
+
+    .grid{
+      display:grid;
+      gap:14px;
+    }
+
     .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
     .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
-    .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
-    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
-    .field{display:flex;flex-direction:column;gap:8px}
-    label{font-weight:700;font-size:.95rem}
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    label{
+      font-weight:700;
+      font-size:.95rem;
+    }
+
     input,select,textarea{
-      width:100%;border:1px solid var(--border);background:#fff;border-radius:var(--rad-md);
-      padding:12px 14px;font:inherit;color:var(--text)
+      width:100%;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:#fff;
+      padding:12px 14px;
+      font:inherit;
+      color:var(--text);
     }
+
     input:focus,select:focus,textarea:focus{
-      outline:none;border-color:rgba(29,78,216,.45);box-shadow:0 0 0 4px rgba(29,78,216,.12)
+      outline:none;
+      border-color:rgba(29,78,216,.45);
+      box-shadow:0 0 0 4px rgba(29,78,216,.12);
     }
-    .toolbar,.actions,.tabs,.legend,.inline{
-      display:flex;gap:10px;flex-wrap:wrap;align-items:center
+
+    .toolbar,.actions,.tabs,.legend{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
     }
-    .toolbar{justify-content:space-between;padding:18px 20px 0}
+
+    .toolbar{
+      justify-content:space-between;
+      padding:18px 20px 0;
+    }
+
     .btn{
-      border:none;border-radius:12px;padding:11px 16px;font:inherit;font-weight:700;cursor:pointer;
-      transition:.15s transform ease,.2s background ease
+      border:none;
+      border-radius:12px;
+      padding:11px 16px;
+      font:inherit;
+      font-weight:700;
+      cursor:pointer;
+      transition:.15s transform ease,.2s background ease;
     }
+
     .btn:hover{transform:translateY(-1px)}
     .btn:active{transform:translateY(0)}
+
     .btn-primary{background:var(--primary);color:#fff}
     .btn-primary:hover{background:var(--primary-hover)}
     .btn-secondary{background:#eef2ff;color:#1e3a8a}
     .btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}
     .btn-danger{background:#fee2e2;color:var(--danger)}
     .btn-success{background:#dcfce7;color:var(--success)}
-    .btn-warning{background:#fef3c7;color:var(--warning)}
-    .btn-sm{padding:8px 12px;font-size:.88rem}
 
-    .status-grid{padding:16px 20px 0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+    .status-grid{
+      padding:16px 20px 0;
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+    }
+
     .stat{
-      background:var(--surface2);border:1px solid var(--border);border-radius:var(--rad-lg);
-      padding:14px;display:flex;flex-direction:column;gap:8px
+      background:var(--surface2);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
     }
-    .stat .label{color:var(--muted);font-size:.9rem}
+
+    .label{
+      color:var(--muted);
+      font-size:.9rem;
+    }
+
     .badge{
-      display:inline-flex;align-items:center;justify-content:center;border-radius:999px;
-      padding:6px 10px;font-size:.84rem;font-weight:700;gap:6px
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:999px;
+      padding:6px 10px;
+      font-size:.84rem;
+      font-weight:700;
+      gap:6px;
     }
+
     .badge-success{background:#dcfce7;color:var(--success)}
-    .badge-danger{background:#fee2e2;color:var(--danger)}
-    .badge-info{background:#e0f2fe;color:var(--info)}
-    .badge-primary{background:#dbeafe;color:var(--primary)}
-    .badge-warning{background:#fef3c7;color:var(--warning)}
+    .badge-info{background:#e0f2fe;color:#0369a1}
+    .badge-danger{background:#fee2e2;color:#dc2626}
 
     .tabs-wrap{padding:16px 20px 0}
-    .tab{
-      border:1px solid var(--border);background:#fff;color:var(--text);padding:10px 16px;border-radius:999px;
-      cursor:pointer;font-weight:700
-    }
-    .tab.active,.tab:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
 
-    .panel{padding:20px}
-    .panel.hidden{display:none!important}
+    .tab{
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      padding:10px 16px;
+      border-radius:999px;
+      cursor:pointer;
+      font-weight:700;
+    }
+
+    .tab.active,.tab:hover{
+      background:var(--primary);
+      color:#fff;
+      border-color:var(--primary);
+    }
+
+    .panel{
+      padding:20px;
+    }
+
+    .hidden{
+      display:none !important;
+    }
+
     .section{
-      background:#fff;border:1px solid var(--border);border-radius:var(--rad-lg);padding:18px
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:18px;
     }
-    .section+.section{margin-top:16px}
+
+    .section + .section{
+      margin-top:16px;
+    }
+
     .section-head{
-      display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:14px;
     }
-    .section-head h3{margin:0}
+
+    .section-head h3{
+      margin:0;
+    }
+
     .legend-item{
-      display:inline-flex;align-items:center;justify-content:center;border-radius:999px;
-      padding:6px 12px;font-size:.84rem;font-weight:700
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:999px;
+      padding:6px 12px;
+      font-size:.84rem;
+      font-weight:700;
     }
+
     .shift-morning{background:#dbeafe;color:#1d4ed8}
     .shift-night{background:#ede9fe;color:#6d28d9}
     .shift-afternoon{background:#fef3c7;color:#b45309}
     .shift-leave{background:#fee2e2;color:#b91c1c}
-    .shift-cover{background:#dcfce7;color:#15803d}
-    .shift-oncall{background:#e0f2fe;color:#0369a1}
     .shift-off{background:#e5e7eb;color:#374151}
 
     .table-wrap{
-      width:100%;overflow:auto;border:1px solid var(--border);border-radius:16px;background:#fff
+      width:100%;
+      overflow:auto;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background:#fff;
     }
-    table{width:100%;border-collapse:collapse;min-width:1100px}
-    th,td{padding:12px;text-align:center;border-bottom:1px solid var(--border);white-space:nowrap}
-    thead th{position:sticky;top:0;background:#f8fafc;z-index:1}
-    tbody tr:hover{background:#f8fbff}
-    .mini-card{border:1px solid var(--border);background:var(--surface2);border-radius:16px;padding:14px}
-    .mini-card h4{margin:0 0 8px}
-    .mini-card p{margin:6px 0;color:var(--muted)}
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      min-width:1000px;
+    }
+
+    th,td{
+      padding:12px;
+      text-align:center;
+      border-bottom:1px solid var(--border);
+      white-space:nowrap;
+    }
+
+    thead th{
+      position:sticky;
+      top:0;
+      background:#f8fafc;
+      z-index:1;
+    }
+
+    .cards{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+      gap:12px;
+    }
+
+    .mini-card{
+      border:1px solid var(--border);
+      background:var(--surface2);
+      border-radius:16px;
+      padding:14px;
+    }
+
+    .mini-card h4{
+      margin:0 0 8px;
+    }
+
+    .mini-card p{
+      margin:6px 0;
+      color:var(--muted);
+    }
+
     .notice{
-      border-radius:14px;padding:12px 14px;font-weight:700;display:none;margin-bottom:12px
+      border-radius:14px;
+      padding:12px 14px;
+      font-weight:700;
+      display:none;
+      margin-bottom:12px;
     }
+
     .notice.show{display:block}
     .notice.success{background:#dcfce7;color:var(--success)}
     .notice.error{background:#fee2e2;color:var(--danger)}
-    .notice.info{background:#e0f2fe;color:var(--info)}
-    .mono{font-family:Consolas,Monaco,monospace;direction:ltr;text-align:left}
-    .helper,.muted{color:var(--muted);font-size:.92rem}
-    .checkbox{display:flex;gap:10px;align-items:center}
-    .checkbox input{width:auto}
-    .hidden{display:none!important}
-    .footer-note{padding:0 20px 20px;color:rgba(255,255,255,.92);font-size:.92rem;text-align:center}
+    .notice.info{background:#e0f2fe;color:#0369a1}
+
+    .helper,.muted{
+      color:var(--muted);
+      font-size:.92rem;
+    }
+
+    .footer-note{
+      padding:0 20px 20px;
+      color:rgba(255,255,255,.92);
+      text-align:center;
+      font-size:.92rem;
+    }
 
     @media print{
-      body{background:#fff!important}
-      .tabs-wrap,.toolbar .actions,#loginScreen,.footer-note,.print-hide,.notice{display:none!important}
-      #app{display:block!important}
-      .card,.section{box-shadow:none!important;border:none!important}
-      .panel{padding:0!important}
-      #scheduleTab{display:block!important}
-      .table-wrap{border:1px solid #ddd}
+      body{background:#fff !important}
+      .tabs-wrap,.toolbar .actions,#loginScreen,.footer-note,.print-hide,.notice{
+        display:none !important;
+      }
+      #app{display:block !important}
+      .card,.section{
+        box-shadow:none !important;
+        border:none !important;
+      }
+      .panel{padding:0 !important}
+      #scheduleTab{display:block !important}
     }
+
     @media (max-width:1100px){
       .g3{grid-template-columns:repeat(2,minmax(0,1fr))}
       .status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
     }
+
     @media (max-width:780px){
       .container{padding:12px}
-      .g2,.g3,.g4,.status-grid{grid-template-columns:1fr}
-      .toolbar,.actions,.tabs,.legend,.inline{flex-direction:column;align-items:stretch}
+      .g2,.g3,.status-grid{grid-template-columns:1fr}
+      .toolbar,.actions,.tabs,.legend{
+        flex-direction:column;
+        align-items:stretch;
+      }
       .btn,.tab{width:100%}
     }
   </style>
@@ -159,26 +352,25 @@
     <!-- Login -->
     <section id="loginScreen" class="card login-card">
       <div class="hero">
-        <h1 data-i18n="appTitle">جدول الدوام الأسبوعي</h1>
-        <p data-i18n="appSubtitle">المجدوعي السيارات — نسخة HTML واحدة متقدمة</p>
+        <h1 id="loginTitle">جدول الدوام الأسبوعي</h1>
+        <p id="loginSubtitle">نسخة ثابتة تعمل بدون أخطاء</p>
       </div>
       <div class="content">
         <div id="loginNotice" class="notice"></div>
         <form id="loginForm" class="grid g2">
           <div class="field">
-            <label for="username" data-i18n="loginUser">اسم المستخدم / البريد</label>
-            <input id="username" type="text" data-i18n-placeholder="loginUserPlaceholder" placeholder="أدخل اسم المستخدم أو البريد" required />
+            <label for="username" id="lblUsername">اسم المستخدم</label>
+            <input id="username" type="text" placeholder="أدخل اسم المستخدم" required />
           </div>
           <div class="field">
-            <label for="password" data-i18n="loginPassword">كلمة المرور</label>
-            <input id="password" type="password" data-i18n-placeholder="loginPasswordPlaceholder" placeholder="أدخل كلمة المرور" required />
+            <label for="password" id="lblPassword">كلمة المرور</label>
+            <input id="password" type="password" placeholder="أدخل كلمة المرور" required />
           </div>
           <div class="field" style="grid-column:1/-1">
             <div class="actions">
-              <button class="btn btn-primary" type="submit" data-i18n="loginBtn">دخول</button>
-              <button id="registerBtn" class="btn btn-success" type="button" data-i18n="registerBtn">إنشاء حساب Firebase</button>
+              <button class="btn btn-primary" type="submit" id="btnLogin">دخول</button>
             </div>
-            <p class="helper" data-i18n="loginHelp">محليًا: admin / 1234 أو viewer / 1234 — وعند تفعيل Firebase Auth استخدم البريد وكلمة المرور.</p>
+            <p class="helper" id="loginHelp">محليًا: admin / 1234 أو viewer / 1234</p>
           </div>
         </form>
       </div>
@@ -189,25 +381,24 @@
       <div class="hero">
         <div class="toolbar" style="padding:0">
           <div>
-            <h1 data-i18n="appTitle">جدول الدوام الأسبوعي</h1>
-            <p data-i18n="mainSubtitle">إدارة الجداول، الموظفين، الإجازات، الأرشيف، الإعدادات، والمزامنة</p>
+            <h1 id="appTitle">جدول الدوام الأسبوعي</h1>
+            <p id="appSubtitle">إدارة الجداول والموظفين والإجازات</p>
           </div>
           <div class="actions">
-            <button id="prevWeekBtn" class="btn btn-secondary" type="button" data-i18n="prevWeek">الأسبوع السابق</button>
-            <button id="todayBtn" class="btn btn-secondary" type="button" data-i18n="currentWeek">الأسبوع الحالي</button>
-            <button id="nextWeekBtn" class="btn btn-secondary" type="button" data-i18n="nextWeek">الأسبوع التالي</button>
-            <button id="printPdfBtn" class="btn btn-outline" type="button" data-i18n="printPdf">طباعة / PDF</button>
-            <button id="copyOutlookBtn" class="btn btn-outline" type="button" data-i18n="copyOutlook">نسخ Outlook</button>
-            <button id="exportExcelBtn" class="btn btn-outline" type="button" data-i18n="exportExcel">تصدير Excel</button>
-            <button id="exportIcsBtn" class="btn btn-outline" type="button" data-i18n="exportIcs">ملف Outlook Calendar</button>
-            <button id="logoutBtn" class="btn btn-danger" type="button" data-i18n="logout">تسجيل الخروج</button>
+            <button id="prevWeekBtn" class="btn btn-secondary" type="button">الأسبوع السابق</button>
+            <button id="todayBtn" class="btn btn-secondary" type="button">الأسبوع الحالي</button>
+            <button id="nextWeekBtn" class="btn btn-secondary" type="button">الأسبوع التالي</button>
+            <button id="printBtn" class="btn btn-outline" type="button">طباعة</button>
+            <button id="copyTableBtn" class="btn btn-outline" type="button">نسخ الجدول</button>
+            <button id="exportExcelBtn" class="btn btn-outline" type="button">تصدير Excel</button>
+            <button id="logoutBtn" class="btn btn-danger" type="button">تسجيل الخروج</button>
           </div>
         </div>
       </div>
 
       <div class="status-grid">
         <div class="stat">
-          <span class="label" data-i18n="region">المنطقة</span>
+          <span class="label" id="lblRegion">المنطقة</span>
           <select id="regionSelect">
             <option value="eastern">الشرقية</option>
             <option value="riyadh">الرياض</option>
@@ -215,16 +406,225 @@
           </select>
         </div>
         <div class="stat">
-          <span class="label" data-i18n="language">اللغة</span>
+          <span class="label" id="lblLanguage">اللغة</span>
           <select id="langSelect">
             <option value="ar">العربية</option>
             <option value="en">English</option>
           </select>
         </div>
         <div class="stat">
-          <span class="label" data-i18n="week">الأسبوع</span>
+          <span class="label" id="lblWeek">الأسبوع</span>
           <strong id="weekRange">--</strong>
         </div>
         <div class="stat">
-          <span class="label" data-i18n="syncStatus">حالة المزامنة</span>
+          <span class="label" id="lblSync">الحفظ</span>
           <span id="syncBadge" class="badge badge-info">محلي فقط</span>
+          <span id="autosaveBadge" class="helper">—</span>
+        </div>
+      </div>
+
+      <div class="tabs-wrap">
+        <div class="tabs">
+          <button class="tab active" data-tab="scheduleTab" type="button" id="tabSchedule">الجدول</button>
+          <button class="tab" data-tab="employeesTab" type="button" id="tabEmployees">الموظفون</button>
+          <button class="tab" data-tab="leavesTab" type="button" id="tabLeaves">الإجازات</button>
+          <button class="tab" data-tab="archiveTab" type="button" id="tabArchive">الأرشيف</button>
+          <button class="tab" data-tab="settingsTab" type="button" id="tabSettings">الإعدادات</button>
+          <button class="tab admin-only" data-tab="usersTab" type="button" id="tabUsers">المستخدمون</button>
+        </div>
+      </div>
+
+      <div class="content">
+        <div id="toast" class="notice"></div>
+
+        <!-- Schedule -->
+        <section id="scheduleTab" class="panel">
+          <div class="section">
+            <div class="section-head">
+              <h3 id="scheduleTitle">جدول الدوام الأسبوعي</h3>
+              <div class="legend">
+                <span class="legend-item shift-morning" id="legendMorning">صباحي</span>
+                <span class="legend-item shift-night" id="legendNight">ليلي</span>
+                <span class="legend-item shift-afternoon" id="legendAfternoon">مسائي</span>
+                <span class="legend-item shift-leave" id="legendLeave">إجازة</span>
+                <span class="legend-item shift-off" id="legendOff">أوف</span>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table id="scheduleTable">
+                <thead>
+                  <tr>
+                    <th id="thEmployee">الموظف</th>
+                    <th id="thCategory">الفئة</th>
+                    <th id="dayHeader0">الأحد</th>
+                    <th id="dayHeader1">الاثنين</th>
+                    <th id="dayHeader2">الثلاثاء</th>
+                    <th id="dayHeader3">الأربعاء</th>
+                    <th id="dayHeader4">الخميس</th>
+                    <th id="dayHeader5">الجمعة</th>
+                    <th id="dayHeader6">السبت</th>
+                  </tr>
+                </thead>
+                <tbody id="scheduleTableBody">
+                  <tr><td colspan="9">لا توجد بيانات حالياً</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Employees -->
+        <section id="employeesTab" class="panel hidden">
+          <div class="section">
+            <div class="section-head">
+              <h3 id="employeesTitle">إدارة الموظفين</h3>
+            </div>
+
+            <form id="employeeForm" class="grid g3">
+              <div class="field">
+                <label for="empName" id="lblEmpName">الاسم</label>
+                <input id="empName" type="text" required />
+              </div>
+              <div class="field">
+                <label for="empNo" id="lblEmpNo">الرقم الوظيفي</label>
+                <input id="empNo" type="text" />
+              </div>
+              <div class="field">
+                <label for="empTitle" id="lblEmpTitle">المسمى الوظيفي</label>
+                <input id="empTitle" type="text" />
+              </div>
+              <div class="field">
+                <label for="empDept" id="lblEmpDept">القسم</label>
+                <input id="empDept" type="text" />
+              </div>
+              <div class="field">
+                <label for="empEmail" id="lblEmpEmail">البريد الإلكتروني</label>
+                <input id="empEmail" type="email" />
+              </div>
+              <div class="field">
+                <label for="empPhone" id="lblEmpPhone">الجوال</label>
+                <input id="empPhone" type="tel" />
+              </div>
+              <div class="field">
+                <label for="empCategory" id="lblEmpCategory">الفئة</label>
+                <select id="empCategory">
+                  <option value="emp">موظف</option>
+                  <option value="sup">مشرف</option>
+                  <option value="mgr">مدير</option>
+                  <option value="tra">متدرب</option>
+                  <option value="tam">تمهير</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="empRegion" id="lblEmpRegion">المنطقة</label>
+                <select id="empRegion">
+                  <option value="eastern">الشرقية</option>
+                  <option value="riyadh">الرياض</option>
+                  <option value="jeddah">جدة</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="empRotation" id="lblEmpRotation">نظام التناوب</label>
+                <select id="empRotation">
+                  <option value="rotating">متناوب</option>
+                  <option value="fixed-morning">صباحي ثابت</option>
+                  <option value="fixed-night">ليلي ثابت</option>
+                </select>
+              </div>
+
+              <div class="field" style="grid-column:1/-1">
+                <div class="actions">
+                  <button type="submit" class="btn btn-primary" id="btnSaveEmployee">حفظ الموظف</button>
+                  <button type="reset" class="btn btn-secondary" id="btnClearEmployee">تفريغ</button>
+                  <button type="button" class="btn btn-outline admin-only" id="btnExportEmployeesExcel">تصدير الموظفين Excel</button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div class="section">
+            <div class="section-head">
+              <h3 id="employeeListTitle">قائمة الموظفين</h3>
+            </div>
+            <div id="employeesList" class="cards"></div>
+          </div>
+        </section>
+
+        <!-- Leaves -->
+        <section id="leavesTab" class="panel hidden">
+          <div class="section">
+            <div class="section-head">
+              <h3 id="leavesTitle">الإجازات</h3>
+            </div>
+
+            <form id="leaveForm" class="grid g3">
+              <div class="field">
+                <label for="leaveEmployee" id="lblLeaveEmployee">الموظف</label>
+                <select id="leaveEmployee"></select>
+              </div>
+              <div class="field">
+                <label for="leaveType" id="lblLeaveType">نوع الإجازة</label>
+                <select id="leaveType">
+                  <option value="annual">سنوية</option>
+                  <option value="sick">مرضية</option>
+                  <option value="emergency">طارئة</option>
+                  <option value="other">أخرى</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="leaveStart" id="lblLeaveStart">من تاريخ</label>
+                <input id="leaveStart" type="date" required />
+              </div>
+              <div class="field">
+                <label for="leaveEnd" id="lblLeaveEnd">إلى تاريخ</label>
+                <input id="leaveEnd" type="date" required />
+              </div>
+              <div class="field">
+                <label for="leaveReason" id="lblLeaveReason">الملاحظات</label>
+                <input id="leaveReason" type="text" />
+              </div>
+
+              <div class="field" style="grid-column:1/-1">
+                <div class="actions">
+                  <button type="submit" class="btn btn-primary" id="btnSaveLeave">حفظ الإجازة</button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div class="section">
+            <div class="section-head">
+              <h3 id="leaveListTitle">قائمة الإجازات</h3>
+            </div>
+            <div id="leaveList" class="cards"></div>
+          </div>
+        </section>
+
+        <!-- Archive -->
+        <section id="archiveTab" class="panel hidden">
+          <div class="section">
+            <div class="section-head">
+              <h3 id="archiveTitle">الأرشيف</h3>
+            </div>
+            <div id="archiveList" class="cards"></div>
+          </div>
+        </section>
+
+        <!-- Settings -->
+        <section id="settingsTab" class="panel hidden">
+          <div class="section">
+            <div class="section-head">
+              <h3 id="settingsTitle">الإعدادات</h3>
+            </div>
+            <p class="muted">
+              يتم الحفظ تلقائيًا في المتصفح باستخدام localStorage.
+            </p>
+          </div>
+        </section>
+
+        <!-- Users -->
+        <section id="usersTab" class="panel hidden">
+          <div class="section">
+            <div class="section-head">
+              <h3 id="usersTitle">إدارة المستخدمين</h3>
+            </div>
