@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - On Call System v7.3</title>
+    <title>Almajdouie Motors - Advanced Rotation v7.4</title>
     <style>
         :root {
             --primary-blue: #0d2149;
@@ -28,17 +28,13 @@
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th, td { padding: 10px 8px; text-align: center; border: 1px solid #f0f0f0; }
         th { background: #fbfbfb; color: var(--primary-blue); }
-        
-        /* Badges */
-        .badge { border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; min-width: 95px; justify-content: center; }
+        .badge { border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; min-width: 100px; justify-content: center; }
         .OnCall, .أون_كول { background: var(--oncall-bg); color: var(--oncall-text); }
         .Night, .ليلي { background: var(--night-bg); color: var(--night-text); }
         .Off, .أوف { background: var(--off-bg); color: var(--off-text); }
         .Holiday, .إجازة { background: var(--h-bg); color: var(--h-text); }
-
-        .btn-action { border: none; border-radius: 6px; padding: 6px 12px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; }
-        .form-box { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: flex-end; }
-        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        .btn-action { border: none; border-radius: 6px; padding: 6px 12px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; min-width: 95px; }
+        select.small-sel { padding: 5px; border-radius: 4px; border: 1px solid #ddd; font-size: 11px; }
     </style>
 </head>
 <body>
@@ -57,11 +53,11 @@
         <div style="display: flex; align-items: center; gap: 15px;">
             <img src="LOGO-almajdouie.png" class="logo-img">
             <div>
-                <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors Company</div>
-                <div style="font-size: 10px; color: #555;">On-Call Management System</div>
+                <div id="compN" style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors Company</div>
+                <div id="subN" style="font-size: 10px; color: #555;">Scheduling System v7.4</div>
             </div>
         </div>
-        <div id="mainTitle" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
+        <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
     </div>
 
     <div class="tabs">
@@ -79,20 +75,21 @@
     </div>
 
     <div id="admin" class="tab-content">
-        <div class="form-box">
-            <input type="text" id="inpName" placeholder="Name">
-            <input type="text" id="inpJob" placeholder="Job Title">
-            <button class="btn-tool" style="background:var(--primary-blue); color:white" onclick="window.handleEmployeeSubmit()">Save</button>
-        </div>
-        <table><thead><tr><th>Employee</th><th>Actions</th></tr></thead><tbody id="adminList"></tbody></table>
+        <table>
+            <thead><tr><th>Employee Name</th><th>Shift Type</th><th>Rotation Logic</th><th>Status</th></tr></thead>
+            <tbody id="adminList"></tbody>
+        </table>
     </div>
 
     <div id="holidays" class="tab-content">
-        <div class="form-box" style="background:#fff9c4">
-            <select id="hEmpSelect"></select><input type="date" id="hStart"><input type="date" id="hEnd"><input type="text" id="hName" placeholder="Holiday Name">
-            <button class="btn-tool" style="background:#fbc02d" onclick="window.addHolidayDuty()">Add Assignment</button>
+        <div style="background:#fff9c4; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+            <select id="hEmpSelect"></select>
+            <input type="date" id="hStart">
+            <input type="date" id="hEnd">
+            <input type="text" id="hName" placeholder="Holiday Name">
+            <button class="btn-tool" style="background:#fbc02d" onclick="window.addHolidayDuty()">Add Holiday Assignment</button>
         </div>
-        <table><thead><tr><th>Holiday</th><th>Staff Working</th><th>Period</th><th>Action</th></tr></thead><tbody id="holidayBody"></tbody></table>
+        <table><thead><tr><th>Holiday</th><th>Staff</th><th>From - To</th><th>Action</th></tr></thead><tbody id="holidayBody"></tbody></table>
     </div>
 </div>
 
@@ -135,28 +132,24 @@
 
     window.renderAll = () => {
         const start = new Date(document.getElementById('datePicker').value);
-        const t = { 
-            onCall: currentLang === 'ar' ? 'أون كول' : 'On Call', 
-            night: currentLang === 'ar' ? 'ليلي' : 'Night', 
-            off: currentLang === 'ar' ? 'أوف' : 'Off', 
-            h: currentLang === 'ar' ? 'إجازة' : 'Holiday' 
-        };
+        const t = { onCall: currentLang === 'ar' ? 'أون كول' : 'On Call', night: currentLang === 'ar' ? 'ليلي' : 'Night', off: currentLang === 'ar' ? 'أوف' : 'Off', h: currentLang === 'ar' ? 'إجازة' : 'Holiday' };
         
         const firstDayOfYear = new Date(start.getFullYear(), 0, 1);
         const pastDays = (start - firstDayOfYear) / 86400000;
         const weekNum = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
-        const rotatingStaff = employees.filter(e => e.rotates && e.active);
 
-        // --- Smart Rotation ---
-        let rotationIndex = weekNum % (rotatingStaff.length || 1);
-        let saturdayPersonId = rotatingStaff.length > 0 ? rotatingStaff[rotationIndex].id : null;
-        if (saturdayPersonId) {
-            const weekEnd = new Date(start); weekEnd.setDate(start.getDate() + 6);
-            const hasHoliday = holidayDuties.some(d => d.empId === saturdayPersonId && ((new Date(d.start) >= start && new Date(d.start) <= weekEnd)));
-            if (hasHoliday) {
-                rotationIndex = (rotationIndex + 1) % rotatingStaff.length;
-                saturdayPersonId = rotatingStaff[rotationIndex].id;
-            }
+        // Filter groups
+        const thuPool = employees.filter(e => e.rotType === 'thu' && e.active);
+        const friPool = employees.filter(e => e.rotType === 'fri' && e.active);
+
+        // Pick rotators for this week
+        let currentThuMan = thuPool.length > 0 ? thuPool[weekNum % thuPool.length].id : null;
+        let currentFriMan = friPool.length > 0 ? friPool[weekNum % friPool.length].id : null;
+
+        // Skip logic: if Thu man works a holiday this week, move to next
+        if (currentThuMan) {
+            const hasH = holidayDuties.some(d => d.empId === currentThuMan && (new Date(d.start) >= start && new Date(d.start) <= new Date(start.getTime() + 6*86400000)));
+            if (hasH) currentThuMan = thuPool[(weekNum + 1) % thuPool.length].id;
         }
 
         // Header
@@ -168,11 +161,9 @@
         }
         document.getElementById('headerDates').innerHTML = h;
 
-        // Schedule Body
+        // Rows
         document.getElementById('scheduleBody').innerHTML = employees.filter(e => e.active).map(emp => {
             let row = `<tr><td style="text-align:left"><b>${emp.name}</b></td>`;
-            let isSatMan = (emp.id === saturdayPersonId);
-
             for(let d=0; d<7; d++) {
                 let cellDate = new Date(start); cellDate.setDate(start.getDate() + d); cellDate.setHours(0,0,0,0);
                 const activeH = holidayDuties.find(duty => {
@@ -185,34 +176,55 @@
                 if (activeH) {
                     shift = (activeH.empId === emp.id) ? (emp.fixed ? t.night : t.onCall) : t.h;
                 } else {
-                    if (d === 5) shift = t.off;
-                    else if (d === 6) shift = isSatMan ? (emp.fixed ? t.night : t.onCall) : t.off;
-                    else if (d === 4) shift = isSatMan ? t.off : (emp.fixed ? t.night : t.onCall);
-                    else shift = emp.fixed ? t.night : t.onCall;
+                    // Logic for Thursday Rotator
+                    if (emp.id === currentThuMan) {
+                        if (d === 4 || d === 5) shift = t.off; // Off Thu/Fri
+                        else shift = emp.fixed ? t.night : t.onCall; // Work Sat
+                    } 
+                    // Logic for Friday Rotator or Fixed
+                    else {
+                        if (d === 5 || d === 6) shift = t.off; // Off Fri/Sat
+                        else shift = emp.fixed ? t.night : t.onCall;
+                    }
                 }
 
-                let icon = (shift === t.onCall) ? '📞' : (shift === t.night ? '🌙' : '');
-                let badgeClass = shift === t.h ? 'Holiday' : (shift === t.off ? 'Off' : (shift === t.night ? 'Night' : 'OnCall'));
-                row += `<td><span class="badge ${badgeClass}">${icon} ${shift}</span></td>`;
+                let icon = shift === t.onCall ? '📞' : (shift === t.night ? '🌙' : '');
+                let badgeC = shift === t.h ? 'Holiday' : (shift === t.off ? 'Off' : (shift === t.night ? 'Night' : 'OnCall'));
+                row += `<td><span class="badge ${badgeC}">${icon} ${shift}</span></td>`;
             }
             return row + "</tr>";
         }).join('');
 
-        updateUILists();
+        updateAdminAndHolidayLists();
     };
 
-    function updateUILists() {
-        document.getElementById('adminList').innerHTML = employees.map((e, i) => `<tr><td style="text-align:left"><b>${e.name}</b></td>
-            <td style="display:flex; gap:5px; justify-content:center">
-                <button class="btn-action" style="background:#512da8" onclick="window.toggleProp(${i}, 'fixed')">${e.fixed?'Set On-Call':'Set Night'}</button>
-                <button class="btn-action" style="background:#e65100" onclick="window.toggleProp(${i}, 'active')">Stop</button>
-            </td></tr>`).join('');
+    function updateAdminAndHolidayLists() {
+        document.getElementById('adminList').innerHTML = employees.map((e, i) => `
+            <tr>
+                <td style="text-align:left"><b>${e.name}</b></td>
+                <td><button class="btn-action" style="background:#512da8" onclick="window.toggleProp(${i}, 'fixed')">${e.fixed?'Set On-Call':'Set Night'}</button></td>
+                <td>
+                    <select class="small-sel" onchange="window.updateRotation(${i}, this.value)">
+                        <option value="none" ${e.rotType==='none'?'selected':''}>Fixed (Fri/Sat Off)</option>
+                        <option value="thu" ${e.rotType==='thu'?'selected':''}>Thursday Rotation</option>
+                        <option value="fri" ${e.rotType==='fri'?'selected':''}>Friday Rotation</option>
+                    </select>
+                </td>
+                <td><button class="btn-action" style="background:#e65100" onclick="window.toggleProp(${i}, 'active')">${e.active?'Stop':'Enable'}</button></td>
+            </tr>`).join('');
         document.getElementById('hEmpSelect').innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-        document.getElementById('holidayBody').innerHTML = holidayDuties.map((d, i) => `<tr><td>${d.name}</td><td>${d.start}</td><td><button class="btn-tool" onclick="window.delDuty(${i})">X</button></td></tr>`).join('');
+        document.getElementById('holidayBody').innerHTML = holidayDuties.map((d, i) => `<tr><td>${d.name}</td><td>${employees.find(e=>e.id===d.empId)?.name}</td><td>${d.start}</td><td><button class="btn-tool" onclick="window.delDuty(${i})">X</button></td></tr>`).join('');
     }
 
     async function sync(arr) { await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": arr }); }
     window.toggleProp = async (i, p) => { let a = [...employees]; a[i][p] = !a[i][p]; await sync(a); };
+    window.updateRotation = async (i, val) => { let a = [...employees]; a[i].rotType = val; await sync(a); };
+    window.addHolidayDuty = async () => {
+        const d = { empId: document.getElementById('hEmpSelect').value, start: document.getElementById('hStart').value, end: document.getElementById('hEnd').value, name: document.getElementById('hName').value };
+        if(!d.start || !d.end || !d.name) return;
+        await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: [...holidayDuties, d] });
+    };
+    window.delDuty = async (i) => { let a = [...holidayDuties]; a.splice(i, 1); await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: a }); };
     window.setCurrentWeek = () => { let t = new Date(); let s = new Date(t.setDate(t.getDate() - t.getDay())); document.getElementById('datePicker').valueAsDate = s; window.renderAll(); };
     window.changeWeek = (v) => { let d = new Date(document.getElementById('datePicker').value); d.setDate(d.getDate() + v); document.getElementById('datePicker').valueAsDate = d; window.renderAll(); };
 
