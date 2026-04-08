@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>المرحلة الثانية - جدول الدوام الأسبوعي</title>
+
+  <!-- SheetJS Excel -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root{
+      --bg1:#0f172a;
+      --bg2:#1d4ed8;
+      --surface:#ffffff;
+      --surface2:#f8fafc;
+      --border:#d7deea;
+      --text:#102036;
+      --muted:#6b7280;
+      --primary:#1d4ed8;
+      --primary-hover:#1e40af;
+      --success:#16a34a;
+      --danger:#dc2626;
+      --warning:#d97706;
+      --shadow:0 16px 40px rgba(15,23,42,.12);
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:"Segoe UI",Tahoma,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,.12), transparent 25%),
+        linear-gradient(135deg, rgba(15,23,42,.97), rgba(29,78,216,.93));
+    }
+
+    .container{
+      max-width:1450px;
+      margin:0 auto;
+      padding:20px;
+    }
+
+    .card{
+      background:rgba(255,255,255,.98);
+      border-radius:24px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .hero{
+      background:linear-gradient(135deg,var(--bg1),var(--bg2));
+      color:#fff;
+      padding:24px 28px;
+    }
+
+    .hero h1{
+      margin:0 0 6px;
+      font-size:2rem;
+    }
+
+    .hero p{
+      margin:0;
+      opacity:.92;
+    }
+
+    .login-card{
+      max-width:760px;
+      margin:60px auto;
+    }
+
+    .content{
+      padding:20px;
+    }
+
+    .grid{
+      display:grid;
+      gap:14px;
+    }
+
+    .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    label{
+      font-weight:700;
+      font-size:.95rem;
+    }
+
+    input,select,textarea{
+      width:100%;
+      padding:12px 14px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      font:inherit;
+      background:#fff;
+      color:var(--text);
+    }
+
+    input:focus,select:focus,textarea:focus{
+      outline:none;
+      border-color:rgba(29,78,216,.45);
+      box-shadow:0 0 0 4px rgba(29,78,216,.12);
+    }
+
+    .btn{
+      border:none;
+      border-radius:12px;
+      padding:12px 16px;
+      font:inherit;
+      font-weight:700;
+      cursor:pointer;
+      transition:.15s transform ease,.2s background ease;
+    }
+
+    .btn:hover{transform:translateY(-1px)}
+    .btn:active{transform:translateY(0)}
+
+    .btn-primary{background:var(--primary);color:#fff}
+    .btn-primary:hover{background:var(--primary-hover)}
+    .btn-secondary{background:#eef2ff;color:#1e3a8a}
+    .btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}
+    .btn-danger{background:#fee2e2;color:var(--danger)}
+    .btn-success{background:#dcfce7;color:var(--success)}
+    .btn-warning{background:#fef3c7;color:var(--warning)}
+    .btn-sm{padding:8px 12px;font-size:.88rem}
+
+    .toolbar,.actions,.tabs,.legend{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    .toolbar{
+      justify-content:space-between;
+      padding:18px 20px 0;
+    }
+
+    .status-grid{
+      padding:16px 20px 0;
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+    }
+
+    .stat{
+      background:var(--surface2);
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .label{
+      color:var(--muted);
+      font-size:.9rem;
+    }
+
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:999px;
+      padding:6px 12px;
+      font-size:.85rem;
+      font-weight:700;
+    }
+
+    .badge-info{background:#e0f2fe;color:#0369a1}
+    .badge-success{background:#dcfce7;color:#166534}
+    .badge-danger{background:#fee2e2;color:#991b1b}
+
+    .tabs-wrap{
+      padding:16px 20px 0;
+    }
+
+    .tab{
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      padding:10px 16px;
+      border-radius:999px;
+      cursor:pointer;
+      font-weight:700;
+    }
+
+    .tab.active,.tab:hover{
+      background:var(--primary);
+      color:#fff;
+      border-color:var(--primary);
+    }
+
+    .panel{
+      padding:20px;
+    }
+
+    .panel.hidden{
+      display:none !important;
+    }
+
+    .section{
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:18px;
+    }
+
+    .section + .section{
+      margin-top:16px;
+    }
+
+    .section-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:14px;
+    }
+
+    .section-head h3{
+      margin:0;
+    }
+
+    .legend-item{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:999px;
+      padding:6px 12px;
+      font-size:.84rem;
+      font-weight:700;
+    }
+
+    .shift-morning{background:#dbeafe;color:#1d4ed8}
+    .shift-night{background:#ede9fe;color:#6d28d9}
+    .shift-afternoon{background:#fef3c7;color:#b45309}
+    .shift-leave{background:#fee2e2;color:#b91c1c}
+    .shift-off{background:#e5e7eb;color:#374151}
+
+    .table-wrap{
+      width:100%;
+      overflow:auto;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background:#fff;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      min-width:1050px;
+    }
+
+    th,td{
+      padding:12px;
+      text-align:center;
+      border-bottom:1px solid var(--border);
+      white-space:nowrap;
+    }
+
+    thead th{
+      position:sticky;
+      top:0;
+      background:#f8fafc;
+      z-index:1;
+    }
+
+    tbody tr:hover{
+      background:#f8fbff;
+    }
+
+    .cards{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+      gap:12px;
+    }
+
+    .mini-card{
+      border:1px solid var(--border);
+      background:var(--surface2);
+      border-radius:16px;
+      padding:14px;
+    }
+
+    .mini-card h4{
+      margin:0 0 8px;
+    }
+
+    .mini-card p{
+      margin:6px 0;
+      color:var(--muted);
+    }
+
+    .notice{
+      display:none;
+      margin-top:14px;
+      padding:12px 14px;
+      border-radius:12px;
+      font-weight:700;
+      text-align:center;
+    }
+
+    .notice.show{display:block}
+    .notice.success{background:#dcfce7;color:#166534}
+    .notice.error{background:#fee2e2;color:#991b1b}
+    .notice.info{background:#e0f2fe;color:#0369a1}
+
+    .helper{
+      color:var(--muted);
+      font-size:.9rem;
+      margin-top:10px;
+    }
+
+    .hidden{
+      display:none !important;
+    }
+
+    .footer-note{
+      padding:0 20px 20px;
+      color:rgba(255,255,255,.9);
+      text-align:center;
+      font-size:.92rem;
+    }
+
+    .admin-only.hidden-by-role{
+      display:none !important;
+    }
+
+    @media print{
+      body{background:#fff !important}
+      .tabs-wrap,.toolbar .actions,#loginScreen,.footer-note,.print-hide,.notice{
+        display:none !important;
+      }
+      #app{display:block !important}
+      .card,.section{
+        box-shadow:none !important;
+        border:none !important;
+      }
+      .panel{padding:0 !important}
+      #scheduleTab{display:block !important}
+    }
+
+    @media (max-width:1100px){
+      .status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+
+    @media (max-width:780px){
+      .container{padding:12px}
+      .g2,.g3,.g4,.status-grid{grid-template-columns:1fr}
+      .toolbar,.actions,.tabs,.legend{
+        flex-direction:column;
+        align-items:stretch;
+      }
+      .btn,.tab{width:100%}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- LOGIN -->
+    <section id="loginScreen" class="card login-card">
+      <div class="hero">
+        <h1 id="loginTitle">جدول الدوام الأسبوعي</h1>
+        <p id="loginSubtitle">المرحلة الثانية — إدارة الموظفين والصلاحيات وExcel</p>
+      </div>
+
+      <div class="content">
+        <form id="loginForm" class="grid g2">
+          <div class="field">
+            <label for="username" id="lblUsername">اسم المستخدم</label>
+            <input type="text" id="username" placeholder="اكتب admin أو viewer" required />
+          </div>
+
+          <div class="field">
+            <label for="password" id="lblPassword">كلمة المرور</label>
+            <input type="password" id="password" placeholder="اكتب 1234" required />
+          </div>
+
+          <div class="field" style="grid-column:1/-1">
+            <div class="actions">
+              <button class="btn btn-primary" type="submit" id="btnLogin">دخول</button>
+            </div>
+
+            <div class="helper" id="loginHelp">
+              بيانات التجربة: <strong>admin / 1234</strong> أو <strong>viewer / 1234</strong>
+            </div>
+
+            <div id="loginNotice" class="notice"></div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- APP -->
+    <main id="app" class="card hidden">
+      <div class="hero">
+        <div class="toolbar" style="padding:0">
+          <div>
+            <h1 id="appTitle">جدول الدوام الأسبوعي</h1>
+            <p id="appSubtitle">المرحلة الثانية — الجدول + الموظفون + الصلاحيات + Excel</p>
+          </div>
+
+          <div class="actions">
+            <button id="prevWeekBtn" class="btn btn-secondary" type="button">الأسبوع السابق</button>
+            <button id="todayBtn" class="btn btn-secondary" type="button">الأسبوع الحالي</button>
+            <button id="nextWeekBtn" class="btn btn-secondary" type="button">الأسبوع التالي</button>
+            <button id="copyTableBtn" class="btn btn-outline" type="button">نسخ الجدول</button>
+            <button id="printBtn" class="btn btn-outline" type="button">طباعة</button>
+            <button id="logoutBtn" class="btn btn-danger" type="button">تسجيل الخروج</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-grid">
+        <div class="stat">
+          <span class="label" id="lblRegion">المنطقة</span>
+          <select id="regionSelect">
+            <option value="eastern">الشرقية</option>
+            <option value="riyadh">الرياض</option>
+            <option value="jeddah">جدة</option>
+          </select>
+        </div>
+
+        <div class="stat">
+          <span class="label" id="lblLanguage">اللغة</span>
+          <select id="langSelect">
+            <option value="ar">العربية</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+
+        <div class="stat">
+          <span class="label" id="lblWeek">الأسبوع</span>
+          <strong id="weekRange">--</strong>
+        </div>
+
+        <div class="stat">
+          <span class="label" id="lblStorage">الحفظ المحلي</span>
+          <span id="saveBadge" class="badge badge-info">localStorage</span>
+          <span id="saveTime" class="helper">—</span>
+        </div>
+      </div>
+
+      <div class="tabs-wrap">
+        <div class="tabs">
+          <button class="tab active" data-tab="scheduleTab" id="tabSchedule">الجدول</button>
+          <button class="tab" data-tab="employeesTab" id="tabEmployees">الموظفون</button>
+          <button class="tab" data-tab="infoTab" id="tabInfo">معلومات</button>
+          <button class="tab" data-tab="settingsTab" id="tabSettings">الإعدادات</button>
+          <button class="tab admin-only" data-tab="usersTab" id="tabUsers">المستخدمون</button>
+        </div>
+      </div>
+
+      <div class="content">
+        <div id="toast" class="notice"></div>
+
+        <!-- SCHEDULE -->
+        <section id="scheduleTab" class="panel">
+          <div class="section">
+            <div class="section-head">
+              <h3 id="scheduleTitle">جدول الدوام الأسبوعي</h3>
+              <div class="legend">
+                <span class="legend-item shift-morning" id="legendMorning">صباحي</span>
+                <span class="legend-item shift-night" id="legendNight">ليلي</span>
+                <span class="legend-item shift-afternoon" id="legendAfternoon">مسائي</span>
+                <span class="legend-item shift-leave" id="legendLeave">إجازة</span>
+                <span class="legend-item shift-off" id="legendOff">أوف</span>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table id="scheduleTable">
+                <thead>
+                  <tr>
+                    <th id="thEmployee">الموظف</th>
+                    <th id="thCategory">الفئة</th>
+                    <th id="dayHeader0">الأحد</th>
+                    <th id="dayHeader1">الاثنين</th>
+                    <th id="dayHeader2">الثلاثاء</th>
+                    <th id="dayHeader3">الأربعاء</th>
+                    <th id="dayHeader4">الخميس</th>
+                    <th id="dayHeader5">الجمعة</th>
+                    <th id="dayHeader6">السبت</th>
+                  </tr>
+                </thead>
+                <tbody id="scheduleTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- EMPLOYEES -->
+        <section id="employeesTab" class="panel hidden">
+          <div class="section">
+            <div class="section-head">
+              <h3 id="employeesTitle">إدارة الموظفين</h3>
+            </div>
+
+            <form id="employeeForm" class="grid g4">
+              <div class="field">
+                <label for="empName" id="lblEmpName">الاسم</label>
+                <input id="empName" type="text" required />
+              </div>
+
+              <div class="field">
+                <label for="empNo" id="lblEmpNo">الرقم الوظيفي</label>
+                <input id="empNo" type="text" />
+              </div>
+
+              <div class="field">
+                <label for="empTitle" id="lblEmpTitle">المسمى الوظيفي</label>
+                <input id="empTitle" type="text" />
+              </div>
+
+              <div class="field">
+                <label for="empDept" id="lblEmpDept">القسم</label>
+                <input id="empDept" type="text" />
+              </div>
+
+              <div class="field">
+                <label for="empEmail" id="lblEmpEmail">البريد الإلكتروني</label>
+                <input id="empEmail" type="email" />
+              </div>
+
+              <div class="field">
+                <label for="empPhone" id="lblEmpPhone">الجوال</label>
+                <input id="empPhone" type="tel" />
+              </div>
+
+              <div class="field">
+                <label for="empCategory" id="lblEmpCategory">الفئة</label>
+                <select id="empCategory">
+                  <option value="emp">موظف</option>
+                  <option value="sup">مشرف</option>
+                  <option value="mgr">مدير</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="empRegion" id="lblEmpRegion">المنطقة</label>
+                <select id="empRegion">
+                  <option value="eastern">الشرقية</option>
+                  <option value="riyadh">الرياض</option>
+                  <option value="jeddah">جدة</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="empRotation" id="lblEmpRotation">نظام التناوب</label>
+                <select id="empRotation">
+                  <option value="rotating">متناوب</option>
+                  <option value="fixed-morning">صباحي ثابت</option>
+                  <option value="fixed-night">ليلي ثابت</option>
+                </select>
+              </div>
+
+              <div class="field" style="grid-column:1/-1">
+                <div class="actions">
+                  <button type="submit" class="btn btn-primary admin-only" id="btnSaveEmployee">حفظ الموظف</button>
+                  <button type="reset" class="btn btn-secondary admin-only" id="btnClearEmployee">تفريغ</button>
+                  <button type="button" class="btn btn-outline admin-only" id="btnExportEmployeesExcel">تصدير الموظفين Excel</button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div class="section">
+            <div class="section-head">
+              <h3 id="employeeListTitle">قائمة الموظفين</h3>
+            </div>
+            <div id="employeesList" class="cards"></div>
+          </div>
+        </section>
+
+        <!-- INFO -->
+        <section id="infoTab" class="panel hidden">
+          <div class="section">
+            <div class="section-head">
+              <h3 id="infoTitle">معلومات المرحلة الثانية</h3>
+            </div>
+
+            <div class="cards">
+              <div class="mini-card">
+                <h4 id="card1Title">إدارة الموظفين</h4>
+                <p id="card1Text">إضافة وتعديل وحذف الموظفين أصبحت متاحة للمدير فقط</p>
+              </div>
+
+              <div class="mini-card">
+                <h4 id="card2Title">الصلاحيات</h4>
+                <p id="card2Text">admin يمكنه الإدارة والتصدير، viewer للمشاهدة فقط</p>
+              </div>
+
+              <div class="mini-card">
+                <h4 id="card3Title">Excel</h4>
+                <p id="card3Text">يمكن للمدير تصدير قائمة الموظفين إلى ملف Excel</p>
+              </div>
+
+              <div class="mini-card">
+                <h4 id="card4Title">الحفظ</h4>
+                <p id="card4Text">كل التعديلات تحفظ محليًا داخل localStorage</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section id="settingsTab" class="panel hidden">
+          <div class="section">
+            <div class="section-head">
+              <h3 id="settingsTitle">الإعدادات</h3>
+            </div>
+
+            <div class="actions">
+              <button id="resetDataBtn" class="btn btn-outline" type="button">إعادة ضبط البيانات</button>
+            </div>
+
+            <p class="helper" id="settingsHelp">
+              هذا الزر يعيد كل شيء إلى القيم الافتراضية.
+            </p>
+          </div>
+        </section>
+
+        <!-- USERS -->
+        <section id="usersTab" class="panel hidden">
+          <div class="section">
+            <div class="section-head">
+              <h3 id="usersTitle">المستخدمون المحليون</h3>
+            </div>
+            <div id="usersList" class="cards"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div class="footer-note">المرحلة الثانية: نسخة مستقرة مع إدارة الموظفين والصلاحيات وتصدير Excel.</div>
+  </div>
+
+  <template id="employeeCardTemplate">
+    <article class="mini-card">
+      <h4 class="emp-name"></h4>
+      <p class="emp-meta"></p>
+      <p class="emp-contact"></p>
+      <div class="actions">
+        <button class="btn btn-sm btn-outline emp-load admin-only">تحميل في النموذج</button>
+        <button class="btn btn-sm btn-danger emp-delete admin-only">حذف</button>
+      </div>
+    </article>
+  </template>
+
+  <template id="userCardTemplate">
+    <article class="mini-card">
+      <h4 class="user-name"></h4>
+      <p class="user-role"></p>
+    </article>
+  </template>
+
+  <script>
+    /* =========================
+       اللغة
+    ========================== */
+    const I18N = {
+      ar: {
+        loginTitle: "جدول الدوام الأسبوعي",
+        loginSubtitle: "المرحلة الثانية — إدارة الموظفين والصلاحيات وExcel",
+        lblUsername: "اسم المستخدم",
+        lblPassword: "كلمة المرور",
+        btnLogin: "دخول",
+        loginHelp: "بيانات التجربة: admin / 1234 أو viewer / 1234",
+
+        appTitle: "جدول الدوام الأسبوعي",
+        appSubtitle: "المرحلة الثانية — الجدول + الموظفون + الصلاحيات + Excel",
+
+        prevWeek: "الأسبوع السابق",
+        todayWeek: "الأسبوع الحالي",
+        nextWeek: "الأسبوع التالي",
+        copyTable: "نسخ الجدول",
+        print: "طباعة",
+        logout: "تسجيل الخروج",
+
+        lblRegion: "المنطقة",
+        lblLanguage: "اللغة",
+        lblWeek: "الأسبوع",
+        lblStorage: "الحفظ المحلي",
+
+        tabSchedule: "الجدول",
+        tabEmployees: "الموظفون",
+        tabInfo: "معلومات",
+        tabSettings: "الإعدادات",
+        tabUsers: "المستخدمون",
+
+        scheduleTitle: "جدول الدوام الأسبوعي",
+        legendMorning: "صباحي",
+        legendNight: "ليلي",
+        legendAfternoon: "مسائي",
+        legendLeave: "إجازة",
+        legendOff: "أوف",
+
+        thEmployee: "الموظف",
+        thCategory: "الفئة",
+
+        employeesTitle: "إدارة الموظفين",
+        employeeListTitle: "قائمة الموظفين",
+
+        lblEmpName: "الاسم",
+        lblEmpNo: "الرقم الوظيفي",
+        lblEmpTitle: "المسمى الوظيفي",
+        lblEmpDept: "القسم",
+        lblEmpEmail: "البريد الإلكتروني",
+        lblEmpPhone: "الجوال",
+        lblEmpCategory: "الفئة",
+        lblEmpRegion: "المنطقة",
+        lblEmpRotation: "نظام التناوب",
+        btnSaveEmployee: "حفظ الموظف",
+        btnClearEmployee: "تفريغ",
+        btnExportEmployeesExcel: "تصدير الموظفين Excel",
+
+        infoTitle: "معلومات المرحلة الثانية",
+        card1Title: "إدارة الموظفين",
+        card1Text: "إضافة وتعديل وحذف الموظفين أصبحت متاحة للمدير فقط",
+        card2Title: "الصلاحيات",
+        card2Text: "admin يمكنه الإدارة والتصدير، viewer للمشاهدة فقط",
+        card3Title: "Excel",
+        card3Text: "يمكن للمدير تصدير قائمة الموظفين إلى ملف Excel",
+        card4Title: "الحفظ",
+        card4Text: "كل التعديلات تحفظ محليًا داخل localStorage",
+
+        settingsTitle: "الإعدادات",
+        resetDataBtn: "إعادة ضبط البيانات",
+        settingsHelp: "هذا الزر يعيد كل شيء إلى القيم الافتراضية.",
+
+        usersTitle: "المستخدمون المحليون",
+
+        loginSuccess: "تم تسجيل الدخول بنجاح",
+        loginError: "اسم المستخدم أو كلمة المرور غير صحيحة",
+        logoutSuccess: "تم تسجيل الخروج",
+        resetSuccess: "تمت إعادة ضبط البيانات",
+        savePrefix: "آخر حفظ: ",
+        noPermission: "لا تملك صلاحية تنفيذ هذه العملية",
+        employeeSaved: "تم حفظ الموظف",
+        employeeDeleted: "تم حذف الموظف",
+        tableCopied: "تم نسخ الجدول",
+        copyFailed: "تعذر النسخ",
+        excelExported: "تم تصدير ملف Excel",
+
+        categories: {
+          emp: "موظف",
+          sup: "مشرف",
+          mgr: "مدير"
+        },
+
+        shifts: {
+          morning: "صباحي",
+          night: "ليلي",
+          afternoon: "مسائي",
+          leave: "إجازة",
+          off: "أوف"
+        },
+
+        days: ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"]
+      },
+
+      en: {
+        loginTitle: "Weekly Schedule",
+        loginSubtitle: "Phase 2 — Employees, Permissions, Excel",
+        lblUsername: "Username",
+        lblPassword: "Password",
+        btnLogin: "Login",
+        loginHelp: "Demo users: admin / 1234 or viewer / 1234",
+
+        appTitle: "Weekly Schedule",
+        appSubtitle: "Phase 2 — Schedule + Employees + Permissions + Excel",
+
+        prevWeek: "Previous Week",
+        todayWeek: "Current Week",
+        nextWeek: "Next Week",
+        copyTable: "Copy Table",
+        print: "Print",
+        logout: "Logout",
+
+        lblRegion: "Region",
+        lblLanguage: "Language",
+        lblWeek: "Week",
+        lblStorage: "Local Save",
+
+        tabSchedule: "Schedule",
+        tabEmployees: "Employees",
+        tabInfo: "Info",
+        tabSettings: "Settings",
+        tabUsers: "Users",
+
+        scheduleTitle: "Weekly Schedule",
+        legendMorning: "Morning",
+        legendNight: "Night",
+        legendAfternoon: "Afternoon",
+        legendLeave: "Leave",
+        legendOff: "Off",
+
+        thEmployee: "Employee",
+        thCategory: "Category",
+
+        employeesTitle: "Manage Employees",
+        employeeListTitle: "Employees List",
+
+        lblEmpName: "Name",
+        lblEmpNo: "Employee No.",
+        lblEmpTitle: "Job Title",
+        lblEmpDept: "Department",
+        lblEmpEmail: "Email",
+        lblEmpPhone: "Phone",
+        lblEmpCategory: "Category",
+        lblEmpRegion: "Region",
+        lblEmpRotation: "Rotation",
+        btnSaveEmployee: "Save Employee",
+        btnClearEmployee: "Clear",
+        btnExportEmployeesExcel: "Export Employees Excel",
+
+        infoTitle: "Phase 2 Information",
+        card1Title: "Employee Management",
+        card1Text: "Add, edit, and delete employees are available for admin only",
+        card2Title: "Permissions",
+        card2Text: "Admin can manage and export, viewer can only view",
+        card3Title: "Excel",
+        card3Text: "Admin can export employees list to Excel",
+        card4Title: "Save",
+        card4Text: "All changes are stored locally in localStorage",
+
+        settingsTitle: "Settings",
+        resetDataBtn: "Reset Data",
+        settingsHelp: "This button restores everything to defaults.",
+
+        usersTitle: "Local Users",
+
+        loginSuccess: "Login successful",
+        loginError: "Invalid username or password",
+        logoutSuccess: "Logged out",
+        resetSuccess: "Data has been reset",
+        savePrefix: "Last save: ",
+        noPermission: "You do not have permission to perform this action",
+        employeeSaved: "Employee saved",
+        employeeDeleted: "Employee deleted",
+        tableCopied: "Table copied",
+        copyFailed: "Copy failed",
+        excelExported: "Excel file exported",
+
+        categories: {
+          emp: "Employee",
+          sup: "Supervisor",
+          mgr: "Manager"
+        },
+
+        shifts: {
+          morning: "Morning",
+          night: "Night",
+          afternoon: "Afternoon",
+          leave: "Leave",
+          off: "Off"
+        },
+
+        days: ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
+      }
+    };
+
+    /* =========================
+       الحالة
+    ========================== */
+    const STORAGE_KEY = "phase2_schedule_data";
+
+    function uid() {
+      return Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    function deepCopy(obj) {
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    function startOfWeek(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      d.setHours(0,0,0,0);
+      d.setDate(d.getDate() - day);
+      return d;
+    }
+
+    function addDays(date, days) {
+      const d = new Date(date);
+      d.setDate(d.getDate() + days);
+      return d;
+    }
+
+    function formatDate(date) {
+      return new Intl.DateTimeFormat(
+        state.lang === "ar" ? "ar-SA" : "en-US",
+        { year:"numeric", month:"2-digit", day:"2-digit" }
+      ).format(date);
+    }
+
+    const DEFAULT_STATE = {
+      currentUser: null,
+      lang: "ar",
+      region: "eastern",
+      currentWeekStart: startOfWeek(new Date()).toISOString(),
+      employees: [
+        {
+          id: uid(),
+          name: "محمد الشمري",
+          no: "1001",
+          title: "مهندس دعم فني",
+          dept: "الدعم الفني",
+          email: "m.alshammari@almajdouie.com",
+          phone: "0500000001",
+          category: "emp",
+          region: "eastern",
+          rotation: "rotating",
+          shifts: ["morning","morning","afternoon","night","off","leave","off"]
+        },
+        {
+          id: uid(),
+          name: "أحمد الحربي",
+          no: "1002",
+          title: "مشرف عمليات",
+          dept: "العمليات",
+          email: "a.alharbi@almajdouie.com",
+          phone: "0500000002",
+          category: "sup",
+          region: "riyadh",
+          rotation: "fixed-morning",
+          shifts: ["morning","morning","morning","morning","morning","off","off"]
+        },
+        {
+          id: uid(),
+          name: "سلمان الدوسري",
+          no: "1003",
+          title: "محلل نظم",
+          dept: "التطبيقات",
+          email: "s.aldossary@almajdouie.com",
+          phone: "0500000003",
+          category: "mgr",
+          region: "jeddah",
+          rotation: "fixed-night",
+          shifts: ["night","night","night","night","night","off","off"]
+        }
+      ],
+      users: [
+        { username: "admin", password: "1234", role: "admin" },
+        { username: "viewer", password: "1234", role: "viewer" }
+      ]
+    };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return deepCopy(DEFAULT_STATE);
+        const parsed = JSON.parse(raw);
+        return {
+          ...deepCopy(DEFAULT_STATE),
+          ...parsed
+        };
+      } catch (e) {
+        return deepCopy(DEFAULT_STATE);
+      }
+    }
+
+    const state = loadState();
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        lang: state.lang,
+        region: state.region,
+        currentWeekStart: state.currentWeekStart,
+        employees: state.employees,
+        users: state.users
+      }));
+
+      document.getElementById("saveTime").textContent =
+        I18N[state.lang].savePrefix + new Date().toLocaleString();
+    }
+
+    function showNotice(message, type = "info", target = "toast") {
+      const el = document.getElementById(target);
+      el.textContent = message;
+      el.className = "notice show " + type;
+      setTimeout(() => {
+        el.className = "notice";
+      }, 3000);
+    }
+
+    function isAdmin() {
+      return state.currentUser && state.currentUser.role === "admin";
+    }
+
+    function ensureAdmin() {
+      if (!isAdmin()) {
+        showNotice(I18N[state.lang].noPermission, "error");
+        return false;
+      }
+      return true;
+    }
+
+    function tr(key) {
+      return I18N[state.lang][key];
+    }
+
+    /* =========================
+       اللغة
+    ========================== */
+    function applyLanguage() {
+      const T = I18N[state.lang];
+
+      document.documentElement.lang = state.lang;
+      document.documentElement.dir = state.lang === "ar" ? "rtl" : "ltr";
+
+      document.getElementById("loginTitle").textContent = T.loginTitle;
+      document.getElementById("loginSubtitle").textContent = T.loginSubtitle;
+      document.getElementById("lblUsername").textContent = T.lblUsername;
+      document.getElementById("lblPassword").textContent = T.lblPassword;
+      document.getElementById("btnLogin").textContent = T.btnLogin;
+      document.getElementById("loginHelp").textContent = T.loginHelp;
+
+      document.getElementById("appTitle").textContent = T.appTitle;
+      document.getElementById("appSubtitle").textContent = T.appSubtitle;
+
+      document.getElementById("prevWeekBtn").textContent = T.prevWeek;
+      document.getElementById("todayBtn").textContent = T.todayWeek;
+      document.getElementById("nextWeekBtn").textContent = T.nextWeek;
+      document.getElementById("copyTableBtn").textContent = T.copyTable;
+      document.getElementById("printBtn").textContent = T.print;
+      document.getElementById("logoutBtn").textContent = T.logout;
+
+      document.getElementById("lblRegion").textContent = T.lblRegion;
+      document.getElementById("lblLanguage").textContent = T.lblLanguage;
+      document.getElementById("lblWeek").textContent = T.lblWeek;
+      document.getElementById("lblStorage").textContent = T.lblStorage;
+
+      document.getElementById("tabSchedule").textContent = T.tabSchedule;
+      document.getElementById("tabEmployees").textContent = T.tabEmployees;
+      document.getElementById("tabInfo").textContent = T.tabInfo;
+      document.getElementById("tabSettings").textContent = T.tabSettings;
+      document.getElementById("tabUsers").textContent = T.tabUsers;
+
+      document.getElementById("scheduleTitle").textContent = T.scheduleTitle;
+      document.getElementById("legendMorning").textContent = T.legendMorning;
+      document.getElementById("legendNight").textContent = T.legendNight;
+      document.getElementById("legendAfternoon").textContent = T.legendAfternoon;
+      document.getElementById("legendLeave").textContent = T.legendLeave;
+      document.getElementById("legendOff").textContent = T.legendOff;
+
+      document.getElementById("thEmployee").textContent = T.thEmployee;
+      document.getElementById("thCategory").textContent = T.thCategory;
+
+      document.getElementById("employeesTitle").textContent = T.employeesTitle;
+      document.getElementById("employeeListTitle").textContent = T.employeeListTitle;
+      document.getElementById("lblEmpName").textContent = T.lblEmpName;
+      document.getElementById("lblEmpNo").textContent = T.lblEmpNo;
+      document.getElementById("lblEmpTitle").textContent = T.lblEmpTitle;
+      document.getElementById("lblEmpDept").textContent = T.lblEmpDept;
+      document.getElementById("lblEmpEmail").textContent = T.lblEmpEmail;
+      document.getElementById("lblEmpPhone").textContent = T.lblEmpPhone;
+      document.getElementById("lblEmpCategory").textContent = T.lblEmpCategory;
+      document.getElementById("lblEmpRegion").textContent = T.lblEmpRegion;
+      document.getElementById("lblEmpRotation").textContent = T.lblEmpRotation;
+      document.getElementById("btnSaveEmployee").textContent = T.btnSaveEmployee;
+      document.getElementById("btnClearEmployee").textContent = T.btnClearEmployee;
+      document.getElementById("btnExportEmployeesExcel").textContent = T.btnExportEmployeesExcel;
+
+      document.getElementById("infoTitle").textContent = T.infoTitle;
+      document.getElementById("card1Title").textContent = T.card1Title;
+      document.getElementById("card1Text").textContent = T.card1Text;
+      document.getElementById("card2Title").textContent = T.card2Title;
+      document.getElementById("card2Text").textContent = T.card2Text;
+      document.getElementById("card3Title").textContent = T.card3Title;
+      document.getElementById("card3Text").textContent = T.card3Text;
+      document.getElementById("card4Title").textContent = T.card4Title;
+      document.getElementById("card4Text").textContent = T.card4Text;
+
+      document.getElementById("settingsTitle").textContent = T.settingsTitle;
+      document.getElementById("resetDataBtn").textContent = T.resetDataBtn;
+      document.getElementById("settingsHelp").textContent = T.settingsHelp;
+
+      document.getElementById("usersTitle").textContent = T.usersTitle;
+
+      document.getElementById("langSelect").value = state.lang;
+      document.getElementById("regionSelect").value = state.region;
+
+      renderWeekHeaders();
+      renderSchedule();
+      renderEmployees();
+      renderUsers();
+      applyRoleUI();
+      saveState();
+    }
+
+    /* =========================
+       التنقل بين التبويبات
+    ========================== */
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach(panel => panel.classList.add("hidden"));
+
+      document.querySelector(`[data-tab="${tabId}"]`).classList.add("active");
+      document.getElementById(tabId).classList.remove("hidden");
+    }
+
+    /* =========================
+       الأسبوع / الجدول
+    ========================== */
+    function renderWeekHeaders() {
+      const days = I18N[state.lang].days;
+      const start = new Date(state.currentWeekStart);
+
+      for (let i = 0; i < 7; i++) {
+        document.getElementById(`dayHeader${i}`).textContent =
+          `${days[i]} (${formatDate(addDays(start, i))})`;
+      }
+
+      document.getElementById("weekRange").textContent =
+        `${formatDate(start)} → ${formatDate(addDays(start, 6))}`;
+    }
+
+    function renderSchedule() {
+      const tbody = document.getElementById("scheduleTableBody");
+      const T = I18N[state.lang];
+
+      if (!state.employees.length) {
+        tbody.innerHTML = `<tr><td colspan="9">${state.lang === "ar" ? "لا توجد بيانات حالياً" : "No data available"}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = state.employees.map(emp => {
+        const category = T.categories[emp.category] || emp.category;
+        return `
+          <tr>
+            <td>${emp.name}</td>
+            <td>${category}</td>
+            ${emp.shifts.map(shift => `<td>${T.shifts[shift] || shift}</td>`).join("")}
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function rotationToDefaultShifts(rotation) {
+      if (rotation === "fixed-morning") {
+        return ["morning","morning","morning","morning","morning","off","off"];
+      }
+      if (rotation === "fixed-night") {
+        return ["night","night","night","night","night","off","off"];
+      }
+      return ["morning","morning","afternoon","night","off","leave","off"];
+    }
+
+    /* =========================
+       إدارة الموظفين
+    ========================== */
+    function renderEmployees() {
+      const container = document.getElementById("employeesList");
+      const tpl = document.getElementById("employeeCardTemplate");
+      const T = I18N[state.lang];
+
+      if (!state.employees.length) {
+        container.innerHTML = `<div class="mini-card">${state.lang === "ar" ? "لا يوجد موظفون" : "No employees"}</div>`;
+        return;
+      }
+
+      container.innerHTML = "";
+      state.employees.forEach(emp => {
+        const node = tpl.content.cloneNode(true);
+        node.querySelector(".emp-name").textContent = emp.name;
+        node.querySelector(".emp-meta").textContent =
+          `${emp.title || "-"} • ${emp.dept || "-"} • ${emp.no || "-"}`;
+        node.querySelector(".emp-contact").textContent =
+          `${emp.email || "-"} • ${emp.phone || "-"} • ${(T.categories[emp.category] || emp.category)}`;
+
+        node.querySelector(".emp-load").textContent =
+          state.lang === "ar" ? "تحميل في النموذج" : "Load into form";
+        node.querySelector(".emp-delete").textContent =
+          state.lang === "ar" ? "حذف" : "Delete";
+
+        node.querySelector(".emp-load").addEventListener("click", () => loadEmployeeToForm(emp.id));
+        node.querySelector(".emp-delete").addEventListener("click", () => deleteEmployee(emp.id));
+
+        if (!isAdmin()) {
+          node.querySelectorAll(".admin-only").forEach(el => el.classList.add("hidden-by-role"));
+        }
+
+        container.appendChild(node);
+      });
+    }
+
+    function loadEmployeeToForm(id) {
+      if (!ensureAdmin()) return;
+
+      const emp = state.employees.find(e => e.id === id);
+      if (!emp) return;
+
+      document.getElementById("empName").value = emp.name || "";
+      document.getElementById("empNo").value = emp.no || "";
+      document.getElementById("empTitle").value = emp.title || "";
+      document.getElementById("empDept").value = emp.dept || "";
+      document.getElementById("empEmail").value = emp.email || "";
+      document.getElementById("empPhone").value = emp.phone || "";
+      document.getElementById("empCategory").value = emp.category || "emp";
+      document.getElementById("empRegion").value = emp.region || "eastern";
+      document.getElementById("empRotation").value = emp.rotation || "rotating";
+
+      document.getElementById("employeeForm").dataset.editId = emp.id;
+      switchTab("employeesTab");
+    }
+
+    function clearEmployeeForm() {
+      document.getElementById("employeeForm").reset();
+      delete document.getElementById("employeeForm").dataset.editId;
+    }
+
+    function saveEmployee(event) {
+      event.preventDefault();
+      if (!ensureAdmin()) return;
+
+      const form = document.getElementById("employeeForm");
+      const editId = form.dataset.editId;
+
+      const employee = {
+        id: editId || uid(),
+        name: document.getElementById("empName").value.trim(),
+        no: document.getElementById("empNo").value.trim(),
+        title: document.getElementById("empTitle").value.trim(),
+        dept: document.getElementById("empDept").value.trim(),
+        email: document.getElementById("empEmail").value.trim(),
+        phone: document.getElementById("empPhone").value.trim(),
+        category: document.getElementById("empCategory").value,
+        region: document.getElementById("empRegion").value,
+        rotation: document.getElementById("empRotation").value,
+        shifts: rotationToDefaultShifts(document.getElementById("empRotation").value)
+      };
+
+      if (!employee.name) {
+        showNotice(state.lang === "ar" ? "اسم الموظف مطلوب" : "Employee name is required", "error");
+        return;
+      }
+
+      if (editId) {
+        const old = state.employees.find(e => e.id === editId);
+        if (old) {
+          employee.shifts = old.shifts;
+        }
+        state.employees = state.employees.map(e => e.id === editId ? employee : e);
+      } else {
+        state.employees.push(employee);
+      }
+
+      clearEmployeeForm();
+      saveState();
+      renderEmployees();
+      renderSchedule();
+      showNotice(I18N[state.lang].employeeSaved, "success");
+    }
+
+    function deleteEmployee(id) {
+      if (!ensureAdmin()) return;
+
+      const emp = state.employees.find(e => e.id === id);
+      if (!emp) return;
+
+      const ok = confirm(
+        state.lang === "ar"
+          ? `هل تريد حذف الموظف: ${emp.name}؟`
+          : `Do you want to delete employee: ${emp.name}?`
+      );
+      if (!ok) return;
+
+      state.employees = state.employees.filter(e => e.id !== id);
+      saveState();
+      renderEmployees();
+      renderSchedule();
+      showNotice(I18N[state.lang].employeeDeleted, "success");
+    }
+
+    function exportEmployeesExcel() {
+      if (!ensureAdmin()) return;
+
+      const T = I18N[state.lang];
+      const data = state.employees.map(emp => ({
+        Name: emp.name,
+        EmployeeNo: emp.no,
+        Title: emp.title,
+        Department: emp.dept,
+        Email: emp.email,
+        Phone: emp.phone,
+        Category: T.categories[emp.category] || emp.category,
+        Region: emp.region,
+        Rotation: emp.rotation
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, state.lang === "ar" ? "الموظفون" : "Employees");
+      XLSX.writeFile(wb, "employees.xlsx");
+
+      showNotice(I18N[state.lang].excelExported, "success");
+    }
+
+    /* =========================
+       المستخدمون
+    ========================== */
+    function renderUsers() {
+      const container = document.getElementById("usersList");
+      const tpl = document.getElementById("userCardTemplate");
+
+      container.innerHTML = "";
+      state.users.forEach(user => {
+        const node = tpl.content.cloneNode(true);
+        node.querySelector(".user-name").textContent = user.username;
+        node.querySelector(".user-role").textContent = user.role;
+        container.appendChild(node);
+      });
+    }
+
+    /* =========================
+       الصلاحيات
+    ========================== */
+    function applyRoleUI() {
+      const adminOnly = document.querySelectorAll(".admin-only");
+      adminOnly.forEach(el => {
+        if (isAdmin()) {
+          el.classList.remove("hidden-by-role");
+          el.style.display = "";
+        } else {
+          el.classList.add("hidden-by-role");
+        }
+      });
+
+      document.getElementById("tabUsers").style.display = isAdmin() ? "" : "none";
+    }
+
+    /* =========================
+       تسجيل الدخول
+    ========================== */
+    document.getElementById("loginForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      const user = state.users.find(u => u.username === username && u.password === password);
+
+      if (!user) {
+        showNotice(I18N[state.lang].loginError, "error", "loginNotice");
+        return;
+      }
+
+      state.currentUser = user;
+      document.getElementById("loginScreen").classList.add("hidden");
+      document.getElementById("app").classList.remove("hidden");
+
+      applyRoleUI();
+      renderSchedule();
+      renderEmployees();
+      renderUsers();
+      renderWeekHeaders();
+
+      showNotice(I18N[state.lang].loginSuccess, "success");
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", function() {
+      state.currentUser = null;
+      document.getElementById("app").classList.add("hidden");
+      document.getElementById("loginScreen").classList.remove("hidden");
+      document.getElementById("loginForm").reset();
+      showNotice(I18N[state.lang].logoutSuccess, "info", "loginNotice");
+    });
+
+    /* =========================
+       التنقل بين الأسابيع
+    ========================== */
+    document.getElementById("prevWeekBtn").addEventListener("click", function() {
+      state.currentWeekStart = addDays(new Date(state.currentWeekStart), -7).toISOString();
+      renderWeekHeaders();
+      saveState();
+    });
+
+    document.getElementById("todayBtn").addEventListener("click", function() {
+      state.currentWeekStart = startOfWeek(new Date()).toISOString();
+      renderWeekHeaders();
+      saveState();
+    });
+
+    document.getElementById("nextWeekBtn").addEventListener("click", function() {
+      state.currentWeekStart = addDays(new Date(state.currentWeekStart), 7).toISOString();
+      renderWeekHeaders();
+      saveState();
+    });
+
+    /* =========================
+       اللغة / المنطقة
+    ========================== */
+    document.getElementById("langSelect").addEventListener("change", function() {
+      state.lang = this.value;
+      applyLanguage();
+    });
+
+    document.getElementById("regionSelect").addEventListener("change", function() {
+      state.region = this.value;
+      saveState();
+    });
+
+    /* =========================
+       نسخ / طباعة
+    ========================== */
+    document.getElementById("copyTableBtn").addEventListener("click", function() {
+      const text = Array.from(document.querySelectorAll("#scheduleTable tr"))
+        .map(row => Array.from(row.children).map(cell => cell.innerText.trim()).join("\t"))
+        .join("\n");
+
+      navigator.clipboard.writeText(text)
+        .then(() => showNotice(I18N[state.lang].tableCopied, "success"))
+        .catch(() => showNotice(I18N[state.lang].copyFailed, "error"));
+    });
+
+    document.getElementById("printBtn").addEventListener("click", function() {
+      switchTab("scheduleTab");
+      window.print();
+    });
+
+    /* =========================
+       الفورم
+    ========================== */
+    document.getElementById("employeeForm").addEventListener("submit", saveEmployee);
+    document.getElementById("employeeForm").addEventListener("reset", function() {
+      setTimeout(clearEmployeeForm, 0);
+    });
+
+    document.getElementById("btnExportEmployeesExcel").addEventListener("click", exportEmployeesExcel);
+
+    /* =========================
+       إعادة ضبط
+    ========================== */
+    document.getElementById("resetDataBtn").addEventListener("click", function() {
+      localStorage.removeItem(STORAGE_KEY);
+
+      const fresh = deepCopy(DEFAULT_STATE);
+      state.currentUser = null;
+      state.lang = fresh.lang;
+      state.region = fresh.region;
+      state.currentWeekStart = fresh.currentWeekStart;
+      state.employees = fresh.employees;
+      state.users = fresh.users;
+
+      applyLanguage();
+      renderSchedule();
+      renderEmployees();
+      renderUsers();
+      renderWeekHeaders();
+      saveState();
+
+      showNotice(I18N[state.lang].resetSuccess, "success");
+    });
+
+    /* =========================
+       التبويبات
+    ========================== */
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => switchTab(tab.dataset.tab));
+    });
+
+    /* =========================
+       بدء التشغيل
+    ========================== */
+    document.getElementById("langSelect").value = state.lang;
+    document.getElementById("regionSelect").value = state.region;
+    applyLanguage();
+    renderWeekHeaders();
+    renderSchedule();
+    renderEmployees();
+    renderUsers();
+    saveState();
+  </script>
+</body>
+</html>
