@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - System v6.1</title>
+    <title>Almajdouie Motors - System v6.2</title>
     <style>
         :root {
             --primary-blue: #0d2149;
             --morning-bg: #e3f2fd; --morning-text: #1976d2;
             --night-bg: #f3e5f5; --night-text: #7b1fa2;
             --off-bg: #eeeeee; --off-text: #616161;
+            --holiday-bg: #fff9c4; --holiday-text: #fbc02d;
             --btn-edit: #1a3a5f; --btn-night: #512da8; --btn-stop: #e65100; --btn-del: #b71c1c; --btn-rotate: #00796b;
         }
 
@@ -32,8 +33,8 @@
         .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
         .logo-img { max-height: 55px; }
 
-        .tabs { display: flex; gap: 25px; margin-bottom: 20px; }
-        .tab { cursor: pointer; font-weight: bold; color: #555; padding-bottom: 5px; border-bottom: 3px solid transparent; transition: 0.3s; }
+        .tabs { display: flex; gap: 20px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px; }
+        .tab { cursor: pointer; font-weight: bold; color: #555; padding: 5px 10px; border-bottom: 3px solid transparent; transition: 0.3s; white-space: nowrap; }
         .tab.active { color: var(--primary-blue); border-bottom-color: var(--primary-blue); }
 
         .tab-content { display: none; }
@@ -47,9 +48,10 @@
         .Morning, .صباحي { background: var(--morning-bg); color: var(--morning-text); }
         .Night, .ليلي { background: var(--night-bg); color: var(--night-text); }
         .Off, .أوف { background: var(--off-bg); color: var(--off-text); }
+        .Holiday, .إجازة_رسمية { background: var(--holiday-bg); color: var(--holiday-text); }
 
         .btn-action { border: none; border-radius: 6px; padding: 5px 10px; color: white; font-weight: bold; cursor: pointer; font-size: 10px; display: inline-flex; align-items: center; gap: 4px; min-width: 90px; justify-content: center; }
-        .row-edit { background: var(--btn-edit); } .row-night { background: var(--btn-night); } .row-stop { background: var(--btn-stop); } .row-del { background: var(--btn-del); } .row-rotate { background: var(--btn-rotate); } .row-enable { background: #2e7d32; } .row-morning { background: #0288d1; }
+        .row-edit { background: var(--btn-edit); } .row-night { background: var(--btn-night); } .row-stop { background: var(--btn-stop); } .row-del { background: var(--btn-del); } .row-rotate { background: var(--btn-rotate); }
 
         .form-box { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: flex-end; }
         .form-group { display: flex; flex-direction: column; gap: 5px; }
@@ -88,6 +90,7 @@
     <div class="tabs">
         <div class="tab active" id="tab1" onclick="window.switchTab('schedule', this)">🗓️ Schedule</div>
         <div class="tab" id="tab2" onclick="window.switchTab('admin', this)">👥 Employee Management</div>
+        <div class="tab" id="tabHolidays" onclick="window.switchTab('holidays', this)">🎊 Holidays</div>
     </div>
 
     <div id="schedule" class="tab-content active">
@@ -101,23 +104,30 @@
     <div id="admin" class="tab-content">
         <div class="form-box">
             <input type="hidden" id="editEmpId">
-            <div class="form-group"><label>Emp Name:</label><input type="text" id="inpName"></div>
-            <div class="form-group"><label>Emp ID / Num:</label><input type="text" id="inpNum"></div>
+            <div class="form-group"><label>Name:</label><input type="text" id="inpName"></div>
+            <div class="form-group"><label>Emp ID:</label><input type="text" id="inpNum"></div>
             <div class="form-group"><label>Job Title:</label><input type="text" id="inpJob"></div>
-            <div class="form-group"><label>Department:</label><input type="text" id="inpDept"></div>
+            <div class="form-group"><label>Dept:</label><input type="text" id="inpDept"></div>
             <div class="form-group"><label>Email:</label><input type="email" id="inpEmail"></div>
             <div class="form-group"><label>Phone:</label><input type="text" id="inpPhone"></div>
             <div class="form-group"><label>Region:</label><select id="inpRegion"><option value="eastern">Eastern</option><option value="central">Central</option><option value="western">Western</option></select></div>
             <button id="btnSubmit" class="btn-tool" style="background:var(--primary-blue); color:white; height:38px" onclick="window.handleEmployeeSubmit()">Save Data</button>
         </div>
         <table>
-            <thead>
-                <tr>
-                    <th style="width:250px">Employee Information</th>
-                    <th>Actions & Toggles</th>
-                </tr>
-            </thead>
+            <thead><tr><th style="width:250px">Employee Info</th><th>Actions & Toggles</th></tr></thead>
             <tbody id="adminList"></tbody>
+        </table>
+    </div>
+
+    <div id="holidays" class="tab-content">
+        <h3 id="holidayTitle">Official Public Holidays</h3>
+        <table>
+            <thead>
+                <tr><th id="hColDate">Date</th><th id="hColName">Holiday Name</th><th id="hColStatus">Status</th></tr>
+            </thead>
+            <tbody id="holidayListBody">
+                <tr><td colspan="3">Loading holidays from Firebase...</td></tr>
+            </tbody>
         </table>
     </div>
 </div>
@@ -137,11 +147,11 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    let employees = [], currentLang = 'en';
+    let employees = [], holidays = [], currentLang = 'en';
 
     const tMap = {
-        en: { morning: "Morning", night: "Night", off: "Off", edit: "Edit ✏️", setNight: "Set Night 🌙", setMorning: "Set Morning ☀️", stop: "Stop ⏸️", enable: "Enable ✅", rotOn: "Rotation 🔄", rotOff: "Fixed 📍", del: "Delete ❌" },
-        ar: { morning: "صباحي", night: "ليلي", off: "أوف", edit: "تعديل ✏️", setNight: "تثبيت ليل 🌙", setMorning: "تحويل صباحي ☀️", stop: "إيقاف ⏸️", enable: "تفعيل ✅", rotOn: "تناوب 🔄", rotOff: "ثابت 📍", del: "حذف ❌" }
+        en: { morning: "Morning", night: "Night", off: "Off", holiday: "Public Holiday", edit: "Edit ✏️", setNight: "Set Night 🌙", setMorning: "Set Morning ☀️", stop: "Stop ⏸️", enable: "Enable ✅", rotOn: "Rotation 🔄", rotOff: "Fixed 📍", del: "Delete ❌" },
+        ar: { morning: "صباحي", night: "ليلي", off: "أوف", holiday: "إجازة رسمية", edit: "تعديل ✏️", setNight: "تثبيت ليل 🌙", setMorning: "تحويل صباحي ☀️", stop: "إيقاف ⏸️", enable: "تفعيل ✅", rotOn: "تناوب 🔄", rotOff: "ثابت 📍", del: "حذف ❌" }
     };
 
     // --- Binding to Window ---
@@ -155,14 +165,34 @@
     window.toggleLanguage = () => {
         currentLang = currentLang === 'en' ? 'ar' : 'en';
         document.getElementById('mainHtml').dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+        updateUI();
         window.renderAll();
     };
 
+    function updateUI() {
+        const t = currentLang === 'ar' ? {t1:"🗓️ الجدول", t2:"👥 الموظفين", t3:"🎊 الإجازات الرسمية", hTitle:"قائمة الإجازات الرسمية العامة"} : {t1:"🗓️ Schedule", t2:"👥 Employees", t3:"🎊 Holidays", hTitle:"Official Public Holidays"};
+        document.getElementById('tab1').innerText = t.t1;
+        document.getElementById('tab2').innerText = t.t2;
+        document.getElementById('tabHolidays').innerText = t.t3;
+        document.getElementById('holidayTitle').innerText = t.hTitle;
+    }
+
     // --- Database Fetch ---
+    // 1. Fetch Employees (jadwal_v6)
     onSnapshot(doc(db, "schedule", "jadwal_v6"), (snap) => {
         if(snap.exists()){
             employees = snap.data().data.emps || [];
             window.renderAll();
+        }
+    });
+
+    // 2. Fetch Public Holidays (jadwal_holidays)
+    onSnapshot(doc(db, "schedule", "jadwal_holidays"), (snap) => {
+        if(snap.exists()){
+            // assuming the data is in an array called 'list' or similar
+            const data = snap.data();
+            holidays = data.list || data.holidays || [];
+            renderHolidaysTab();
         }
     });
 
@@ -206,24 +236,40 @@
             return row + "</tr>";
         }).join('');
 
-        // Admin Table
+        renderAdminList();
+    };
+
+    function renderAdminList() {
+        const t = tMap[currentLang];
         document.getElementById('adminList').innerHTML = employees.map((e, idx) => `
             <tr>
                 <td style="text-align:left; padding-left:15px">
                     <div style="font-weight:bold">${e.name}</div>
                     <div style="font-size:10px; color:#666">${e.empNum} | ${e.jobTitle}</div>
-                    <div style="font-size:10px; color:var(--primary-blue)">${e.dept} | ${e.region}</div>
                 </td>
                 <td style="display:flex; justify-content:center; gap:5px; flex-wrap:wrap">
                     <button class="btn-action row-edit" onclick="window.startEdit('${idx}')">${t.edit}</button>
                     <button class="btn-action ${e.fixed?'row-morning':'row-night'}" onclick="window.toggleAction('${idx}', 'fixed')">${e.fixed?t.setMorning:t.setNight}</button>
                     <button class="btn-action row-rotate" style="background:${e.rotates?'#00796b':'#78909c'}" onclick="window.toggleAction('${idx}', 'rotates')">${e.rotates?t.rotOn:t.rotOff}</button>
                     <button class="btn-action ${!e.active?'row-enable':'row-stop'}" onclick="window.toggleAction('${idx}', 'active')">${!e.active?t.enable:t.stop}</button>
-                    <button class="btn-action row-del" onclick="window.deleteEmployee('${idx}')">${t.del}</button>
                 </td>
             </tr>
         `).join('');
-    };
+    }
+
+    function renderHolidaysTab() {
+        if(holidays.length === 0) {
+            document.getElementById('holidayListBody').innerHTML = `<tr><td colspan="3">No public holidays listed.</td></tr>`;
+            return;
+        }
+        document.getElementById('holidayListBody').innerHTML = holidays.map(h => `
+            <tr>
+                <td>${h.date}</td>
+                <td style="font-weight:bold">${currentLang === 'ar' ? (h.nameAr || h.name) : (h.nameEn || h.name)}</td>
+                <td><span class="badge Holiday">${currentLang === 'ar' ? 'إجازة' : 'Holiday'}</span></td>
+            </tr>
+        `).join('');
+    }
 
     // Firebase Update Helper
     async function updateDB(arr) { await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": arr }); }
@@ -239,14 +285,13 @@
         document.getElementById('inpDept').value = e.dept || '';
         document.getElementById('inpEmail').value = e.email || '';
         document.getElementById('inpPhone').value = e.phone || '';
-        document.getElementById('inpRegion').value = e.region || 'eastern';
-        document.getElementById('btnSubmit').innerText = currentLang === 'en' ? "Update Data" : "تحديث البيانات";
         window.switchTab('admin', document.getElementById('tab2'));
     };
 
     window.handleEmployeeSubmit = async () => {
         const idx = document.getElementById('editEmpId').value;
-        const newEmp = {
+        let arr = [...employees];
+        const newEmpData = {
             name: document.getElementById('inpName').value,
             empNum: document.getElementById('inpNum').value,
             jobTitle: document.getElementById('inpJob').value,
@@ -254,32 +299,19 @@
             email: document.getElementById('inpEmail').value,
             phone: document.getElementById('inpPhone').value,
             region: document.getElementById('inpRegion').value,
-            active: true, fixed: false, rotates: false, category: "emp", id: document.getElementById('inpName').value.toLowerCase().split(' ')[0]
+            active: true, fixed: false, rotates: false, category: "emp"
         };
-
-        if(!newEmp.name) return alert("Name is required");
-
-        let arr = [...employees];
         if(idx !== "") {
-            // حافظ على قيم الـ Toggle الحالية عند التعديل
-            newEmp.active = arr[idx].active;
-            newEmp.fixed = arr[idx].fixed;
-            newEmp.rotates = arr[idx].rotates;
-            arr[idx] = newEmp;
+            newEmpData.active = arr[idx].active; newEmpData.fixed = arr[idx].fixed; newEmpData.rotates = arr[idx].rotates;
+            arr[idx] = newEmpData;
         } else {
-            arr.push(newEmp);
+            arr.push(newEmpData);
         }
         await updateDB(arr);
-        clearForm();
+        ['inpName', 'inpNum', 'inpJob', 'inpDept', 'inpEmail', 'inpPhone'].forEach(id => document.getElementById(id).value = "");
+        document.getElementById('editEmpId').value = "";
     };
 
-    function clearForm() {
-        document.getElementById('editEmpId').value = "";
-        ['inpName', 'inpNum', 'inpJob', 'inpDept', 'inpEmail', 'inpPhone'].forEach(id => document.getElementById(id).value = "");
-        document.getElementById('btnSubmit').innerText = currentLang === 'en' ? "Save Data" : "حفظ البيانات";
-    }
-
-    window.deleteEmployee = async (idx) => { if(confirm("Delete Employee?")){ let arr = [...employees]; arr.splice(idx, 1); await updateDB(arr); } };
     window.setCurrentWeek = () => { let t = new Date(); let s = new Date(t.setDate(t.getDate() - t.getDay())); document.getElementById('datePicker').valueAsDate = s; window.renderAll(); };
     window.changeWeek = (v) => { let d = new Date(document.getElementById('datePicker').value); d.setDate(d.getDate() + v); document.getElementById('datePicker').valueAsDate = d; window.renderAll(); };
 
