@@ -2,37 +2,36 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>نظام إدارة الدوام الأسبوعي المتطور</title>
+    <title>نظام إدارة الدوام المتكامل</title>
     <style>
         :root {
-            --bg-body: #f1f4f9;
+            --primary: #4a90e2; --bg: #f4f7f6;
             --morning: #d1e9ff; --morning-text: #007bff;
             --evening: #fff3cd; --evening-text: #856404;
             --night: #f3e5f5; --night-text: #7b1fa2;
             --off: #e9ecef; --off-text: #6c757d;
             --leave: #f8d7da; --leave-text: #721c24;
-            --oncall: #d1ecf1; --oncall-text: #0c5460;
             --cover: #d4edda; --cover-text: #155724;
         }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-body); padding: 20px; margin: 0; }
-        .main-card { background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 25px; max-width: 1350px; margin: auto; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .container { max-width: 1300px; margin: auto; }
         
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .legend { display: flex; gap: 8px; flex-wrap: wrap; }
-        .legend-item { padding: 4px 10px; border-radius: 15px; font-size: 12px; font-weight: 500; }
+        /* Tabs Styling */
+        .tabs { display: flex; gap: 5px; margin-bottom: -1px; position: relative; z-index: 1; }
+        .tab { padding: 12px 25px; background: #e0e0e0; border-radius: 10px 10px 0 0; cursor: pointer; font-weight: bold; color: #666; transition: 0.3s; border: 1px solid #ccc; border-bottom: none; }
+        .tab.active { background: white; color: var(--primary); border-top: 3px solid var(--primary); }
         
-        /* Dashboard for Adding Employees */
-        .admin-panel { background: #f8fafc; padding: 20px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; border: 1px solid #e2e8f0; }
-        .input-group { display: flex; flex-direction: column; gap: 5px; }
-        input, select { padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
-        .btn-add { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-add:hover { background: #218838; }
+        .content-card { background: white; padding: 25px; border-radius: 0 15px 15px 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); min-height: 500px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #f0f0f0; padding: 10px 5px; text-align: center; }
-        th { background: #fafafa; color: #333; font-weight: 600; font-size: 13px; }
+        /* Tables & Inputs */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #eee; padding: 12px; text-align: center; }
+        th { background: #fafafa; color: #444; }
+        .emp-name { font-weight: bold; text-align: right; }
         
-        .badge { border-radius: 12px; padding: 3px 10px; font-size: 11px; font-weight: bold; display: inline-block; min-width: 55px; }
+        .badge { border-radius: 12px; padding: 4px 12px; font-size: 12px; font-weight: bold; display: inline-block; }
         .صباحي { background: var(--morning); color: var(--morning-text); }
         .مسائي { background: var(--evening); color: var(--evening-text); }
         .ليلي { background: var(--night); color: var(--night-text); }
@@ -40,71 +39,228 @@
         .إجازة { background: var(--leave); color: var(--leave-text); }
         .تغطية { background: var(--cover); color: var(--cover-text); }
 
-        .summary-container { display: flex; gap: 15px; margin-top: 25px; }
-        .sum-card { flex: 1; background: white; border: 1px solid #eee; border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .sum-card .label { font-weight: bold; color: #666; font-size: 14px; }
-        .sum-card .value { font-size: 20px; font-weight: bold; color: #333; }
+        /* Admin Panel */
+        .admin-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; background: #f9f9f9; padding: 20px; border-radius: 10px; border: 1px dashed #ccc; margin-bottom: 20px; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        input, select { padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-add { background: var(--primary); color: white; }
+        .btn-delete { background: #ff4d4d; color: white; padding: 5px 10px; font-size: 12px; }
 
-        .emp-name { font-weight: bold; text-align: right; color: #444; width: 200px; display: flex; justify-content: space-between; align-items: center; }
-        .category { color: #888; font-size: 12px; }
-        .btn-delete { color: #dc3545; cursor: pointer; font-size: 16px; margin-right: 10px; border:none; background:none; }
+        /* Summary */
+        .summary { display: flex; gap: 15px; margin-top: 30px; }
+        .sum-card { flex: 1; background: white; border: 1px solid #eee; padding: 15px; border-radius: 10px; text-align: center; }
+        .sum-card h3 { margin: 0; font-size: 24px; color: #333; }
+        .sum-card p { margin: 5px 0 0; color: #888; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="main-card">
-    <div class="header">
-        <div class="legend">
-            <span class="legend-item صباحي">صباحي</span>
-            <span class="legend-item ليلي">ليلي</span>
-            <span class="legend-item مسائي">مسائي</span>
-            <span class="legend-item إجازة">إجازة</span>
-            <span class="legend-item تغطية">تغطية</span>
-            <span class="legend-item أوف">أوف</span>
-        </div>
-        <div style="font-weight: bold; font-size: 22px; color: #2d3748;">إدارة الموظفين والجدولة</div>
+<div class="container">
+    <div class="tabs">
+        <div class="tab active" onclick="showTab('schedule-tab', this)">📅 جدول الدوام</div>
+        <div class="tab" onclick="showTab('admin-tab', this)">👥 إدارة الموظفين</div>
     </div>
 
-    <div class="admin-panel">
-        <div class="input-group">
-            <label>اسم الموظف</label>
-            <input type="text" id="newName" placeholder="مثال: خالد محمد">
+    <div class="content-card">
+        
+        <div id="schedule-tab" class="tab-content active">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin:0;">عرض الجدول الأسبوعي</h2>
+                <div>
+                    <label>تاريخ الأسبوع: </label>
+                    <input type="date" id="dateInput" onchange="renderSchedule()">
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr id="headerRow">
+                        <th>الموظف</th>
+                        <th>الفئة</th>
+                        </tr>
+                </thead>
+                <tbody id="scheduleBody"></tbody>
+            </table>
+            
+            <div class="summary" id="summaryArea"></div>
         </div>
-        <div class="input-group">
-            <label>الفئة</label>
-            <select id="newCat">
-                <option value="موظف">موظف</option>
-                <option value="مشرف">مشرف</option>
-                <option value="مدير">مدير</option>
-            </select>
-        </div>
-        <div class="input-group">
-            <label>الدور الوظيفي</label>
-            <select id="newRole">
-                <option value="MORNING">صباحي (أحد-خميس)</option>
-                <option value="EVENING">مسائي (أحد-خميس)</option>
-                <option value="FIXED">ليلي (ثابت)</option>
-            </select>
-        </div>
-        <button class="btn-add" onclick="addEmployee()">+ إضافة للجدول</button>
-        <div style="margin-right: auto;">
-            <label>الأسبوع: </label>
-            <input type="date" id="dateInput" onchange="renderAll()">
-        </div>
-    </div>
 
-    <table>
-        <thead>
-            <tr id="headerDates">
-                <th>الموظف</th>
-                <th>الفئة</th>
-                </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-    </table>
+        <div id="admin-tab" class="tab-content">
+            <h2>إضافة / تعديل الموظفين</h2>
+            <div class="admin-form">
+                <div class="form-group">
+                    <label>اسم الموظف</label>
+                    <input type="text" id="empName" placeholder="أدخل الاسم الكامل">
+                </div>
+                <div class="form-group">
+                    <label>الفئة</label>
+                    <select id="empCat">
+                        <option>مدير</option>
+                        <option>مشرف</option>
+                        <option selected>موظف</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>نظام الدوام</label>
+                    <select id="empRole">
+                        <option value="FIXED">ليلي (ثابت أحد-خميس)</option>
+                        <option value="MORNING">صباحي (أحد-خميس)</option>
+                        <option value="EVENING">مسائي (أحد-خميس)</option>
+                        <option value="THU_FRI">مشرف تغطية (تبادل ويكيند)</option>
+                    </select>
+                </div>
+                <button class="btn btn-add" onclick="addNewEmployee()">+ إضافة موظف</button>
+            </div>
+
+            <h3 style="margin-top:30px;">قائمة الموظفين الحالية</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>الفئة</th>
+                        <th>النظام</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="adminListBody"></tbody>
+            </table>
+        </div>
+
+    </div>
 </div>
 
-<div class="summary-container" id="summaryCards"></div>
-
 <script>
-    // قائمة الم
+    // بيانات الموظفين الأساسية
+    let employees = [
+        { id: 1, name: "Abdulrahman Al-Sulaimani", cat: "مدير", role: "FIXED" },
+        { id: 2, name: "Hamad Al-Khathran", cat: "مشرف", role: "THU_FRI" },
+        { id: 3, name: "Ziyad Althaqfiy", cat: "مشرف", role: "THU_FRI" },
+        { id: 4, name: "Essa Alsalami", cat: "موظف", role: "MORNING" },
+        { id: 5, name: "Saleh Aljuraydi", cat: "موظف", role: "EVENING" }
+    ];
+
+    const dayNames = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+
+    window.onload = () => {
+        const today = new Date();
+        const sun = new Date(today.setDate(today.getDate() - today.getDay()));
+        document.getElementById('dateInput').valueAsDate = sun;
+        renderAll();
+    };
+
+    function showTab(tabId, btn) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        btn.classList.add('active');
+        renderAll();
+    }
+
+    function addNewEmployee() {
+        const name = document.getElementById('empName').value;
+        const cat = document.getElementById('empCat').value;
+        const role = document.getElementById('empRole').value;
+        if(!name) return alert("اكتب الاسم");
+
+        employees.push({ id: Date.now(), name, cat, role });
+        document.getElementById('empName').value = "";
+        renderAll();
+    }
+
+    function deleteEmp(id) {
+        if(confirm("حذف الموظف؟")) {
+            employees = employees.filter(e => e.id !== id);
+            renderAll();
+        }
+    }
+
+    function renderAll() {
+        renderSchedule();
+        renderAdminList();
+    }
+
+    function renderAdminList() {
+        const body = document.getElementById('adminListBody');
+        body.innerHTML = employees.map(e => `
+            <tr>
+                <td style="text-align:right">${e.name}</td>
+                <td>${e.cat}</td>
+                <td>${e.role}</td>
+                <td><button class="btn btn-delete" onclick="deleteEmp(${e.id})">حذف</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function renderSchedule() {
+        const start = new Date(document.getElementById('dateInput').value);
+        const weekNum = Math.ceil(start.getDate() / 7);
+        const isEven = weekNum % 2 === 0;
+
+        // Header Update
+        let hHtml = '<th>الموظف</th><th>الفئة</th>';
+        for(let i=0; i<7; i++) {
+            let d = new Date(start); d.setDate(start.getDate() + i);
+            hHtml += `<th>${dayNames[i]}<br><small>${d.toLocaleDateString('en-GB')}</small></th>`;
+        }
+        document.getElementById('headerRow').innerHTML = hHtml;
+
+        // Body Update
+        let counts = { صباحي: 0, مسائي: 0, ليلي: 0, إجازات: 0 };
+        let bHtml = '';
+
+        // فرز المشرفين لتطبيق منطق التغطية التبادلي عليهم
+        let supervisors = employees.filter(e => e.role === "THU_FRI");
+
+        employees.forEach(emp => {
+            bHtml += `<tr><td class="emp-name">${emp.name}</td><td style="color:#888">${emp.cat}</td>`;
+            for(let d=0; d<7; d++) {
+                let shift = calculateShift(emp, d, isEven, supervisors);
+                let display = (shift === "تغطية") ? "جمعة" : shift;
+                bHtml += `<td><span class="badge ${shift}">${display}</span></td>`;
+                
+                // حساب الملخص
+                if(shift === "صباحي" || shift === "تغطية") counts.صباحي++;
+                else if(shift === "مسائي") counts.مسائي++;
+                else if(shift === "ليلي") counts.ليلي++;
+                else if(shift === "إجازة") counts.إجازات++;
+            }
+            bHtml += `</tr>`;
+        });
+        document.getElementById('scheduleBody').innerHTML = bHtml;
+
+        // Summary Update
+        document.getElementById('summaryArea').innerHTML = `
+            <div class="sum-card"><h3>${counts.صباحي}</h3><p>الصباحي</p></div>
+            <div class="sum-card"><h3>${counts.مسائي}</h3><p>المسائي</p></div>
+            <div class="sum-card"><h3>${counts.ليلي}</h3><p>الليلي</p></div>
+            <div class="sum-card"><h3>${counts.إجازات}</h3><p>إجازات</p></div>
+        `;
+    }
+
+    function calculateShift(emp, day, isEven, supervisors) {
+        if(emp.role === "FIXED") return (day <= 4) ? "ليلي" : "أوف";
+        
+        if(emp.role === "THU_FRI") {
+            // منطق التبادل بين أول مشرفين في القائمة
+            const idx = supervisors.findIndex(s => s.id === emp.id);
+            const roleForThisWeek = (idx === 0) ? (isEven ? "A" : "B") : (isEven ? "B" : "A");
+            
+            if(roleForThisWeek === "A") { // أوف خميس وجمعة، يداوم سبت
+                if(day === 4) return "إجازة";
+                if(day === 5) return "أوف";
+                return "صباحي";
+            } else { // أوف أربعاء وخميس، يداوم جمعة وسبت
+                if(day === 3 || day === 4) return "أوف";
+                if(day === 5) return "تغطية";
+                return (day === 6) ? "صباحي" : "مسائي";
+            }
+        }
+
+        // الموظفون العاديون
+        if(day === 5 || day === 6) return "أوف";
+        return (emp.role === "MORNING") ? "صباحي" : "مسائي";
+    }
+</script>
+
+</body>
+</html>
