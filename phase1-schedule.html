@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - Scheduling v7.8</title>
+    <title>Almajdouie Motors - Scheduling v7.9</title>
     <style>
         :root {
             --primary-blue: #0d2149;
@@ -61,7 +61,7 @@
             <img src="LOGO-almajdouie.png" class="logo-img">
             <div>
                 <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div style="font-size: 10px; color: #555;">Scheduling System v7.8</div>
+                <div style="font-size: 10px; color: #555;">Scheduling System v7.9</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -120,6 +120,14 @@
     const db = getFirestore(app);
     let employees = [], holidayDuties = [], currentLang = 'en';
 
+    // مساعدة: تحويل التاريخ إلى نص YYYY-MM-DD محلياً بدون أخطاء التوقيت العالمي
+    const toLocalISO = (date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+
     window.switchTab = (id, btn) => {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -144,7 +152,7 @@
         const dateInput = document.getElementById('datePicker').value;
         if (!dateInput) return;
         
-        // تعديل مهم: إنشاء التاريخ باستخدام أجزاء التاريخ لتجنب أخطاء التوقيت العالمي
+        // جلب التاريخ المختار يدوياً لضمان الدقة المحلية
         const parts = dateInput.split('-');
         const start = new Date(parts[0], parts[1] - 1, parts[2]);
         start.setHours(0,0,0,0);
@@ -242,20 +250,26 @@
         await syncHolidays([...holidayDuties, { empId: id, start: s, end: e, name: n }]);
     };
     window.delDuty = async (i) => { let a = [...holidayDuties]; a.splice(i, 1); await syncHolidays(a); };
+    
     window.setCurrentWeek = () => {
         let now = new Date();
-        let s = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
-        document.getElementById('datePicker').value = s.toISOString().split('T')[0];
-        window.renderAll();
-    };
-    window.changeWeek = (v) => {
-        let current = new Date(document.getElementById('datePicker').value);
-        current.setDate(current.getDate() + v);
-        document.getElementById('datePicker').value = current.toISOString().split('T')[0];
+        now.setHours(0,0,0,0);
+        // العودة ليوم الأحد الماضي
+        let s = new Date(now);
+        s.setDate(now.getDate() - now.getDay());
+        document.getElementById('datePicker').value = toLocalISO(s);
         window.renderAll();
     };
 
-    document.getElementById('datePicker').valueAsDate = new Date();
+    window.changeWeek = (v) => {
+        const parts = document.getElementById('datePicker').value.split('-');
+        let current = new Date(parts[0], parts[1]-1, parts[2]);
+        current.setDate(current.getDate() + v);
+        document.getElementById('datePicker').value = toLocalISO(current);
+        window.renderAll();
+    };
+
+    // التشغيل الأولي
     window.setCurrentWeek();
 </script>
 </body>
