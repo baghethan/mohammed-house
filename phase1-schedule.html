@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - Scheduling v8.3</title>
+    <title>Almajdouie Motors - Scheduling v8.4</title>
     <style>
         :root {
             --primary-blue: #0d2149;
@@ -14,6 +14,7 @@
             --work-bg: #e8f5e9; --work-text: #2e7d32;
             --morning-bg: #fff3e0; --morning-text: #ef6c00;
             --national-bg: #004d40; --national-text: #ffffff;
+            --annual-bg: #ffe0b2; --annual-text: #e65100; /* ألوان الإجازة السنوية */
         }
 
         body { margin: 0; padding: 20px; font-family: 'Segoe UI', sans-serif; background: #f4f7f6; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
@@ -38,8 +39,11 @@
         .Work, .دوام { background: var(--work-bg); color: var(--work-text); }
         .Morning, .صباحي { background: var(--morning-bg); color: var(--morning-text); }
         .NationalDay, .اليوم_الوطني { background: var(--national-bg); color: var(--national-text); }
+        .Annual, .سنوية { background: var(--annual-bg); color: var(--annual-text); }
         
         .admin-form { background: #e3f2fd; padding: 15px; border-radius: 10px; margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+        .holiday-form { background: #fff9c4; padding: 15px; border-radius: 10px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .annual-form { background: #ffe0b2; padding: 15px; border-radius: 10px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         .btn-action { border: none; border-radius: 6px; padding: 6px 12px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; }
     </style>
 </head>
@@ -60,7 +64,7 @@
             <img src="LOGO-almajdouie.png" class="logo-img" style="max-height:50px">
             <div>
                 <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div style="font-size: 10px; color: #555;">Scheduling System v8.3</div>
+                <div style="font-size: 10px; color: #555;">Scheduling System v8.4</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -70,6 +74,7 @@
         <div class="tab active" onclick="window.switchTab('schedule', this)">🗓️ Schedule</div>
         <div class="tab" onclick="window.switchTab('admin', this)">👥 Employees</div>
         <div class="tab" onclick="window.switchTab('holidays', this)">🎊 Public Holidays</div>
+        <div class="tab" onclick="window.switchTab('annual', this)">🌴 Annual Leave</div>
     </div>
 
     <div id="schedule" class="tab-content active">
@@ -82,7 +87,7 @@
 
     <div id="admin" class="tab-content">
         <div class="admin-form">
-            <input type="text" id="newEmpName" placeholder="Employee Name" style="padding:8px; flex:1; border:1px solid #ccc; border-radius:5px;">
+            <input type="text" id="newEmpName" placeholder="New Employee Name" style="padding:8px; flex:1; border:1px solid #ccc; border-radius:5px;">
             <select id="newEmpShift" style="padding:8px; border-radius:5px; border:1px solid #ccc;">
                 <option value="morning">Morning Shift</option>
                 <option value="night">Night Shift</option>
@@ -90,21 +95,13 @@
             <button class="btn-tool" style="background: var(--primary-blue); color:white" onclick="window.addEmployee()">+ Add Employee</button>
         </div>
         <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Current Shift (Click to Change)</th>
-                    <th>Rotation Logic</th>
-                    <th>Visibility</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
+            <thead><tr><th>Name</th><th>Shift</th><th>Rotation</th><th>Visibility</th><th>Actions</th></tr></thead>
             <tbody id="adminList"></tbody>
         </table>
     </div>
 
     <div id="holidays" class="tab-content">
-        <div style="background:#fff9c4; padding:15px; border-radius:10px; margin-bottom:15px; display:flex; gap:10px;">
+        <div class="holiday-form">
             <select id="hEmpSelect" style="padding:8px"></select>
             <input type="text" id="hName" placeholder="Holiday Name" style="padding:8px">
             <input type="date" id="hStart" style="padding:8px">
@@ -112,8 +109,21 @@
             <button class="btn-tool" style="background: var(--primary-blue); color:white" onclick="window.addHolidayDuty()">Add Assignment</button>
         </div>
         <table>
-            <thead><tr><th>Holiday Name</th><th>Staff on Duty</th><th>Dates</th><th>Action</th></tr></thead>
+            <thead><tr><th>Name</th><th>Staff</th><th>Range</th><th>Action</th></tr></thead>
             <tbody id="holidayBody"></tbody>
+        </table>
+    </div>
+
+    <div id="annual" class="tab-content">
+        <div class="annual-form">
+            <select id="aEmpSelect" style="padding:8px"></select>
+            <input type="date" id="aStart" style="padding:8px">
+            <input type="date" id="aEnd" style="padding:8px">
+            <button class="btn-tool" style="background: #e65100; color:white" onclick="window.addAnnualLeave()">Add Annual Leave</button>
+        </div>
+        <table>
+            <thead><tr><th>Staff Name</th><th>From</th><th>To</th><th>Action</th></tr></thead>
+            <tbody id="annualBody"></tbody>
         </table>
     </div>
 </div>
@@ -133,7 +143,7 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    let employees = [], holidayDuties = [], currentLang = 'en';
+    let employees = [], holidayDuties = [], annualLeaves = [], currentLang = 'en';
 
     window.switchTab = (id, btn) => {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -147,12 +157,15 @@
         window.renderAll();
     };
 
+    // Firebase Listeners
     onSnapshot(doc(db, "schedule", "jadwal_v6"), (snap) => {
         if(snap.exists()){ employees = snap.data().data.emps || []; window.renderAll(); }
     });
-
     onSnapshot(doc(db, "schedule", "jadwal_holidays"), (snap) => {
         if(snap.exists()){ holidayDuties = snap.data().duties || []; window.renderAll(); }
+    });
+    onSnapshot(doc(db, "schedule", "jadwal_annual_leave"), (snap) => {
+        if(snap.exists()){ annualLeaves = snap.data().leaves || []; window.renderAll(); }
     });
 
     window.renderAll = () => {
@@ -168,7 +181,8 @@
             h: currentLang === 'ar' ? 'إجازة' : 'Holiday',
             work: currentLang === 'ar' ? 'دوام' : 'Work',
             morning: currentLang === 'ar' ? 'صباحي' : 'Morning',
-            national: currentLang === 'ar' ? 'اليوم الوطني' : 'National Day'
+            national: currentLang === 'ar' ? 'اليوم الوطني' : 'National Day',
+            annual: currentLang === 'ar' ? 'إجازة سنوية' : 'Annual Leave'
         };
 
         const firstDayOfYear = new Date(start.getFullYear(), 0, 1);
@@ -194,6 +208,15 @@
             let row = `<tr><td style="text-align:left"><b>${emp.name}</b></td>`;
             for(let d=0; d<7; d++) {
                 let cellDate = new Date(start); cellDate.setDate(start.getDate() + d); cellDate.setHours(0,0,0,0);
+                
+                // 1. Check Annual Leave (Highest Priority)
+                const activeAL = annualLeaves.find(leave => {
+                    const ds = new Date(leave.start + 'T00:00:00');
+                    const de = new Date(leave.end + 'T00:00:00');
+                    return String(leave.empId) === String(emp.id) && cellDate >= ds && cellDate <= de;
+                });
+
+                // 2. Check Public Holidays
                 const activeH = holidayDuties.find(duty => {
                     const ds = new Date(duty.start + 'T00:00:00');
                     const de = new Date(duty.end + 'T00:00:00');
@@ -201,7 +224,10 @@
                 });
 
                 let shift = "", icon = "", badgeClass = "Morning";
-                if (activeH) {
+
+                if (activeAL) {
+                    shift = t.annual; badgeClass = "Annual"; icon = "🌴";
+                } else if (activeH) {
                     if (String(activeH.empId) === String(emp.id)) {
                         shift = emp.fixed ? t.night : t.onCall; badgeClass = emp.fixed ? "Night" : "OnCall"; icon = emp.fixed ? "🌙" : "📞";
                     } else { shift = t.h; badgeClass = "Holiday"; icon = "🎊"; }
@@ -228,15 +254,11 @@
     };
 
     function updateUILists() {
-        // إدارة الموظفين
+        // Admin List
         document.getElementById('adminList').innerHTML = employees.map((e, i) => `
             <tr>
                 <td style="text-align:left"><b>${e.name}</b></td>
-                <td>
-                    <button onclick="window.toggleProp(${i}, 'fixed')" class="btn-action" style="background:${e.fixed?'#512da8':'#ef6c00'}; min-width:100px;">
-                        ${e.fixed ? '🌙 Night' : '☀️ Morning'}
-                    </button>
-                </td>
+                <td><button onclick="window.toggleProp(${i}, 'fixed')" style="background:${e.fixed?'#512da8':'#ef6c00'}; color:white; border:none; padding:5px; border-radius:4px; min-width:80px;">${e.fixed?'Night':'Morning'}</button></td>
                 <td>
                     <select class="small-sel" onchange="window.updateRot(${i}, this.value)">
                         <option value="none" ${e.rotType==='none'?'selected':''}>No Rotation</option>
@@ -244,57 +266,57 @@
                         <option value="fri" ${e.rotType==='fri'?'selected':''}>Fri Rotation</option>
                     </select>
                 </td>
-                <td>
-                    <button onclick="window.toggleProp(${i}, 'active')" class="btn-action" style="background:${e.active?'#2e7d32':'#616161'}">
-                        ${e.active ? 'Active' : 'Hidden'}
-                    </button>
-                </td>
-                <td>
-                    <button onclick="window.deleteEmployee(${i})" style="background:#b71c1c; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer">Delete</button>
-                </td>
+                <td><button onclick="window.toggleProp(${i}, 'active')" style="background:${e.active?'#2e7d32':'#616161'}; color:white; border:none; padding:5px; border-radius:4px;">${e.active?'Active':'Hidden'}</button></td>
+                <td><button onclick="window.deleteEmployee(${i})" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold;">Delete</button></td>
             </tr>`).join('');
-
-        document.getElementById('hEmpSelect').innerHTML = employees.filter(e => e.active).map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        
+        // Populate Selects
+        const activeEmps = employees.filter(e => e.active);
+        document.getElementById('hEmpSelect').innerHTML = activeEmps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        document.getElementById('aEmpSelect').innerHTML = activeEmps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        
+        // Holiday List
         document.getElementById('holidayBody').innerHTML = holidayDuties.map((d, i) => {
             const emp = employees.find(e => String(e.id) === String(d.empId));
             return `<tr><td>${d.name}</td><td>${emp?emp.name:'-'}</td><td>${d.start}/${d.end}</td><td><button onclick="window.delDuty(${i})" style="color:red">X</button></td></tr>`;
         }).join('');
+
+        // Annual Leave List
+        document.getElementById('annualBody').innerHTML = annualLeaves.map((l, i) => {
+            const emp = employees.find(e => String(e.id) === String(l.empId));
+            return `<tr><td><b>${emp?emp.name:'-'}</b></td><td>${l.start}</td><td>${l.end}</td><td><button onclick="window.delAnnual(${i})" style="color:red">Delete</button></td></tr>`;
+        }).join('');
     }
 
-    // --- الدوال الجديدة ---
+    // Actions
     window.addEmployee = async () => {
         const name = document.getElementById('newEmpName').value;
         const shift = document.getElementById('newEmpShift').value;
-        if(!name) { alert("Please enter a name"); return; }
-        
-        const newEmp = {
-            id: "emp_" + Date.now(),
-            name: name,
-            fixed: (shift === 'night'), // تحديد إذا كان ليلي أو صباحي عند الإضافة
-            active: true,
-            rotType: 'none'
-        };
-        await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": [...employees, newEmp] });
+        if(!name) return;
+        const newE = { id: "emp_" + Date.now(), name, fixed: (shift==='night'), active: true, rotType: 'none' };
+        await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": [...employees, newE] });
         document.getElementById('newEmpName').value = "";
     };
 
-    window.deleteEmployee = async (i) => {
-        if(confirm("Are you sure you want to delete this employee?")) {
-            let a = [...employees]; a.splice(i, 1);
-            await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a });
-        }
-    };
+    window.deleteEmployee = async (i) => { if(confirm("Delete employee?")) { let a = [...employees]; a.splice(i,1); await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); } };
+    window.toggleProp = async (i, p) => { let a = [...employees]; a[i][p] = !a[i][p]; await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); };
+    window.updateRot = async (i, v) => { let a = [...employees]; a[i].rotType = v; await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); };
 
-    async function sync(arr) { await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": arr }); }
-    window.toggleProp = async (i, p) => { let a = [...employees]; a[i][p] = !a[i][p]; await sync(a); };
-    window.updateRot = async (i, val) => { let a = [...employees]; a[i].rotType = val; await sync(a); };
     window.addHolidayDuty = async () => {
         const id = document.getElementById('hEmpSelect').value, s = document.getElementById('hStart').value, e = document.getElementById('hEnd').value, n = document.getElementById('hName').value;
         if(!s || !e || !n) return;
         await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: [...holidayDuties, { empId: id, start: s, end: e, name: n }] });
     };
-    window.delDuty = async (i) => { let a = [...holidayDuties]; a.splice(i, 1); await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: a }); };
-    
+    window.delDuty = async (i) => { let a = [...holidayDuties]; a.splice(i,1); await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: a }); };
+
+    window.addAnnualLeave = async () => {
+        const id = document.getElementById('aEmpSelect').value, s = document.getElementById('aStart').value, e = document.getElementById('aEnd').value;
+        if(!s || !e) return;
+        await updateDoc(doc(db, "schedule", "jadwal_annual_leave"), { leaves: [...annualLeaves, { empId: id, start: s, end: e }] });
+        alert("Annual leave added!");
+    };
+    window.delAnnual = async (i) => { let a = [...annualLeaves]; a.splice(i,1); await updateDoc(doc(db, "schedule", "jadwal_annual_leave"), { leaves: a }); };
+
     window.setCurrentWeek = () => {
         let now = new Date(); now.setHours(0,0,0,0);
         let s = new Date(now); s.setDate(now.getDate() - now.getDay());
@@ -302,7 +324,6 @@
         document.getElementById('datePicker').value = `${y}-${m}-${d}`;
         window.renderAll();
     };
-
     window.changeWeek = (v) => {
         const parts = document.getElementById('datePicker').value.split('-');
         let current = new Date(parts[0], parts[1]-1, parts[2]);
