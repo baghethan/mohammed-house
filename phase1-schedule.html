@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - Scheduling v8.2</title>
+    <title>Almajdouie Motors - Scheduling v8.3</title>
     <style>
         :root {
             --primary-blue: #0d2149;
@@ -39,8 +39,8 @@
         .Morning, .صباحي { background: var(--morning-bg); color: var(--morning-text); }
         .NationalDay, .اليوم_الوطني { background: var(--national-bg); color: var(--national-text); }
         
-        select.small-sel { padding: 4px; border-radius: 4px; border: 1px solid #ddd; font-size: 11px; }
-        .holiday-form { background: #fff9c4; padding: 15px; border-radius: 10px; margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .admin-form { background: #e3f2fd; padding: 15px; border-radius: 10px; margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+        .btn-action { border: none; border-radius: 6px; padding: 6px 12px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; }
     </style>
 </head>
 <body>
@@ -60,7 +60,7 @@
             <img src="LOGO-almajdouie.png" class="logo-img" style="max-height:50px">
             <div>
                 <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div style="font-size: 10px; color: #555;">Scheduling System v8.2</div>
+                <div style="font-size: 10px; color: #555;">Scheduling System v8.3</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -81,14 +81,30 @@
     </div>
 
     <div id="admin" class="tab-content">
+        <div class="admin-form">
+            <input type="text" id="newEmpName" placeholder="Employee Name" style="padding:8px; flex:1; border:1px solid #ccc; border-radius:5px;">
+            <select id="newEmpShift" style="padding:8px; border-radius:5px; border:1px solid #ccc;">
+                <option value="morning">Morning Shift</option>
+                <option value="night">Night Shift</option>
+            </select>
+            <button class="btn-tool" style="background: var(--primary-blue); color:white" onclick="window.addEmployee()">+ Add Employee</button>
+        </div>
         <table>
-            <thead><tr><th>Name</th><th>Shift</th><th>Rotation</th><th>Status</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Current Shift (Click to Change)</th>
+                    <th>Rotation Logic</th>
+                    <th>Visibility</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
             <tbody id="adminList"></tbody>
         </table>
     </div>
 
     <div id="holidays" class="tab-content">
-        <div class="holiday-form">
+        <div style="background:#fff9c4; padding:15px; border-radius:10px; margin-bottom:15px; display:flex; gap:10px;">
             <select id="hEmpSelect" style="padding:8px"></select>
             <input type="text" id="hName" placeholder="Holiday Name" style="padding:8px">
             <input type="date" id="hStart" style="padding:8px">
@@ -96,16 +112,8 @@
             <button class="btn-tool" style="background: var(--primary-blue); color:white" onclick="window.addHolidayDuty()">Add Assignment</button>
         </div>
         <table>
-            <thead>
-                <tr>
-                    <th>Holiday Name</th>
-                    <th>Staff on Duty</th>
-                    <th>Date Range</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="holidayBody">
-                </tbody>
+            <thead><tr><th>Holiday Name</th><th>Staff on Duty</th><th>Dates</th><th>Action</th></tr></thead>
+            <tbody id="holidayBody"></tbody>
         </table>
     </div>
 </div>
@@ -169,7 +177,6 @@
 
         const thuPool = employees.filter(e => e.rotType === 'thu' && e.active);
         const friPool = employees.filter(e => e.rotType === 'fri' && e.active);
-
         let currentThuMan = thuPool.length > 0 ? thuPool[weekNum % thuPool.length].id : null;
         let currentFriMan = friPool.length > 0 ? friPool[weekNum % friPool.length].id : null;
 
@@ -182,13 +189,11 @@
         }
         document.getElementById('headerDates').innerHTML = h;
 
-        // Rows Logic
+        // Body
         document.getElementById('scheduleBody').innerHTML = employees.filter(e => e.active).map(emp => {
             let row = `<tr><td style="text-align:left"><b>${emp.name}</b></td>`;
             for(let d=0; d<7; d++) {
                 let cellDate = new Date(start); cellDate.setDate(start.getDate() + d); cellDate.setHours(0,0,0,0);
-                const isNationalDay = (cellDate.getMonth() === 8 && cellDate.getDate() === 23);
-                
                 const activeH = holidayDuties.find(duty => {
                     const ds = new Date(duty.start + 'T00:00:00');
                     const de = new Date(duty.end + 'T00:00:00');
@@ -196,46 +201,25 @@
                 });
 
                 let shift = "", icon = "", badgeClass = "Morning";
-
                 if (activeH) {
-                    // تصحيح: المقارنة باستخدام == للتأكد من الموظف المكلف
                     if (String(activeH.empId) === String(emp.id)) {
-                        shift = emp.fixed ? t.night : t.onCall; 
-                        badgeClass = emp.fixed ? "Night" : "OnCall"; 
-                        icon = emp.fixed ? "🌙" : "📞";
-                    } else {
-                        shift = t.h; badgeClass = "Holiday"; icon = "🎊";
-                    }
-                } else if (isNationalDay) {
+                        shift = emp.fixed ? t.night : t.onCall; badgeClass = emp.fixed ? "Night" : "OnCall"; icon = emp.fixed ? "🌙" : "📞";
+                    } else { shift = t.h; badgeClass = "Holiday"; icon = "🎊"; }
+                } else if (cellDate.getMonth() === 8 && cellDate.getDate() === 23) {
                     shift = t.onCall; badgeClass = "NationalDay"; icon = "🇸🇦";
-                } 
-                else if (d === 4) { // الخميس
-                    if (emp.id === currentThuMan) {
-                        shift = t.off; badgeClass = "Off"; 
-                    } else {
-                        shift = emp.fixed ? t.night : t.morning; badgeClass = emp.fixed ? "Night" : "Morning"; icon = emp.fixed ? "🌙" : "☀️";
-                    }
-                } 
-                else if (d === 5) { // الجمعة
-                    if (emp.id === currentThuMan) {
-                        shift = t.off; badgeClass = "Off";
-                    } else if (emp.id === currentFriMan) {
-                        shift = t.onCall; badgeClass = "OnCall"; icon = "📞";
-                    } else {
-                        shift = t.off; badgeClass = "Off";
-                    }
-                } 
-                else if (d === 6) { // السبت
-                    if (emp.id === currentThuMan) {
-                        shift = t.work; badgeClass = "Work"; icon = "🏢";
-                    } else {
-                        shift = t.off; badgeClass = "Off";
-                    }
-                } 
-                else {
+                } else if (d === 4) { 
+                    if (emp.id === currentThuMan) { shift = t.off; badgeClass = "Off"; }
+                    else { shift = emp.fixed ? t.night : t.morning; badgeClass = emp.fixed ? "Night" : "Morning"; icon = emp.fixed ? "🌙" : "☀️"; }
+                } else if (d === 5) {
+                    if (emp.id === currentThuMan) { shift = t.off; badgeClass = "Off"; }
+                    else if (emp.id === currentFriMan) { shift = t.onCall; badgeClass = "OnCall"; icon = "📞"; }
+                    else { shift = t.off; badgeClass = "Off"; }
+                } else if (d === 6) {
+                    if (emp.id === currentThuMan) { shift = t.work; badgeClass = "Work"; icon = "🏢"; }
+                    else { shift = t.off; badgeClass = "Off"; }
+                } else {
                     shift = emp.fixed ? t.night : t.morning; badgeClass = emp.fixed ? "Night" : "Morning"; icon = emp.fixed ? "🌙" : "☀️";
                 }
-
                 row += `<td><span class="badge ${badgeClass}">${icon} ${shift}</span></td>`;
             }
             return row + "</tr>";
@@ -244,50 +228,72 @@
     };
 
     function updateUILists() {
-        // تحديث جدول الموظفين
+        // إدارة الموظفين
         document.getElementById('adminList').innerHTML = employees.map((e, i) => `
             <tr>
                 <td style="text-align:left"><b>${e.name}</b></td>
-                <td><button onclick="window.toggleProp(${i}, 'fixed')" style="background:#512da8; color:white; border:none; padding:5px; border-radius:4px;">${e.fixed?'Night':'Morning'}</button></td>
+                <td>
+                    <button onclick="window.toggleProp(${i}, 'fixed')" class="btn-action" style="background:${e.fixed?'#512da8':'#ef6c00'}; min-width:100px;">
+                        ${e.fixed ? '🌙 Night' : '☀️ Morning'}
+                    </button>
+                </td>
                 <td>
                     <select class="small-sel" onchange="window.updateRot(${i}, this.value)">
                         <option value="none" ${e.rotType==='none'?'selected':''}>No Rotation</option>
-                        <option value="thu" ${e.rotType==='thu'?'selected':''}>Thursday Rotation</option>
-                        <option value="fri" ${e.rotType==='fri'?'selected':''}>Friday Rotation</option>
+                        <option value="thu" ${e.rotType==='thu'?'selected':''}>Thu Rotation</option>
+                        <option value="fri" ${e.rotType==='fri'?'selected':''}>Fri Rotation</option>
                     </select>
                 </td>
-                <td><button onclick="window.toggleProp(${i}, 'active')" style="background:#e65100; color:white; border:none; padding:5px; border-radius:4px;">${e.active?'Active':'Inactive'}</button></td>
+                <td>
+                    <button onclick="window.toggleProp(${i}, 'active')" class="btn-action" style="background:${e.active?'#2e7d32':'#616161'}">
+                        ${e.active ? 'Active' : 'Hidden'}
+                    </button>
+                </td>
+                <td>
+                    <button onclick="window.deleteEmployee(${i})" style="background:#b71c1c; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer">Delete</button>
+                </td>
             </tr>`).join('');
-        
-        // تحديث قائمة الموظفين في فورم الإجازات
+
         document.getElementById('hEmpSelect').innerHTML = employees.filter(e => e.active).map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-        
-        // تحديث جدول الإجازات المضافة (المعلومات المختفية)
         document.getElementById('holidayBody').innerHTML = holidayDuties.map((d, i) => {
             const emp = employees.find(e => String(e.id) === String(d.empId));
-            return `<tr>
-                <td>${d.name}</td>
-                <td>${emp ? emp.name : 'Unknown'}</td>
-                <td>${d.start} / ${d.end}</td>
-                <td><button onclick="window.delDuty(${i})" style="background:red; color:white; border:none; padding:5px; border-radius:4px;">Delete</button></td>
-            </tr>`;
+            return `<tr><td>${d.name}</td><td>${emp?emp.name:'-'}</td><td>${d.start}/${d.end}</td><td><button onclick="window.delDuty(${i})" style="color:red">X</button></td></tr>`;
         }).join('');
     }
+
+    // --- الدوال الجديدة ---
+    window.addEmployee = async () => {
+        const name = document.getElementById('newEmpName').value;
+        const shift = document.getElementById('newEmpShift').value;
+        if(!name) { alert("Please enter a name"); return; }
+        
+        const newEmp = {
+            id: "emp_" + Date.now(),
+            name: name,
+            fixed: (shift === 'night'), // تحديد إذا كان ليلي أو صباحي عند الإضافة
+            active: true,
+            rotType: 'none'
+        };
+        await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": [...employees, newEmp] });
+        document.getElementById('newEmpName').value = "";
+    };
+
+    window.deleteEmployee = async (i) => {
+        if(confirm("Are you sure you want to delete this employee?")) {
+            let a = [...employees]; a.splice(i, 1);
+            await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a });
+        }
+    };
 
     async function sync(arr) { await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": arr }); }
     window.toggleProp = async (i, p) => { let a = [...employees]; a[i][p] = !a[i][p]; await sync(a); };
     window.updateRot = async (i, val) => { let a = [...employees]; a[i].rotType = val; await sync(a); };
-    
     window.addHolidayDuty = async () => {
         const id = document.getElementById('hEmpSelect').value, s = document.getElementById('hStart').value, e = document.getElementById('hEnd').value, n = document.getElementById('hName').value;
         if(!s || !e || !n) return;
         await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: [...holidayDuties, { empId: id, start: s, end: e, name: n }] });
     };
-
-    window.delDuty = async (i) => {
-        let a = [...holidayDuties]; a.splice(i, 1);
-        await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: a });
-    };
+    window.delDuty = async (i) => { let a = [...holidayDuties]; a.splice(i, 1); await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: a }); };
     
     window.setCurrentWeek = () => {
         let now = new Date(); now.setHours(0,0,0,0);
