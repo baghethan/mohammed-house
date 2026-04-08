@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - Scheduling v9.2</title>
+    <title>Almajdouie Motors - Scheduling v9.3</title>
     <style>
         :root {
             --primary-blue: #0d2149;
@@ -32,7 +32,11 @@
         th, td { padding: 10px 5px; text-align: center; border: 1px solid #f0f0f0; }
         th { background: #fbfbfb; color: var(--primary-blue); font-weight: 900; }
         
-        .badge { border-radius: 6px; padding: 6px 4px; font-size: 10px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; min-width: 95px; justify-content: center; }
+        /* جعل الخلية قابلة للضغط */
+        .editable-cell { cursor: pointer; transition: 0.2s; }
+        .editable-cell:hover { background: #f0f0f0; transform: scale(1.02); }
+
+        .badge { border-radius: 6px; padding: 6px 4px; font-size: 10px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; min-width: 95px; justify-content: center; pointer-events: none; }
         .OnCall { background: var(--oncall-bg); color: var(--oncall-text); }
         .Night { background: var(--night-bg); color: var(--night-text); }
         .Off { background: var(--off-bg); color: var(--off-text); }
@@ -63,7 +67,7 @@
             <img src="LOGO-almajdouie.png" class="logo-img" style="max-height:45px">
             <div>
                 <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div style="font-size: 10px; color: #555;">Scheduling System v9.2</div>
+                <div style="font-size: 10px; color: #555;">Scheduling System v9.3</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -74,10 +78,10 @@
         <div class="tab" onclick="window.switchTab('admin', this)">👥 Employees</div>
         <div class="tab" onclick="window.switchTab('holidays', this)">🎊 Public Holidays</div>
         <div class="tab" onclick="window.switchTab('annual', this)">🌴 Annual Leave</div>
-        <div class="tab" onclick="window.switchTab('planning', this)">📅 Vacation Plan (Internal)</div>
     </div>
 
     <div id="schedule" class="tab-content active">
+        <div style="font-size: 11px; color: #666; margin-bottom: 10px;">💡 Click any cell to manually change shift or set as Off.</div>
         <input type="date" id="datePicker" onchange="window.renderAll()" style="margin-bottom:15px; padding:8px;">
         <table>
             <thead><tr id="headerDates"></tr></thead>
@@ -87,47 +91,26 @@
 
     <div id="admin" class="tab-content">
         <div class="form-box" style="background: #e3f2fd;">
-            <input type="text" id="newEmpName" placeholder="Add New Employee Name" style="flex:1; padding:8px;">
+            <input type="text" id="newEmpName" placeholder="Employee Name" style="flex:1; padding:8px;">
             <button class="btn-tool" style="background: var(--primary-blue); color:white" onclick="window.addEmployee()">+ Add Employee</button>
         </div>
-        <table>
-            <thead><tr><th>Name</th><th>Shift</th><th>Rotation Logic</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody id="adminList"></tbody>
-        </table>
-    </div>
-
-    <div id="planning" class="tab-content">
-        <div class="form-box" style="background: #e0f2f1;">
-            <select id="pEmpSelect"></select>
-            <input type="date" id="pStart"><input type="date" id="pEnd">
-            <button class="btn-tool" style="background:#00796b; color:white" onclick="window.addVacationPlan()">Add to Plan</button>
-        </div>
-        <table><thead><tr><th>Employee Name</th><th>From</th><th>To</th><th>Action</th></tr></thead><tbody id="planningBody"></tbody></table>
+        <table id="adminListTable"><thead><tr><th>Name</th><th>Shift</th><th>Rotation</th><th>Status</th><th>Action</th></tr></thead><tbody id="adminList"></tbody></table>
     </div>
 
     <div id="holidays" class="tab-content">
-        <div class="form-box" style="background: #fff9c4;">
-            <select id="hEmpSelect"></select>
-            <input type="text" id="hName" placeholder="Holiday Name">
-            <input type="date" id="hStart"><input type="date" id="hEnd">
-            <button class="btn-tool" onclick="window.addHolidayDuty()">Assign</button>
-        </div>
+        <div class="form-box" style="background: #fff9c4;"><select id="hEmpSelect"></select><input type="text" id="hName" placeholder="Holiday"><input type="date" id="hStart"><input type="date" id="hEnd"><button class="btn-tool" onclick="window.addHolidayDuty()">Add</button></div>
         <table><thead><tr><th>Holiday</th><th>Staff</th><th>Range</th><th>Action</th></tr></thead><tbody id="holidayBody"></tbody></table>
     </div>
 
     <div id="annual" class="tab-content">
-        <div class="form-box" style="background: #ffe0b2;">
-            <select id="aEmpSelect"></select>
-            <input type="date" id="aStart"><input type="date" id="aEnd">
-            <button class="btn-tool" style="background:#e65100; color:white" onclick="window.addAnnualLeave()">Assign Leave</button>
-        </div>
+        <div class="form-box" style="background: #ffe0b2;"><select id="aEmpSelect"></select><input type="date" id="aStart"><input type="date" id="aEnd"><button class="btn-tool" onclick="window.addAnnualLeave()">Assign</button></div>
         <table><thead><tr><th>Employee</th><th>From</th><th>To</th><th>Action</th></tr></thead><tbody id="annualBody"></tbody></table>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, doc, collection, onSnapshot, updateDoc, setDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, doc, collection, onSnapshot, updateDoc, setDoc, deleteDoc, addDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyBsvEEHEgBuw9pDml-Om90mm8MLDw8gWs",
@@ -140,7 +123,7 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    let employees = [], holidayDuties = [], vacationsList = [], planList = [], currentLang = 'en';
+    let employees = [], holidayDuties = [], vacationsList = [], manualOverrides = {}, currentLang = 'en';
 
     // مساعدة التواريخ
     const formatLocal = (d) => {
@@ -151,8 +134,7 @@
     window.switchTab = (id, btn) => {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.getElementById(id).classList.add('active'); 
-        btn.classList.add('active');
+        document.getElementById(id).classList.add('active'); btn.classList.add('active');
     };
 
     window.toggleLanguage = () => {
@@ -162,22 +144,11 @@
     };
 
     // Listeners
-    onSnapshot(doc(db, "schedule", "jadwal_v6"), (snap) => {
-        employees = snap.exists() ? (snap.data().data?.emps || []) : [];
-        window.renderAll();
-    });
-    onSnapshot(doc(db, "schedule", "jadwal_holidays"), (snap) => {
-        holidayDuties = snap.exists() ? (snap.data().duties || []) : [];
-        window.renderAll();
-    });
-    onSnapshot(doc(db, "schedule", "jadwal_annual_leave"), (snap) => {
-        vacationsList = snap.exists() ? (snap.data().vacations || []) : [];
-        window.renderAll();
-    });
-    onSnapshot(collection(db, "vacations"), (snap) => {
-        planList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        window.renderAll();
-    });
+    onSnapshot(doc(db, "schedule", "jadwal_v6"), (snap) => { employees = snap.exists() ? (snap.data().data?.emps || []) : []; window.renderAll(); });
+    onSnapshot(doc(db, "schedule", "jadwal_holidays"), (snap) => { holidayDuties = snap.exists() ? (snap.data().duties || []) : []; window.renderAll(); });
+    onSnapshot(doc(db, "schedule", "jadwal_annual_leave"), (snap) => { vacationsList = snap.exists() ? (snap.data().vacations || []) : []; window.renderAll(); });
+    // المستمع الجديد للتعديلات اليدوية
+    onSnapshot(doc(db, "schedule", "manual_overrides"), (snap) => { manualOverrides = snap.exists() ? snap.data() : {}; window.renderAll(); });
 
     window.renderAll = () => {
         const dp = document.getElementById('datePicker');
@@ -213,34 +184,67 @@
             let row = `<tr><td style="text-align:left; font-weight:bold;">${emp.name}</td>`;
             for(let d=0; d<7; d++) {
                 let cellD = new Date(start.getTime()); cellD.setDate(start.getDate()+d); cellD.setHours(0,0,0,0);
-                
-                const isAnn = vacationsList.find(v => String(v.empId) === String(emp.id) && cellD >= new Date(v.start.replace(/-/g, '/')) && cellD <= new Date(v.end.replace(/-/g, '/')));
-                const isH = holidayDuties.find(duty => cellD >= new Date(duty.start.replace(/-/g, '/')) && cellD <= new Date(duty.end.replace(/-/g, '/')));
+                const dateKey = formatLocal(cellD);
+                const overrideKey = `${emp.id}_${dateKey}`;
 
-                let shift = "", icon = "", bC = "Morning";
-                if (isAnn) { shift = t.annual; bC = "Annual"; icon = "🌴"; }
-                else if (isH) {
-                    if (String(isH.empId) === String(emp.id)) { shift = emp.fixed?t.night:t.onCall; bC = emp.fixed?"Night":"OnCall"; icon = emp.fixed?"🌙":"📞"; }
-                    else { shift = t.h; bC = "Holiday"; icon = "🎊"; }
-                } else if (cellD.getMonth() === 8 && cellD.getDate() === 23) { shift = t.onCall; bC = "NationalDay"; icon = "🇸🇦"; }
-                else if (d === 4) { if(emp.id === curThu) { shift = t.off; bC = "Off"; } else { shift = emp.fixed?t.night:t.morning; bC = emp.fixed?"Night":"Morning"; icon = emp.fixed?"🌙":"☀️"; } }
-                else if (d === 5) { if(emp.id === curThu) { shift = t.off; bC = "Off"; } else if(emp.id === curFri) { shift = t.onCall; bC = "OnCall"; icon = "📞"; } else { shift = t.off; bC = "Off"; } }
-                else if (d === 6) { if(emp.id === curThu) { shift = t.work; bC = "Work"; icon = "🏢"; } else { shift = t.off; bC = "Off"; } }
-                else { shift = emp.fixed?t.night:t.morning; bC = emp.fixed?"Night":"Morning"; icon = emp.fixed?"🌙":"☀️"; }
-                row += `<td><span class="badge ${bC}">${icon} ${shift}</span></td>`;
+                // Priority 1: Manual Override
+                let shift = manualOverrides[overrideKey];
+                let bC = shift === 'Night' ? 'Night' : (shift === 'Off' ? 'Off' : 'Morning');
+                let icon = shift === 'Night' ? '🌙' : (shift === 'Off' ? '' : '☀️');
+
+                if (!shift) {
+                    // Priority 2: Annual/Holidays
+                    const isAnn = vacationsList.find(v => String(v.empId) === String(emp.id) && cellD >= new Date(v.start.replace(/-/g, '/')) && cellD <= new Date(v.end.replace(/-/g, '/')));
+                    const isH = holidayDuties.find(duty => cellD >= new Date(duty.start.replace(/-/g, '/')) && cellD <= new Date(duty.end.replace(/-/g, '/')));
+
+                    if (isAnn) { shift = t.annual; bC = "Annual"; icon = "🌴"; }
+                    else if (isH) {
+                        if (String(isH.empId) === String(emp.id)) { shift = emp.fixed?t.night:t.onCall; bC = emp.fixed?"Night":"OnCall"; icon = emp.fixed?"🌙":"📞"; }
+                        else { shift = t.h; bC = "Holiday"; icon = "🎊"; }
+                    } else if (cellD.getMonth() === 8 && cellD.getDate() === 23) { shift = t.onCall; bC = "NationalDay"; icon = "🇸🇦"; }
+                    else if (d === 4) { if(emp.id === curThu) { shift = t.off; bC = "Off"; } else { shift = emp.fixed?t.night:t.morning; bC = emp.fixed?"Night":"Morning"; icon = emp.fixed?"🌙":"☀️"; } }
+                    else if (d === 5) { if(emp.id === curThu) { shift = t.off; bC = "Off"; } else if(emp.id === curFri) { shift = t.onCall; bC = "OnCall"; icon = "📞"; } else { shift = t.off; bC = "Off"; } }
+                    else if (d === 6) { if(emp.id === curThu) { shift = t.work; bC = "Work"; icon = "🏢"; } else { shift = t.off; bC = "Off"; } }
+                    else { shift = emp.fixed?t.night:t.morning; bC = emp.fixed?"Night":"Morning"; icon = emp.fixed?"🌙":"☀️"; }
+                } else {
+                    // تحويل مسميات الـ Manual لمسميات العرض
+                    if (shift === 'Night') shift = t.night;
+                    if (shift === 'Off') shift = t.off;
+                    if (shift === 'Morning') shift = t.morning;
+                }
+                
+                row += `<td class="editable-cell" onclick="window.promptOverride('${emp.id}', '${dateKey}', '${emp.name}')">
+                            <span class="badge ${bC}">${icon} ${shift}</span>
+                        </td>`;
             }
             return row + "</tr>";
         }).join('');
         updateUI();
     };
 
-    function updateUI() {
-        const emps = employees.filter(e => e.active);
-        const options = emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-        document.getElementById('pEmpSelect').innerHTML = options;
-        document.getElementById('hEmpSelect').innerHTML = options;
-        document.getElementById('aEmpSelect').innerHTML = options;
+    // دالة لتغيير الحالة يدوياً عند الضغط على الخلية
+    window.promptOverride = async (empId, date, name) => {
+        const choices = currentLang === 'ar' ? 
+            "اختر الحالة الجديدة:\n1. ليلي (Night)\n2. أوف (Off)\n3. صباحي (Morning)\n4. إعادة للوضع التلقائي (Reset)" :
+            "Choose new status:\n1. Night\n2. Off\n3. Morning\n4. Reset to Default";
+        
+        const res = prompt(`${name} - ${date}\n${choices}`);
+        let newStatus = null;
+        if (res === '1') newStatus = 'Night';
+        if (res === '2') newStatus = 'Off';
+        if (res === '3') newStatus = 'Morning';
+        if (res === '4') newStatus = ""; // مسح التعديل اليدوي
 
+        if (res !== null) {
+            const docRef = doc(db, "schedule", "manual_overrides");
+            const key = `${empId}_${date}`;
+            let updates = { ...manualOverrides };
+            if (newStatus) updates[key] = newStatus; else delete updates[key];
+            await setDoc(docRef, updates);
+        }
+    };
+
+    function updateUI() {
         document.getElementById('adminList').innerHTML = employees.map((e, i) => `
             <tr>
                 <td style="text-align:left">${e.name}</td>
@@ -253,32 +257,27 @@
                     </select>
                 </td>
                 <td><button class="btn-action" style="background:${e.active?'#2e7d32':'#616161'}" onclick="window.toggleProp(${i}, 'active')">${e.active?'Active':'Hidden'}</button></td>
-                <td><button onclick="window.deleteEmployee(${i})" style="color:red; background:none; border:none; cursor:pointer; font-weight:bold;">[Del]</button></td>
+                <td><button onclick="window.deleteEmployee(${i})" style="color:red; background:none; border:none; cursor:pointer;">[Del]</button></td>
             </tr>`).join('');
+        
+        const emps = employees.filter(e => e.active);
+        const options = emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        document.getElementById('hEmpSelect').innerHTML = options;
+        document.getElementById('aEmpSelect').innerHTML = options;
 
-        document.getElementById('planningBody').innerHTML = planList.map(p => `<tr><td>${p.name || employees.find(x=>x.id===p.empId)?.name}</td><td>${p.from}</td><td>${p.to}</td><td><button onclick="window.delPlan('${p.id}')" style="color:red">X</button></td></tr>`).join('');
         document.getElementById('holidayBody').innerHTML = holidayDuties.map((d, i) => `<tr><td>${d.name}</td><td>${employees.find(x=>x.id===d.empId)?.name}</td><td>${d.start}/${d.end}</td><td><button onclick="window.delDuty(${i})" style="color:red">X</button></td></tr>`).join('');
         document.getElementById('annualBody').innerHTML = vacationsList.map((v, i) => `<tr><td>${employees.find(x=>x.id===v.empId)?.name}</td><td>${v.start}</td><td>${v.end}</td><td><button onclick="window.delAnnual(${i})" style="color:red">X</button></td></tr>`).join('');
     }
 
-    // --- المنطق الجديد للشيفت الليلي الحصري ---
+    // Actions
     window.toggleExclusiveNight = async (index) => {
         let newList = [...employees];
         const isTurningOn = !newList[index].fixed;
-
-        if (isTurningOn) {
-            // إذا قمنا بتحويل الموظف لليلي، نجعل الجميع صباحي أولاً
-            newList = newList.map(e => ({ ...e, fixed: false }));
-            newList[index].fixed = true;
-        } else {
-            // إذا قمنا بإلغاء الليلي، يعود الموظف صباحي طبيعي
-            newList[index].fixed = false;
-        }
-
+        if (isTurningOn) { newList = newList.map(e => ({ ...e, fixed: false })); newList[index].fixed = true; }
+        else { newList[index].fixed = false; }
         await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": newList });
     };
 
-    // Actions
     window.addEmployee = async () => {
         const n = document.getElementById('newEmpName').value; if(!n) return;
         const newE = { id: "emp_" + Date.now(), name: n, fixed: false, active: true, rotType: 'none' };
@@ -288,14 +287,6 @@
     window.deleteEmployee = async (i) => { if(confirm("Delete?")) { let a = [...employees]; a.splice(i,1); await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); } };
     window.toggleProp = async (i, p) => { let a = [...employees]; a[i][p] = !a[i][p]; await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); };
     window.updateRot = async (i, v) => { let a = [...employees]; a[i].rotType = v; await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": a }); };
-    
-    window.addVacationPlan = async () => {
-        const id = document.getElementById('pEmpSelect').value, s = document.getElementById('pStart').value, e = document.getElementById('pEnd').value;
-        const emp = employees.find(x => x.id === id); if(!s || !e) return;
-        await addDoc(collection(db, "vacations"), { empId: id, name: emp.name, from: s, to: e, role: "Employee" });
-    };
-    window.delPlan = async (id) => { if(confirm("Delete Plan?")) await deleteDoc(doc(db, "vacations", id)); };
-
     window.addHolidayDuty = async () => {
         const id = document.getElementById('hEmpSelect').value, s = document.getElementById('hStart').value, e = document.getElementById('hEnd').value, n = document.getElementById('hName').value;
         if(!s || !e) return;
@@ -311,16 +302,15 @@
 
     window.setCurrentWeek = () => {
         let now = new Date(); now.setHours(0,0,0,0);
-        let diff = now.getDate() - now.getDay();
-        let sun = new Date(now.setDate(diff));
-        document.getElementById('datePicker').value = formatLocal(sun);
+        let s = new Date(now.setDate(now.getDate() - now.getDay()));
+        document.getElementById('datePicker').value = formatLocal(s);
         window.renderAll();
     };
     window.changeWeek = (v) => {
-        let curStr = document.getElementById('datePicker').value;
-        let current = new Date(curStr.replace(/-/g, '/'));
-        current.setDate(current.getDate() + v);
-        document.getElementById('datePicker').value = formatLocal(current);
+        let parts = document.getElementById('datePicker').value.split('-');
+        let c = new Date(parts[0], parts[1]-1, parts[2]);
+        c.setDate(c.getDate() + v);
+        document.getElementById('datePicker').value = formatLocal(c);
         window.renderAll();
     };
 
