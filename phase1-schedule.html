@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - Scheduling v7.6</title>
+    <title>Almajdouie Motors - Scheduling v7.7</title>
     <style>
         :root {
             --primary-blue: #0d2149;
             --oncall-bg: #e3f2fd; --oncall-text: #1976d2;
             --night-bg: #f3e5f5; --night-text: #7b1fa2;
             --off-bg: #eeeeee; --off-text: #616161;
-            --h-bg: #ffebee; --h-text: #c62828;
+            --h-bg: #fff9c4; --h-text: #fbc02d;
             --work-bg: #e8f5e9; --work-text: #2e7d32;
             --morning-bg: #fff3e0; --morning-text: #ef6c00;
             --national-bg: #004d40; --national-text: #ffffff;
@@ -27,7 +27,7 @@
         .tab.active { color: var(--primary-blue); border-bottom-color: var(--primary-blue); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
         th, td { padding: 10px 8px; text-align: center; border: 1px solid #f0f0f0; }
         th { background: #fbfbfb; color: var(--primary-blue); }
         
@@ -40,6 +40,8 @@
         .Morning, .صباحي { background: var(--morning-bg); color: var(--morning-text); }
         .NationalDay, .اليوم_الوطني { background: var(--national-bg); color: var(--national-text); }
         
+        .holiday-form { background: #fff9c4; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
+        .holiday-form input, .holiday-form select { padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
         .btn-action { border: none; border-radius: 6px; padding: 6px 12px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; }
     </style>
 </head>
@@ -59,8 +61,8 @@
         <div style="display: flex; align-items: center; gap: 15px;">
             <img src="LOGO-almajdouie.png" class="logo-img">
             <div>
-                <div id="compN" style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div id="subN" style="font-size: 10px; color: #555;">Scheduling System v7.6</div>
+                <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
+                <div style="font-size: 10px; color: #555;">Scheduling System v7.7</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -69,6 +71,7 @@
     <div class="tabs">
         <div class="tab active" id="tab1" onclick="window.switchTab('schedule', this)">🗓️ Schedule</div>
         <div class="tab" id="tab2" onclick="window.switchTab('admin', this)">👥 Employees</div>
+        <div class="tab" id="tab3" onclick="window.switchTab('holidays', this)">🎊 Public Holidays</div>
     </div>
 
     <div id="schedule" class="tab-content active">
@@ -83,6 +86,20 @@
         <table>
             <thead><tr><th>Name</th><th>Shift</th><th>Rotation</th><th>Status</th></tr></thead>
             <tbody id="adminList"></tbody>
+        </table>
+    </div>
+
+    <div id="holidays" class="tab-content">
+        <div class="holiday-form">
+            <div><label>Assign Staff:</label><br><select id="hEmpSelect"></select></div>
+            <div><label>Holiday Name:</label><br><input type="text" id="hName" placeholder="e.g. Eid Al-Fitr"></div>
+            <div><label>From:</label><br><input type="date" id="hStart"></div>
+            <div><label>To:</label><br><input type="date" id="hEnd"></div>
+            <button class="btn-tool" style="background:#fbc02d" onclick="window.addHolidayDuty()">Add Assignment</button>
+        </div>
+        <table>
+            <thead><tr><th>Holiday Name</th><th>Staff on Duty</th><th>From - To</th><th>Action</th></tr></thead>
+            <tbody id="holidayBody"></tbody>
         </table>
     </div>
 </div>
@@ -143,7 +160,7 @@
         const thuPool = employees.filter(e => e.rotType === 'thu' && e.active);
         let currentThuMan = thuPool.length > 0 ? thuPool[weekNum % thuPool.length].id : null;
 
-        // Header
+        // Header Dates
         let h = `<th>${currentLang === 'en' ? 'Employee' : 'الموظف'}</th>`;
         const daysArr = currentLang === 'en' ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
         for(let i=0; i<7; i++) {
@@ -152,15 +169,16 @@
         }
         document.getElementById('headerDates').innerHTML = h;
 
-        // Rows
+        // Rows Logic
         document.getElementById('scheduleBody').innerHTML = employees.filter(e => e.active).map(emp => {
             let row = `<tr><td style="text-align:left"><b>${emp.name}</b></td>`;
             for(let d=0; d<7; d++) {
                 let cellDate = new Date(start); cellDate.setDate(start.getDate() + d); cellDate.setHours(0,0,0,0);
                 
-                // كشف اليوم الوطني تلقائياً (23 سبتمبر)
+                // اليوم الوطني
                 const isNationalDay = (cellDate.getMonth() === 8 && cellDate.getDate() === 23);
                 
+                // تحقق إذا كان هذا اليوم ضمن "العطلات الرسمية" المضافة
                 const activeH = holidayDuties.find(duty => {
                     const ds = new Date(duty.start); ds.setHours(0,0,0,0);
                     const de = new Date(duty.end); de.setHours(0,0,0,0);
@@ -172,23 +190,24 @@
                 let badgeClass = "Morning";
 
                 if (activeH) {
-                    shift = (activeH.empId === emp.id) ? (emp.fixed ? t.night : t.onCall) : t.h;
-                    badgeClass = (activeH.empId === emp.id) ? (emp.fixed ? "Night" : "OnCall") : "Holiday";
+                    // الموظف المختار للداوم في الإجازة يكون OnCall/Night، البقية Holiday (Off Day)
+                    if (activeH.empId === emp.id) {
+                        shift = emp.fixed ? t.night : t.onCall;
+                        badgeClass = emp.fixed ? "Night" : "OnCall";
+                        icon = emp.fixed ? "🌙" : "📞";
+                    } else {
+                        shift = t.h;
+                        badgeClass = "Holiday";
+                        icon = "🎊";
+                    }
                 } else if (isNationalDay) {
-                    shift = t.national; // يوم وطني
-                    badgeClass = "NationalDay";
-                    icon = "🇸🇦";
+                    shift = t.onCall; badgeClass = "NationalDay"; icon = "🇸🇦";
                 } else if (d === 5) { 
-                    shift = t.onCall; // الجمعة
-                    badgeClass = "OnCall";
-                    icon = "📞";
+                    shift = t.onCall; badgeClass = "OnCall"; icon = "📞";
                 } else if (d === 6) { 
-                    shift = t.work; // السبت
-                    badgeClass = "Work";
-                    icon = "🏢";
+                    shift = t.work; badgeClass = "Work"; icon = "🏢";
                 } else if (d === 4 && emp.id === currentThuMan) {
-                    shift = t.off; // أوف الخميس للمداور
-                    badgeClass = "Off";
+                    shift = t.off; badgeClass = "Off";
                 } else {
                     shift = emp.fixed ? t.night : t.morning;
                     badgeClass = emp.fixed ? "Night" : "Morning";
@@ -200,10 +219,11 @@
             return row + "</tr>";
         }).join('');
 
-        updateAdminList();
+        updateUILists();
     };
 
-    function updateAdminList() {
+    function updateUILists() {
+        // قائمة الموظفين
         document.getElementById('adminList').innerHTML = employees.map((e, i) => `
             <tr>
                 <td style="text-align:left"><b>${e.name}</b></td>
@@ -211,10 +231,42 @@
                 <td>${e.rotType}</td>
                 <td><button class="btn-action" style="background:#e65100" onclick="window.toggleProp(${i}, 'active')">${e.active?'Active':'Inactive'}</button></td>
             </tr>`).join('');
+        
+        // قائمة اختيار الموظف في الإجازات
+        document.getElementById('hEmpSelect').innerHTML = employees.filter(e => e.active).map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        
+        // جدول العطلات المضافة
+        document.getElementById('holidayBody').innerHTML = holidayDuties.map((d, i) => {
+            const empName = employees.find(e => e.id === d.empId)?.name || 'Unknown';
+            return `<tr><td>${d.name}</td><td>${empName}</td><td>${d.start} to ${d.end}</td><td><button class="btn-tool" style="background:#b71c1c; color:white;" onclick="window.delDuty(${i})">Delete</button></td></tr>`;
+        }).join('');
     }
 
-    async function sync(arr) { await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": arr }); }
-    window.toggleProp = async (i, p) => { let a = [...employees]; a[i][p] = !a[i][p]; await sync(a); };
+    // Firebase Actions
+    async function syncEmps(arr) { await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": arr }); }
+    async function syncHolidays(arr) { await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: arr }); }
+
+    window.toggleProp = async (i, p) => { let a = [...employees]; a[i][p] = !a[i][p]; await syncEmps(a); };
+    
+    window.addHolidayDuty = async () => {
+        const id = document.getElementById('hEmpSelect').value;
+        const start = document.getElementById('hStart').value;
+        const end = document.getElementById('hEnd').value;
+        const name = document.getElementById('hName').value;
+        if(!start || !end || !name) { alert("Please fill all fields"); return; }
+        
+        const newDuty = { empId: id, start, end, name };
+        await syncHolidays([...holidayDuties, newDuty]);
+        alert("Holiday assigned successfully!");
+    };
+
+    window.delDuty = async (i) => {
+        if(confirm("Delete this holiday assignment?")) {
+            let a = [...holidayDuties]; a.splice(i, 1);
+            await syncHolidays(a);
+        }
+    };
+
     window.setCurrentWeek = () => { let t = new Date(); let s = new Date(t.setDate(t.getDate() - t.getDay())); s.setHours(0,0,0,0); document.getElementById('datePicker').valueAsDate = s; window.renderAll(); };
     window.changeWeek = (v) => { let d = new Date(document.getElementById('datePicker').value); d.setDate(d.getDate() + v); d.setHours(0,0,0,0); document.getElementById('datePicker').valueAsDate = d; window.renderAll(); };
 
