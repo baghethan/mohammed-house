@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Employee Management - Almajdouie</title>
+    <title>Almajdouie Schedule System</title>
     <style>
         :root {
             --primary-blue: #0d2149;
-            --morning: #d1e9ff; --morning-text: #007bff;
-            --night: #f3e5f5; --night-text: #7b1fa2;
-            --off: #eeeeee; --off-text: #555;
-            /* Action Button Colors */
-            --btn-edit: #1a3a5f; --btn-night: #512da8; --btn-stop: #e65100; --btn-del: #b71c1c; --btn-rotate: #00796b; --btn-active: #2e7d32;
+            --morning-bg: #e3f2fd; --morning-text: #1976d2;
+            --night-bg: #f3e5f5; --night-text: #7b1fa2;
+            --off-bg: #eeeeee; --off-text: #616161;
+            /* Action Buttons */
+            --btn-edit: #1a3a5f; --btn-night: #512da8; --btn-stop: #e65100; --btn-del: #b71c1c; --btn-rotate: #00796b;
         }
 
         body {
             margin: 0; padding: 20px; font-family: 'Segoe UI', Tahoma, sans-serif;
             background-image: url('image_dba186.png'); background-size: cover; background-attachment: fixed;
-            min-height: 100vh; display: flex; flex-direction: column; align-items: center; transition: 0.3s;
+            min-height: 100vh; display: flex; flex-direction: column; align-items: center;
         }
 
         .toolbar {
@@ -34,7 +34,7 @@
         .logo-img { max-height: 55px; }
 
         .tabs { display: flex; gap: 25px; margin-bottom: 20px; }
-        .tab { cursor: pointer; font-weight: bold; color: #555; padding-bottom: 5px; border-bottom: 3px solid transparent; }
+        .tab { cursor: pointer; font-weight: bold; color: #555; padding-bottom: 5px; border-bottom: 3px solid transparent; transition: 0.3s; }
         .tab.active { color: var(--primary-blue); border-bottom-color: var(--primary-blue); }
 
         .tab-content { display: none; }
@@ -44,15 +44,19 @@
         th, td { padding: 12px 8px; text-align: center; border: 1px solid #f0f0f0; }
         th { background: #fbfbfb; color: var(--primary-blue); font-weight: 800; }
 
-        .badge { border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; }
-        
-        .btn-action { border: none; border-radius: 6px; padding: 6px 12px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; min-width: 100px; justify-content: center; }
+        /* Badges for Shifts */
+        .badge { border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; min-width: 85px; justify-content: center; }
+        .Morning, .صباحي { background: var(--morning-bg); color: var(--morning-text); }
+        .Night, .ليلي { background: var(--night-bg); color: var(--night-text); }
+        .Off, .أوف { background: var(--off-bg); color: var(--off-text); }
+
+        .btn-action { border: none; border-radius: 6px; padding: 6px 12px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; min-width: 105px; justify-content: center; }
         .row-edit { background: var(--btn-edit); } 
         .row-night { background: var(--btn-night); } 
         .row-stop { background: var(--btn-stop); } 
         .row-del { background: var(--btn-del); }
         .row-rotate { background: var(--btn-rotate); }
-        .row-enable { background: var(--btn-active); }
+        .row-enable { background: #2e7d32; }
         .row-morning { background: #0288d1; }
 
         .form-box { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: flex-end; }
@@ -103,17 +107,12 @@
     <div id="admin" class="tab-content">
         <div class="form-box">
             <input type="hidden" id="editEmpId">
-            <input type="text" id="newEmpName" placeholder="Name">
+            <input type="text" id="newEmpName" placeholder="Employee Name">
             <select id="newEmpCat"><option>Staff</option><option>Supervisor</option><option>Manager</option></select>
             <button id="btnSubmit" class="btn-tool" style="background:var(--primary-blue); color:white" onclick="window.handleEmployeeSubmit()">Add Employee</button>
         </div>
         <table>
-            <thead>
-                <tr>
-                    <th id="thName">Name</th>
-                    <th id="thActions">Status & Actions</th>
-                </tr>
-            </thead>
+            <thead><tr><th id="thName">Name</th><th id="thActions">Status & Actions</th></tr></thead>
             <tbody id="adminList"></tbody>
         </table>
     </div>
@@ -177,86 +176,61 @@
         const t = translations[currentLang];
         const start = new Date(document.getElementById('datePicker').value);
         const weekNum = Math.ceil(start.getDate() / 7);
-        
-        // Render Table Header
-        let h = `<th>${currentLang === 'en' ? 'Employee' : 'الموظف'}</th>`;
         const days = currentLang === 'en' ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+
+        let h = `<th>${currentLang === 'en' ? 'Employee' : 'الموظف'}</th>`;
         for(let i=0; i<7; i++) {
             let d = new Date(start); d.setDate(start.getDate() + i);
             h += `<th>${days[i]}<br><small>${d.toLocaleDateString('en-GB')}</small></th>`;
         }
         document.getElementById('headerDates').innerHTML = h;
 
-        // Render Schedule Body
         document.getElementById('scheduleBody').innerHTML = employees.filter(e => e.status !== 'inactive').map(emp => {
-            let row = `<tr><td><b>${emp.name}</b></td>`;
+            let row = `<tr><td style="text-align:left; padding-left:15px"><b>${emp.name}</b></td>`;
             for(let d=0; d<7; d++) {
-                let shift = d >= 4 ? t.off : (emp.role === 'FIXED' ? t.night : (emp.rotate && weekNum % 2 !== 0 ? t.night : t.morning));
-                row += `<td><span class="badge ${shift}">${shift}</span></td>`;
+                // المنطق الجديد: الخميس(4) والجمعة(5) أوف | السبت(6) والأحد-الأربعاء(0-3) دوام
+                let isOff = (d === 4 || d === 5); 
+                let shiftText = isOff ? t.off : (emp.role === 'FIXED' ? t.night : (emp.rotate && weekNum % 2 !== 0 ? t.night : t.morning));
+                let icon = shiftText === t.morning ? '☀️' : (shiftText === t.night ? '🌙' : '');
+                row += `<td><span class="badge ${shiftText}">${icon} ${shiftText}</span></td>`;
             }
             return row + "</tr>";
         }).join('');
 
-        // Render Admin List with Toggle Logic
         document.getElementById('adminList').innerHTML = employees.map(e => {
             const isNight = e.role === 'FIXED';
             const isInactive = e.status === 'inactive';
             const isRotating = e.rotate === true;
-
             return `
             <tr>
                 <td style="text-align:left; padding-left:20px; font-weight:bold">${e.name}</td>
                 <td style="display:flex; justify-content:center; gap:8px">
                     <button class="btn-action row-edit" onclick="window.startEdit('${e.id}')">${t.edit}</button>
-                    
-                    <button class="btn-action ${isNight ? 'row-morning' : 'row-night'}" onclick="window.toggleNight('${e.id}', ${isNight})">
-                        ${isNight ? t.setMorning : t.setNight}
-                    </button>
-
-                    <button class="btn-action row-rotate" style="background:${isRotating ? '#00796b' : '#78909c'}" onclick="window.toggleRotation('${e.id}', ${isRotating})">
-                        ${isRotating ? t.rotateOn : t.rotateOff}
-                    </button>
-
-                    <button class="btn-action ${isInactive ? 'row-enable' : 'row-stop'}" onclick="window.toggleStatus('${e.id}', ${isInactive})">
-                        ${isInactive ? t.enable : t.stop}
-                    </button>
-
+                    <button class="btn-action ${isNight ? 'row-morning' : 'row-night'}" onclick="window.toggleNight('${e.id}', ${isNight})">${isNight ? t.setMorning : t.setNight}</button>
+                    <button class="btn-action row-rotate" style="background:${isRotating ? '#00796b' : '#78909c'}" onclick="window.toggleRotation('${e.id}', ${isRotating})">${isRotating ? t.rotateOn : t.rotateOff}</button>
+                    <button class="btn-action ${isInactive ? 'row-enable' : 'row-stop'}" onclick="window.toggleStatus('${e.id}', ${isInactive})">${isInactive ? t.enable : t.stop}</button>
                     <button class="btn-action row-del" onclick="window.deleteEmployee('${e.id}')">${t.del}</button>
                 </td>
             </tr>`;
         }).join('');
     };
 
-    // --- Firebase Toggle Functions ---
-    window.toggleStatus = async (id, isInactive) => {
-        await updateDoc(doc(db, "employees", id), { status: isInactive ? 'active' : 'inactive' });
-    };
-
-    window.toggleNight = async (id, isNight) => {
-        await updateDoc(doc(db, "employees", id), { role: isNight ? 'MORNING' : 'FIXED' });
-    };
-
-    window.toggleRotation = async (id, isRotating) => {
-        await updateDoc(doc(db, "employees", id), { rotate: !isRotating });
-    };
-
+    window.toggleStatus = async (id, isInactive) => { await updateDoc(doc(db, "employees", id), { status: isInactive ? 'active' : 'inactive' }); };
+    window.toggleNight = async (id, isNight) => { await updateDoc(doc(db, "employees", id), { role: isNight ? 'MORNING' : 'FIXED' }); };
+    window.toggleRotation = async (id, isRotating) => { await updateDoc(doc(db, "employees", id), { rotate: !isRotating }); };
+    window.startEdit = (id) => { const e = employees.find(emp => emp.id === id); document.getElementById('editEmpId').value = e.id; document.getElementById('newEmpName').value = e.name; };
     window.handleEmployeeSubmit = async () => {
+        const id = document.getElementById('editEmpId').value;
         const name = document.getElementById('newEmpName').value;
         if(!name) return;
-        await addDoc(collection(db, "employees"), { 
-            name, 
-            cat: document.getElementById('newEmpCat').value, 
-            role: 'MORNING', 
-            status: 'active', 
-            rotate: false 
-        });
-        document.getElementById('newEmpName').value = "";
+        if(id) await updateDoc(doc(db, "employees", id), { name });
+        else await addDoc(collection(db, "employees"), { name, cat: document.getElementById('newEmpCat').value, role: 'MORNING', status: 'active', rotate: false });
+        document.getElementById('editEmpId').value = ""; document.getElementById('newEmpName').value = "";
     };
-
-    window.deleteEmployee = async (id) => { if(confirm("Confirm Delete?")) await deleteDoc(doc(db, "employees", id)); };
+    window.deleteEmployee = async (id) => { if(confirm("Confirm?")) await deleteDoc(doc(db, "employees", id)); };
     window.setCurrentWeek = () => { let t = new Date(); let s = new Date(t.setDate(t.getDate() - t.getDay())); document.getElementById('datePicker').valueAsDate = s; window.renderAll(); };
     window.changeWeek = (v) => { let d = new Date(document.getElementById('datePicker').value); d.setDate(d.getDate() + v); document.getElementById('datePicker').valueAsDate = d; window.renderAll(); };
-    
+
     onSnapshot(collection(db, "employees"), (s) => { employees = s.docs.map(d => ({ id: d.id, ...d.data() })); window.renderAll(); });
     document.getElementById('datePicker').valueAsDate = new Date();
     window.setCurrentWeek();
