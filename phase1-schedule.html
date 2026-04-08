@@ -6,7 +6,7 @@
     <title>شركة المجدوعي للسيارات - نظام الجدولة</title>
     <style>
         :root {
-            --glass-bg: rgba(255, 255, 255, 0.72);
+            --glass-bg: rgba(255, 255, 255, 0.75);
             --glass-border: rgba(255, 255, 255, 0.4);
             --primary-blue: #0d2149;
             --morning: #d1e9ff; --morning-text: #007bff;
@@ -20,7 +20,8 @@
         body {
             margin: 0; padding: 20px;
             font-family: 'Segoe UI', Tahoma, sans-serif;
-            background-image: url('edited-image.jpg'); /* صورة المبنى */
+            /* الخلفية الجديدة */
+            background-image: url('image_dba186.png'); 
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -31,7 +32,7 @@
         /* شريط الأدوات العلوي */
         .toolbar {
             width: 100%; max-width: 1300px;
-            background: rgba(13, 33, 73, 0.82);
+            background: rgba(13, 33, 73, 0.85);
             backdrop-filter: blur(15px);
             padding: 12px 20px; border-radius: 12px;
             display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 20px;
@@ -46,29 +47,26 @@
         .btn-tool:hover { background: #e3f2fd; transform: translateY(-2px); }
         .btn-logout { background: #ffebee; color: #c62828; }
 
-        /* الحاوية الزجاجية الرئيسية */
+        /* الحاوية الزجاجية */
         .glass-container {
             width: 100%; max-width: 1250px;
             background: var(--glass-bg);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(25px);
             border-radius: 20px;
             border: 1px solid var(--glass-border);
             box-shadow: 0 20px 50px rgba(0,0,0,0.3);
             padding: 25px;
         }
 
-        /* تنسيق الشعار */
         .logo-img {
-            max-height: 60px; /* حجم الشعار الجديد */
+            max-height: 70px; /* حجم الشعار الجديد */
             width: auto;
         }
 
-        /* التبويبات */
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(0,0,0,0.05); padding-bottom: 10px; }
-        .tab { padding: 10px 22px; border-radius: 10px; cursor: pointer; font-weight: bold; color: #444; transition: 0.3s; }
+        .tab { padding: 10px 22px; border-radius: 10px; cursor: pointer; font-weight: bold; color: #444; }
         .tab.active { background: var(--primary-blue); color: white; }
 
-        /* الجداول */
         table { width: 100%; border-collapse: collapse; background: rgba(255, 255, 255, 0.4); border-radius: 15px; overflow: hidden; }
         th, td { padding: 12px 8px; text-align: center; border-bottom: 1px solid rgba(0,0,0,0.05); }
         th { background: rgba(255, 255, 255, 0.9); color: #333; font-weight: 800; font-size: 13px; }
@@ -80,7 +78,6 @@
         .أوف { background: var(--off); color: var(--off-text); }
         .إجازة { background: var(--leave); color: var(--leave-text); }
 
-        /* كروت الملخص */
         .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px; }
         .sum-card { 
             background: rgba(255, 255, 255, 0.7); 
@@ -94,8 +91,6 @@
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        
-        @media print { .toolbar, .tabs, .form-box { display: none; } body { background: white; } .glass-container { box-shadow: none; border: none; } }
     </style>
 </head>
 <body>
@@ -111,7 +106,7 @@
 <div class="glass-container">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
         <div style="display: flex; align-items: center; gap: 15px;">
-            <img src="image_dc77d9.png" alt="شعار المجدوعي" class="logo-img">
+            <img src="LOGO-almajdouie.png" alt="شعار المجدوعي" class="logo-img">
             <div style="text-align: right; border-right: 2px solid #ddd; padding-right: 15px;">
                 <div style="font-weight: 900; font-size: 20px; color: var(--primary-blue);">شركة المجدوعي للسيارات</div>
                 <div style="font-size: 11px; color: #555; letter-spacing: 1px;">Almajdouie Motors Company</div>
@@ -122,7 +117,7 @@
 
     <div class="tabs">
         <div class="tab active" onclick="switchTab('schedule', this)">📅 جدول الدوام</div>
-        <div class="tab" onclick="switchTab('admin', this)">👥 إدارة الموظفين</div>
+        <div class="tab" onclick="showTabAdmin('admin', this)">👥 إدارة الموظفين</div>
         <div class="tab" onclick="switchTab('leaves', this)">🏖️ الإجازات الطويلة</div>
     </div>
 
@@ -149,14 +144,12 @@
             <select id="empRole"><option value="MORNING">صباحي</option><option value="EVENING">مسائي</option><option value="FIXED">ليلي (ثابت)</option></select>
             <button onclick="addEmployee()" style="background: var(--primary-blue); color:white; border:none; padding:10px; border-radius:8px; cursor:pointer;">+ إضافة</button>
         </div>
-        <table id="adminListTable" style="margin-top: 20px; background:white;">
-            <tbody id="adminList"></tbody>
-        </table>
+        <table style="margin-top: 20px; background:white;"><tbody id="adminList"></tbody></table>
     </div>
 </div>
 
 <script>
-    // Logic: 5 days work, Friday OFF, Saturday Rotation (1 Person)
+    // القوانين: 5 أيام عمل، الجمعة أوف، السبت تدوير (شخص واحد)
     let employees = JSON.parse(localStorage.getItem('employees')) || [
         { id: 1, name: "عبدالرحمن السليماني", cat: "مدير", role: "FIXED", inRotation: false },
         { id: 2, name: "حمد الخثران", cat: "مشرف", role: "MORNING", inRotation: true },
@@ -172,6 +165,8 @@
         document.getElementById(id).classList.add('active'); btn.classList.add('active');
         renderAll();
     }
+    
+    function showTabAdmin(id, btn) { switchTab(id, btn); renderAdmin(); }
 
     function setCurrentWeek() {
         let today = new Date();
@@ -226,7 +221,7 @@
 
     function getShift(emp, day, isEven, curr, rotating) {
         if(longLeaves.find(l => { let s=new Date(l.s); let e=new Date(l.e); curr.setHours(0,0,0,0); return l.empId === emp.id && curr >= s && curr <= e; })) return "إجازة";
-        if(day === 5) return "أوف"; // الجمعة أوف
+        if(day === 5) return "أوف"; 
         if(emp.role === "FIXED") return (day <= 4) ? "ليلي" : "أوف";
         if(day === 6) { 
             const idx = rotating.findIndex(r => r.id === emp.id);
@@ -246,6 +241,11 @@
         employees.push({ id: Date.now(), name, cat: document.getElementById('empCat').value, role: document.getElementById('empRole').value, inRotation: true });
         save(); renderAll(); document.getElementById('empName').value = "";
     }
+
+    function renderAdmin() {
+        document.getElementById('adminList').innerHTML = employees.map(e => `<tr><td>${e.name}</td><td>${e.cat}</td><td><button onclick="deleteEmp(${e.id})">حذف</button></td></tr>`).join('');
+    }
+    function deleteEmp(id) { employees = employees.filter(e => e.id !== id); save(); renderAll(); renderAdmin(); }
 
     window.onload = setCurrentWeek;
 </script>
