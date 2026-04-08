@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors - Scheduling v7.7</title>
+    <title>Almajdouie Motors - Scheduling v7.8</title>
     <style>
         :root {
             --primary-blue: #0d2149;
@@ -42,7 +42,6 @@
         
         .holiday-form { background: #fff9c4; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
         .holiday-form input, .holiday-form select { padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
-        .btn-action { border: none; border-radius: 6px; padding: 6px 12px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; }
     </style>
 </head>
 <body>
@@ -62,7 +61,7 @@
             <img src="LOGO-almajdouie.png" class="logo-img">
             <div>
                 <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div style="font-size: 10px; color: #555;">Scheduling System v7.7</div>
+                <div style="font-size: 10px; color: #555;">Scheduling System v7.8</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -92,7 +91,7 @@
     <div id="holidays" class="tab-content">
         <div class="holiday-form">
             <div><label>Assign Staff:</label><br><select id="hEmpSelect"></select></div>
-            <div><label>Holiday Name:</label><br><input type="text" id="hName" placeholder="e.g. Eid Al-Fitr"></div>
+            <div><label>Holiday Name:</label><br><input type="text" id="hName" placeholder="Holiday Name"></div>
             <div><label>From:</label><br><input type="date" id="hStart"></div>
             <div><label>To:</label><br><input type="date" id="hEnd"></div>
             <button class="btn-tool" style="background:#fbc02d" onclick="window.addHolidayDuty()">Add Assignment</button>
@@ -142,7 +141,14 @@
     });
 
     window.renderAll = () => {
-        const start = new Date(document.getElementById('datePicker').value);
+        const dateInput = document.getElementById('datePicker').value;
+        if (!dateInput) return;
+        
+        // تعديل مهم: إنشاء التاريخ باستخدام أجزاء التاريخ لتجنب أخطاء التوقيت العالمي
+        const parts = dateInput.split('-');
+        const start = new Date(parts[0], parts[1] - 1, parts[2]);
+        start.setHours(0,0,0,0);
+
         const t = { 
             onCall: currentLang === 'ar' ? 'أون كول' : 'On Call', 
             night: currentLang === 'ar' ? 'ليلي' : 'Night', 
@@ -160,45 +166,40 @@
         const thuPool = employees.filter(e => e.rotType === 'thu' && e.active);
         let currentThuMan = thuPool.length > 0 ? thuPool[weekNum % thuPool.length].id : null;
 
-        // Header Dates
+        // Header
         let h = `<th>${currentLang === 'en' ? 'Employee' : 'الموظف'}</th>`;
         const daysArr = currentLang === 'en' ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
         for(let i=0; i<7; i++) {
-            let d = new Date(start); d.setDate(start.getDate() + i);
+            let d = new Date(start);
+            d.setDate(start.getDate() + i);
             h += `<th>${daysArr[i]}<br><small>${d.toLocaleDateString('en-GB')}</small></th>`;
         }
         document.getElementById('headerDates').innerHTML = h;
 
-        // Rows Logic
+        // Rows
         document.getElementById('scheduleBody').innerHTML = employees.filter(e => e.active).map(emp => {
             let row = `<tr><td style="text-align:left"><b>${emp.name}</b></td>`;
             for(let d=0; d<7; d++) {
-                let cellDate = new Date(start); cellDate.setDate(start.getDate() + d); cellDate.setHours(0,0,0,0);
+                let cellDate = new Date(start);
+                cellDate.setDate(start.getDate() + d);
+                cellDate.setHours(0,0,0,0);
                 
-                // اليوم الوطني
                 const isNationalDay = (cellDate.getMonth() === 8 && cellDate.getDate() === 23);
-                
-                // تحقق إذا كان هذا اليوم ضمن "العطلات الرسمية" المضافة
                 const activeH = holidayDuties.find(duty => {
-                    const ds = new Date(duty.start); ds.setHours(0,0,0,0);
-                    const de = new Date(duty.end); de.setHours(0,0,0,0);
+                    const ds = new Date(duty.start + 'T00:00:00');
+                    const de = new Date(duty.end + 'T00:00:00');
                     return cellDate >= ds && cellDate <= de;
                 });
 
-                let shift = "";
-                let icon = "";
-                let badgeClass = "Morning";
+                let shift = "", icon = "", badgeClass = "Morning";
 
                 if (activeH) {
-                    // الموظف المختار للداوم في الإجازة يكون OnCall/Night، البقية Holiday (Off Day)
                     if (activeH.empId === emp.id) {
                         shift = emp.fixed ? t.night : t.onCall;
                         badgeClass = emp.fixed ? "Night" : "OnCall";
                         icon = emp.fixed ? "🌙" : "📞";
                     } else {
-                        shift = t.h;
-                        badgeClass = "Holiday";
-                        icon = "🎊";
+                        shift = t.h; badgeClass = "Holiday"; icon = "🎊";
                     }
                 } else if (isNationalDay) {
                     shift = t.onCall; badgeClass = "NationalDay"; icon = "🇸🇦";
@@ -213,62 +214,46 @@
                     badgeClass = emp.fixed ? "Night" : "Morning";
                     icon = emp.fixed ? "🌙" : "☀️";
                 }
-
                 row += `<td><span class="badge ${badgeClass}">${icon} ${shift}</span></td>`;
             }
             return row + "</tr>";
         }).join('');
-
         updateUILists();
     };
 
     function updateUILists() {
-        // قائمة الموظفين
         document.getElementById('adminList').innerHTML = employees.map((e, i) => `
             <tr>
                 <td style="text-align:left"><b>${e.name}</b></td>
-                <td><button class="btn-action" style="background:#512da8" onclick="window.toggleProp(${i}, 'fixed')">${e.fixed?'Night':'Morning'}</button></td>
+                <td><button onclick="window.toggleProp(${i}, 'fixed')" style="background:#512da8; color:white; border:none; padding:5px; border-radius:4px;">${e.fixed?'Night':'Morning'}</button></td>
                 <td>${e.rotType}</td>
-                <td><button class="btn-action" style="background:#e65100" onclick="window.toggleProp(${i}, 'active')">${e.active?'Active':'Inactive'}</button></td>
+                <td><button onclick="window.toggleProp(${i}, 'active')" style="background:#e65100; color:white; border:none; padding:5px; border-radius:4px;">${e.active?'Active':'Inactive'}</button></td>
             </tr>`).join('');
-        
-        // قائمة اختيار الموظف في الإجازات
         document.getElementById('hEmpSelect').innerHTML = employees.filter(e => e.active).map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-        
-        // جدول العطلات المضافة
-        document.getElementById('holidayBody').innerHTML = holidayDuties.map((d, i) => {
-            const empName = employees.find(e => e.id === d.empId)?.name || 'Unknown';
-            return `<tr><td>${d.name}</td><td>${empName}</td><td>${d.start} to ${d.end}</td><td><button class="btn-tool" style="background:#b71c1c; color:white;" onclick="window.delDuty(${i})">Delete</button></td></tr>`;
-        }).join('');
+        document.getElementById('holidayBody').innerHTML = holidayDuties.map((d, i) => `<tr><td>${d.name}</td><td>${employees.find(e => e.id === d.empId)?.name}</td><td>${d.start} to ${d.end}</td><td><button onclick="window.delDuty(${i})" style="background:red; color:white; border:none; padding:5px; border-radius:4px;">X</button></td></tr>`).join('');
     }
 
-    // Firebase Actions
     async function syncEmps(arr) { await updateDoc(doc(db, "schedule", "jadwal_v6"), { "data.emps": arr }); }
     async function syncHolidays(arr) { await updateDoc(doc(db, "schedule", "jadwal_holidays"), { duties: arr }); }
-
     window.toggleProp = async (i, p) => { let a = [...employees]; a[i][p] = !a[i][p]; await syncEmps(a); };
-    
     window.addHolidayDuty = async () => {
-        const id = document.getElementById('hEmpSelect').value;
-        const start = document.getElementById('hStart').value;
-        const end = document.getElementById('hEnd').value;
-        const name = document.getElementById('hName').value;
-        if(!start || !end || !name) { alert("Please fill all fields"); return; }
-        
-        const newDuty = { empId: id, start, end, name };
-        await syncHolidays([...holidayDuties, newDuty]);
-        alert("Holiday assigned successfully!");
+        const id = document.getElementById('hEmpSelect').value, s = document.getElementById('hStart').value, e = document.getElementById('hEnd').value, n = document.getElementById('hName').value;
+        if(!s || !e || !n) return;
+        await syncHolidays([...holidayDuties, { empId: id, start: s, end: e, name: n }]);
     };
-
-    window.delDuty = async (i) => {
-        if(confirm("Delete this holiday assignment?")) {
-            let a = [...holidayDuties]; a.splice(i, 1);
-            await syncHolidays(a);
-        }
+    window.delDuty = async (i) => { let a = [...holidayDuties]; a.splice(i, 1); await syncHolidays(a); };
+    window.setCurrentWeek = () => {
+        let now = new Date();
+        let s = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+        document.getElementById('datePicker').value = s.toISOString().split('T')[0];
+        window.renderAll();
     };
-
-    window.setCurrentWeek = () => { let t = new Date(); let s = new Date(t.setDate(t.getDate() - t.getDay())); s.setHours(0,0,0,0); document.getElementById('datePicker').valueAsDate = s; window.renderAll(); };
-    window.changeWeek = (v) => { let d = new Date(document.getElementById('datePicker').value); d.setDate(d.getDate() + v); d.setHours(0,0,0,0); document.getElementById('datePicker').valueAsDate = d; window.renderAll(); };
+    window.changeWeek = (v) => {
+        let current = new Date(document.getElementById('datePicker').value);
+        current.setDate(current.getDate() + v);
+        document.getElementById('datePicker').value = current.toISOString().split('T')[0];
+        window.renderAll();
+    };
 
     document.getElementById('datePicker').valueAsDate = new Date();
     window.setCurrentWeek();
