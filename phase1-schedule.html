@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Schedule System</title>
+    <title>Almajdouie Schedule - Rotation System</title>
     <style>
         :root {
             --primary-blue: #0d2149;
             --morning-bg: #e3f2fd; --morning-text: #1976d2;
             --night-bg: #f3e5f5; --night-text: #7b1fa2;
             --off-bg: #eeeeee; --off-text: #616161;
-            /* Action Buttons */
             --btn-edit: #1a3a5f; --btn-night: #512da8; --btn-stop: #e65100; --btn-del: #b71c1c; --btn-rotate: #00796b;
         }
 
@@ -44,20 +43,13 @@
         th, td { padding: 12px 8px; text-align: center; border: 1px solid #f0f0f0; }
         th { background: #fbfbfb; color: var(--primary-blue); font-weight: 800; }
 
-        /* Badges for Shifts */
         .badge { border-radius: 6px; padding: 5px 10px; font-size: 12px; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; min-width: 85px; justify-content: center; }
         .Morning, .صباحي { background: var(--morning-bg); color: var(--morning-text); }
         .Night, .ليلي { background: var(--night-bg); color: var(--night-text); }
         .Off, .أوف { background: var(--off-bg); color: var(--off-text); }
 
         .btn-action { border: none; border-radius: 6px; padding: 6px 12px; color: white; font-weight: bold; cursor: pointer; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; min-width: 105px; justify-content: center; }
-        .row-edit { background: var(--btn-edit); } 
-        .row-night { background: var(--btn-night); } 
-        .row-stop { background: var(--btn-stop); } 
-        .row-del { background: var(--btn-del); }
-        .row-rotate { background: var(--btn-rotate); }
-        .row-enable { background: #2e7d32; }
-        .row-morning { background: #0288d1; }
+        .row-edit { background: var(--btn-edit); } .row-night { background: var(--btn-night); } .row-stop { background: var(--btn-stop); } .row-del { background: var(--btn-del); } .row-rotate { background: var(--btn-rotate); } .row-enable { background: #2e7d32; } .row-morning { background: #0288d1; }
 
         .form-box { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: flex-end; }
         input, select { padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
@@ -174,29 +166,62 @@
 
     window.renderAll = () => {
         const t = translations[currentLang];
-        const start = new Date(document.getElementById('datePicker').value);
-        const weekNum = Math.ceil(start.getDate() / 7);
-        const days = currentLang === 'en' ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+        const dateVal = document.getElementById('datePicker').value;
+        const start = new Date(dateVal);
+        
+        // حساب رقم الأسبوع في السنة
+        const firstDayOfYear = new Date(start.getFullYear(), 0, 1);
+        const pastDaysOfYear = (start - firstDayOfYear) / 86400000;
+        const weekNum = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
 
+        // العناوين
         let h = `<th>${currentLang === 'en' ? 'Employee' : 'الموظف'}</th>`;
+        const days = currentLang === 'en' ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
         for(let i=0; i<7; i++) {
             let d = new Date(start); d.setDate(start.getDate() + i);
             h += `<th>${days[i]}<br><small>${d.toLocaleDateString('en-GB')}</small></th>`;
         }
         document.getElementById('headerDates').innerHTML = h;
 
+        // قائمة الموظفين الذين لديهم تناوب مفعل
+        const rotatingStaff = employees.filter(e => e.rotate && e.status !== 'inactive');
+
         document.getElementById('scheduleBody').innerHTML = employees.filter(e => e.status !== 'inactive').map(emp => {
             let row = `<tr><td style="text-align:left; padding-left:15px"><b>${emp.name}</b></td>`;
+            
+            // تحديد من هو "موظف التناوب لهذا الأسبوع"
+            let isRotatingThisWeek = false;
+            if (emp.rotate && rotatingStaff.length > 0) {
+                const targetIdx = weekNum % rotatingStaff.length;
+                if (rotatingStaff[targetIdx].id === emp.id) isRotatingThisWeek = true;
+            }
+
             for(let d=0; d<7; d++) {
-                // المنطق الجديد: الخميس(4) والجمعة(5) أوف | السبت(6) والأحد-الأربعاء(0-3) دوام
-                let isOff = (d === 4 || d === 5); 
-                let shiftText = isOff ? t.off : (emp.role === 'FIXED' ? t.night : (emp.rotate && weekNum % 2 !== 0 ? t.night : t.morning));
+                let shiftText = "";
+                
+                // المنطق:
+                // الجمعة (5): دائما أوف للجميع
+                // السبت (6): أوف للجميع، إلا إذا كان موظف التناوب
+                // الخميس (4): دوام للجميع، إلا إذا كان موظف التناوب
+                
+                if (d === 5) {
+                    shiftText = t.off;
+                } else if (d === 6) {
+                    shiftText = isRotatingThisWeek ? (emp.role === 'FIXED' ? t.night : t.morning) : t.off;
+                } else if (d === 4) {
+                    shiftText = isRotatingThisWeek ? t.off : (emp.role === 'FIXED' ? t.night : t.morning);
+                } else {
+                    // الأحد للأربعاء: دوام للجميع
+                    shiftText = emp.role === 'FIXED' ? t.night : t.morning;
+                }
+
                 let icon = shiftText === t.morning ? '☀️' : (shiftText === t.night ? '🌙' : '');
                 row += `<td><span class="badge ${shiftText}">${icon} ${shiftText}</span></td>`;
             }
             return row + "</tr>";
         }).join('');
 
+        // أزرار الإدارة
         document.getElementById('adminList').innerHTML = employees.map(e => {
             const isNight = e.role === 'FIXED';
             const isInactive = e.status === 'inactive';
@@ -218,16 +243,21 @@
     window.toggleStatus = async (id, isInactive) => { await updateDoc(doc(db, "employees", id), { status: isInactive ? 'active' : 'inactive' }); };
     window.toggleNight = async (id, isNight) => { await updateDoc(doc(db, "employees", id), { role: isNight ? 'MORNING' : 'FIXED' }); };
     window.toggleRotation = async (id, isRotating) => { await updateDoc(doc(db, "employees", id), { rotate: !isRotating }); };
-    window.startEdit = (id) => { const e = employees.find(emp => emp.id === id); document.getElementById('editEmpId').value = e.id; document.getElementById('newEmpName').value = e.name; };
+    window.startEdit = (id) => { const e = employees.find(emp => emp.id === id); document.getElementById('editEmpId').value = e.id; document.getElementById('newEmpName').value = e.name; window.switchTab('admin', document.getElementById('tab2')); };
+    
     window.handleEmployeeSubmit = async () => {
         const id = document.getElementById('editEmpId').value;
         const name = document.getElementById('newEmpName').value;
         if(!name) return;
-        if(id) await updateDoc(doc(db, "employees", id), { name });
-        else await addDoc(collection(db, "employees"), { name, cat: document.getElementById('newEmpCat').value, role: 'MORNING', status: 'active', rotate: false });
+        if(id) {
+            await updateDoc(doc(db, "employees", id), { name });
+        } else {
+            await addDoc(collection(db, "employees"), { name, cat: document.getElementById('newEmpCat').value, role: 'MORNING', status: 'active', rotate: false });
+        }
         document.getElementById('editEmpId').value = ""; document.getElementById('newEmpName').value = "";
     };
-    window.deleteEmployee = async (id) => { if(confirm("Confirm?")) await deleteDoc(doc(db, "employees", id)); };
+
+    window.deleteEmployee = async (id) => { if(confirm("Confirm Delete?")) await deleteDoc(doc(db, "employees", id)); };
     window.setCurrentWeek = () => { let t = new Date(); let s = new Date(t.setDate(t.getDate() - t.getDay())); document.getElementById('datePicker').valueAsDate = s; window.renderAll(); };
     window.changeWeek = (v) => { let d = new Date(document.getElementById('datePicker').value); d.setDate(d.getDate() + v); document.getElementById('datePicker').valueAsDate = d; window.renderAll(); };
 
