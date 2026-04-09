@@ -199,15 +199,44 @@ var USERS = []; /* loaded from Firebase */
 /* ── User Management ── */
 function loadUsers(cb) {
   if(!window._db){cb();return;}
-  window._db.collection('').get().then(function(snap){
+  window._db.collection('app_users').get().then(function(snap){
     USERS = [];
     snap.forEach(function(doc){ USERS.push(doc.data()); });
     if(USERS.length===0){
       /* Create default admin on first run */
       var def={username:'admin',password:'Admin@1234',role:'admin',name:'المدير'};
-      window._db.collection('').doc('admin').set(def).then(function(){ USERS=[def]; cb(); });
+      window._db.collection('app_users').doc('admin').set(def).then(function(){ USERS=[def]; cb(); });
     } else { cb(); }
   }).catch(function(){cb();});
+}
+
+function saveUser(u) {
+  if(!window._db) return;
+  window._db.collection('app_users').doc(u.username).set(u);
+}
+function deleteUser(username) {
+  if(!window._db) return;
+  window._db.collection('app_users').doc(username).delete();
+}
+
+window.saveCustomLabels=function(){
+  var labelKeys=['morning','night','afternoon','off','leave','cover','oncall'];
+  labelKeys.forEach(function(k){
+    var el=document.getElementById('lbl-'+k);
+    if(el&&el.value.trim())CUSTOM_LABELS[k]=el.value.trim();
+    else delete CUSTOM_LABELS[k];
+  });
+  saveLabels();
+  openForm=null;
+  render();
+};
+window.resetLabels=function(){
+  CUSTOM_LABELS={};
+  saveLabels();
+  openForm=null;
+  render();
+};
+
 window.exportArchiveReport=function(){
   var fromDate=document.getElementById('arc-from')?document.getElementById('arc-from').value:'';
   var toDate=document.getElementById('arc-to')?document.getElementById('arc-to').value:'';
@@ -1697,7 +1726,7 @@ function render(){
   }
   h+='<p style="color:#a8c8f0;font-size:9.5px;text-align:left;line-height:1.6;margin:0">'+T('أحد-خميس','Sun-Thu')+': '+morningTime()+'<br>'+T('السبت','Sat')+': 10:00am-7:00pm</p>';
   h+='<span id="sync-badge" style="font-size:9px;background:#166534;color:#fff;border-radius:4px;padding:2px 7px;opacity:0.4;transition:opacity 1s">☁ '+T('متزامن','Synced')+'</span>';
-  h+='<a href="https://baghethan.com/plan-Vacation.html" target="_blank" style="font-size:18px;background:#0369a1;color:#fff;border-radius:10px;padding:10px 25px;text-decoration:none;white-space:nowrap">&#128197; '+T('تخطيط الإجازة','Plan Vacation')+'</a>';
+  h+='<a href="https://baghethan.com/plan-Vacation.html" target="_blank" style="font-size:10px;background:#0369a1;color:#fff;border-radius:5px;padding:3px 10px;text-decoration:none;white-space:nowrap">&#128197; '+T('تخطيط الإجازة','Plan Vacation')+'</a>';
   h+='</div>';
   h+='</div>';
   h+='<p>'+T('الاحد-الخميس','Sun-Thu')+': '+morningTime()+' | '+T('الجمعة','Fri')+': '+T('مسائي 1م-10م','Afternoon 1pm-10pm')+' | '+T('السبت','Sat')+': 1 '+T('صباحي','Morning')+' + 1 '+T('ليلي','Night')+' | '+T('5 ايام لكل موظف','5 days per employee')+' | '+T((REGIONS[REGION].label_ar),(REGIONS[REGION].label_en))+'</p></div>';
