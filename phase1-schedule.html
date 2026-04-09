@@ -4,7 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Almajdouie Motors - Scheduling v9.8</title>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <style>
         :root {
             --primary-blue: #0d2149;
@@ -59,9 +61,13 @@
             border-radius: 8px;
             font-weight: bold;
             cursor: pointer;
+            transition: 0.2s;
         }
 
-        .btn-tool:hover { opacity: 0.95; }
+        .btn-tool:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }
 
         .btn-action {
             border: none;
@@ -351,7 +357,7 @@
             <img src="LOGO-almajdouie.png" alt="Almajdouie Motors Logo" style="max-height:45px" />
             <div>
                 <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div style="font-size: 10px; color: #555;">Scheduling System v9.7</div>
+                <div style="font-size: 10px; color: #555;">Scheduling System v9.8</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -506,12 +512,14 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    const LANG_KEY = 'almajdouie_schedule_lang';
+
     let employees = [];
     let holidayDuties = [];
     let vacationsList = [];
     let planList = [];
     let manualOverrides = {};
-    let currentLang = 'en';
+    let currentLang = localStorage.getItem(LANG_KEY) || 'en';
 
     const i18n = {
         en: {
@@ -569,7 +577,6 @@
             months: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
             nightLabel: "🌙 Night",
             morningLabel: "☀️ Morning",
-            deleteLabel: "Delete",
             hiddenLabel: "[X]"
         },
         ar: {
@@ -627,7 +634,6 @@
             months: ["ينا","فبر","مار","أبر","ماي","يون","يول","أغس","سبت","أكت","نوف","ديس"],
             nightLabel: "🌙 ليلي",
             morningLabel: "☀️ صباحي",
-            deleteLabel: "حذف",
             hiddenLabel: "[X]"
         }
     };
@@ -641,6 +647,10 @@
         const m = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
         return `${y}-${m}-${day}`;
+    }
+
+    function saveLanguage() {
+        localStorage.setItem(LANG_KEY, currentLang);
     }
 
     function applyLanguage() {
@@ -702,6 +712,7 @@
 
     window.toggleLanguage = () => {
         currentLang = currentLang === 'en' ? 'ar' : 'en';
+        saveLanguage();
         applyLanguage();
         window.renderAll();
     };
@@ -762,6 +773,7 @@
         document.getElementById('headerDates').innerHTML = h;
 
         document.getElementById('scheduleBody').innerHTML = employees.filter(e => e.active).map(emp => {
+            let safeName = String(emp.name || '').replace(/'/g, "\\'");
             let row = `<tr><td style="text-align:left; font-weight:bold;">${emp.name}</td>`;
 
             for (let d = 0; d < 7; d++) {
@@ -856,7 +868,7 @@
                     }
                 }
 
-                row += `<td class="editable-cell" onclick="window.promptOverride('${emp.id}', '${dateKey}', '${emp.name.replace(/'/g, "\\'")}')"><span class="badge ${bC}">${icon} ${shift}</span></td>`;
+                row += `<td class="editable-cell" onclick="window.promptOverride('${emp.id}', '${dateKey}', '${safeName}')"><span class="badge ${bC}">${icon} ${shift}</span></td>`;
             }
             return row + '</tr>';
         }).join('');
@@ -868,6 +880,7 @@
         const t = tr();
         const res = prompt(t.promptOverride(name, date));
         let s = null;
+
         if (res === '1') s = 'Night';
         if (res === '2') s = 'Off';
         if (res === '3') s = 'Morning';
@@ -875,8 +888,10 @@
         if (res !== null) {
             const docRef = doc(db, 'schedule', 'manual_overrides');
             let updates = { ...manualOverrides };
+
             if (s) updates[`${empId}_${date}`] = s;
             else delete updates[`${empId}_${date}`];
+
             await setDoc(docRef, updates);
         }
     };
@@ -885,6 +900,7 @@
         const t = tr();
         const emps = employees.filter(e => e.active);
         const options = emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+
         document.getElementById('pEmpSelect').innerHTML = options;
         document.getElementById('hEmpSelect').innerHTML = options;
         document.getElementById('aEmpSelect').innerHTML = options;
@@ -917,241 +933,3 @@
 
         document.getElementById('planningBody').innerHTML = planList.map(p => `
             <tr>
-                <td>${p.name || emps.find(x => x.id === p.empId)?.name || ''}</td>
-                <td>${p.from}</td>
-                <td>${p.to}</td>
-                <td><button onclick="window.delPlan('${p.id}')" style="color:red">X</button></td>
-            </tr>
-        `).join('');
-
-        document.getElementById('holidayBody').innerHTML = holidayDuties.map((d, i) => `
-            <tr>
-                <td>${d.name}</td>
-                <td>${employees.find(x => x.id === d.empId)?.name || ''}</td>
-                <td>${d.start} / ${d.end}</td>
-                <td><button onclick="window.delDuty(${i})" style="color:red">X</button></td>
-            </tr>
-        `).join('');
-
-        document.getElementById('annualBody').innerHTML = vacationsList.map((v, i) => `
-            <tr>
-                <td>${employees.find(x => x.id === v.empId)?.name || ''}</td>
-                <td>${v.start}</td>
-                <td>${v.end}</td>
-                <td><button onclick="window.delAnnual(${i})" style="color:red">X</button></td>
-            </tr>
-        `).join('');
-
-        renderGantt(emps);
-    }
-
-    function renderGantt(activeEmps) {
-        const chart = document.getElementById('ganttChart');
-        const headerCells = Array.from(chart.children).slice(0, 13);
-        chart.innerHTML = '';
-        headerCells.forEach(c => chart.appendChild(c));
-
-        activeEmps.forEach(emp => {
-            const row = document.createElement('div');
-            row.className = 'gantt-row';
-
-            const nameCell = document.createElement('div');
-            nameCell.className = 'gantt-name';
-            nameCell.innerText = emp.name;
-            row.appendChild(nameCell);
-
-            const monthsContainer = document.createElement('div');
-            monthsContainer.className = 'gantt-months-container';
-            for (let i = 0; i < 12; i++) {
-                const slot = document.createElement('div');
-                slot.className = 'month-slot';
-                monthsContainer.appendChild(slot);
-            }
-
-            const empPlans = planList.filter(p => String(p.empId) === String(emp.id) || p.name === emp.name);
-            empPlans.forEach(p => {
-                const dFrom = new Date(p.from.replace(/-/g, '/'));
-                const dTo = new Date(p.to.replace(/-/g, '/'));
-
-                const year = dFrom.getFullYear();
-                const yearStart = new Date(year, 0, 1);
-                const yearEnd = new Date(year + 1, 0, 1);
-                const totalDays = (yearEnd - yearStart) / 86400000;
-
-                const startDay = (dFrom - yearStart) / 86400000;
-                const endDay = (dTo - yearStart) / 86400000;
-
-                const bar = document.createElement('div');
-                bar.className = 'vacation-bar';
-                bar.style.left = (startDay / totalDays * 100) + '%';
-                bar.style.width = (((endDay - startDay) + 1) / totalDays * 100) + '%';
-                bar.innerText = `${p.from.split('-')[1]}/${p.from.split('-')[2]}`;
-                monthsContainer.appendChild(bar);
-            });
-
-            row.appendChild(monthsContainer);
-            chart.appendChild(row);
-        });
-    }
-
-    window.downloadChart = () => {
-        const element = document.getElementById('ganttCaptureArea');
-        const year = new Date().getFullYear();
-        html2canvas(element, {
-            backgroundColor: '#ffffff',
-            scale: 2,
-            useCORS: true
-        }).then(canvas => {
-            const link = document.createElement('a');
-            link.download = `Employees_Vacation_Plan_${year}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        });
-    };
-
-    window.toggleExclusiveNight = async (i) => {
-        let list = [...employees];
-        const on = !list[i].fixed;
-        if (on) {
-            list = list.map(e => ({ ...e, fixed: false }));
-            list[i].fixed = true;
-        } else {
-            list[i].fixed = false;
-        }
-        await updateDoc(doc(db, 'schedule', 'jadwal_v6'), { 'data.emps': list });
-    };
-
-    window.addEmployee = async () => {
-        const n = document.getElementById('newEmpName').value.trim();
-        if (!n) return;
-        await updateDoc(doc(db, 'schedule', 'jadwal_v6'), {
-            'data.emps': [...employees, { id: 'emp_' + Date.now(), name: n, fixed: false, active: true, rotType: 'none' }]
-        });
-        document.getElementById('newEmpName').value = '';
-    };
-
-    window.deleteEmployee = async (i) => {
-        if (confirm(tr().delConfirm)) {
-            let a = [...employees];
-            a.splice(i, 1);
-            await updateDoc(doc(db, 'schedule', 'jadwal_v6'), { 'data.emps': a });
-        }
-    };
-
-    window.toggleProp = async (i, p) => {
-        let a = [...employees];
-        a[i][p] = !a[i][p];
-        await updateDoc(doc(db, 'schedule', 'jadwal_v6'), { 'data.emps': a });
-    };
-
-    window.updateRot = async (i, v) => {
-        let a = [...employees];
-        a[i].rotType = v;
-        await updateDoc(doc(db, 'schedule', 'jadwal_v6'), { 'data.emps': a });
-    };
-
-    window.addVacationPlan = async () => {
-        const t = tr();
-        const id = document.getElementById('pEmpSelect').value;
-        const s = document.getElementById('pStart').value;
-        const e = document.getElementById('pEnd').value;
-
-        if (!id || !s || !e) {
-            alert(t.selectDates);
-            return;
-        }
-        if (new Date(s) > new Date(e)) {
-            alert(t.dateError);
-            return;
-        }
-
-        const emp = employees.find(x => String(x.id) === String(id));
-        if (!emp) {
-            alert(t.empNotFound);
-            return;
-        }
-
-        await addDoc(collection(db, 'vacations'), {
-            empId: id,
-            name: emp.name,
-            from: s,
-            to: e,
-            role: 'Employee'
-        });
-
-        document.getElementById('pStart').value = '';
-        document.getElementById('pEnd').value = '';
-    };
-
-    window.delPlan = async (id) => {
-        if (confirm(tr().delConfirm)) await deleteDoc(doc(db, 'vacations', id));
-    };
-
-    window.addHolidayDuty = async () => {
-        const id = document.getElementById('hEmpSelect').value;
-        const s = document.getElementById('hStart').value;
-        const e = document.getElementById('hEnd').value;
-        const n = document.getElementById('hName').value.trim();
-        if (!id || !s || !e || !n) return;
-
-        await updateDoc(doc(db, 'schedule', 'jadwal_holidays'), {
-            duties: [...holidayDuties, { empId: id, start: s, end: e, name: n }]
-        });
-
-        document.getElementById('hName').value = '';
-        document.getElementById('hStart').value = '';
-        document.getElementById('hEnd').value = '';
-    };
-
-    window.delDuty = async (i) => {
-        let a = [...holidayDuties];
-        a.splice(i, 1);
-        await updateDoc(doc(db, 'schedule', 'jadwal_holidays'), { duties: a });
-    };
-
-    window.addAnnualLeave = async () => {
-        const id = document.getElementById('aEmpSelect').value;
-        const s = document.getElementById('aStart').value;
-        const e = document.getElementById('aEnd').value;
-        if (!id || !s || !e) return;
-
-        await updateDoc(doc(db, 'schedule', 'jadwal_annual_leave'), {
-            vacations: [...vacationsList, { empId: id, start: s, end: e }]
-        });
-
-        document.getElementById('aStart').value = '';
-        document.getElementById('aEnd').value = '';
-    };
-
-    window.delAnnual = async (i) => {
-        let a = [...vacationsList];
-        a.splice(i, 1);
-        await updateDoc(doc(db, 'schedule', 'jadwal_annual_leave'), { vacations: a });
-    };
-
-    window.setCurrentWeek = () => {
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - now.getDay());
-        document.getElementById('datePicker').value = formatLocal(startOfWeek);
-        window.renderAll();
-    };
-
-    window.changeWeek = (v) => {
-        const current = document.getElementById('datePicker').value;
-        if (!current) {
-            window.setCurrentWeek();
-            return;
-        }
-        let c = new Date(current.replace(/-/g, '/'));
-        c.setDate(c.getDate() + v);
-        document.getElementById('datePicker').value = formatLocal(c);
-        window.renderAll();
-    };
-
-    applyLanguage();
-    window.setCurrentWeek();
-</script>
-</body>
-</html>
