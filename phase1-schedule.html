@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Almajdouie Motors - Scheduling v9.8.1</title>
+    <title>Almajdouie Motors - Scheduling v9.9</title>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
@@ -19,6 +19,7 @@
             --national-bg: #004d40; --national-text: #ffffff;
             --annual-bg: #ffe0b2; --annual-text: #e65100;
             --plan-bar: #4db6ac;
+            --branch-bg: #e8f5e9; --branch-text: #1b5e20;
         }
 
         * { box-sizing: border-box; }
@@ -170,6 +171,7 @@
         .Morning { background: var(--morning-bg); color: var(--morning-text); }
         .Annual { background: var(--annual-bg); color: var(--annual-text); }
         .NationalDay { background: var(--national-bg); color: var(--national-text); }
+        .BranchVisit { background: var(--branch-bg); color: var(--branch-text); }
 
         .editable-cell { cursor: pointer; transition: 0.2s; }
         .editable-cell:hover { background: #f0f0f0; }
@@ -304,11 +306,59 @@
             align-items: center;
         }
 
-        input, select {
+        input, select, textarea {
             padding: 8px;
             border-radius: 8px;
             border: 1px solid #ccc;
             font-family: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 42px;
+        }
+
+        .branch-info-box {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 10px;
+            margin: 12px 0 18px 0;
+            background: #f8fafc;
+            border: 1px solid #e7edf3;
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .branch-info-item {
+            background: white;
+            border: 1px solid #eef2f7;
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .branch-info-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .branch-info-value {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0d2149;
+            word-break: break-word;
+        }
+
+        .link-btn {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: #0d2149;
+            color: white;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
         }
 
         h3 { color: var(--primary-blue); }
@@ -354,10 +404,10 @@
 <div class="glass-container">
     <div class="header-top">
         <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-            <img src="LOGO-almajdouie.png" alt="Almajdouie Motors Logo" style="max-height:45px;" />
+            <img src="LOGO-almajdouie.png" alt="Almajdouie Motors Logo" style="max-height:45px" />
             <div>
                 <div style="font-weight: 900; font-size: 18px; color: var(--primary-blue);">Almajdouie Motors</div>
-                <div style="font-size: 10px; color: #555;">Scheduling System v9.8.1</div>
+                <div style="font-size: 10px; color: #555;">Scheduling System v9.9</div>
             </div>
         </div>
         <div id="mainT" style="font-weight: 900; font-size: 20px;">Schedule Dashboard</div>
@@ -369,6 +419,7 @@
         <div class="tab" id="tabHolidays" onclick="window.switchTab('holidays', this)">🎊 Public Holidays</div>
         <div class="tab" id="tabAnnual" onclick="window.switchTab('annual', this)">🌴 Annual Leave</div>
         <div class="tab" id="tabPlanning" onclick="window.switchTab('planning', this)">📅 Vacation Plan (Chart)</div>
+        <div class="tab" id="tabBranchVisits" onclick="window.switchTab('branchVisits', this)">🏢 Branch Visits</div>
     </div>
 
     <div id="schedule" class="tab-content active">
@@ -494,6 +545,58 @@
             <tbody id="annualBody"></tbody>
         </table>
     </div>
+
+    <div id="branchVisits" class="tab-content">
+        <div class="form-box" style="background: #e8f5e9;">
+            <select id="bEmpSelect"></select>
+            <select id="bRegionSelect" onchange="window.populateBranchSelect()"></select>
+            <select id="bBranchSelect" onchange="window.handleBranchSelection()" style="min-width:220px;"></select>
+            <input type="date" id="bDate" />
+            <textarea id="bNotes" placeholder="Notes" style="flex:1;"></textarea>
+            <button class="btn-tool" id="btnAddBranchVisit" style="background:#2e7d32; color:white" onclick="window.addBranchVisit()">Add Visit</button>
+        </div>
+
+        <div class="branch-info-box">
+            <div class="branch-info-item">
+                <div class="branch-info-label" id="lblBranchBrand">Brand</div>
+                <div class="branch-info-value" id="branchBrandValue">-</div>
+            </div>
+            <div class="branch-info-item">
+                <div class="branch-info-label" id="lblBranchType">Branch Type</div>
+                <div class="branch-info-value" id="branchTypeValue">-</div>
+            </div>
+            <div class="branch-info-item">
+                <div class="branch-info-label" id="lblBranchCity">City / Region</div>
+                <div class="branch-info-value" id="branchCityValue">-</div>
+            </div>
+            <div class="branch-info-item">
+                <div class="branch-info-label" id="lblBranchLocation">Location</div>
+                <div class="branch-info-value" id="branchLocationValue">-</div>
+            </div>
+            <div class="branch-info-item">
+                <div class="branch-info-label" id="lblBranchMap">Map</div>
+                <div class="branch-info-value" id="branchMapValue">-</div>
+            </div>
+        </div>
+
+        <h3 id="branchVisitTitle">🏢 Employee Branch Visits</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th id="thBranchEmp">Employee</th>
+                    <th id="thBranchName">Branch</th>
+                    <th id="thBranchDate">Visit Date</th>
+                    <th id="thBranchBrand">Brand</th>
+                    <th id="thBranchRegion">Region</th>
+                    <th id="thBranchNotes">Notes</th>
+                    <th id="thBranchMapHead">Map</th>
+                    <th id="thBranchAction">Action</th>
+                </tr>
+            </thead>
+            <tbody id="branchVisitBody"></tbody>
+        </table>
+    </div>
 </div>
 
 <script type="module">
@@ -511,13 +614,54 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-
     const LANG_KEY = 'almajdouie_schedule_lang';
+
+    // Branch master list built from the uploaded Excel file
+    const branchMaster = [
+        { hostname: "CNGN-DMM-1", branchName: "Changan Dhahran Qeshla", brand: "Changan", branchType: "1S", city: "Dammam", region: "Eastern", lat: 26.3627, lng: 50.17802 },
+        { hostname: "CNGN-KHB-2", branchName: "Changan Khobar - Tamimi", brand: "Changan", branchType: "3S", city: "Khobar", region: "Eastern", lat: 26.33716, lng: 50.19817 },
+        { hostname: "CNGN-KHB-1", branchName: "Changan Karawan Tower", brand: "Changan", branchType: "1S", city: "Khobar", region: "Eastern", lat: 26.318555, lng: 50.216056 },
+        { hostname: "CNGN-DMM-2", branchName: "Changan Alkhaldia - Service", brand: "Changan", branchType: "2S", city: "Dammam", region: "Eastern", lat: 26.40208, lng: 50.17073 },
+        { hostname: "MMS-DMM-3", branchName: "Changan Khair - Service", brand: "Changan", branchType: "2S", city: "Dammam", region: "Eastern", lat: 26.44396, lng: 50.04225 },
+        { hostname: "GEN-KHB-1", branchName: "Genesis khobar", brand: "Genesis", branchType: "1S", city: "Khobar", region: "Eastern", lat: 26.36283, lng: 50.186364 },
+        { hostname: "PCA-KHB-1", branchName: "Peugeot Khobar", brand: "Stellantis", branchType: "3S", city: "Khobar", region: "Eastern", lat: 26.319856, lng: 50.209314 },
+        { hostname: "HQ-DMM", branchName: "Hyundai 91 HQ", brand: "Hyundai", branchType: "3S", city: "Dammam", region: "Eastern", lat: 26.400945, lng: 50.051463 },
+        { hostname: "MMSM-KHB-1", branchName: "Hyundai Khobar", brand: "Hyundai", branchType: "3S", city: "Khobar", region: "Eastern", lat: 26.31767, lng: 50.21066 },
+        { hostname: "MMSM-KHB-2", branchName: "Hyundai Thuqbah - Showroom", brand: "Hyundai", branchType: "1S", city: "Khobar", region: "Eastern", lat: 26.285429, lng: 50.189966 },
+        { hostname: "MMS-THQ-2", branchName: "Hyundai Thuqbah - Service", brand: "Hyundai", branchType: "2S", city: "Khobar", region: "Eastern", lat: 26.254208, lng: 50.199228 },
+        { hostname: "MMP-DMM-3", branchName: "Hyundai Khdoriah - Spare Parts", brand: "Hyundai", branchType: "S1", city: "Dammam", region: "Eastern", lat: 26.448461, lng: 50.055211 },
+        { hostname: "MMSM-DMM-2", branchName: "Hyundai Jarir", brand: "Hyundai", branchType: "1S", city: "Dammam", region: "Eastern", lat: 26.410089, lng: 50.11004 },
+        { hostname: "MMS-DMM-2", branchName: "Hyundai Al Khodaryah - Service", brand: "Hyundai", branchType: "1S", city: "Dammam", region: "Eastern", lat: 26.450849, lng: 50.03418 },
+        { hostname: "MMSM-QTF-1", branchName: "Hyundai Sihat", brand: "Hyundai", branchType: "3S", city: "Qatef", region: "Eastern", lat: 26.50412, lng: 50.03771 },
+        { hostname: "MMS-HSA-1", branchName: "Hyundai Hassa Indestrial - Service", brand: "Hyundai", branchType: "2S", city: "Hassa", region: "Eastern", lat: 25.404583, lng: 49.479291 },
+        { hostname: "MMSM-HSA-1", branchName: "Hyundai Dhahran road", brand: "Hyundai", branchType: "3S", city: "Hassa", region: "Eastern", lat: 25.441442, lng: 49.57073 },
+        { hostname: "CNGN-HSA-1", branchName: "Changan Hassa - Service", brand: "Changan", branchType: "2S", city: "Hassa", region: "Eastern", lat: 25.361743, lng: 49.55257 },
+        { hostname: "MMSM-HSA-2", branchName: "Hyundai Qatar road", brand: "Hyundai", branchType: "1S", city: "Hassa", region: "Eastern", lat: 25.34302, lng: 49.615107 },
+        { hostname: "MMSM-HSA-3", branchName: "Hyundai Salmania", brand: "Hyundai", branchType: "3S", city: "Hassa", region: "Eastern", lat: 25.361153, lng: 49.550744 },
+        { hostname: "MMSM-JUB-1", branchName: "Hyundai Jubail", brand: "Hyundai", branchType: "3S", city: "Jubail", region: "Eastern", lat: 26.980729, lng: 49.648035 },
+        { hostname: "MMSM-ARR-1", branchName: "Hyundai Arar", brand: "Hyundai", branchType: "3S", city: "Arar", region: "Eastern", lat: 30.967941, lng: 41.030363 },
+        { hostname: "MMSM-HAF-1", branchName: "Hyundai Hafer albaten", brand: "Hyundai", branchType: "3S", city: "Hafer albaten", region: "Eastern", lat: 28.40643, lng: 45.96685 },
+        { hostname: "CNPC-DMM-1", branchName: "Changan warehouse", brand: "Changan", branchType: "1S", city: "Dammam", region: "Eastern", lat: 26.39927, lng: 50.16122 },
+        { hostname: "PCA-KHB-2", branchName: "Need the location", brand: "Stellantis", branchType: "", city: "Khobar", region: "Eastern", lat: null, lng: null },
+        { hostname: "PCA-JED-1", branchName: "Peugeot Automall", brand: "Multi Brand", branchType: "3S", city: "Jeddah", region: "Westeren", lat: 21.64854, lng: 39.11281 },
+        { hostname: "PCA-JED-2", branchName: "Peugeot Workshop Asfan - Service", brand: "Stellantis", branchType: "", city: "Jeddah", region: "Westeren", lat: null, lng: null },
+        { hostname: "CNGN-JED-4", branchName: "Changan Jeddah Sultan", brand: "Multi Brand", branchType: "3S", city: "Jeddah", region: "Westeren", lat: 21.608057, lng: 39.141912 },
+        { hostname: "SLN-JED-1", branchName: "Asfan Autosolution - Service", brand: "Hyundai", branchType: "1S", city: "Jeddah", region: "Westeren", lat: null, lng: null },
+        { hostname: "CNGN-JED-5", branchName: "Changan Workshop Asfan - Service", brand: "Changan", branchType: "2S", city: "Jeddah", region: "Westeren", lat: 21.923561, lng: 39.311567 },
+        { hostname: "CNGN-JED-6", branchName: "Changan Warehouse", brand: "Changan", branchType: "1S", city: "Jeddah", region: "Westeren", lat: 21.30493, lng: 39.17382 },
+        { hostname: "CNPC-RYD-1", branchName: "changan exit 13", brand: "Multi Brand", branchType: "S3", city: "Riyadh", region: "Centeral", lat: 24.71754, lng: 46.75932 },
+        { hostname: "CNGN-RYD-3", branchName: "peugeot exit 13", brand: "Multi Brand", branchType: "S3", city: "Riyadh", region: "Centeral", lat: 26.4605, lng: 50.11643 },
+        { hostname: "PCA-RYD-1-A", branchName: "North industry", brand: "Multi Brand", branchType: "S2", city: "Riyadh", region: "Centeral", lat: 24.74405, lng: 46.80325 },
+        { hostname: "PCA-RYD-1-B", branchName: "changan exit 25", brand: "Multi Brand", branchType: "S2", city: "Riyadh", region: "Centeral", lat: 24.74405, lng: 46.80325 },
+        { hostname: "PCA-RYD-1-C", branchName: "changan exit 17", brand: "Multi Brand", branchType: "S2", city: "Riyadh", region: "Centeral", lat: 24.74405, lng: 46.80325 },
+        { hostname: "PCA-RYD-2", branchName: "Stellantis exit 5", brand: "Stellantis", branchType: "", city: "Riyadh", region: "Centeral", lat: 24.74405, lng: 46.80325 }
+    ];
 
     let employees = [];
     let holidayDuties = [];
     let vacationsList = [];
     let planList = [];
+    let branchVisits = [];
     let manualOverrides = {};
     let currentLang = localStorage.getItem(LANG_KEY) || 'en';
 
@@ -532,6 +676,7 @@
             holidays: "🎊 Public Holidays",
             annual: "🌴 Annual Leave",
             planning: "📅 Vacation Plan (Chart)",
+            branchVisitsTab: "🏢 Branch Visits",
             newEmployeeName: "New Employee Name",
             addEmployee: "+ Add Employee",
             adminName: "Name",
@@ -565,6 +710,9 @@
             active: "Active",
             hidden: "Hidden",
             none: "None",
+            allRegions: "All Regions",
+            selectBranch: "Select Branch",
+            selectEmployee: "Select Employee",
             thu: "Thu",
             fri: "Fri",
             delConfirm: "Delete this item?",
@@ -577,7 +725,25 @@
             months: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
             nightLabel: "🌙 Night",
             morningLabel: "☀️ Morning",
-            hiddenLabel: "[X]"
+            hiddenLabel: "[X]",
+            branchVisitTitle: "🏢 Employee Branch Visits",
+            branchEmployee: "Employee",
+            branchName: "Branch",
+            branchDate: "Visit Date",
+            branchNotes: "Notes",
+            branchAdd: "Add Visit",
+            branchAction: "Action",
+            branchPlaceholder: "Branch name",
+            branchNotesPlaceholder: "Notes",
+            branchBrand: "Brand",
+            branchType: "Branch Type",
+            branchCityRegion: "City / Region",
+            branchLocation: "Location",
+            branchMap: "Map",
+            mapOpen: "Open Map",
+            noMap: "No coordinates",
+            visitSaved: "Visit saved successfully",
+            region: "Region"
         },
         ar: {
             title: "لوحة جدول المناوبات",
@@ -589,6 +755,7 @@
             holidays: "🎊 العطل الرسمية",
             annual: "🌴 الإجازة السنوية",
             planning: "📅 خطة الإجازات",
+            branchVisitsTab: "🏢 زيارة الفرع",
             newEmployeeName: "اسم الموظف الجديد",
             addEmployee: "+ إضافة موظف",
             adminName: "الاسم",
@@ -622,6 +789,9 @@
             active: "نشط",
             hidden: "مخفي",
             none: "لا يوجد",
+            allRegions: "كل المناطق",
+            selectBranch: "اختر الفرع",
+            selectEmployee: "اختر الموظف",
             thu: "الخميس",
             fri: "الجمعة",
             delConfirm: "هل تريد حذف هذا العنصر؟",
@@ -634,7 +804,25 @@
             months: ["ينا","فبر","مار","أبر","ماي","يون","يول","أغس","سبت","أكت","نوف","ديس"],
             nightLabel: "🌙 ليلي",
             morningLabel: "☀️ صباحي",
-            hiddenLabel: "[X]"
+            hiddenLabel: "[X]",
+            branchVisitTitle: "🏢 زيارات الموظفين للفروع",
+            branchEmployee: "الموظف",
+            branchName: "الفرع",
+            branchDate: "تاريخ الزيارة",
+            branchNotes: "ملاحظات",
+            branchAdd: "إضافة زيارة",
+            branchAction: "الإجراء",
+            branchPlaceholder: "اسم الفرع",
+            branchNotesPlaceholder: "ملاحظات",
+            branchBrand: "البراند",
+            branchType: "نوع الفرع",
+            branchCityRegion: "المدينة / المنطقة",
+            branchLocation: "الموقع",
+            branchMap: "الخريطة",
+            mapOpen: "فتح الموقع",
+            noMap: "لا توجد إحداثيات",
+            visitSaved: "تم حفظ الزيارة بنجاح",
+            region: "المنطقة"
         }
     };
 
@@ -653,6 +841,57 @@
         localStorage.setItem(LANG_KEY, currentLang);
     }
 
+    function logFirebaseError(source, error) {
+        console.error(`[${source}]`, error);
+    }
+
+    function getMapUrl(branch) {
+        if (!branch || branch.lat == null || branch.lng == null) return null;
+        return `https://www.google.com/maps?q=${branch.lat},${branch.lng}`;
+    }
+
+    function renderBranchInfo(branch) {
+        const t = tr();
+        document.getElementById('branchBrandValue').textContent = branch?.brand || '-';
+        document.getElementById('branchTypeValue').textContent = branch?.branchType || '-';
+        document.getElementById('branchCityValue').textContent = branch ? `${branch.city || '-'} / ${branch.region || '-'}` : '-';
+        document.getElementById('branchLocationValue').textContent = branch && branch.lat != null && branch.lng != null ? `${branch.lat}, ${branch.lng}` : t.noMap;
+        const mapEl = document.getElementById('branchMapValue');
+        const mapUrl = getMapUrl(branch);
+        mapEl.innerHTML = mapUrl ? `<a class="link-btn" href="${mapUrl}" target="_blankurrent = regionSelect.value || '';
+        const regions = [...new Set(branchMaster.map(b => b.region).filter(Boolean))].sort();
+        regionSelect.innerHTML = `<option value="">${t.allRegions}</option>` + regions.map(r => `<option value="${r}">${r}</option>`).join('');
+        if (regions.includes(current)) regionSelect.value = current;
+    };
+
+    window.populateBranchSelect = () => {
+        const t = tr();
+        const region = document.getElementById('bRegionSelect').value;
+        const branchSelect = document.getElementById('bBranchSelect');
+        const current = branchSelect.value || '';
+
+        const filtered = branchMaster
+            .filter(b => !region || b.region === region)
+            .sort((a, b) => a.branchName.localeCompare(b.branchName));
+
+        branchSelect.innerHTML = `<option value="">${t.selectBranch}</option>` + filtered.map(b => {
+            const label = `${b.branchName} (${b.city})`;
+            return `<option value="${b.hostname}">${label}</option>`;
+        }).join('');
+
+        if (filtered.some(b => b.hostname === current)) {
+            branchSelect.value = current;
+        }
+
+        window.handleBranchSelection();
+    };
+
+    window.handleBranchSelection = () => {
+        const selected = document.getElementById('bBranchSelect').value;
+        const branch = branchMaster.find(b => b.hostname === selected);
+        renderBranchInfo(branch || null);
+    };
+
     function applyLanguage() {
         const t = tr();
         const html = document.getElementById('mainHtml');
@@ -669,6 +908,7 @@
         document.getElementById('tabHolidays').textContent = t.holidays;
         document.getElementById('tabAnnual').textContent = t.annual;
         document.getElementById('tabPlanning').textContent = t.planning;
+        document.getElementById('tabBranchVisits').textContent = t.branchVisitsTab;
 
         document.getElementById('newEmpName').placeholder = t.newEmployeeName;
         document.getElementById('btnAddEmployee').textContent = t.addEmployee;
@@ -708,10 +948,27 @@
         monthIds.forEach((id, idx) => {
             document.getElementById(id).textContent = t.months[idx];
         });
-    }
 
-    function logFirebaseError(source, error) {
-        console.error(`[${source}]`, error);
+        document.getElementById('branchVisitTitle').textContent = t.branchVisitTitle;
+        document.getElementById('thBranchEmp').textContent = t.branchEmployee;
+        document.getElementById('thBranchName').textContent = t.branchName;
+        document.getElementById('thBranchDate').textContent = t.branchDate;
+        document.getElementById('thBranchBrand').textContent = t.branchBrand;
+        document.getElementById('thBranchRegion').textContent = t.region;
+        document.getElementById('thBranchNotes').textContent = t.branchNotes;
+        document.getElementById('thBranchMapHead').textContent = t.branchMap;
+        document.getElementById('thBranchAction').textContent = t.branchAction;
+        document.getElementById('btnAddBranchVisit').textContent = t.branchAdd;
+        document.getElementById('bNotes').placeholder = t.branchNotesPlaceholder;
+
+        document.getElementById('lblBranchBrand').textContent = t.branchBrand;
+        document.getElementById('lblBranchType').textContent = t.branchType;
+        document.getElementById('lblBranchCity').textContent = t.branchCityRegion;
+        document.getElementById('lblBranchLocation').textContent = t.branchLocation;
+        document.getElementById('lblBranchMap').textContent = t.branchMap;
+
+        window.populateBranchRegions();
+        window.populateBranchSelect();
     }
 
     window.toggleLanguage = () => {
@@ -773,6 +1030,15 @@
         (error) => logFirebaseError('vacations', error)
     );
 
+    onSnapshot(
+        doc(db, 'schedule', 'jadwal_branch_visits'),
+        (snap) => {
+            branchVisits = snap.exists() ? (snap.data().visits || []) : [];
+            window.renderAll();
+        },
+        (error) => logFirebaseError('jadwal_branch_visits', error)
+    );
+
     window.renderAll = () => {
         const dp = document.getElementById('datePicker');
         if (!dp || !dp.value) return;
@@ -823,10 +1089,19 @@
                         cellD <= new Date(duty.end.replace(/-/g, '/'))
                     );
 
+                    const isBranchVisit = branchVisits.find(v =>
+                        String(v.empId) === String(emp.id) &&
+                        String(v.date) === String(dateKey)
+                    );
+
                     if (isAnn) {
                         shift = t.annualLeave;
                         bC = 'Annual';
                         icon = '🌴';
+                    } else if (isBranchVisit) {
+                        shift = currentLang === 'ar' ? 'زيارة فرع' : 'Branch Visit';
+                        bC = 'BranchVisit';
+                        icon = '🏢';
                     } else if (isH) {
                         if (String(isH.empId) === String(emp.id)) {
                             shift = emp.fixed ? t.night : t.onCall;
@@ -913,10 +1188,8 @@
             try {
                 const docRef = doc(db, 'schedule', 'manual_overrides');
                 let updates = { ...manualOverrides };
-
                 if (s) updates[`${empId}_${date}`] = s;
                 else delete updates[`${empId}_${date}`];
-
                 await setDoc(docRef, updates);
             } catch (error) {
                 logFirebaseError('promptOverride', error);
@@ -927,11 +1200,12 @@
     function updateUI() {
         const t = tr();
         const emps = employees.filter(e => e.active);
-        const options = emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        const options = `<option value="">${t.selectEmployee}</option>` + emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
 
-        document.getElementById('pEmpSelect').innerHTML = options;
-        document.getElementById('hEmpSelect').innerHTML = options;
-        document.getElementById('aEmpSelect').innerHTML = options;
+        document.getElementById('pEmpSelect').innerHTML = emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        document.getElementById('hEmpSelect').innerHTML = emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        document.getElementById('aEmpSelect').innerHTML = emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        document.getElementById('bEmpSelect').innerHTML = options;
 
         document.getElementById('adminList').innerHTML = employees.map((e, i) => `
             <tr>
@@ -986,7 +1260,24 @@
             </tr>
         `).join('');
 
+        document.getElementById('branchVisitBody').innerHTML = branchVisits.map((v, i) => {
+            const mapUrl = v.lat != null && v.lng != null ? `https://www.google.com/maps?q=${v.lat},${v.lng}` : null;
+            return `
+                <tr>
+                    <td>${employees.find(x => String(x.id) === String(v.empId))?.name || v.empName || ''}</td>
+                    <td>${v.branchName || ''}</td>
+                    <td>${v.date || ''}</td>
+                    <td>${v.brand || ''}</td>
+                    <td>${v.region || ''}</td>
+                    <td>${v.notes || ''}</td>
+                    <td>${mapUrl ? `<a class="link-btn" href="${mapUrl}" target                <td><button onclick="window.delBranchVisit(${i})" style="color:red">X</button></td>
+                </tr>
+            `;
+        }).join('');
+
         renderGantt(emps);
+        window.populateBranchRegions();
+        window.populateBranchSelect();
     }
 
     function renderGantt(activeEmps) {
@@ -1236,6 +1527,66 @@
         }
     };
 
+    window.addBranchVisit = async () => {
+        try {
+            const t = tr();
+            const empId = document.getElementById('bEmpSelect').value;
+            const date = document.getElementById('bDate').value;
+            const notes = document.getElementById('bNotes').value.trim();
+            const hostname = document.getElementById('bBranchSelect').value;
+
+            if (!empId || !date || !hostname) return;
+
+            const emp = employees.find(x => String(x.id) === String(empId));
+            const branch = branchMaster.find(b => b.hostname === hostname);
+
+            if (!emp || !branch) return;
+
+            const docRef = doc(db, 'schedule', 'jadwal_branch_visits');
+
+            await setDoc(docRef, {
+                visits: [
+                    ...branchVisits,
+                    {
+                        empId: empId,
+                        empName: emp.name,
+                        hostname: branch.hostname,
+                        branchName: branch.branchName,
+                        brand: branch.brand,
+                        branchType: branch.branchType,
+                        city: branch.city,
+                        region: branch.region,
+                        lat: branch.lat ?? null,
+                        lng: branch.lng ?? null,
+                        date: date,
+                        notes: notes
+                    }
+                ]
+            }, { merge: true });
+
+            document.getElementById('bDate').value = '';
+            document.getElementById('bNotes').value = '';
+            alert(t.visitSaved);
+        } catch (error) {
+            logFirebaseError('addBranchVisit', error);
+        }
+    };
+
+    window.delBranchVisit = async (i) => {
+        try {
+            if (!confirm(tr().delConfirm)) return;
+
+            let arr = [...branchVisits];
+            arr.splice(i, 1);
+
+            await setDoc(doc(db, 'schedule', 'jadwal_branch_visits'), {
+                visits: arr
+            }, { merge: true });
+        } catch (error) {
+            logFirebaseError('delBranchVisit', error);
+        }
+    };
+
     window.setCurrentWeek = () => {
         const now = new Date();
         now.setHours(0, 0, 0, 0);
@@ -1271,6 +1622,7 @@
 
         applyLanguage();
         window.setCurrentWeek();
+        renderBranchInfo(null);
     });
 </script>
 
