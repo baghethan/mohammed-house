@@ -1,170 +1,81 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Almajdouie Motors - Schedule v10.2.6</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+# إصلاح سريع وآمن — إزالة أيقونة إجازة سنوية و Off فقط
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+أنت محق. التعديل المطلوب كان بسيطًا جدًا: **إزالة الأيقونة فقط** من:
+1) الجدول
+2) الـ Legend
 
-<style>
-body{
-  font-family:Segoe UI, Tahoma;
-  background:#eef3f9;
-  margin:0;
-  padding:20px;
-}
-.container{
-  max-width:1200px;
-  margin:auto;
-  background:white;
-  border-radius:16px;
-  padding:20px;
-  box-shadow:0 20px 40px rgba(0,0,0,.12);
-}
-.header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:16px;
-}
-.header h2{margin:0;color:#0d2149}
+بدون حذف أي شيء آخر.
 
-.controls{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  margin-bottom:12px;
-}
-button{
-  border:none;
-  padding:10px 14px;
-  border-radius:10px;
-  font-weight:700;
-  cursor:pointer;
-}
-.copy{background:#0d2149;color:white}
-.download{background:#ff7a18;color:white}
+## 1) داخل الدالة shiftMeta(key)
+ابحث عن السطور التالية واستبدلها:
 
-.legend{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  margin:12px 0;
-}
-.legend span{
-  padding:8px 14px;
-  border-radius:999px;
-  font-size:12px;
-  font-weight:800;
-}
+```js
+if(key==='Annual') return {text:t.annualLeave, cls:'Annual', icon:'🌴'};
+if(key==='Off') return {text:t.off, cls:'Off', icon:'⛱️'};
+```
 
-.Morning{background:#dbeafe;color:#1d4ed8}
-.Night{background:#ede9fe;color:#6d28d9}
-.Work{background:#d8f3dc;color:#2e7d32}
-.OnCall{background:#e3f2fd;color:#1976d2}
-.Annual{background:#fdecea;color:#c62828}
-.Off{background:#eeeeee;color:#616161}
+بالسطور التالية فقط:
 
-table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:10px;
-}
-th,td{
-  border:1px solid #e5e7eb;
-  padding:10px;
-  text-align:center;
-}
-th{background:#f8fafc;color:#0d2149}
-.name{text-align:left;font-weight:800}
+```js
+if(key==='Annual') return {text:t.annualLeave, cls:'Annual', icon:''};
+if(key==='Off') return {text:t.off, cls:'Off', icon:''};
+```
 
-.badge{
-  display:inline-block;
-  padding:6px 12px;
-  border-radius:999px;
-  font-size:11px;
-  font-weight:800;
-}
-</style>
-</head>
+---
 
-<body>
+## 2) داخل دالة renderShiftLegend()
+ابحث عن الجزء التالي داخل metaMap:
 
-<div class="container" id="captureArea">
+```js
+Annual: { text: t.annualLeave, cls: 'Annual', icon: '🌴' },
+Off: { text: t.off, cls: 'Off', icon: '⛱️' }
+```
 
-  <div class="header">
-    <h2>Almajdouie Motors – Weekly Schedule</h2>
-    <input type="date" id="weekDate">
-  </div>
+واستبدله فقط بـ:
 
-  <div class="controls">
-    <button class="copy" onclick="copyImage()">📋 Copy Schedule Image</button>
-    <button class="download" onclick="downloadImage()">📸 Download Schedule Image</button>
-  </div>
+```js
+Annual: { text: t.annualLeave, cls: 'Annual', icon: '' },
+Off: { text: t.off, cls: 'Off', icon: '' }
+```
 
-  <div class="legend">
-    <span class="Morning">Morning 08:00–17:00</span>
-    <span class="Night">Night 17:00–00:00</span>
-    <span class="Work">Work / Coverage 09:00–18:00</span>
-    <span class="OnCall">On Call</span>
-    <span class="Annual">Annual Leave</span>
-    <span class="Off">Off</span>
-  </div>
+---
 
-  <table>
-    <thead>
-      <tr>
-        <th>Employee</th>
-        <th>Sun</th>
-        <th>Mon</th>
-        <th>Tue</th>
-        <th>Wed</th>
-        <th>Thu</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td class="name">Mohammed</td>
-        <td><span class="badge Morning">Morning</span></td>
-        <td><span class="badge Off">Off</span></td>
-        <td><span class="badge Night">Night</span></td>
-        <td><span class="badge Work">Work</span></td>
-        <td><span class="badge OnCall">On Call</span></td>
-      </tr>
-      <tr>
-        <td class="name">Ahmed</td>
-        <td><span class="badge Work">Work</span></td>
-        <td><span class="badge Morning">Morning</span></td>
-        <td><span class="badge Off">Off</span></td>
-        <td><span class="badge Night">Night</span></td>
-        <td><span class="badge Annual">Annual</span></td>
-      </tr>
-    </tbody>
-  </table>
+## 3) حتى لا يبقى فراغ قبل النص داخل الـ Legend
+ابحث عن هذا السطر:
 
-</div>
+```js
+<span>${meta.icon} ${meta.text}</span>
+```
 
-<script>
-function downloadImage(){
-  html2canvas(document.getElementById('captureArea'),{scale:2})
-  .then(canvas=>{
-    const a=document.createElement('a');
-    a.download='schedule.png';
-    a.href=canvas.toDataURL();
-    a.click();
-  });
-}
-function copyImage(){
-  html2canvas(document.getElementById('captureArea'),{scale:2})
-  .then(canvas=>{
-    canvas.toBlob(blob=>{
-      navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
-      alert('Image copied ✅');
-    });
-  });
-}
-</script>
+واستبدله بـ:
 
-</body>
-</html>
+```js
+<span>${meta.icon ? meta.icon + ' ' : ''}${meta.text}</span>
+```
+
+---
+
+## 4) حتى لا يبقى فراغ قبل النص داخل الجدول
+ابحث عن هذا السطر:
+
+```js
+<span class="badge ${bC}">${icon} ${text}</span>
+```
+
+واستبدله بـ:
+
+```js
+<span class="badge ${bC}">${icon ? icon + ' ' : ''}${text}</span>
+```
+
+---
+
+## النتيجة النهائية
+- Morning → يبقى مع ☀️
+- Night → يبقى مع 🌙
+- On Call → يبقى مع 📞
+- Work/Coverage → يبقى مع 🏢
+- Annual Leave → **بدون أيقونة**
+- Off → **بدون أيقونة**
+
+> هذا هو التعديل الصحيح المطلوب، ولا يمس أي جزء آخر من النظام.
