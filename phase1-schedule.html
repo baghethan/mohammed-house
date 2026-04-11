@@ -3,291 +3,59 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>إدارة زيارات الفروع - Firebase</title>
-  https://cdn.jsdelivr.net/npm/chart.js
+  <title>إدارة زيارات الفروع - Firebase + Excel</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     :root {
-      --bg: #eef2f7;
-      --card: #ffffff;
-      --primary: #0d4b73;
-      --primary-2: #0a668e;
-      --accent: #f28c28;
-      --purple: #7c2a90;
-      --green: #3ca36a;
-      --danger: #d64545;
-      --text: #163247;
-      --muted: #6e8192;
-      --border: #d7e0ea;
-      --shadow: 0 10px 30px rgba(18, 48, 74, 0.08);
-      --radius: 16px;
+      --primary:#0d4b73; --primary2:#0a668e; --green:#3ca36a; --purple:#7c2a90; --danger:#d64545;
+      --border:#d7e0ea; --text:#163247; --muted:#6e8192; --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px;
     }
-
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
-      background: linear-gradient(180deg, #f5f7fb 0%, #ecf2f8 100%);
-      color: var(--text);
-    }
-
-    .header {
-      background: linear-gradient(135deg, var(--primary), var(--primary-2));
-      color: white;
-      padding: 18px 22px;
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      box-shadow: var(--shadow);
-    }
-
-    .header h1 {
-      margin: 0 0 6px;
-      font-size: 28px;
-    }
-
-    .header p {
-      margin: 0;
-      color: rgba(255,255,255,.85);
-      font-size: 14px;
-    }
-
-    .container {
-      max-width: 1480px;
-      margin: 22px auto;
-      padding: 0 16px 28px;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 18px;
-    }
-
-    .tab-btn {
-      border: 1px solid var(--border);
-      background: white;
-      color: var(--primary);
-      border-radius: 999px;
-      padding: 10px 18px;
-      cursor: pointer;
-      font-weight: 700;
-    }
-
-    .tab-btn.active,
-    .tab-btn:hover {
-      background: var(--primary);
-      color: white;
-    }
-
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(240px, 1fr));
-      gap: 18px;
-    }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: 1.1fr .9fr;
-      gap: 18px;
-    }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 16px;
-      overflow: hidden;
-    }
-
-    .card h3 {
-      margin: -16px -16px 14px;
-      padding: 12px 16px;
-      color: white;
-      font-size: 15px;
-      background: var(--primary);
-    }
-
-    .card.green h3 { background: var(--green); }
-    .card.purple h3 { background: var(--purple); }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(170px, 1fr));
-      gap: 14px;
-      margin-bottom: 18px;
-    }
-
-    .stat {
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px;
-      box-shadow: var(--shadow);
-    }
-
-    .stat .label {
-      color: var(--muted);
-      font-size: 13px;
-      margin-bottom: 8px;
-      display: block;
-    }
-
-    .stat .value {
-      color: var(--primary);
-      font-size: 30px;
-      font-weight: 800;
-    }
-
-    .toolbar-grid,
-    .form-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(180px, 1fr));
-      gap: 14px;
-    }
-
-    .form-grid.wide {
-      grid-template-columns: repeat(3, minmax(220px, 1fr));
-    }
-
-    .field {
-      display: grid;
-      gap: 8px;
-    }
-
-    .field label {
-      font-weight: 700;
-      font-size: 14px;
-      color: #28465a;
-    }
-
-    .field input,
-    .field select,
-    .field textarea {
-      width: 100%;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 11px 12px;
-      font: inherit;
-      background: #fbfcfe;
-    }
-
-    .field textarea { min-height: 110px; resize: vertical; }
-
-    .actions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 16px;
-    }
-
-    .btn {
-      border: 0;
-      cursor: pointer;
-      border-radius: 12px;
-      padding: 12px 18px;
-      font-weight: 700;
-    }
-
-    .btn.primary { background: var(--primary); color: white; }
-    .btn.secondary { background: white; color: var(--primary); border: 1px solid var(--border); }
-    .btn.green { background: var(--green); color: white; }
-    .btn.danger { background: var(--danger); color: white; }
-
-    .note {
-      background: #f6fbff;
-      border: 1px dashed #bfd7e8;
-      color: #33546b;
-      border-radius: 12px;
-      padding: 12px 14px;
-      margin-top: 14px;
-      line-height: 1.6;
-      font-size: 14px;
-    }
-
-    .branch-list {
-      display: grid;
-      gap: 10px;
-      max-height: 480px;
-      overflow: auto;
-    }
-
-    .branch-item {
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 12px;
-      background: #fcfdff;
-    }
-
-    .branch-item strong {
-      color: var(--primary);
-      display: block;
-      margin-bottom: 6px;
-    }
-
-    .branch-item small {
-      color: var(--muted);
-      display: block;
-      line-height: 1.5;
-    }
-
-    .table-wrap {
-      overflow: auto;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-    }
-
-    th, td {
-      padding: 12px 10px;
-      border-bottom: 1px solid #edf2f7;
-      text-align: right;
-      white-space: nowrap;
-      font-size: 14px;
-    }
-
-    th {
-      background: #f8fbff;
-      color: var(--primary);
-      position: sticky;
-      top: 0;
-    }
-
-    .chart-wrap {
-      min-height: 320px;
-      position: relative;
-    }
-
-    .pill {
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: #edf6ff;
-      color: var(--primary);
-      font-size: 12px;
-      font-weight: 700;
-      margin-left: 6px;
-      margin-top: 6px;
-    }
-
-    @media (max-width: 1100px) {
-      .grid-2, .grid-3, .toolbar-grid, .form-grid, .form-grid.wide, .stats { grid-template-columns: 1fr; }
-    }
+    * {box-sizing:border-box}
+    body {margin:0;font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:linear-gradient(180deg,#f5f7fb 0%,#ecf2f8 100%);color:var(--text)}
+    .header {background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;padding:18px 22px;position:sticky;top:0;z-index:10;box-shadow:var(--shadow)}
+    .header h1 {margin:0 0 6px;font-size:28px}
+    .header p {margin:0;color:rgba(255,255,255,.86);font-size:14px}
+    .container {max-width:1500px;margin:22px auto;padding:0 16px 28px}
+    .tabs {display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+    .tab-btn {background:#fff;color:var(--primary);border:1px solid var(--border);border-radius:999px;padding:10px 18px;cursor:pointer;font-weight:700}
+    .tab-btn.active,.tab-btn:hover {background:var(--primary);color:#fff}
+    .tab-panel {display:none} .tab-panel.active {display:block}
+    .stats {display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px;margin-bottom:18px}
+    .stat,.card {background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .stat {padding:16px}
+    .stat .label {color:var(--muted);font-size:13px;display:block;margin-bottom:6px}
+    .stat .value {color:var(--primary);font-size:30px;font-weight:800}
+    .card {padding:16px;overflow:hidden}
+    .card h3 {margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
+    .card.green h3 {background:var(--green)} .card.purple h3 {background:var(--purple)}
+    .grid-2 {display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+    .toolbar-grid,.form-grid {display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:14px}
+    .form-grid.wide {grid-template-columns:repeat(3,minmax(220px,1fr))}
+    .field {display:grid;gap:8px} .field label {font-size:14px;font-weight:700;color:#28465a}
+    .field input,.field select,.field textarea {width:100%;border:1px solid var(--border);border-radius:12px;padding:11px 12px;font:inherit;background:#fbfcfe}
+    .field textarea {min-height:110px;resize:vertical}
+    .actions {display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    .btn {border:0;cursor:pointer;border-radius:12px;padding:12px 18px;font-weight:700}
+    .btn.primary {background:var(--primary);color:#fff} .btn.secondary {background:#fff;color:var(--primary);border:1px solid var(--border)}
+    .btn.green {background:var(--green);color:#fff} .btn.danger {background:var(--danger);color:#fff}
+    .note {background:#f6fbff;border:1px dashed #bfd7e8;color:#33546b;border-radius:12px;padding:12px 14px;margin-top:14px;line-height:1.6;font-size:14px}
+    .chart-wrap {min-height:320px;position:relative}
+    .branch-list {display:grid;gap:10px;max-height:500px;overflow:auto}
+    .branch-item {background:#fcfdff;border:1px solid var(--border);border-radius:14px;padding:12px}
+    .branch-item strong {display:block;color:var(--primary);margin-bottom:6px} .branch-item small {display:block;color:var(--muted);line-height:1.55}
+    .table-wrap {overflow:auto;border:1px solid var(--border);border-radius:14px} table {width:100%;border-collapse:collapse;background:#fff}
+    th,td {padding:12px 10px;border-bottom:1px solid #edf2f7;text-align:right;white-space:nowrap;font-size:14px}
+    th {background:#f8fbff;color:var(--primary);position:sticky;top:0}
+    .pill {display:inline-block;padding:6px 10px;border-radius:999px;background:#edf6ff;color:var(--primary);font-size:12px;font-weight:700;margin-left:6px;margin-top:6px}
+    code.inline {background:#f3f7fb;padding:2px 6px;border-radius:6px}
+    @media (max-width:1100px) {.stats,.grid-2,.toolbar-grid,.form-grid,.form-grid.wide {grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <header class="header">
     <h1>إدارة زيارات الفروع وربطها بـ Firebase</h1>
-    <p>اختيار الفرع حسب المنطقة والمدينة، تسجيل الزيارة، وإضافة فروع جديدة بصلاحية إدارية.</p>
+    <p>نسخة محدثة تدعم استيراد/تنزيل Excel داخل قسم إدارة الفروع، بالإضافة إلى إضافة فرع جديد يدويًا.</p>
   </header>
 
   <main class="container">
@@ -309,22 +77,10 @@
       <div class="card">
         <h3>فلترة الزيارات</h3>
         <div class="toolbar-grid">
-          <div class="field">
-            <label>من تاريخ</label>
-            <input type="date" id="filterFromDate" />
-          </div>
-          <div class="field">
-            <label>إلى تاريخ</label>
-            <input type="date" id="filterToDate" />
-          </div>
-          <div class="field">
-            <label>المنطقة</label>
-            <select id="filterRegion"><option value="">الكل</option></select>
-          </div>
-          <div class="field">
-            <label>المدينة</label>
-            <select id="filterCity"><option value="">الكل</option></select>
-          </div>
+          <div class="field"><label>من تاريخ</label><input type="date" id="filterFromDate" /></div>
+          <div class="field"><label>إلى تاريخ</label><input type="date" id="filterToDate" /></div>
+          <div class="field"><label>المنطقة</label><select id="filterRegion"><option value="">الكل</option></select></div>
+          <div class="field"><label>المدينة</label><select id="filterCity"><option value="">الكل</option></select></div>
         </div>
         <div class="actions">
           <button class="btn primary" id="applyFiltersBtn">تطبيق الفلترة</button>
@@ -333,31 +89,15 @@
       </div>
 
       <div class="grid-2" style="margin-top:18px;">
-        <div class="card">
-          <h3>عدد الزيارات حسب العلامة</h3>
-          <div class="chart-wrap"><canvas id="brandVisitsChart"></canvas></div>
-        </div>
-        <div class="card purple">
-          <h3>عدد الزيارات حسب المنطقة</h3>
-          <div class="chart-wrap"><canvas id="regionVisitsChart"></canvas></div>
-        </div>
+        <div class="card"><h3>عدد الزيارات حسب العلامة</h3><div class="chart-wrap"><canvas id="brandVisitsChart"></canvas></div></div>
+        <div class="card purple"><h3>عدد الزيارات حسب المنطقة</h3><div class="chart-wrap"><canvas id="regionVisitsChart"></canvas></div></div>
       </div>
 
       <div class="card" style="margin-top:18px;">
         <h3>آخر الزيارات</h3>
         <div class="table-wrap">
           <table>
-            <thead>
-              <tr>
-                <th>التاريخ</th>
-                <th>المنطقة</th>
-                <th>المدينة</th>
-                <th>الفرع</th>
-                <th>العلامة</th>
-                <th>الفني</th>
-                <th>الحالة</th>
-              </tr>
-            </thead>
+            <thead><tr><th>التاريخ</th><th>المنطقة</th><th>المدينة</th><th>الفرع</th><th>العلامة</th><th>الفني</th><th>الحالة</th></tr></thead>
             <tbody id="visitsTableBody"></tbody>
           </table>
         </div>
@@ -369,77 +109,32 @@
         <div class="card">
           <h3>تسجيل زيارة جديدة</h3>
           <div class="form-grid wide">
-            <div class="field">
-              <label>المنطقة</label>
-              <select id="visitRegion"></select>
-            </div>
-            <div class="field">
-              <label>المدينة</label>
-              <select id="visitCity"></select>
-            </div>
-            <div class="field">
-              <label>العلامة</label>
-              <select id="visitBrand"></select>
-            </div>
-            <div class="field">
-              <label>الفرع</label>
-              <select id="visitBranch"></select>
-            </div>
-            <div class="field">
-              <label>اسم الفني</label>
-              <input id="technicianName" type="text" placeholder="اسم الفني" />
-            </div>
-            <div class="field">
-              <label>تاريخ الزيارة</label>
-              <input id="visitDate" type="date" />
-            </div>
-            <div class="field">
-              <label>حالة الشبكة</label>
-              <select id="networkStatus">
-                <option value="good">سليمة</option>
-                <option value="service">تحتاج صيانة</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>حالة الـ UPS</label>
-              <select id="upsStatus">
-                <option value="good">يعمل</option>
-                <option value="service">يحتاج صيانة</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Download Mbps</label>
-              <input id="downloadResult" type="number" min="0" value="64" />
-            </div>
-            <div class="field">
-              <label>Upload Mbps</label>
-              <input id="uploadResult" type="number" min="0" value="45" />
-            </div>
-            <div class="field" style="grid-column: 1 / -1;">
-              <label>الملاحظات</label>
-              <textarea id="visitNotes" placeholder="الملاحظات والإجراءات المطلوبة"></textarea>
-            </div>
+            <div class="field"><label>المنطقة</label><select id="visitRegion"></select></div>
+            <div class="field"><label>المدينة</label><select id="visitCity"></select></div>
+            <div class="field"><label>العلامة</label><select id="visitBrand"></select></div>
+            <div class="field"><label>الفرع</label><select id="visitBranch"></select></div>
+            <div class="field"><label>اسم الفني</label><input id="technicianName" type="text" placeholder="اسم الفني" /></div>
+            <div class="field"><label>تاريخ الزيارة</label><input id="visitDate" type="date" /></div>
+            <div class="field"><label>حالة الشبكة</label><select id="networkStatus"><option value="good">سليمة</option><option value="service">تحتاج صيانة</option></select></div>
+            <div class="field"><label>حالة الـ UPS</label><select id="upsStatus"><option value="good">يعمل</option><option value="service">يحتاج صيانة</option></select></div>
+            <div class="field"><label>Download Mbps</label><input id="downloadResult" type="number" min="0" value="64" /></div>
+            <div class="field"><label>Upload Mbps</label><input id="uploadResult" type="number" min="0" value="45" /></div>
+            <div class="field" style="grid-column:1 / -1;"><label>الملاحظات</label><textarea id="visitNotes" placeholder="الملاحظات والإجراءات المطلوبة"></textarea></div>
           </div>
           <div class="actions">
             <button class="btn green" id="saveVisitBtn">حفظ الزيارة أونلاين</button>
             <button class="btn secondary" id="seedBranchesBtn">رفع بيانات الفروع الأولية</button>
           </div>
-          <div class="note" id="saveMessage">اختر المنطقة → المدينة → العلامة → الفرع، ثم احفظ الزيارة في Firestore.</div>
+          <div class="note" id="saveMessage">اختر المنطقة ← المدينة ← العلامة ← الفرع، ثم احفظ الزيارة في Firestore.</div>
         </div>
-
-        <div class="card">
-          <h3>تفاصيل الفرع المختار</h3>
-          <div id="selectedBranchCard">
-            <div class="note">لم يتم اختيار فرع بعد.</div>
-          </div>
-        </div>
+        <div class="card"><h3>تفاصيل الفرع المختار</h3><div id="selectedBranchCard"><div class="note">لم يتم اختيار فرع بعد.</div></div></div>
       </div>
     </section>
 
     <section id="branches" class="tab-panel">
       <div class="grid-2">
         <div class="card green">
-          <h3>إضافة / تعديل فرع جديد</h3>
+          <h3>إدارة الفروع (إضافة / استيراد / تنزيل Excel)</h3>
           <div class="form-grid wide">
             <div class="field"><label>رمز الفرع / Hostname</label><input id="branchId" type="text" placeholder="مثال: CNGN-DMM-1" /></div>
             <div class="field"><label>اسم الفرع</label><input id="branchName" type="text" placeholder="اسم الفرع" /></div>
@@ -455,10 +150,13 @@
           <div class="actions">
             <button class="btn green" id="saveBranchBtn">إضافة / تحديث الفرع</button>
             <button class="btn secondary" id="clearBranchFormBtn">تنظيف الحقول</button>
+            <button class="btn primary" id="importBranchesBtn">استيراد ملف Excel</button>
+            <button class="btn secondary" id="exportBranchesBtn">تنزيل الفروع Excel</button>
+            <button class="btn secondary" id="downloadTemplateBtn">تنزيل قالب Excel</button>
+            <input type="file" id="importBranchesInput" accept=".xlsx,.xls" style="display:none" />
           </div>
-          <div class="note">هذا القسم هو صلاحية الإدارة لإضافة فروع جديدة أو تحديث الفرع الموجود بنفس الـ Hostname.</div>
+          <div class="note">يمكنك إضافة فرع جديد يدويًا، أو استيراد ملف Excel يحتوي على الفروع، أو تنزيل الفروع الحالية إلى Excel. القالب المقترح يستخدم أعمدة: <code class="inline">Hostname</code>, <code class="inline">Branch Name</code>, <code class="inline">Brand</code>, <code class="inline">Region</code>, <code class="inline">City</code>, <code class="inline">Coordinates</code>.</div>
         </div>
-
         <div class="card">
           <h3>الفروع الحالية</h3>
           <div id="branchFiltersSummary"></div>
@@ -470,14 +168,8 @@
     <section id="firebase" class="tab-panel">
       <div class="card">
         <h3>إعداد Firebase وربط Firestore</h3>
-        <div class="note">
-          1) افتح مشروع Firebase الخاص بك وأنشئ Web App.  
-          2) انسخ firebaseConfig وضعه في المتغير داخل الكود.  
-          3) ستُحفظ الفروع في collection اسمها <strong>branches</strong> والزيارات في <strong>siteVisits</strong>.  
-          4) ارفع بيانات الفروع الأولية بالضغط على زر <strong>رفع بيانات الفروع الأولية</strong> مرة واحدة فقط بعد الربط.
-        </div>
-        <pre style="white-space:pre-wrap; background:#0f1d2b; color:#dbe9f6; padding:16px; border-radius:14px; overflow:auto;">// استبدل القيم التالية من Firebase Project Settings
-const firebaseConfig = {
+        <div class="note">ألصق <code class="inline">firebaseConfig</code> الحقيقي في هذا الملف قبل الاستخدام. سيتم حفظ الفروع في <code class="inline">branches</code> والزيارات في <code class="inline">siteVisits</code>.</div>
+        <pre style="white-space:pre-wrap;background:#0f1d2b;color:#dbe9f6;padding:16px;border-radius:14px;overflow:auto;">const firebaseConfig = {
   apiKey: "PUT_YOUR_API_KEY",
   authDomain: "baghethan-ba325.firebaseapp.com",
   projectId: "baghethan-ba325",
@@ -502,23 +194,8 @@ const firebaseConfig = {
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import {
-      getFirestore,
-      collection,
-      doc,
-      setDoc,
-      addDoc,
-      getDocs,
-      query,
-      where,
-      orderBy,
-      onSnapshot,
-      Timestamp
-    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getFirestore, collection, doc, setDoc, addDoc, query, orderBy, onSnapshot, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    // =========================
-    // 1) ألصق firebaseConfig الحقيقي هنا
-    // =========================
     const firebaseConfig = {
       apiKey: 'PUT_YOUR_API_KEY',
       authDomain: 'baghethan-ba325.firebaseapp.com',
@@ -531,48 +208,26 @@ const firebaseConfig = {
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // =========================
-    // 2) بيانات الفروع الأولية
-    // الصق هنا محتوى seed_branches.js الناتج من ملف الإكسل
-    // =========================
-    const seedBranches = [
-      { id: 'CNGN-DMM-1', branchName: 'Changan Dhahran Qeshla', brand: 'Changan', region: 'Eastern', city: 'Dammam', coordinates: '26.3627, 50.17802', branchType: '1S', contactShowroom: 'Hashem Ahmed Al-Ali 0542297470', contactService: 'No Branch', contactSpareParts: 'No Branch' },
-      { id: 'CNGN-KHB-2', branchName: 'Changan Khobar - Tamimi', brand: 'Changan', region: 'Eastern', city: 'Khobar', coordinates: '26.33716, 50.19817', branchType: '3S', contactShowroom: 'Mutaib Sameer Al-Muslim 0559233337', contactService: 'Mukhtar Fadhel Alabdrabulridha 0544583202', contactSpareParts: 'Abdullah Mazin Alramahi 0545680036' },
-      { id: 'CNGN-KHB-1', branchName: 'Changan Karawan Tower', brand: 'Changan', region: 'Eastern', city: 'Khobar', coordinates: '26.318555, 50.216056', branchType: '1S', contactShowroom: 'Ahmad Saleh Al-Ghamdi 0551599390', contactService: 'No Branch', contactSpareParts: 'No Branch' },
-      { id: 'CNGN-DMM-2', branchName: 'Changan Alkhaldia - Service', brand: 'Changan', region: 'Eastern', city: 'Dammam', coordinates: '26.40208, 50.17073', branchType: '2S', contactShowroom: 'No Branch', contactService: 'Mohammed Mahmoud Matar 0564114985', contactSpareParts: 'Mohmmad Abdulbaset Eltayeb 0546570363' },
-      { id: 'MMS-DMM-3', branchName: 'Changan Khair - Service', brand: 'Changan', region: 'Eastern', city: 'Dammam', coordinates: '26.44396, 50.04225', branchType: '2S', contactShowroom: 'No Branch', contactService: 'Hamdi Mohammed Mohammed 0556310555', contactSpareParts: 'Abdullah Mohammed Bawazir 0598505500' }
-      // ألصق باقي الفروع من ملف seed_branches.js هنا
-    ];
+    const seedBranches = [];
 
-    const state = {
-      branches: [],
-      visits: [],
-      charts: {}
-    };
+    const state = { branches:[...seedBranches], visits:[], charts:{} };
 
-    const brandCtx = document.getElementById('brandVisitsChart');
-    const regionCtx = document.getElementById('regionVisitsChart');
-
-    Chart.defaults.font = { family: 'Segoe UI, Tahoma, Arial, sans-serif', size: 12 };
+    Chart.defaults.font = { family:'Segoe UI, Tahoma, Arial, sans-serif', size:12 };
     Chart.defaults.color = '#486176';
 
-    state.charts.brand = new Chart(brandCtx, {
-      type: 'bar',
-      data: { labels: [], datasets: [{ label: 'عدد الزيارات', data: [], backgroundColor: '#2f79bd' }] },
-      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+    state.charts.brand = new Chart(document.getElementById('brandVisitsChart'), {
+      type:'bar', data:{ labels:[], datasets:[{ label:'عدد الزيارات', data:[], backgroundColor:'#2f79bd' }] },
+      options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } }
+    });
+    state.charts.region = new Chart(document.getElementById('regionVisitsChart'), {
+      type:'doughnut', data:{ labels:[], datasets:[{ data:[], backgroundColor:['#2f79bd','#f28c28','#7c2a90','#5dbb75','#8a97a6','#22a6b3','#be2edd'] }] },
+      options:{ responsive:true, maintainAspectRatio:false }
     });
 
-    state.charts.region = new Chart(regionCtx, {
-      type: 'doughnut',
-      data: { labels: [], datasets: [{ data: [], backgroundColor: ['#2f79bd','#f28c28','#7c2a90','#5dbb75','#8a97a6'] }] },
-      options: { responsive: true, maintainAspectRatio: false }
-    });
+    function unique(arr) { return [...new Set(arr.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b))); }
+    function showMessage(message) { document.getElementById('saveMessage').textContent = message; }
 
-    function unique(arr) {
-      return [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b));
-    }
-
-    function setOptions(selectId, items, placeholder = 'اختر') {
+    function setOptions(selectId, items, placeholder='اختر') {
       const el = document.getElementById(selectId);
       const current = el.value;
       el.innerHTML = `<option value="">${placeholder}</option>` + items.map(item => `<option value="${item}">${item}</option>`).join('');
@@ -580,60 +235,40 @@ const firebaseConfig = {
     }
 
     function renderStats() {
-      const branches = state.branches;
-      document.getElementById('statBranches').textContent = branches.length;
+      document.getElementById('statBranches').textContent = state.branches.length;
       document.getElementById('statVisits').textContent = state.visits.length;
-      document.getElementById('statRegions').textContent = unique(branches.map(b => b.region)).length;
-      document.getElementById('statCities').textContent = unique(branches.map(b => b.city)).length;
+      document.getElementById('statRegions').textContent = unique(state.branches.map(b=>b.region)).length;
+      document.getElementById('statCities').textContent = unique(state.branches.map(b=>b.city)).length;
     }
 
     function renderBranchesList() {
       const el = document.getElementById('branchesList');
       const summary = document.getElementById('branchFiltersSummary');
-      summary.innerHTML = unique(state.branches.map(b => b.region)).map(r => `<span class="pill">${r}</span>`).join('');
-      el.innerHTML = state.branches
-        .slice()
-        .sort((a, b) => (a.region + a.city + a.branchName).localeCompare(b.region + b.city + b.branchName))
-        .map(branch => `
-          <div class="branch-item">
-            <strong>${branch.branchName}</strong>
-            <small>العلامة: ${branch.brand || '-'} | النوع: ${branch.branchType || '-'}</small>
-            <small>المنطقة: ${branch.region || '-'} | المدينة: ${branch.city || '-'}</small>
-            <small>الإحداثيات: ${branch.coordinates || '-'}</small>
-            <small>الكود: ${branch.id || '-'}</small>
-          </div>
-        `).join('');
+      summary.innerHTML = unique(state.branches.map(b=>b.region)).map(r => `<span class="pill">${r}</span>`).join('');
+      el.innerHTML = state.branches.slice().sort((a,b)=>(a.region+a.city+a.branchName).localeCompare(b.region+b.city+b.branchName)).map(branch => `
+        <div class="branch-item">
+          <strong>${branch.branchName}</strong>
+          <small>العلامة: ${branch.brand || '-'} | النوع: ${branch.branchType || '-'}</small>
+          <small>المنطقة: ${branch.region || '-'} | المدينة: ${branch.city || '-'}</small>
+          <small>الإحداثيات: ${branch.coordinates || '-'}</small>
+          <small>الكود: ${branch.id || '-'}</small>
+        </div>`).join('');
     }
 
     function renderVisitTable(filteredVisits = state.visits) {
-      const body = document.getElementById('visitsTableBody');
-      body.innerHTML = filteredVisits
-        .slice(0, 50)
-        .map(v => `
-          <tr>
-            <td>${v.date || '-'}</td>
-            <td>${v.region || '-'}</td>
-            <td>${v.city || '-'}</td>
-            <td>${v.branchName || '-'}</td>
-            <td>${v.brand || '-'}</td>
-            <td>${v.technician || '-'}</td>
-            <td>${v.networkStatus === 'good' ? 'جيدة' : 'تحتاج صيانة'}</td>
-          </tr>
-        `).join('');
+      document.getElementById('visitsTableBody').innerHTML = filteredVisits.slice(0,50).map(v => `
+        <tr><td>${v.date || '-'}</td><td>${v.region || '-'}</td><td>${v.city || '-'}</td><td>${v.branchName || '-'}</td><td>${v.brand || '-'}</td><td>${v.technician || '-'}</td><td>${v.networkStatus === 'good' ? 'جيدة' : 'تحتاج صيانة'}</td></tr>`).join('');
     }
 
     function renderCharts(filteredVisits = state.visits) {
-      const brandMap = {};
-      const regionMap = {};
+      const brandMap = {}; const regionMap = {};
       filteredVisits.forEach(v => {
         brandMap[v.brand || 'غير محدد'] = (brandMap[v.brand || 'غير محدد'] || 0) + 1;
         regionMap[v.region || 'غير محدد'] = (regionMap[v.region || 'غير محدد'] || 0) + 1;
       });
-
       state.charts.brand.data.labels = Object.keys(brandMap);
       state.charts.brand.data.datasets[0].data = Object.values(brandMap);
       state.charts.brand.update();
-
       state.charts.region.data.labels = Object.keys(regionMap);
       state.charts.region.data.datasets[0].data = Object.values(regionMap);
       state.charts.region.update();
@@ -643,16 +278,12 @@ const firebaseConfig = {
       const region = document.getElementById('visitRegion').value;
       const city = document.getElementById('visitCity').value;
       const brand = document.getElementById('visitBrand').value;
-      return state.branches.filter(b =>
-        (!region || b.region === region) &&
-        (!city || b.city === city) &&
-        (!brand || b.brand === brand)
-      );
+      return state.branches.filter(b => (!region || b.region === region) && (!city || b.city === city) && (!brand || b.brand === brand));
     }
 
     function populateVisitSelectors() {
-      setOptions('visitRegion', unique(state.branches.map(b => b.region)), 'اختر المنطقة');
-      setOptions('filterRegion', unique(state.branches.map(b => b.region)), 'الكل');
+      setOptions('visitRegion', unique(state.branches.map(b=>b.region)), 'اختر المنطقة');
+      setOptions('filterRegion', unique(state.branches.map(b=>b.region)), 'الكل');
       syncVisitCityAndBrand();
       syncFilterCities();
     }
@@ -661,31 +292,24 @@ const firebaseConfig = {
       const region = document.getElementById('visitRegion').value;
       const cityItems = unique(state.branches.filter(b => !region || b.region === region).map(b => b.city));
       setOptions('visitCity', cityItems, 'اختر المدينة');
-
       const city = document.getElementById('visitCity').value;
       const brandItems = unique(state.branches.filter(b => (!region || b.region === region) && (!city || b.city === city)).map(b => b.brand));
       setOptions('visitBrand', brandItems, 'اختر العلامة');
-
       const branches = getFilteredBranchesForVisit();
-      const branchEl = document.getElementById('visitBranch');
-      branchEl.innerHTML = '<option value="">اختر الفرع</option>' + branches.map(b => `<option value="${b.id}">${b.branchName}</option>`).join('');
+      document.getElementById('visitBranch').innerHTML = '<option value="">اختر الفرع</option>' + branches.map(b => `<option value="${b.id}">${b.branchName}</option>`).join('');
       renderSelectedBranch();
     }
 
     function syncFilterCities() {
       const region = document.getElementById('filterRegion').value;
-      const cities = unique(state.branches.filter(b => !region || b.region === region).map(b => b.city));
+      const cities = unique(state.branches.filter(b => !region || b.region === region).map(b=>b.city));
       setOptions('filterCity', cities, 'الكل');
     }
 
     function renderSelectedBranch() {
-      const branchId = document.getElementById('visitBranch').value;
-      const branch = state.branches.find(b => b.id === branchId);
+      const branch = state.branches.find(b => b.id === document.getElementById('visitBranch').value);
       const card = document.getElementById('selectedBranchCard');
-      if (!branch) {
-        card.innerHTML = '<div class="note">لم يتم اختيار فرع بعد.</div>';
-        return;
-      }
+      if (!branch) { card.innerHTML = '<div class="note">لم يتم اختيار فرع بعد.</div>'; return; }
       card.innerHTML = `
         <div class="branch-item">
           <strong>${branch.branchName}</strong>
@@ -696,8 +320,7 @@ const firebaseConfig = {
           <small>Showroom: ${branch.contactShowroom || '-'}</small>
           <small>Service: ${branch.contactService || '-'}</small>
           <small>Spare Parts: ${branch.contactSpareParts || '-'}</small>
-        </div>
-      `;
+        </div>`;
     }
 
     function applyVisitFilters() {
@@ -705,31 +328,15 @@ const firebaseConfig = {
       const toDate = document.getElementById('filterToDate').value;
       const region = document.getElementById('filterRegion').value;
       const city = document.getElementById('filterCity').value;
-
-      const filtered = state.visits.filter(v => {
-        const passRegion = !region || v.region === region;
-        const passCity = !city || v.city === city;
-        const passFrom = !fromDate || v.date >= fromDate;
-        const passTo = !toDate || v.date <= toDate;
-        return passRegion && passCity && passFrom && passTo;
-      });
-
-      renderVisitTable(filtered);
-      renderCharts(filtered);
+      const filtered = state.visits.filter(v => (!region || v.region===region) && (!city || v.city===city) && (!fromDate || v.date >= fromDate) && (!toDate || v.date <= toDate));
+      renderVisitTable(filtered); renderCharts(filtered);
     }
 
     async function seedInitialBranches() {
-      if (!seedBranches.length) {
-        showMessage('لا توجد بيانات أولية للفروع. ألصق seed_branches.js أولاً.');
-        return;
-      }
+      if (!seedBranches.length) { showMessage('لا توجد بيانات أولية للفروع داخل الملف.'); return; }
       for (const branch of seedBranches) {
         if (!branch.id) continue;
-        await setDoc(doc(db, 'branches', branch.id), {
-          ...branch,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now()
-        }, { merge: true });
+        await setDoc(doc(db, 'branches', branch.id), { ...branch, createdAt: Timestamp.now(), updatedAt: Timestamp.now() }, { merge:true });
       }
       showMessage('تم رفع بيانات الفروع الأولية إلى Firestore بنجاح.');
     }
@@ -748,104 +355,153 @@ const firebaseConfig = {
         contactSpareParts: document.getElementById('branchContactSpareParts').value.trim(),
         updatedAt: Timestamp.now()
       };
-
-      if (!branch.id || !branch.branchName || !branch.region || !branch.city) {
-        showMessage('أدخل على الأقل: كود الفرع، اسم الفرع، المنطقة، المدينة.');
-        return;
-      }
-
-      await setDoc(doc(db, 'branches', branch.id), {
-        ...branch,
-        createdAt: Timestamp.now()
-      }, { merge: true });
+      if (!branch.id || !branch.branchName || !branch.region || !branch.city) { showMessage('أدخل على الأقل: كود الفرع، اسم الفرع، المنطقة، المدينة.'); return; }
+      await setDoc(doc(db, 'branches', branch.id), { ...branch, createdAt: Timestamp.now() }, { merge:true });
       showMessage('تمت إضافة / تحديث الفرع بنجاح.');
       clearBranchForm();
     }
 
-    function clearBranchForm() {
-      ['branchId','branchName','branchBrand','branchRegion','branchCity','branchType','branchCoordinates','branchContactShowroom','branchContactService','branchContactSpareParts']
-        .forEach(id => document.getElementById(id).value = '');
+    function clearBranchForm() { ['branchId','branchName','branchBrand','branchRegion','branchCity','branchType','branchCoordinates','branchContactShowroom','branchContactService','branchContactSpareParts'].forEach(id => document.getElementById(id).value = ''); }
+
+    function branchToExcelRow(branch) {
+      return {
+        Hostname: branch.id || '',
+        'Branch Name': branch.branchName || '',
+        Brand: branch.brand || '',
+        Region: branch.region || '',
+        City: branch.city || '',
+        Coordinates: branch.coordinates || '',
+        'Branch Type': branch.branchType || '',
+        'Contact Showroom': branch.contactShowroom || '',
+        'Contact Service': branch.contactService || '',
+        'Contact Spare Parts': branch.contactSpareParts || ''
+      };
+    }
+
+    function normalizeImportedBranch(row) {
+      const pick = (...keys) => {
+        for (const key of keys) {
+          if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') return String(row[key]).trim();
+        }
+        return '';
+      };
+      let id = pick('Hostname','hostname','ID','id','Branch ID','branchId');
+      const branchName = pick('Branch Name','branchName','BranchName','اسم الفرع');
+      const brand = pick('Brand','brand','العلامة');
+      const region = pick('Region','region','المنطقة');
+      const city = pick('City','city','المدينة','Location.1');
+      const coordinates = pick('Coordinates','coordinates','Location','الإحداثيات');
+      const branchType = pick('Branch Type','branchType','Type','النوع');
+      const contactShowroom = pick('Contact Showroom','contactShowroom');
+      const contactService = pick('Contact Service','contactService');
+      const contactSpareParts = pick('Contact Spare Parts','contactSpareParts');
+      if (!id) {
+        const safeName = (branchName || 'BRANCH').replace(/\s+/g,'-').toUpperCase();
+        const safeCity = (city || 'CITY').replace(/\s+/g,'-').toUpperCase();
+        id = `${safeName}-${safeCity}`;
+      }
+      return { id, branchName, brand, region, city, coordinates, branchType, contactShowroom, contactService, contactSpareParts, updatedAt: Timestamp.now() };
+    }
+
+    async function importBranchesFromExcel(file) {
+      if (!file) return;
+      showMessage('جاري قراءة ملف Excel واستيراد الفروع...');
+      try {
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type:'array' });
+        const firstSheet = workbook.SheetNames[0];
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval:'' });
+        if (!rows.length) { showMessage('ملف Excel لا يحتوي على بيانات قابلة للاستيراد.'); return; }
+        let importedCount = 0;
+        for (const row of rows) {
+          const branch = normalizeImportedBranch(row);
+          if (!branch.id || !branch.branchName) continue;
+          await setDoc(doc(db, 'branches', branch.id), { ...branch, createdAt: Timestamp.now() }, { merge:true });
+          importedCount += 1;
+        }
+        showMessage(`تم استيراد ${importedCount} فرع من ملف Excel بنجاح.`);
+      } catch (error) {
+        console.error('Excel import error:', error);
+        showMessage('حدث خطأ أثناء استيراد ملف Excel. تأكد من تنسيق الملف.');
+      }
+    }
+
+    function exportBranchesToExcel() {
+      if (!state.branches.length) { showMessage('لا توجد فروع لتصديرها.'); return; }
+      const worksheet = XLSX.utils.json_to_sheet(state.branches.map(branchToExcelRow));
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Branches');
+      XLSX.writeFile(workbook, 'branches_export.xlsx');
+      showMessage('تم تنزيل ملف الفروع Excel بنجاح.');
+    }
+
+    function downloadBranchTemplate() {
+      const rows = [{ Hostname:'NEW-DMM-1', 'Branch Name':'اسم الفرع', Brand:'Hyundai', Region:'Eastern', City:'Dammam', Coordinates:'26.3627, 50.17802', 'Branch Type':'1S', 'Contact Showroom':'اسم ورقم', 'Contact Service':'اسم ورقم', 'Contact Spare Parts':'اسم ورقم' }];
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+      XLSX.writeFile(workbook, 'branch_import_template.xlsx');
+      showMessage('تم تنزيل قالب Excel لإضافة الفروع.');
     }
 
     async function saveVisit() {
-      const branchId = document.getElementById('visitBranch').value;
-      const branch = state.branches.find(b => b.id === branchId);
-      if (!branch) {
-        showMessage('يرجى اختيار فرع صحيح أولاً.');
-        return;
-      }
-
+      const branch = state.branches.find(b => b.id === document.getElementById('visitBranch').value);
+      if (!branch) { showMessage('يرجى اختيار فرع صحيح أولاً.'); return; }
       const visit = {
-        branchId: branch.id,
-        branchName: branch.branchName,
-        brand: branch.brand,
-        region: branch.region,
-        city: branch.city,
-        coordinates: branch.coordinates || '',
-        technician: document.getElementById('technicianName').value.trim(),
-        date: document.getElementById('visitDate').value,
-        networkStatus: document.getElementById('networkStatus').value,
-        upsStatus: document.getElementById('upsStatus').value,
-        download: Number(document.getElementById('downloadResult').value || 0),
-        upload: Number(document.getElementById('uploadResult').value || 0),
-        notes: document.getElementById('visitNotes').value.trim(),
-        createdAt: Timestamp.now()
+        branchId: branch.id, branchName: branch.branchName, brand: branch.brand, region: branch.region, city: branch.city,
+        coordinates: branch.coordinates || '', technician: document.getElementById('technicianName').value.trim(), date: document.getElementById('visitDate').value,
+        networkStatus: document.getElementById('networkStatus').value, upsStatus: document.getElementById('upsStatus').value,
+        download: Number(document.getElementById('downloadResult').value || 0), upload: Number(document.getElementById('uploadResult').value || 0),
+        notes: document.getElementById('visitNotes').value.trim(), createdAt: Timestamp.now()
       };
-
-      if (!visit.technician || !visit.date) {
-        showMessage('يرجى تعبئة اسم الفني وتاريخ الزيارة.');
-        return;
-      }
-
+      if (!visit.technician || !visit.date) { showMessage('يرجى تعبئة اسم الفني وتاريخ الزيارة.'); return; }
       await addDoc(collection(db, 'siteVisits'), visit);
       showMessage('تم حفظ الزيارة أونلاين بنجاح.');
       document.getElementById('visitNotes').value = '';
     }
 
-    function showMessage(message) {
-      document.getElementById('saveMessage').textContent = message;
-    }
-
     function listenBranches() {
       onSnapshot(query(collection(db, 'branches'), orderBy('branchName')), snapshot => {
-        state.branches = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderStats();
-        renderBranchesList();
-        populateVisitSelectors();
+        if (!snapshot.empty) {
+          state.branches = snapshot.docs.map(d => ({ id:d.id, ...d.data() }));
+        } else if (!state.branches.length) {
+          state.branches = [...seedBranches];
+        }
+        renderStats(); renderBranchesList(); populateVisitSelectors();
+      }, error => {
+        console.error('listenBranches error', error);
+        state.branches = [...seedBranches];
+        renderStats(); renderBranchesList(); populateVisitSelectors();
       });
     }
 
     function listenVisits() {
       onSnapshot(query(collection(db, 'siteVisits'), orderBy('createdAt', 'desc')), snapshot => {
-        state.visits = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderStats();
-        applyVisitFilters();
-      });
+        state.visits = snapshot.docs.map(d => ({ id:d.id, ...d.data() }));
+        renderStats(); applyVisitFilters();
+      }, error => console.error('listenVisits error', error));
     }
 
     document.getElementById('visitRegion').addEventListener('change', syncVisitCityAndBrand);
     document.getElementById('visitCity').addEventListener('change', syncVisitCityAndBrand);
     document.getElementById('visitBrand').addEventListener('change', syncVisitCityAndBrand);
     document.getElementById('visitBranch').addEventListener('change', renderSelectedBranch);
-
     document.getElementById('filterRegion').addEventListener('change', syncFilterCities);
     document.getElementById('applyFiltersBtn').addEventListener('click', applyVisitFilters);
     document.getElementById('clearFiltersBtn').addEventListener('click', () => {
-      document.getElementById('filterFromDate').value = '';
-      document.getElementById('filterToDate').value = '';
-      document.getElementById('filterRegion').value = '';
-      syncFilterCities();
-      document.getElementById('filterCity').value = '';
-      applyVisitFilters();
+      document.getElementById('filterFromDate').value=''; document.getElementById('filterToDate').value=''; document.getElementById('filterRegion').value=''; syncFilterCities(); document.getElementById('filterCity').value=''; applyVisitFilters();
     });
-
     document.getElementById('saveVisitBtn').addEventListener('click', saveVisit);
     document.getElementById('seedBranchesBtn').addEventListener('click', seedInitialBranches);
     document.getElementById('saveBranchBtn').addEventListener('click', saveBranch);
     document.getElementById('clearBranchFormBtn').addEventListener('click', clearBranchForm);
+    document.getElementById('importBranchesBtn').addEventListener('click', () => document.getElementById('importBranchesInput').click());
+    document.getElementById('importBranchesInput').addEventListener('change', async (event) => { const file = event.target.files?.[0]; await importBranchesFromExcel(file); event.target.value=''; });
+    document.getElementById('exportBranchesBtn').addEventListener('click', exportBranchesToExcel);
+    document.getElementById('downloadTemplateBtn').addEventListener('click', downloadBranchTemplate);
 
-    listenBranches();
-    listenVisits();
+    renderStats(); renderBranchesList(); populateVisitSelectors(); renderVisitTable(); renderCharts();
+    listenBranches(); listenVisits();
   </script>
 </body>
 </html>
