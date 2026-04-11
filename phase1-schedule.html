@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>تدقيق زيارة الفرع - شارتات ديناميكية</title>
+  <title>إدارة زيارات الفروع - Firebase</title>
   https://cdn.jsdelivr.net/npm/chart.js
   <style>
     :root {
@@ -14,17 +14,15 @@
       --accent: #f28c28;
       --purple: #7c2a90;
       --green: #3ca36a;
+      --danger: #d64545;
       --text: #163247;
       --muted: #6e8192;
       --border: #d7e0ea;
       --shadow: 0 10px 30px rgba(18, 48, 74, 0.08);
       --radius: 16px;
-      --success: #4caf50;
-      --danger: #e4572e;
     }
 
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
       font-family: "Segoe UI", Tahoma, Arial, sans-serif;
@@ -34,65 +32,29 @@
 
     .header {
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
-      color: #fff;
-      padding: 20px 24px;
-      box-shadow: var(--shadow);
+      color: white;
+      padding: 18px 22px;
       position: sticky;
       top: 0;
-      z-index: 20;
+      z-index: 50;
+      box-shadow: var(--shadow);
     }
 
-    .header-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .title-wrap h1 {
+    .header h1 {
       margin: 0 0 6px;
       font-size: 28px;
     }
 
-    .title-wrap p {
+    .header p {
       margin: 0;
-      color: rgba(255,255,255,0.88);
+      color: rgba(255,255,255,.85);
       font-size: 14px;
-    }
-
-    .meta-box {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(120px, 1fr));
-      gap: 12px;
-      min-width: 320px;
-    }
-
-    .meta-item {
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 12px;
-      padding: 12px;
-      text-align: center;
-    }
-
-    .meta-item .label {
-      display: block;
-      font-size: 12px;
-      color: rgba(255,255,255,0.75);
-      margin-bottom: 4px;
-    }
-
-    .meta-item .value {
-      display: block;
-      font-weight: 700;
-      font-size: 22px;
     }
 
     .container {
       max-width: 1480px;
-      margin: 24px auto;
-      padding: 0 18px 32px;
+      margin: 22px auto;
+      padding: 0 16px 28px;
     }
 
     .tabs {
@@ -103,186 +65,118 @@
     }
 
     .tab-btn {
-      background: #fff;
-      color: var(--primary);
       border: 1px solid var(--border);
+      background: white;
+      color: var(--primary);
       border-radius: 999px;
       padding: 10px 18px;
       cursor: pointer;
       font-weight: 700;
-      box-shadow: 0 2px 10px rgba(13, 75, 115, 0.05);
-      transition: 0.25s ease;
     }
 
-    .tab-btn:hover,
-    .tab-btn.active {
+    .tab-btn.active,
+    .tab-btn:hover {
       background: var(--primary);
-      color: #fff;
-      transform: translateY(-1px);
+      color: white;
     }
 
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
 
-    .overview-grid {
+    .grid-3 {
       display: grid;
-      grid-template-columns: 290px 1fr 1fr;
+      grid-template-columns: repeat(3, minmax(240px, 1fr));
       gap: 18px;
-      align-items: start;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 18px;
     }
 
     .card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 16px;
       box-shadow: var(--shadow);
+      padding: 16px;
       overflow: hidden;
     }
 
     .card h3 {
       margin: -16px -16px 14px;
       padding: 12px 16px;
+      color: white;
       font-size: 15px;
-      color: #fff;
       background: var(--primary);
     }
 
-    .card.purple h3 { background: var(--purple); }
-    .card.teal h3 { background: var(--primary-2); }
     .card.green h3 { background: var(--green); }
+    .card.purple h3 { background: var(--purple); }
 
-    .visit-total {
-      text-align: center;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 16px;
-      margin-bottom: 12px;
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(170px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
     }
 
-    .visit-total .label {
+    .stat {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat .label {
       color: var(--muted);
-      font-size: 15px;
+      font-size: 13px;
+      margin-bottom: 8px;
+      display: block;
     }
 
-    .visit-total .number {
-      font-size: 64px;
-      font-weight: 800;
-      line-height: 1;
+    .stat .value {
       color: var(--primary);
-      margin-top: 8px;
-    }
-
-    .brand-list {
-      display: grid;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .brand-item {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 10px;
-      align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px dashed var(--border);
-    }
-
-    .brand-name {
-      font-weight: 600;
-      color: #304b5f;
-    }
-
-    .brand-count {
-      font-size: 28px;
+      font-size: 30px;
       font-weight: 800;
-      color: #8f3cb3;
-      min-width: 42px;
-      text-align: center;
     }
 
-    .brand-pct {
-      color: var(--primary);
-      font-weight: 700;
-      min-width: 54px;
-      text-align: left;
-    }
-
-    .split-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 18px;
-      margin-top: 18px;
-    }
-
-    .chart-wrap {
-      position: relative;
-      min-height: 290px;
-    }
-
-    .small-chart { min-height: 240px; }
-
-    .two-col {
-      display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 18px;
-    }
-
-    .three-col {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 18px;
-    }
-
+    .toolbar-grid,
     .form-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(260px, 1fr));
-      gap: 18px;
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      gap: 14px;
     }
 
-    .field-group,
-    .editor-group {
+    .form-grid.wide {
+      grid-template-columns: repeat(3, minmax(220px, 1fr));
+    }
+
+    .field {
       display: grid;
       gap: 8px;
     }
 
-    .field-group label,
-    .editor-group label {
-      font-size: 14px;
+    .field label {
       font-weight: 700;
-      color: #2b4458;
+      font-size: 14px;
+      color: #28465a;
     }
 
-    .field-group input,
-    .field-group select,
-    .field-group textarea,
-    .editor-group input,
-    .editor-group select {
+    .field input,
+    .field select,
+    .field textarea {
       width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
       padding: 11px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #fbfcfe;
       font: inherit;
+      background: #fbfcfe;
     }
 
-    .field-group textarea { min-height: 110px; resize: vertical; }
-
-    .check-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(220px, 1fr));
-      gap: 10px 18px;
-      margin-top: 8px;
-    }
-
-    .check-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: #f8fbff;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 10px 12px;
-    }
+    .field textarea { min-height: 110px; resize: vertical; }
 
     .actions {
       display: flex;
@@ -292,941 +186,666 @@
     }
 
     .btn {
-      background: var(--primary);
-      color: #fff;
       border: 0;
+      cursor: pointer;
       border-radius: 12px;
       padding: 12px 18px;
-      cursor: pointer;
       font-weight: 700;
     }
 
-    .btn.secondary {
-      background: #fff;
-      color: var(--primary);
-      border: 1px solid var(--border);
-    }
-
-    .btn.success { background: var(--success); }
-    .btn.danger { background: var(--danger); }
+    .btn.primary { background: var(--primary); color: white; }
+    .btn.secondary { background: white; color: var(--primary); border: 1px solid var(--border); }
+    .btn.green { background: var(--green); color: white; }
+    .btn.danger { background: var(--danger); color: white; }
 
     .note {
       background: #f6fbff;
-      border: 1px dashed #b8d2e4;
+      border: 1px dashed #bfd7e8;
       color: #33546b;
       border-radius: 12px;
       padding: 12px 14px;
-      margin-top: 16px;
-      font-size: 14px;
+      margin-top: 14px;
       line-height: 1.6;
+      font-size: 14px;
     }
 
-    .editor-grid {
+    .branch-list {
       display: grid;
-      grid-template-columns: repeat(2, minmax(300px, 1fr));
-      gap: 18px;
+      gap: 10px;
+      max-height: 480px;
+      overflow: auto;
     }
 
-    .editor-section {
-      background: #fbfcfe;
+    .branch-item {
       border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 14px;
+      padding: 12px;
+      background: #fcfdff;
     }
 
-    .editor-section h4 {
-      margin: 0 0 14px;
+    .branch-item strong {
       color: var(--primary);
-      font-size: 16px;
+      display: block;
+      margin-bottom: 6px;
     }
 
-    .editor-table {
-      display: grid;
-      gap: 10px;
-    }
-
-    .editor-row {
-      display: grid;
-      grid-template-columns: 1.3fr 1fr 1fr;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .editor-row.header-row {
-      font-weight: 700;
+    .branch-item small {
       color: var(--muted);
-      font-size: 13px;
+      display: block;
+      line-height: 1.5;
     }
 
-    .summary-badges {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 12px;
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 14px;
     }
 
-    .badge {
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid #edf2f7;
+      text-align: right;
+      white-space: nowrap;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f8fbff;
+      color: var(--primary);
+      position: sticky;
+      top: 0;
+    }
+
+    .chart-wrap {
+      min-height: 320px;
+      position: relative;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
       background: #edf6ff;
       color: var(--primary);
-      border: 1px solid #cfe1f3;
-      border-radius: 999px;
-      padding: 8px 14px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
+      margin-left: 6px;
+      margin-top: 6px;
     }
 
-    .hidden { display: none !important; }
-
-    @media (max-width: 1200px) {
-      .overview-grid, .two-col, .split-grid, .three-col, .editor-grid { grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 760px) {
-      .meta-box, .form-grid, .check-grid, .editor-row { grid-template-columns: 1fr; }
-      .header-top { flex-direction: column; align-items: stretch; }
-      .title-wrap h1 { font-size: 22px; }
-      .brand-item { grid-template-columns: 1fr auto; }
-      .brand-pct { grid-column: 1 / -1; text-align: right; }
+    @media (max-width: 1100px) {
+      .grid-2, .grid-3, .toolbar-grid, .form-grid, .form-grid.wide, .stats { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <header class="header">
-    <div class="header-top">
-      <div class="title-wrap">
-        <h1>لوحة تدقيق زيارة الفرع</h1>
-        <p>شارتات ديناميكية تتحدث تلقائيًا عند تعديل البيانات أو تسجيل نتيجة زيارة جديدة</p>
-      </div>
-      <div class="meta-box">
-        <div class="meta-item">
-          <span class="label">إجمالي الزيارات</span>
-          <span class="value" id="totalVisitsValue">33</span>
-        </div>
-        <div class="meta-item">
-          <span class="label">عدد العلامات</span>
-          <span class="value" id="totalBrandsValue">6</span>
-        </div>
-        <div class="meta-item">
-          <span class="label">الحالة العامة</span>
-          <span class="value" id="overallStatusValue">جيد</span>
-        </div>
-      </div>
-    </div>
+    <h1>إدارة زيارات الفروع وربطها بـ Firebase</h1>
+    <p>اختيار الفرع حسب المنطقة والمدينة، تسجيل الزيارة، وإضافة فروع جديدة بصلاحية إدارية.</p>
   </header>
 
   <main class="container">
     <div class="tabs">
-      <button class="tab-btn active" data-tab="overview">نظرة عامة</button>
-      <button class="tab-btn" data-tab="infrastructure">البنية التحتية</button>
-      <button class="tab-btn" data-tab="enduser">خدمات المستخدم النهائي</button>
-      <button class="tab-btn" data-tab="applications">التطبيقات</button>
-      <button class="tab-btn" data-tab="training">التدريب</button>
-      <button class="tab-btn" data-tab="audit">إدخال زيارة</button>
-      <button class="tab-btn" data-tab="settings">إدارة البيانات</button>
+      <button class="tab-btn active" data-tab="dashboard">لوحة التحكم</button>
+      <button class="tab-btn" data-tab="visit">إدخال زيارة</button>
+      <button class="tab-btn" data-tab="branches">إدارة الفروع</button>
+      <button class="tab-btn" data-tab="firebase">إعداد Firebase</button>
     </div>
 
-    <section id="overview" class="tab-panel active">
-      <div class="overview-grid">
+    <section id="dashboard" class="tab-panel active">
+      <div class="stats">
+        <div class="stat"><span class="label">إجمالي الفروع</span><div class="value" id="statBranches">0</div></div>
+        <div class="stat"><span class="label">إجمالي الزيارات</span><div class="value" id="statVisits">0</div></div>
+        <div class="stat"><span class="label">المناطق</span><div class="value" id="statRegions">0</div></div>
+        <div class="stat"><span class="label">المدن</span><div class="value" id="statCities">0</div></div>
+      </div>
+
+      <div class="card">
+        <h3>فلترة الزيارات</h3>
+        <div class="toolbar-grid">
+          <div class="field">
+            <label>من تاريخ</label>
+            <input type="date" id="filterFromDate" />
+          </div>
+          <div class="field">
+            <label>إلى تاريخ</label>
+            <input type="date" id="filterToDate" />
+          </div>
+          <div class="field">
+            <label>المنطقة</label>
+            <select id="filterRegion"><option value="">الكل</option></select>
+          </div>
+          <div class="field">
+            <label>المدينة</label>
+            <select id="filterCity"><option value="">الكل</option></select>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="applyFiltersBtn">تطبيق الفلترة</button>
+          <button class="btn secondary" id="clearFiltersBtn">مسح الفلترة</button>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:18px;">
         <div class="card">
           <h3>عدد الزيارات حسب العلامة</h3>
-          <div class="visit-total">
-            <div class="label">Number of Visits Total</div>
-            <div class="number" id="visitTotalBig">33</div>
-          </div>
-          <div class="brand-list" id="brandList"></div>
+          <div class="chart-wrap"><canvas id="brandVisitsChart"></canvas></div>
         </div>
+        <div class="card purple">
+          <h3>عدد الزيارات حسب المنطقة</h3>
+          <div class="chart-wrap"><canvas id="regionVisitsChart"></canvas></div>
+        </div>
+      </div>
 
-        <div>
-          <div class="card teal">
-            <h3>Network Infrastructure Services</h3>
-            <div class="chart-wrap"><canvas id="networkChart"></canvas></div>
-          </div>
-          <div class="split-grid">
-            <div class="card">
-              <h3>UPS Status</h3>
-              <div class="chart-wrap small-chart"><canvas id="upsChart"></canvas></div>
+      <div class="card" style="margin-top:18px;">
+        <h3>آخر الزيارات</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>المنطقة</th>
+                <th>المدينة</th>
+                <th>الفرع</th>
+                <th>العلامة</th>
+                <th>الفني</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="visitsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="visit" class="tab-panel">
+      <div class="grid-2">
+        <div class="card">
+          <h3>تسجيل زيارة جديدة</h3>
+          <div class="form-grid wide">
+            <div class="field">
+              <label>المنطقة</label>
+              <select id="visitRegion"></select>
             </div>
-            <div class="card purple">
-              <h3>Training Requirement</h3>
-              <div class="chart-wrap small-chart"><canvas id="trainingChart"></canvas></div>
+            <div class="field">
+              <label>المدينة</label>
+              <select id="visitCity"></select>
+            </div>
+            <div class="field">
+              <label>العلامة</label>
+              <select id="visitBrand"></select>
+            </div>
+            <div class="field">
+              <label>الفرع</label>
+              <select id="visitBranch"></select>
+            </div>
+            <div class="field">
+              <label>اسم الفني</label>
+              <input id="technicianName" type="text" placeholder="اسم الفني" />
+            </div>
+            <div class="field">
+              <label>تاريخ الزيارة</label>
+              <input id="visitDate" type="date" />
+            </div>
+            <div class="field">
+              <label>حالة الشبكة</label>
+              <select id="networkStatus">
+                <option value="good">سليمة</option>
+                <option value="service">تحتاج صيانة</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>حالة الـ UPS</label>
+              <select id="upsStatus">
+                <option value="good">يعمل</option>
+                <option value="service">يحتاج صيانة</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Download Mbps</label>
+              <input id="downloadResult" type="number" min="0" value="64" />
+            </div>
+            <div class="field">
+              <label>Upload Mbps</label>
+              <input id="uploadResult" type="number" min="0" value="45" />
+            </div>
+            <div class="field" style="grid-column: 1 / -1;">
+              <label>الملاحظات</label>
+              <textarea id="visitNotes" placeholder="الملاحظات والإجراءات المطلوبة"></textarea>
             </div>
           </div>
+          <div class="actions">
+            <button class="btn green" id="saveVisitBtn">حفظ الزيارة أونلاين</button>
+            <button class="btn secondary" id="seedBranchesBtn">رفع بيانات الفروع الأولية</button>
+          </div>
+          <div class="note" id="saveMessage">اختر المنطقة → المدينة → العلامة → الفرع، ثم احفظ الزيارة في Firestore.</div>
         </div>
 
-        <div>
-          <div class="card">
-            <h3>End User Services</h3>
-            <div class="chart-wrap"><canvas id="endUserChart"></canvas></div>
-          </div>
-          <div class="split-grid">
-            <div class="card">
-              <h3>Business Applications</h3>
-              <div class="chart-wrap small-chart"><canvas id="businessChart"></canvas></div>
-            </div>
-            <div class="card">
-              <h3>End User Applications</h3>
-              <div class="chart-wrap small-chart"><canvas id="appChart"></canvas></div>
-            </div>
+        <div class="card">
+          <h3>تفاصيل الفرع المختار</h3>
+          <div id="selectedBranchCard">
+            <div class="note">لم يتم اختيار فرع بعد.</div>
           </div>
         </div>
       </div>
     </section>
 
-    <section id="infrastructure" class="tab-panel">
-      <div class="two-col">
-        <div class="card teal">
-          <h3>تفاصيل البنية التحتية والاتصال</h3>
-          <div class="chart-wrap"><canvas id="connectivityChart"></canvas></div>
-        </div>
-        <div class="card">
-          <h3>مؤشرات البنية التحتية</h3>
-          <div class="check-grid">
-            <div class="check-item"><input type="checkbox" /> حالة البنية التحتية سليمة</div>
-            <div class="check-item"><input type="checkbox" /> أجهزة الشبكة مرتبة</div>
-            <div class="check-item"><input type="checkbox" /> غرفة السيرفر مناسبة</div>
-            <div class="check-item"><input type="checkbox" /> التبريد يعمل جيدًا</div>
-            <div class="check-item"><input type="checkbox" /> اختبار السرعة ضمن المطلوب</div>
-            <div class="check-item"><input type="checkbox" /> UPS يعمل بكفاءة</div>
+    <section id="branches" class="tab-panel">
+      <div class="grid-2">
+        <div class="card green">
+          <h3>إضافة / تعديل فرع جديد</h3>
+          <div class="form-grid wide">
+            <div class="field"><label>رمز الفرع / Hostname</label><input id="branchId" type="text" placeholder="مثال: CNGN-DMM-1" /></div>
+            <div class="field"><label>اسم الفرع</label><input id="branchName" type="text" placeholder="اسم الفرع" /></div>
+            <div class="field"><label>العلامة</label><input id="branchBrand" type="text" placeholder="Hyundai / Changan ..." /></div>
+            <div class="field"><label>المنطقة</label><input id="branchRegion" type="text" placeholder="Eastern" /></div>
+            <div class="field"><label>المدينة</label><input id="branchCity" type="text" placeholder="Dammam" /></div>
+            <div class="field"><label>نوع الفرع</label><input id="branchType" type="text" placeholder="1S / 2S / 3S" /></div>
+            <div class="field"><label>الإحداثيات</label><input id="branchCoordinates" type="text" placeholder="26.3627, 50.17802" /></div>
+            <div class="field"><label>Contact Showroom</label><input id="branchContactShowroom" type="text" placeholder="اسم ورقم" /></div>
+            <div class="field"><label>Contact Service</label><input id="branchContactService" type="text" placeholder="اسم ورقم" /></div>
+            <div class="field"><label>Contact Spare Parts</label><input id="branchContactSpareParts" type="text" placeholder="اسم ورقم" /></div>
           </div>
-          <div class="summary-badges">
-            <span class="badge" id="badgeInfraGood">البنية الجيدة: 0%</span>
-            <span class="badge" id="badgeUps">الـ UPS الجيد: 0%</span>
+          <div class="actions">
+            <button class="btn green" id="saveBranchBtn">إضافة / تحديث الفرع</button>
+            <button class="btn secondary" id="clearBranchFormBtn">تنظيف الحقول</button>
           </div>
-          <div class="note">هذا التبويب أصبح ديناميكيًا: أي تعديل من تبويب <strong>إدارة البيانات</strong> أو أي إدخال جديد من <strong>إدخال زيارة</strong> سيغير الرسوم البيانية والمؤشرات تلقائيًا.</div>
+          <div class="note">هذا القسم هو صلاحية الإدارة لإضافة فروع جديدة أو تحديث الفرع الموجود بنفس الـ Hostname.</div>
+        </div>
+
+        <div class="card">
+          <h3>الفروع الحالية</h3>
+          <div id="branchFiltersSummary"></div>
+          <div class="branch-list" id="branchesList"></div>
         </div>
       </div>
     </section>
 
-    <section id="enduser" class="tab-panel">
-      <div class="two-col">
-        <div class="card">
-          <h3>أجهزة المستخدم النهائي</h3>
-          <div class="chart-wrap"><canvas id="devicesChart"></canvas></div>
-        </div>
-        <div class="card">
-          <h3>مؤشرات المستخدم النهائي</h3>
-          <div class="summary-badges">
-            <span class="badge" id="badgePCs">جاهزية أجهزة الكمبيوتر: 0%</span>
-            <span class="badge" id="badgePrinters">جاهزية الطابعات: 0%</span>
-            <span class="badge" id="badgeUC">الاتصال الموحد: 0%</span>
-            <span class="badge" id="badgeOneDrive">OneDrive: 0%</span>
-            <span class="badge" id="badgeOS">نظام التشغيل: 0%</span>
-          </div>
-          <div class="note">يتم تحديث هذه القيم تلقائيًا عند تغيير بيانات الخدمات أو عند تسجيل زيارة جديدة.</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="applications" class="tab-panel">
-      <div class="split-grid">
-        <div class="card">
-          <h3>Business Applications</h3>
-          <div class="chart-wrap"><canvas id="businessAppsDetailChart"></canvas></div>
-        </div>
-        <div class="card">
-          <h3>End User Applications</h3>
-          <div class="chart-wrap"><canvas id="endUserAppsDetailChart"></canvas></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="training" class="tab-panel">
-      <div class="card purple">
-        <h3>احتياجات التدريب</h3>
-        <div class="chart-wrap"><canvas id="trainingDetailChart"></canvas></div>
-        <div class="note">هذا الرسم البياني ديناميكي. عند اختيار نوع احتياج التدريب من نموذج الزيارة سيتم زيادة العداد مباشرة وحفظه في المتصفح.</div>
-      </div>
-    </section>
-
-    <section id="audit" class="tab-panel">
+    <section id="firebase" class="tab-panel">
       <div class="card">
-        <h3>إدخال زيارة جديدة وتحديث الشارتات تلقائيًا</h3>
-        <div class="form-grid">
-          <div class="field-group">
-            <label>اسم الفرع</label>
-            <input id="branchName" type="text" placeholder="أدخل اسم الفرع" />
-          </div>
-          <div class="field-group">
-            <label>العلامة</label>
-            <select id="brandName">
-              <option value="Hyundai">Hyundai</option>
-              <option value="Changan">Changan</option>
-              <option value="Chrysler">Chrysler</option>
-              <option value="Peugeot">Peugeot</option>
-              <option value="Citroën">Citroën</option>
-              <option value="Autolead">Autolead</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label>اسم الفني</label>
-            <input id="technicianName" type="text" placeholder="أدخل اسم الفني" />
-          </div>
-          <div class="field-group">
-            <label>تاريخ الزيارة</label>
-            <input id="visitDate" type="date" />
-          </div>
-          <div class="field-group">
-            <label>حالة الشبكة</label>
-            <select id="networkStatus">
-              <option value="good">سليمة</option>
-              <option value="service">تحتاج صيانة</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label>حالة الـ UPS</label>
-            <select id="upsStatus">
-              <option value="good">يعمل بشكل كامل</option>
-              <option value="service">يحتاج صيانة</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label>حالة أجهزة الكمبيوتر</label>
-            <select id="pcStatus">
-              <option value="good">تعمل بشكل كامل</option>
-              <option value="service">تحتاج صيانة</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label>حالة الطابعات</label>
-            <select id="printerStatus">
-              <option value="good">تعمل بشكل كامل</option>
-              <option value="service">تحتاج صيانة</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label>الاتصال الموحد</label>
-            <select id="ucStatus">
-              <option value="good">يعمل</option>
-              <option value="service">يوجد خلل</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label>OneDrive Backup</label>
-            <select id="oneDriveStatus">
-              <option value="good">مفعل</option>
-              <option value="service">غير مفعل / يحتاج ضبط</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label>نظام التشغيل</label>
-            <select id="osStatus">
-              <option value="good">محدث</option>
-              <option value="service">يحتاج تحديث</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label>احتياج التدريب</label>
-            <select id="trainingNeed">
-              <option value="No Requirement">لا يوجد</option>
-              <option value="Service Desk">Service Desk & End User Support</option>
-              <option value="Skill Build">Skill Build Support</option>
-              <option value="Customer / Web">Customer / Relationship Web Services</option>
-              <option value="ERP Apps">ERP Apps</option>
-              <option value="Business Intelligence">Business Intelligence</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label>نتيجة Download (Mbps)</label>
-            <input id="downloadResult" type="number" min="0" max="1000" value="64" />
-          </div>
-          <div class="field-group">
-            <label>نتيجة Upload (Mbps)</label>
-            <input id="uploadResult" type="number" min="0" max="1000" value="45" />
-          </div>
-          <div class="field-group" style="grid-column: 1 / -1;">
-            <label>الملاحظات</label>
-            <textarea id="visitNotes" placeholder="اكتب الملاحظات والمشاكل والإجراءات المطلوبة..."></textarea>
-          </div>
+        <h3>إعداد Firebase وربط Firestore</h3>
+        <div class="note">
+          1) افتح مشروع Firebase الخاص بك وأنشئ Web App.  
+          2) انسخ firebaseConfig وضعه في المتغير داخل الكود.  
+          3) ستُحفظ الفروع في collection اسمها <strong>branches</strong> والزيارات في <strong>siteVisits</strong>.  
+          4) ارفع بيانات الفروع الأولية بالضغط على زر <strong>رفع بيانات الفروع الأولية</strong> مرة واحدة فقط بعد الربط.
         </div>
-        <div class="actions">
-          <button class="btn success" id="saveVisitBtn">إضافة الزيارة وتحديث الشارتات</button>
-          <button class="btn secondary" onclick="window.print()">طباعة / تصدير PDF</button>
-        </div>
-        <div class="note" id="saveMessage">عند الضغط على زر الإضافة سيتم تحديث الأرقام، النسب، والشارتات مباشرة وحفظها داخل المتصفح.</div>
-      </div>
-    </section>
-
-    <section id="settings" class="tab-panel">
-      <div class="card green">
-        <h3>إدارة البيانات الديناميكية</h3>
-        <div class="editor-grid">
-          <div class="editor-section">
-            <h4>الزيارات حسب العلامة</h4>
-            <div class="editor-table" id="brandEditor"></div>
-          </div>
-
-          <div class="editor-section">
-            <h4>الخدمات الأساسية</h4>
-            <div class="editor-table">
-              <div class="editor-row header-row">
-                <div>العنصر</div><div>جيد</div><div>يحتاج خدمة</div>
-              </div>
-              <div class="editor-row"><div>البنية التحتية</div><input type="number" data-path="network.good.0" min="0" max="100"><input type="number" data-path="network.service.0" min="0" max="100"></div>
-              <div class="editor-row"><div>أجهزة الشبكة</div><input type="number" data-path="network.good.1" min="0" max="100"><input type="number" data-path="network.service.1" min="0" max="100"></div>
-              <div class="editor-row"><div>غرفة السيرفر</div><input type="number" data-path="network.good.2" min="0" max="100"><input type="number" data-path="network.service.2" min="0" max="100"></div>
-              <div class="editor-row"><div>أجهزة الكمبيوتر</div><input type="number" data-path="endUser.good.0" min="0" max="100"><input type="number" data-path="endUser.service.0" min="0" max="100"></div>
-              <div class="editor-row"><div>الطابعات</div><input type="number" data-path="endUser.good.1" min="0" max="100"><input type="number" data-path="endUser.service.1" min="0" max="100"></div>
-              <div class="editor-row"><div>الاتصال الموحد</div><input type="number" data-path="endUser.good.2" min="0" max="100"><input type="number" data-path="endUser.service.2" min="0" max="100"></div>
-            </div>
-          </div>
-
-          <div class="editor-section">
-            <h4>Business Applications</h4>
-            <div class="editor-table">
-              <div class="editor-row header-row">
-                <div>العنصر</div><div>جيد</div><div>يحتاج خدمة</div>
-              </div>
-              <div class="editor-row"><div>Portal Data</div><input type="number" data-path="business.good.0" min="0" max="100"><input type="number" data-path="business.service.0" min="0" max="100"></div>
-              <div class="editor-row"><div>ERP & Apps</div><input type="number" data-path="business.good.1" min="0" max="100"><input type="number" data-path="business.service.1" min="0" max="100"></div>
-            </div>
-          </div>
-
-          <div class="editor-section">
-            <h4>End User Applications</h4>
-            <div class="editor-table">
-              <div class="editor-row header-row">
-                <div>العنصر</div><div>جيد</div><div>يحتاج خدمة</div>
-              </div>
-              <div class="editor-row"><div>OneDrive Backup</div><input type="number" data-path="applications.good.0" min="0" max="100"><input type="number" data-path="applications.service.0" min="0" max="100"></div>
-              <div class="editor-row"><div>Operating System</div><input type="number" data-path="applications.good.1" min="0" max="100"><input type="number" data-path="applications.service.1" min="0" max="100"></div>
-              <div class="editor-row"><div>Cleanup & Unwanted Apps</div><input type="number" data-path="applications.good.2" min="0" max="100"><input type="number" data-path="applications.service.2" min="0" max="100"></div>
-            </div>
-          </div>
-
-          <div class="editor-section">
-            <h4>الاتصال والـ UPS</h4>
-            <div class="editor-table">
-              <div class="editor-row header-row">
-                <div>العنصر</div><div>جيد / ضمن النطاق</div><div>يحتاج متابعة</div>
-              </div>
-              <div class="editor-row"><div>درجة حرارة السيرفر</div><input type="number" data-path="connectivity.good.0" min="0" max="100"><input type="number" data-path="connectivity.service.0" min="0" max="100"></div>
-              <div class="editor-row"><div>Download</div><input type="number" data-path="connectivity.good.1" min="0" max="100"><input type="number" data-path="connectivity.service.1" min="0" max="100"></div>
-              <div class="editor-row"><div>Upload</div><input type="number" data-path="connectivity.good.2" min="0" max="100"><input type="number" data-path="connectivity.service.2" min="0" max="100"></div>
-              <div class="editor-row"><div>UPS</div><input type="number" data-path="ups.good" min="0" max="100"><input type="number" data-path="ups.service" min="0" max="100"></div>
-            </div>
-          </div>
-
-          <div class="editor-section">
-            <h4>التدريب</h4>
-            <div class="editor-table">
-              <div class="editor-row header-row">
-                <div>الفئة</div><div>القيمة</div><div>—</div>
-              </div>
-              <div class="editor-row"><div>No Requirement</div><input type="number" data-path="training.values.0" min="0"><div></div></div>
-              <div class="editor-row"><div>Service Desk</div><input type="number" data-path="training.values.1" min="0"><div></div></div>
-              <div class="editor-row"><div>Skill Build</div><input type="number" data-path="training.values.2" min="0"><div></div></div>
-              <div class="editor-row"><div>Customer / Web</div><input type="number" data-path="training.values.3" min="0"><div></div></div>
-              <div class="editor-row"><div>ERP Apps</div><input type="number" data-path="training.values.4" min="0"><div></div></div>
-              <div class="editor-row"><div>Business Intelligence</div><input type="number" data-path="training.values.5" min="0"><div></div></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="actions">
-          <button class="btn success" id="saveDataBtn">حفظ التعديلات</button>
-          <button class="btn secondary" id="reloadDefaultsBtn">استرجاع البيانات الافتراضية</button>
-          <button class="btn danger" id="clearStorageBtn">مسح التخزين المحلي</button>
-        </div>
-        <div class="note">يمكنك تعديل الأرقام مباشرة هنا، وبعد الحفظ ستتغير كل الرسوم البيانية تلقائيًا. كما يتم حفظ البيانات في <strong>Local Storage</strong> حتى لا تضيع بعد تحديث الصفحة.</div>
+        <pre style="white-space:pre-wrap; background:#0f1d2b; color:#dbe9f6; padding:16px; border-radius:14px; overflow:auto;">// استبدل القيم التالية من Firebase Project Settings
+const firebaseConfig = {
+  apiKey: "PUT_YOUR_API_KEY",
+  authDomain: "baghethan-ba325.firebaseapp.com",
+  projectId: "baghethan-ba325",
+  storageBucket: "baghethan-ba325.appspot.com",
+  messagingSenderId: "PUT_YOUR_MESSAGING_SENDER_ID",
+  appId: "PUT_YOUR_APP_ID"
+};</pre>
       </div>
     </section>
   </main>
 
   <script>
-    const defaultData = {
-      visits: {
-        brands: {
-          Hyundai: 10,
-          Changan: 7,
-          Chrysler: 1,
-          Peugeot: 4,
-          'Citroën': 4,
-          Autolead: 1
-        }
-      },
-      network: {
-        labels: ['البنية التحتية', 'أجهزة الشبكة', 'غرفة السيرفر'],
-        good: [73, 70, 42],
-        service: [26, 29, 57]
-      },
-      ups: {
-        good: 78,
-        service: 22
-      },
-      endUser: {
-        labels: ['PCs', 'Printers', 'Unified Communications'],
-        good: [78, 89, 88],
-        service: [21, 10, 11]
-      },
-      business: {
-        labels: ['Portal Data', 'ERP & Apps'],
-        good: [88, 92],
-        service: [11, 7]
-      },
-      applications: {
-        labels: ['OneDrive Backup', 'Operating System', 'Cleanup & Unwanted Apps'],
-        good: [95, 57, 81],
-        service: [5, 29, 18]
-      },
-      connectivity: {
-        labels: ['درجة حرارة السيرفر', 'اختبار التحميل', 'اختبار الرفع'],
-        good: [29, 21, 16],
-        service: [57, 64, 84],
-        other: [14, 15, 0]
-      },
-      training: {
-        labels: ['No Requirement', 'Service Desk', 'Skill Build', 'Customer / Web', 'ERP Apps', 'Business Intelligence'],
-        values: [64, 15, 6, 3, 1, 1]
-      },
-      auditLog: []
-    };
-
-    const storageKey = 'branch_audit_dashboard_dynamic_v1';
-    let dataStore = loadData();
-    let charts = {};
-
-    const palette = {
-      blue: '#2f79bd',
-      orange: '#f28c28',
-      green: '#5dbb75',
-      navy: '#0d4b73',
-      purple: '#7c2a90',
-      gray: '#8a97a6'
-    };
-
-    function deepClone(obj) {
-      return JSON.parse(JSON.stringify(obj));
-    }
-
-    function loadData() {
-      try {
-        const raw = localStorage.getItem(storageKey);
-        return raw ? JSON.parse(raw) : deepClone(defaultData);
-      } catch (error) {
-        return deepClone(defaultData);
-      }
-    }
-
-    function saveData() {
-      localStorage.setItem(storageKey, JSON.stringify(dataStore));
-    }
-
-    function clampNumber(value, min = 0, max = 100) {
-      const num = Number(value);
-      if (Number.isNaN(num)) return min;
-      return Math.max(min, Math.min(max, num));
-    }
-
-    function updateSummary() {
-      const totalVisits = Object.values(dataStore.visits.brands).reduce((sum, value) => sum + Number(value || 0), 0);
-      const brandCount = Object.keys(dataStore.visits.brands).length;
-      const avgHealth = Math.round((
-        average(dataStore.network.good) +
-        average(dataStore.endUser.good) +
-        average(dataStore.business.good) +
-        average(dataStore.applications.good) +
-        Number(dataStore.ups.good)
-      ) / 5);
-
-      document.getElementById('totalVisitsValue').textContent = totalVisits;
-      document.getElementById('visitTotalBig').textContent = totalVisits;
-      document.getElementById('totalBrandsValue').textContent = brandCount;
-      document.getElementById('overallStatusValue').textContent = avgHealth >= 80 ? 'ممتاز' : avgHealth >= 60 ? 'جيد' : 'يحتاج متابعة';
-
-      renderBrands(totalVisits);
-      renderBadges();
-    }
-
-    function average(arr) {
-      return Math.round(arr.reduce((sum, value) => sum + Number(value || 0), 0) / arr.length);
-    }
-
-    function renderBrands(totalVisits) {
-      const brandList = document.getElementById('brandList');
-      brandList.innerHTML = '';
-      Object.entries(dataStore.visits.brands).forEach(([brand, count]) => {
-        const pct = totalVisits ? Math.round((count / totalVisits) * 100) : 0;
-        const item = document.createElement('div');
-        item.className = 'brand-item';
-        item.innerHTML = `
-          <span class="brand-name">${brand}</span>
-          <span class="brand-count">${count}</span>
-          <span class="brand-pct">${pct}%</span>
-        `;
-        brandList.appendChild(item);
-      });
-    }
-
-    function renderBadges() {
-      document.getElementById('badgeInfraGood').textContent = `البنية الجيدة: ${average(dataStore.network.good)}%`;
-      document.getElementById('badgeUps').textContent = `الـ UPS الجيد: ${dataStore.ups.good}%`;
-      document.getElementById('badgePCs').textContent = `جاهزية أجهزة الكمبيوتر: ${dataStore.endUser.good[0]}%`;
-      document.getElementById('badgePrinters').textContent = `جاهزية الطابعات: ${dataStore.endUser.good[1]}%`;
-      document.getElementById('badgeUC').textContent = `الاتصال الموحد: ${dataStore.endUser.good[2]}%`;
-      document.getElementById('badgeOneDrive').textContent = `OneDrive: ${dataStore.applications.good[0]}%`;
-      document.getElementById('badgeOS').textContent = `نظام التشغيل: ${dataStore.applications.good[1]}%`;
-    }
-
-    function syncEditorInputs() {
-      const brandEditor = document.getElementById('brandEditor');
-      brandEditor.innerHTML = `
-        <div class="editor-row header-row">
-          <div>العلامة</div><div>عدد الزيارات</div><div>—</div>
-        </div>
-      `;
-      Object.entries(dataStore.visits.brands).forEach(([brand, count]) => {
-        const row = document.createElement('div');
-        row.className = 'editor-row';
-        row.innerHTML = `<div>${brand}</div><input type="number" min="0" data-brand="${brand}" value="${count}"><div></div>`;
-        brandEditor.appendChild(row);
-      });
-
-      document.querySelectorAll('[data-path]').forEach(input => {
-        const value = getValueByPath(dataStore, input.dataset.path);
-        input.value = value;
-      });
-    }
-
-    function getValueByPath(obj, path) {
-      return path.split('.').reduce((acc, key) => acc[key], obj);
-    }
-
-    function setValueByPath(obj, path, value) {
-      const keys = path.split('.');
-      const lastKey = keys.pop();
-      const target = keys.reduce((acc, key) => acc[key], obj);
-      target[lastKey] = Number(value);
-    }
-
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabPanels = document.querySelectorAll('.tab-panel');
+    tabButtons.forEach(btn => btn.addEventListener('click', () => {
+      tabButtons.forEach(b => b.classList.remove('active'));
+      tabPanels.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    }));
+  </script>
 
-    tabButtons.forEach(button => {
-      button.addEventListener('click', () => {
-        const target = button.dataset.tab;
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        tabPanels.forEach(panel => panel.classList.remove('active'));
-        button.classList.add('active');
-        document.getElementById(target).classList.add('active');
-      });
-    });
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import {
+      getFirestore,
+      collection,
+      doc,
+      setDoc,
+      addDoc,
+      getDocs,
+      query,
+      where,
+      orderBy,
+      onSnapshot,
+      Timestamp
+    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    // =========================
+    // 1) ألصق firebaseConfig الحقيقي هنا
+    // =========================
+    const firebaseConfig = {
+      apiKey: 'PUT_YOUR_API_KEY',
+      authDomain: 'baghethan-ba325.firebaseapp.com',
+      projectId: 'baghethan-ba325',
+      storageBucket: 'baghethan-ba325.appspot.com',
+      messagingSenderId: 'PUT_YOUR_MESSAGING_SENDER_ID',
+      appId: 'PUT_YOUR_APP_ID'
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // =========================
+    // 2) بيانات الفروع الأولية
+    // الصق هنا محتوى seed_branches.js الناتج من ملف الإكسل
+    // =========================
+    const seedBranches = [
+      { id: 'CNGN-DMM-1', branchName: 'Changan Dhahran Qeshla', brand: 'Changan', region: 'Eastern', city: 'Dammam', coordinates: '26.3627, 50.17802', branchType: '1S', contactShowroom: 'Hashem Ahmed Al-Ali 0542297470', contactService: 'No Branch', contactSpareParts: 'No Branch' },
+      { id: 'CNGN-KHB-2', branchName: 'Changan Khobar - Tamimi', brand: 'Changan', region: 'Eastern', city: 'Khobar', coordinates: '26.33716, 50.19817', branchType: '3S', contactShowroom: 'Mutaib Sameer Al-Muslim 0559233337', contactService: 'Mukhtar Fadhel Alabdrabulridha 0544583202', contactSpareParts: 'Abdullah Mazin Alramahi 0545680036' },
+      { id: 'CNGN-KHB-1', branchName: 'Changan Karawan Tower', brand: 'Changan', region: 'Eastern', city: 'Khobar', coordinates: '26.318555, 50.216056', branchType: '1S', contactShowroom: 'Ahmad Saleh Al-Ghamdi 0551599390', contactService: 'No Branch', contactSpareParts: 'No Branch' },
+      { id: 'CNGN-DMM-2', branchName: 'Changan Alkhaldia - Service', brand: 'Changan', region: 'Eastern', city: 'Dammam', coordinates: '26.40208, 50.17073', branchType: '2S', contactShowroom: 'No Branch', contactService: 'Mohammed Mahmoud Matar 0564114985', contactSpareParts: 'Mohmmad Abdulbaset Eltayeb 0546570363' },
+      { id: 'MMS-DMM-3', branchName: 'Changan Khair - Service', brand: 'Changan', region: 'Eastern', city: 'Dammam', coordinates: '26.44396, 50.04225', branchType: '2S', contactShowroom: 'No Branch', contactService: 'Hamdi Mohammed Mohammed 0556310555', contactSpareParts: 'Abdullah Mohammed Bawazir 0598505500' }
+      // ألصق باقي الفروع من ملف seed_branches.js هنا
+    ];
+
+    const state = {
+      branches: [],
+      visits: [],
+      charts: {}
+    };
+
+    const brandCtx = document.getElementById('brandVisitsChart');
+    const regionCtx = document.getElementById('regionVisitsChart');
 
     Chart.defaults.font = { family: 'Segoe UI, Tahoma, Arial, sans-serif', size: 12 };
     Chart.defaults.color = '#486176';
 
-    const barOptions = () => ({
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 14 } }
-      },
-      scales: {
-        x: { grid: { color: '#edf2f7' } },
-        y: { beginAtZero: true, max: 100, grid: { color: '#edf2f7' } }
-      }
+    state.charts.brand = new Chart(brandCtx, {
+      type: 'bar',
+      data: { labels: [], datasets: [{ label: 'عدد الزيارات', data: [], backgroundColor: '#2f79bd' }] },
+      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
     });
 
-    function initCharts() {
-      charts.networkChart = new Chart(document.getElementById('networkChart'), {
-        type: 'bar',
-        data: {
-          labels: dataStore.network.labels,
-          datasets: [
-            { label: 'حالة جيدة', data: dataStore.network.good, backgroundColor: palette.blue },
-            { label: 'تحتاج خدمة', data: dataStore.network.service, backgroundColor: palette.orange }
-          ]
-        },
-        options: barOptions()
-      });
+    state.charts.region = new Chart(regionCtx, {
+      type: 'doughnut',
+      data: { labels: [], datasets: [{ data: [], backgroundColor: ['#2f79bd','#f28c28','#7c2a90','#5dbb75','#8a97a6'] }] },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
 
-      charts.upsChart = new Chart(document.getElementById('upsChart'), {
-        type: 'pie',
-        data: {
-          labels: ['يعمل بشكل كامل', 'يتطلب خدمة'],
-          datasets: [{ data: [dataStore.ups.good, dataStore.ups.service], backgroundColor: [palette.blue, palette.orange], borderWidth: 0 }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-      });
-
-      charts.endUserChart = new Chart(document.getElementById('endUserChart'), {
-        type: 'bar',
-        data: {
-          labels: dataStore.endUser.labels,
-          datasets: [
-            { label: 'Fully Functioning', data: dataStore.endUser.good, backgroundColor: palette.blue },
-            { label: 'Requires Service', data: dataStore.endUser.service, backgroundColor: palette.orange }
-          ]
-        },
-        options: barOptions()
-      });
-
-      charts.businessChart = new Chart(document.getElementById('businessChart'), {
-        type: 'bar',
-        data: {
-          labels: dataStore.business.labels,
-          datasets: [
-            { label: 'Fully Functioning', data: dataStore.business.good, backgroundColor: palette.blue },
-            { label: 'Requires Service', data: dataStore.business.service, backgroundColor: palette.orange }
-          ]
-        },
-        options: barOptions()
-      });
-
-      charts.appChart = new Chart(document.getElementById('appChart'), {
-        type: 'bar',
-        data: {
-          labels: dataStore.applications.labels,
-          datasets: [
-            { label: 'Fully Functioning', data: dataStore.applications.good, backgroundColor: palette.blue },
-            { label: 'Requires Service', data: dataStore.applications.service, backgroundColor: palette.orange }
-          ]
-        },
-        options: barOptions()
-      });
-
-      charts.trainingChart = new Chart(document.getElementById('trainingChart'), {
-        type: 'bar',
-        data: {
-          labels: dataStore.training.labels,
-          datasets: [{ label: 'القيمة', data: dataStore.training.values, backgroundColor: palette.gray }]
-        },
-        options: { ...barOptions(), scales: { x: { grid: { color: '#edf2f7' } }, y: { beginAtZero: true, grid: { color: '#edf2f7' } } } }
-      });
-
-      charts.connectivityChart = new Chart(document.getElementById('connectivityChart'), {
-        type: 'bar',
-        data: {
-          labels: dataStore.connectivity.labels,
-          datasets: [
-            { label: 'ضمن النطاق', data: dataStore.connectivity.good, backgroundColor: palette.green },
-            { label: 'يتطلب متابعة', data: dataStore.connectivity.service, backgroundColor: palette.orange },
-            { label: 'مرتفع / منخفض', data: dataStore.connectivity.other, backgroundColor: palette.blue }
-          ]
-        },
-        options: barOptions()
-      });
-
-      charts.devicesChart = new Chart(document.getElementById('devicesChart'), {
-        type: 'bar',
-        data: {
-          labels: ['أجهزة الكمبيوتر', 'الطابعات', 'الاتصال الموحد', 'OneDrive', 'نظام التشغيل'],
-          datasets: [
-            { label: 'جيد', data: [dataStore.endUser.good[0], dataStore.endUser.good[1], dataStore.endUser.good[2], dataStore.applications.good[0], dataStore.applications.good[1]], backgroundColor: palette.blue },
-            { label: 'يحتاج صيانة', data: [dataStore.endUser.service[0], dataStore.endUser.service[1], dataStore.endUser.service[2], dataStore.applications.service[0], dataStore.applications.service[1]], backgroundColor: palette.orange }
-          ]
-        },
-        options: barOptions()
-      });
-
-      charts.businessAppsDetailChart = new Chart(document.getElementById('businessAppsDetailChart'), {
-        type: 'bar',
-        data: {
-          labels: ['Customer / Portal Data Up To Date', 'ERP and Business Applications Up To Date'],
-          datasets: [
-            { label: 'Fully Functioning', data: dataStore.business.good, backgroundColor: palette.blue },
-            { label: 'Requires Service', data: dataStore.business.service, backgroundColor: palette.orange }
-          ]
-        },
-        options: barOptions()
-      });
-
-      charts.endUserAppsDetailChart = new Chart(document.getElementById('endUserAppsDetailChart'), {
-        type: 'bar',
-        data: {
-          labels: dataStore.applications.labels,
-          datasets: [
-            { label: 'Fully Functioning', data: dataStore.applications.good, backgroundColor: palette.blue },
-            { label: 'Requires Service', data: dataStore.applications.service, backgroundColor: palette.orange }
-          ]
-        },
-        options: barOptions()
-      });
-
-      charts.trainingDetailChart = new Chart(document.getElementById('trainingDetailChart'), {
-        type: 'bar',
-        data: {
-          labels: dataStore.training.labels,
-          datasets: [{ label: 'القيمة', data: dataStore.training.values, backgroundColor: palette.gray }]
-        },
-        options: { ...barOptions(), scales: { x: { grid: { color: '#edf2f7' } }, y: { beginAtZero: true, grid: { color: '#edf2f7' } } } }
-      });
+    function unique(arr) {
+      return [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b));
     }
 
-    function refreshCharts() {
-      charts.networkChart.data.datasets[0].data = [...dataStore.network.good];
-      charts.networkChart.data.datasets[1].data = [...dataStore.network.service];
-      charts.networkChart.update();
-
-      charts.upsChart.data.datasets[0].data = [dataStore.ups.good, dataStore.ups.service];
-      charts.upsChart.update();
-
-      charts.endUserChart.data.datasets[0].data = [...dataStore.endUser.good];
-      charts.endUserChart.data.datasets[1].data = [...dataStore.endUser.service];
-      charts.endUserChart.update();
-
-      charts.businessChart.data.datasets[0].data = [...dataStore.business.good];
-      charts.businessChart.data.datasets[1].data = [...dataStore.business.service];
-      charts.businessChart.update();
-
-      charts.appChart.data.datasets[0].data = [...dataStore.applications.good];
-      charts.appChart.data.datasets[1].data = [...dataStore.applications.service];
-      charts.appChart.update();
-
-      charts.trainingChart.data.datasets[0].data = [...dataStore.training.values];
-      charts.trainingChart.update();
-
-      charts.connectivityChart.data.datasets[0].data = [...dataStore.connectivity.good];
-      charts.connectivityChart.data.datasets[1].data = [...dataStore.connectivity.service];
-      charts.connectivityChart.data.datasets[2].data = [...dataStore.connectivity.other];
-      charts.connectivityChart.update();
-
-      charts.devicesChart.data.datasets[0].data = [dataStore.endUser.good[0], dataStore.endUser.good[1], dataStore.endUser.good[2], dataStore.applications.good[0], dataStore.applications.good[1]];
-      charts.devicesChart.data.datasets[1].data = [dataStore.endUser.service[0], dataStore.endUser.service[1], dataStore.endUser.service[2], dataStore.applications.service[0], dataStore.applications.service[1]];
-      charts.devicesChart.update();
-
-      charts.businessAppsDetailChart.data.datasets[0].data = [...dataStore.business.good];
-      charts.businessAppsDetailChart.data.datasets[1].data = [...dataStore.business.service];
-      charts.businessAppsDetailChart.update();
-
-      charts.endUserAppsDetailChart.data.datasets[0].data = [...dataStore.applications.good];
-      charts.endUserAppsDetailChart.data.datasets[1].data = [...dataStore.applications.service];
-      charts.endUserAppsDetailChart.update();
-
-      charts.trainingDetailChart.data.datasets[0].data = [...dataStore.training.values];
-      charts.trainingDetailChart.update();
-
-      updateSummary();
-      syncEditorInputs();
-      saveData();
+    function setOptions(selectId, items, placeholder = 'اختر') {
+      const el = document.getElementById(selectId);
+      const current = el.value;
+      el.innerHTML = `<option value="">${placeholder}</option>` + items.map(item => `<option value="${item}">${item}</option>`).join('');
+      if (items.includes(current)) el.value = current;
     }
 
-    function saveEditorChanges() {
-      document.querySelectorAll('#brandEditor [data-brand]').forEach(input => {
-        dataStore.visits.brands[input.dataset.brand] = Math.max(0, Number(input.value) || 0);
+    function renderStats() {
+      const branches = state.branches;
+      document.getElementById('statBranches').textContent = branches.length;
+      document.getElementById('statVisits').textContent = state.visits.length;
+      document.getElementById('statRegions').textContent = unique(branches.map(b => b.region)).length;
+      document.getElementById('statCities').textContent = unique(branches.map(b => b.city)).length;
+    }
+
+    function renderBranchesList() {
+      const el = document.getElementById('branchesList');
+      const summary = document.getElementById('branchFiltersSummary');
+      summary.innerHTML = unique(state.branches.map(b => b.region)).map(r => `<span class="pill">${r}</span>`).join('');
+      el.innerHTML = state.branches
+        .slice()
+        .sort((a, b) => (a.region + a.city + a.branchName).localeCompare(b.region + b.city + b.branchName))
+        .map(branch => `
+          <div class="branch-item">
+            <strong>${branch.branchName}</strong>
+            <small>العلامة: ${branch.brand || '-'} | النوع: ${branch.branchType || '-'}</small>
+            <small>المنطقة: ${branch.region || '-'} | المدينة: ${branch.city || '-'}</small>
+            <small>الإحداثيات: ${branch.coordinates || '-'}</small>
+            <small>الكود: ${branch.id || '-'}</small>
+          </div>
+        `).join('');
+    }
+
+    function renderVisitTable(filteredVisits = state.visits) {
+      const body = document.getElementById('visitsTableBody');
+      body.innerHTML = filteredVisits
+        .slice(0, 50)
+        .map(v => `
+          <tr>
+            <td>${v.date || '-'}</td>
+            <td>${v.region || '-'}</td>
+            <td>${v.city || '-'}</td>
+            <td>${v.branchName || '-'}</td>
+            <td>${v.brand || '-'}</td>
+            <td>${v.technician || '-'}</td>
+            <td>${v.networkStatus === 'good' ? 'جيدة' : 'تحتاج صيانة'}</td>
+          </tr>
+        `).join('');
+    }
+
+    function renderCharts(filteredVisits = state.visits) {
+      const brandMap = {};
+      const regionMap = {};
+      filteredVisits.forEach(v => {
+        brandMap[v.brand || 'غير محدد'] = (brandMap[v.brand || 'غير محدد'] || 0) + 1;
+        regionMap[v.region || 'غير محدد'] = (regionMap[v.region || 'غير محدد'] || 0) + 1;
       });
 
-      document.querySelectorAll('[data-path]').forEach(input => {
-        const isTraining = input.dataset.path.startsWith('training.values');
-        const value = isTraining ? Math.max(0, Number(input.value) || 0) : clampNumber(input.value, 0, 100);
-        setValueByPath(dataStore, input.dataset.path, value);
+      state.charts.brand.data.labels = Object.keys(brandMap);
+      state.charts.brand.data.datasets[0].data = Object.values(brandMap);
+      state.charts.brand.update();
+
+      state.charts.region.data.labels = Object.keys(regionMap);
+      state.charts.region.data.datasets[0].data = Object.values(regionMap);
+      state.charts.region.update();
+    }
+
+    function getFilteredBranchesForVisit() {
+      const region = document.getElementById('visitRegion').value;
+      const city = document.getElementById('visitCity').value;
+      const brand = document.getElementById('visitBrand').value;
+      return state.branches.filter(b =>
+        (!region || b.region === region) &&
+        (!city || b.city === city) &&
+        (!brand || b.brand === brand)
+      );
+    }
+
+    function populateVisitSelectors() {
+      setOptions('visitRegion', unique(state.branches.map(b => b.region)), 'اختر المنطقة');
+      setOptions('filterRegion', unique(state.branches.map(b => b.region)), 'الكل');
+      syncVisitCityAndBrand();
+      syncFilterCities();
+    }
+
+    function syncVisitCityAndBrand() {
+      const region = document.getElementById('visitRegion').value;
+      const cityItems = unique(state.branches.filter(b => !region || b.region === region).map(b => b.city));
+      setOptions('visitCity', cityItems, 'اختر المدينة');
+
+      const city = document.getElementById('visitCity').value;
+      const brandItems = unique(state.branches.filter(b => (!region || b.region === region) && (!city || b.city === city)).map(b => b.brand));
+      setOptions('visitBrand', brandItems, 'اختر العلامة');
+
+      const branches = getFilteredBranchesForVisit();
+      const branchEl = document.getElementById('visitBranch');
+      branchEl.innerHTML = '<option value="">اختر الفرع</option>' + branches.map(b => `<option value="${b.id}">${b.branchName}</option>`).join('');
+      renderSelectedBranch();
+    }
+
+    function syncFilterCities() {
+      const region = document.getElementById('filterRegion').value;
+      const cities = unique(state.branches.filter(b => !region || b.region === region).map(b => b.city));
+      setOptions('filterCity', cities, 'الكل');
+    }
+
+    function renderSelectedBranch() {
+      const branchId = document.getElementById('visitBranch').value;
+      const branch = state.branches.find(b => b.id === branchId);
+      const card = document.getElementById('selectedBranchCard');
+      if (!branch) {
+        card.innerHTML = '<div class="note">لم يتم اختيار فرع بعد.</div>';
+        return;
+      }
+      card.innerHTML = `
+        <div class="branch-item">
+          <strong>${branch.branchName}</strong>
+          <small>الكود: ${branch.id}</small>
+          <small>العلامة: ${branch.brand} | النوع: ${branch.branchType || '-'}</small>
+          <small>المنطقة: ${branch.region} | المدينة: ${branch.city}</small>
+          <small>الإحداثيات: ${branch.coordinates || '-'}</small>
+          <small>Showroom: ${branch.contactShowroom || '-'}</small>
+          <small>Service: ${branch.contactService || '-'}</small>
+          <small>Spare Parts: ${branch.contactSpareParts || '-'}</small>
+        </div>
+      `;
+    }
+
+    function applyVisitFilters() {
+      const fromDate = document.getElementById('filterFromDate').value;
+      const toDate = document.getElementById('filterToDate').value;
+      const region = document.getElementById('filterRegion').value;
+      const city = document.getElementById('filterCity').value;
+
+      const filtered = state.visits.filter(v => {
+        const passRegion = !region || v.region === region;
+        const passCity = !city || v.city === city;
+        const passFrom = !fromDate || v.date >= fromDate;
+        const passTo = !toDate || v.date <= toDate;
+        return passRegion && passCity && passFrom && passTo;
       });
 
-      refreshCharts();
-      showMessage('تم حفظ التعديلات وتحديث جميع الشارتات بنجاح.');
+      renderVisitTable(filtered);
+      renderCharts(filtered);
+    }
+
+    async function seedInitialBranches() {
+      if (!seedBranches.length) {
+        showMessage('لا توجد بيانات أولية للفروع. ألصق seed_branches.js أولاً.');
+        return;
+      }
+      for (const branch of seedBranches) {
+        if (!branch.id) continue;
+        await setDoc(doc(db, 'branches', branch.id), {
+          ...branch,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        }, { merge: true });
+      }
+      showMessage('تم رفع بيانات الفروع الأولية إلى Firestore بنجاح.');
+    }
+
+    async function saveBranch() {
+      const branch = {
+        id: document.getElementById('branchId').value.trim(),
+        branchName: document.getElementById('branchName').value.trim(),
+        brand: document.getElementById('branchBrand').value.trim(),
+        region: document.getElementById('branchRegion').value.trim(),
+        city: document.getElementById('branchCity').value.trim(),
+        branchType: document.getElementById('branchType').value.trim(),
+        coordinates: document.getElementById('branchCoordinates').value.trim(),
+        contactShowroom: document.getElementById('branchContactShowroom').value.trim(),
+        contactService: document.getElementById('branchContactService').value.trim(),
+        contactSpareParts: document.getElementById('branchContactSpareParts').value.trim(),
+        updatedAt: Timestamp.now()
+      };
+
+      if (!branch.id || !branch.branchName || !branch.region || !branch.city) {
+        showMessage('أدخل على الأقل: كود الفرع، اسم الفرع، المنطقة، المدينة.');
+        return;
+      }
+
+      await setDoc(doc(db, 'branches', branch.id), {
+        ...branch,
+        createdAt: Timestamp.now()
+      }, { merge: true });
+      showMessage('تمت إضافة / تحديث الفرع بنجاح.');
+      clearBranchForm();
+    }
+
+    function clearBranchForm() {
+      ['branchId','branchName','branchBrand','branchRegion','branchCity','branchType','branchCoordinates','branchContactShowroom','branchContactService','branchContactSpareParts']
+        .forEach(id => document.getElementById(id).value = '');
+    }
+
+    async function saveVisit() {
+      const branchId = document.getElementById('visitBranch').value;
+      const branch = state.branches.find(b => b.id === branchId);
+      if (!branch) {
+        showMessage('يرجى اختيار فرع صحيح أولاً.');
+        return;
+      }
+
+      const visit = {
+        branchId: branch.id,
+        branchName: branch.branchName,
+        brand: branch.brand,
+        region: branch.region,
+        city: branch.city,
+        coordinates: branch.coordinates || '',
+        technician: document.getElementById('technicianName').value.trim(),
+        date: document.getElementById('visitDate').value,
+        networkStatus: document.getElementById('networkStatus').value,
+        upsStatus: document.getElementById('upsStatus').value,
+        download: Number(document.getElementById('downloadResult').value || 0),
+        upload: Number(document.getElementById('uploadResult').value || 0),
+        notes: document.getElementById('visitNotes').value.trim(),
+        createdAt: Timestamp.now()
+      };
+
+      if (!visit.technician || !visit.date) {
+        showMessage('يرجى تعبئة اسم الفني وتاريخ الزيارة.');
+        return;
+      }
+
+      await addDoc(collection(db, 'siteVisits'), visit);
+      showMessage('تم حفظ الزيارة أونلاين بنجاح.');
+      document.getElementById('visitNotes').value = '';
     }
 
     function showMessage(message) {
-      const saveMessage = document.getElementById('saveMessage');
-      saveMessage.textContent = message;
+      document.getElementById('saveMessage').textContent = message;
     }
 
-    function increaseMetricPair(group, index, isGood) {
-      const currentGood = Number(group.good[index]);
-      const currentService = Number(group.service[index]);
-      if (isGood) {
-        group.good[index] = Math.min(100, currentGood + 1);
-        group.service[index] = Math.max(0, currentService - 1);
-      } else {
-        group.good[index] = Math.max(0, currentGood - 1);
-        group.service[index] = Math.min(100, currentService + 1);
-      }
-    }
-
-    function shiftUps(isGood) {
-      if (isGood) {
-        dataStore.ups.good = Math.min(100, Number(dataStore.ups.good) + 1);
-        dataStore.ups.service = Math.max(0, Number(dataStore.ups.service) - 1);
-      } else {
-        dataStore.ups.good = Math.max(0, Number(dataStore.ups.good) - 1);
-        dataStore.ups.service = Math.min(100, Number(dataStore.ups.service) + 1);
-      }
-    }
-
-    function adjustConnectivity(download, upload) {
-      const downloadGood = download >= 50;
-      const uploadGood = upload >= 20;
-      increaseMetricPair(dataStore.connectivity, 1, downloadGood);
-      increaseMetricPair(dataStore.connectivity, 2, uploadGood);
-    }
-
-    function addVisitFromForm() {
-      const brand = document.getElementById('brandName').value;
-      const networkGood = document.getElementById('networkStatus').value === 'good';
-      const upsGood = document.getElementById('upsStatus').value === 'good';
-      const pcGood = document.getElementById('pcStatus').value === 'good';
-      const printerGood = document.getElementById('printerStatus').value === 'good';
-      const ucGood = document.getElementById('ucStatus').value === 'good';
-      const oneDriveGood = document.getElementById('oneDriveStatus').value === 'good';
-      const osGood = document.getElementById('osStatus').value === 'good';
-      const trainingNeed = document.getElementById('trainingNeed').value;
-      const download = Number(document.getElementById('downloadResult').value) || 0;
-      const upload = Number(document.getElementById('uploadResult').value) || 0;
-
-      dataStore.visits.brands[brand] = (Number(dataStore.visits.brands[brand]) || 0) + 1;
-      increaseMetricPair(dataStore.network, 0, networkGood);
-      shiftUps(upsGood);
-      increaseMetricPair(dataStore.endUser, 0, pcGood);
-      increaseMetricPair(dataStore.endUser, 1, printerGood);
-      increaseMetricPair(dataStore.endUser, 2, ucGood);
-      increaseMetricPair(dataStore.applications, 0, oneDriveGood);
-      increaseMetricPair(dataStore.applications, 1, osGood);
-      adjustConnectivity(download, upload);
-
-      const trainingIndex = dataStore.training.labels.indexOf(trainingNeed);
-      if (trainingIndex >= 0) {
-        dataStore.training.values[trainingIndex] = Number(dataStore.training.values[trainingIndex]) + 1;
-      }
-
-      dataStore.auditLog.unshift({
-        branch: document.getElementById('branchName').value,
-        brand,
-        technician: document.getElementById('technicianName').value,
-        date: document.getElementById('visitDate').value,
-        notes: document.getElementById('visitNotes').value,
-        download,
-        upload
+    function listenBranches() {
+      onSnapshot(query(collection(db, 'branches'), orderBy('branchName')), snapshot => {
+        state.branches = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderStats();
+        renderBranchesList();
+        populateVisitSelectors();
       });
-
-      refreshCharts();
-      showMessage('تمت إضافة الزيارة وتحديث الرسوم البيانية بشكل ديناميكي.');
-      clearForm();
     }
 
-    function clearForm() {
-      document.getElementById('branchName').value = '';
-      document.getElementById('technicianName').value = '';
-      document.getElementById('visitDate').value = '';
-      document.getElementById('visitNotes').value = '';
-      document.getElementById('downloadResult').value = 64;
-      document.getElementById('uploadResult').value = 45;
-      document.getElementById('brandName').selectedIndex = 0;
-      document.getElementById('networkStatus').selectedIndex = 0;
-      document.getElementById('upsStatus').selectedIndex = 0;
-      document.getElementById('pcStatus').selectedIndex = 0;
-      document.getElementById('printerStatus').selectedIndex = 0;
-      document.getElementById('ucStatus').selectedIndex = 0;
-      document.getElementById('oneDriveStatus').selectedIndex = 0;
-      document.getElementById('osStatus').selectedIndex = 0;
-      document.getElementById('trainingNeed').selectedIndex = 0;
+    function listenVisits() {
+      onSnapshot(query(collection(db, 'siteVisits'), orderBy('createdAt', 'desc')), snapshot => {
+        state.visits = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderStats();
+        applyVisitFilters();
+      });
     }
 
-    document.getElementById('saveVisitBtn').addEventListener('click', addVisitFromForm);
-    document.getElementById('saveDataBtn').addEventListener('click', saveEditorChanges);
-    document.getElementById('reloadDefaultsBtn').addEventListener('click', () => {
-      dataStore = deepClone(defaultData);
-      refreshCharts();
-      showMessage('تم استرجاع البيانات الافتراضية.');
-    });
-    document.getElementById('clearStorageBtn').addEventListener('click', () => {
-      localStorage.removeItem(storageKey);
-      dataStore = deepClone(defaultData);
-      refreshCharts();
-      showMessage('تم مسح التخزين المحلي وإعادة ضبط البيانات.');
+    document.getElementById('visitRegion').addEventListener('change', syncVisitCityAndBrand);
+    document.getElementById('visitCity').addEventListener('change', syncVisitCityAndBrand);
+    document.getElementById('visitBrand').addEventListener('change', syncVisitCityAndBrand);
+    document.getElementById('visitBranch').addEventListener('change', renderSelectedBranch);
+
+    document.getElementById('filterRegion').addEventListener('change', syncFilterCities);
+    document.getElementById('applyFiltersBtn').addEventListener('click', applyVisitFilters);
+    document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+      document.getElementById('filterFromDate').value = '';
+      document.getElementById('filterToDate').value = '';
+      document.getElementById('filterRegion').value = '';
+      syncFilterCities();
+      document.getElementById('filterCity').value = '';
+      applyVisitFilters();
     });
 
-    initCharts();
-    updateSummary();
-    syncEditorInputs();
+    document.getElementById('saveVisitBtn').addEventListener('click', saveVisit);
+    document.getElementById('seedBranchesBtn').addEventListener('click', seedInitialBranches);
+    document.getElementById('saveBranchBtn').addEventListener('click', saveBranch);
+    document.getElementById('clearBranchFormBtn').addEventListener('click', clearBranchForm);
+
+    listenBranches();
+    listenVisits();
   </script>
 </body>
 </html>
