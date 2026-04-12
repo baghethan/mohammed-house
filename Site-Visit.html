@@ -121,6 +121,7 @@
       color:var(--primary);
       font-weight:700;
       cursor:pointer;
+      transition:all .2s ease;
     }
 
     .tab-btn.active,.tab-btn:hover,.btn.primary {
@@ -362,6 +363,15 @@
       border-radius:6px;
     }
 
+    [dir="ltr"] th,
+    [dir="ltr"] td,
+    [dir="ltr"] .field label,
+    [dir="ltr"] .item small,
+    [dir="ltr"] .item strong,
+    [dir="ltr"] .note {
+      text-align:left;
+    }
+
     @media (max-width:1100px) {
       .stats,.grid-2,.form-grid,.form-grid.wide {
         grid-template-columns:1fr;
@@ -381,17 +391,15 @@
       <div class="title">تسجيل الدخول / Sign In</div>
       <div class="content">
         <div class="note">
-          هذه النسخة تستخدم <code>app_users</code> للبحث عن <code>username</code>
-          ومعرفة <code>role</code> و<code>technicianId</code>،
-          ولكن تسجيل الدخول الحقيقي يتم عبر
-          <code>Firebase Authentication</code>
-          باستخدام الحقل <code>email</code> داخل <code>app_users</code>.
+          هذه النسخة تستخدم تسجيل الدخول الرسمي عبر Firebase Authentication
+          باستخدام <code>Email + Password</code>.
+          بعد نجاح الدخول، يتم جلب الدور والبيانات الإضافية من <code>app_users</code>.
         </div>
 
         <div class="form-grid wide" style="margin-top:14px;">
           <div class="field">
-            <label>اسم المستخدم / Username</label>
-            <input id="loginUsername" type="text" placeholder="مثال: 6207 أو admin">
+            <label>البريد الإلكتروني / Email</label>
+            <input id="loginEmail" type="email" placeholder="name@company.com">
           </div>
 
           <div class="field">
@@ -405,9 +413,7 @@
         </div>
 
         <div class="note" id="loginMessage">
-          يشترط وجود الحقول التالية داخل app_users:
-          <code>username</code>, <code>email</code>, <code>role</code>,
-          ويفضل <code>authUid</code> و <code>technicianId</code>.
+          استخدم البريد الموجود في Firebase Authentication، وبعد الدخول سيتم ربط الحساب ببيانات <code>app_users</code>.
         </div>
       </div>
     </div>
@@ -1065,24 +1071,6 @@
       }
     }
 
-    async function findAppUserByUsername(username) {
-      const q = query(collection(db, 'app_users'), where('username', '==', username), limit(1));
-      const snap = await getDocs(q);
-
-      if (!snap.empty) {
-        return { id: snap.docs[0].id, ...snap.docs[0].data() };
-      }
-
-      const q2 = await getDocs(query(collection(db, 'app_users'), limit(50)));
-      const direct = q2.docs.find(d => d.id === username);
-
-      if (direct) {
-        return { id: direct.id, ...direct.data() };
-      }
-
-      return null;
-    }
-
     async function resolveCurrentUserProfile(user) {
       let q = query(collection(db, 'app_users'), where('authUid', '==', user.uid), limit(1));
       let snap = await getDocs(q);
@@ -1103,31 +1091,19 @@
       return null;
     }
 
-    async function loginWithUsername() {
-      const username = $('loginUsername').value.trim();
+    async function loginWithEmail() {
+      const email = $('loginEmail').value.trim();
       const password = $('loginPassword').value;
 
-      if (!username || !password) {
-        $('loginMessage').textContent = 'أدخل اسم المستخدم وكلمة المرور.';
+      if (!email || !password) {
+        $('loginMessage').textContent = 'أدخل البريد الإلكتروني وكلمة المرور.';
         return;
       }
 
       try {
-        $('loginMessage').textContent = 'جاري التحقق من app_users ثم تسجيل الدخول...';
+        $('loginMessage').textContent = 'جاري تسجيل الدخول...';
 
-        const appUser = await findAppUserByUsername(username);
-
-        if (!appUser) {
-          $('loginMessage').textContent = 'اسم المستخدم غير موجود في app_users.';
-          return;
-        }
-
-        if (!appUser.email) {
-          $('loginMessage').textContent = 'المستخدم لا يحتوي على حقل email في app_users. أضف email أولًا.';
-          return;
-        }
-
-        await signInWithEmailAndPassword(auth, appUser.email, password);
+        await signInWithEmailAndPassword(auth, email, password);
 
       } catch (err) {
         console.error('Login error:', err);
@@ -1141,39 +1117,30 @@
           case 'auth/user-not-found':
             friendlyMessage = 'لا يوجد مستخدم بهذا البريد داخل Firebase Authentication.';
             break;
-
           case 'auth/wrong-password':
             friendlyMessage = 'كلمة المرور غير صحيحة.';
             break;
-
           case 'auth/invalid-credential':
             friendlyMessage = 'بيانات الدخول غير صحيحة (الإيميل أو كلمة المرور غير صحيحين).';
             break;
-
           case 'auth/invalid-email':
             friendlyMessage = 'صيغة البريد الإلكتروني غير صحيحة.';
             break;
-
           case 'auth/operation-not-allowed':
             friendlyMessage = 'تسجيل الدخول بالبريد وكلمة المرور غير مفعّل في Firebase Authentication.';
             break;
-
           case 'auth/app-not-authorized':
             friendlyMessage = 'التطبيق أو الدومين غير مصرح له باستخدام Firebase Authentication.';
             break;
-
           case 'auth/network-request-failed':
             friendlyMessage = 'فشل في الاتصال بالشبكة أو بخدمة Firebase.';
             break;
-
           case 'auth/too-many-requests':
             friendlyMessage = 'تم حظر المحاولة مؤقتًا بسبب كثرة المحاولات. حاول لاحقًا.';
             break;
-
           case 'auth/invalid-api-key':
             friendlyMessage = 'مفتاح Firebase API غير صحيح.';
             break;
-
           default:
             friendlyMessage = 'حدث خطأ غير متوقع أثناء تسجيل الدخول.';
             break;
@@ -1212,7 +1179,7 @@
 
       $('currentUserChip').classList.remove('hidden');
       $('currentUserChip').textContent =
-        (profile.name || profile.username || user.email) + ' | ' + (profile.role || 'technician');
+        (profile.name || user.email) + ' | ' + (profile.role || 'technician');
 
       $('logoutBtn').classList.remove('hidden');
       $('loginOverlay').classList.add('hidden');
@@ -1472,7 +1439,7 @@
     }
 
     // Events
-    document.getElementById('loginBtn').addEventListener('click', loginWithUsername);
+    document.getElementById('loginBtn').addEventListener('click', loginWithEmail);
     document.getElementById('logoutBtn').addEventListener('click', async () => {
       await signOut(auth);
     });
@@ -1512,7 +1479,7 @@
         $('logoutBtn').classList.add('hidden');
         $('loginOverlay').classList.remove('hidden');
         $('appRoot').classList.add('hidden');
-        $('loginMessage').textContent = 'أدخل اسم المستخدم وكلمة المرور.';
+        $('loginMessage').textContent = 'أدخل البريد الإلكتروني وكلمة المرور.';
       }
     });
 
