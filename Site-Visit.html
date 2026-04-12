@@ -1,144 +1,551 @@
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Site Visit v1.3.3</title>
+  <style>
+    :root{--primary:#0d4b73;--secondary:#0a668e;--green:#3ca36a;--danger:#d64545;--border:#d7e0ea;--text:#163247;--muted:#6e8192;--shadow:0 10px 30px rgba(18,48,74,.08);--radius:16px;--overlay:rgba(245,247,251,.92)}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background-image:linear-gradient(var(--overlay),var(--overlay)),url('https://baghethan.com/image_dba186.png');background-size:cover;background-position:center;background-attachment:fixed}
+    .header{background:linear-gradient(135deg,rgba(13,75,115,.95),rgba(10,102,142,.95));color:#fff;padding:18px 22px;position:sticky;top:0;z-index:10;box-shadow:var(--shadow)}
+    .header-top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+    .brand-wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.logo-box{background:rgba(255,255,255,.96);border-radius:18px;padding:8px 14px;box-shadow:0 8px 20px rgba(0,0,0,.12)}.logo-box img{display:block;max-height:64px;width:auto;object-fit:contain}
+    .user-box{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.user-chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:8px 12px}
+    .container{max-width:1480px;margin:22px auto;padding:0 16px 28px}.tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+    .tab-btn,.btn{border:1px solid var(--border);border-radius:999px;padding:10px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer}
+    .tab-btn.active,.tab-btn:hover,.btn.primary{background:var(--primary);color:#fff}.btn.green{background:var(--green);color:#fff;border:none}.btn.secondary{background:#fff;color:var(--primary)}.btn.danger{background:var(--danger);color:#fff;border:none}
+    .hidden{display:none!important}.tab-panel{display:none}.tab-panel.active{display:block}.grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px;margin-bottom:18px}.stat,.card{background:rgba(255,255,255,.95);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .stat{padding:16px}.label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}.value{font-size:30px;font-weight:800;color:var(--primary)}
+    .card{padding:16px;overflow:hidden}.card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
+    .form-grid{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:14px}.form-grid.wide{grid-template-columns:repeat(3,minmax(220px,1fr))}
+    .field{display:grid;gap:8px}.field label{font-size:14px;font-weight:700;color:#28465a}.field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:11px 12px;font:inherit;background:#fbfcfe}.field textarea{min-height:100px;resize:vertical}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.note{background:#f6fbff;border:1px dashed #bfd7e8;color:#33546b;border-radius:12px;padding:12px 14px;margin-top:14px;line-height:1.6;font-size:14px}
+    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:12px 10px;border-bottom:1px solid #edf2f7;text-align:right;white-space:nowrap;font-size:14px;vertical-align:top}th{background:#f8fbff;color:var(--primary);position:sticky;top:0}
+    .list{display:grid;gap:10px;max-height:520px;overflow:auto}.item{background:#fcfdff;border:1px solid var(--border);border-radius:14px;padding:12px}.item strong{display:block;color:var(--primary);margin-bottom:6px}.item small{display:block;color:var(--muted);line-height:1.55}
+    .status-pill{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700}.status-planned{background:#eef5ff;color:#255aa7}.status-completed{background:#e9f8ef;color:#1e7a46}.status-postponed{background:#fff6e8;color:#a55d00}.status-cancelled{background:#ffeceb;color:#b32a2a}
+    .login-overlay{position:fixed;inset:0;background:rgba(13,75,115,.22);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}.login-card{width:min(560px,96vw);background:rgba(255,255,255,.98);border:1px solid var(--border);border-radius:24px;box-shadow:0 20px 50px rgba(0,0,0,.15);overflow:hidden}.login-card .title{background:var(--primary);color:#fff;padding:16px 20px;font-size:18px;font-weight:800}.login-card .content{padding:18px}
+    @media (max-width:1100px){.stats,.grid-2,.form-grid,.form-grid.wide{grid-template-columns:1fr}.logo-box img{max-height:54px}}
+  </style>
+</head>
+<body>
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-card">
+      <div class="title">تسجيل الدخول / Sign In</div>
+      <div class="content">
+        <div class="note">الإصدار الحالي: <b>v1.3.3-region-city-permissions</b>. هذه النسخة تدعم صلاحيات الفني حسب <b>المنطقة + المدينة + الفروع</b>.</div>
+        <div class="form-grid wide" style="margin-top:14px;">
+          <div class="field"><label>البريد الإلكتروني / Email</label><input id="loginEmail" type="email" placeholder="name@company.com"></div>
+          <div class="field"><label>كلمة المرور / Password</label><input id="loginPassword" type="password" placeholder="كلمة المرور"></div>
+        </div>
+        <div class="actions"><button class="btn green" id="loginBtn">دخول / Login</button></div>
+        <div class="note" id="loginMessage">ادخل بالإيميل الموجود في Firebase Authentication.</div>
+      </div>
+    </div>
+  </div>
 
-    function signedIn() {
-      return request.auth != null;
+  <header class="header">
+    <div class="header-top">
+      <div class="brand-wrap">
+        <div class="logo-box"><img src="https://baghethan.com/LOGO-almajdouie.png" alt="Company Logo"></div>
+        <div>
+          <h1>إدارة زيارات الفروع والفنيين</h1>
+          <p>Firebase Authentication + app_users + Region / City / Branch Permissions</p>
+        </div>
+      </div>
+      <div class="user-box">
+        <span class="user-chip" id="versionChip">v1.3.3</span>
+        <span class="user-chip hidden" id="currentUserChip"></span>
+        <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container hidden" id="appRoot">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="dashboard">لوحة التحكم</button>
+      <button class="tab-btn" data-tab="visit">إدخال زيارة</button>
+      <button class="tab-btn" data-tab="branches">إدارة الفروع</button>
+      <button class="tab-btn" data-tab="technicians">إدارة الفنيين</button>
+      <button class="tab-btn" data-tab="permissions">صلاحيات الفنيين</button>
+    </div>
+
+    <section id="dashboard" class="tab-panel active">
+      <div class="stats">
+        <div class="stat"><span class="label">إجمالي الفروع</span><div class="value" id="statBranches">0</div></div>
+        <div class="stat"><span class="label">إجمالي الزيارات</span><div class="value" id="statVisits">0</div></div>
+        <div class="stat"><span class="label">إجمالي الفنيين</span><div class="value" id="statTechnicians">0</div></div>
+        <div class="stat"><span class="label">المناطق</span><div class="value" id="statRegions">0</div></div>
+      </div>
+      <div class="card">
+        <h3>آخر الزيارات</h3>
+        <div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>الفرع</th><th>العلامة</th><th>الفني</th><th>الحالة</th><th>إجراءات</th></tr></thead><tbody id="visitsTableBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="visit" class="tab-panel">
+      <div class="grid-2">
+        <div class="card">
+          <h3>تسجيل زيارة جديدة</h3>
+          <input id="editingVisitId" type="hidden">
+          <div class="form-grid wide">
+            <div class="field"><label>المنطقة</label><select id="visitRegion"></select></div>
+            <div class="field"><label>المدينة</label><select id="visitCity"></select></div>
+            <div class="field"><label>العلامة</label><select id="visitBrand"></select></div>
+            <div class="field"><label>الفرع</label><select id="visitBranch"></select></div>
+            <div class="field"><label>الفني</label><select id="visitTechnician"></select></div>
+            <div class="field"><label>تاريخ الزيارة</label><input id="visitDate" type="date"></div>
+            <div class="field"><label>حالة الخطة</label><select id="visitStatus"><option value="planned">Planned / مخطط</option><option value="completed">Completed / مكتمل</option><option value="postponed">Postponed / مؤجل</option><option value="cancelled">Cancelled / ملغي</option></select></div>
+            <div class="field" style="grid-column:1 / -1"><label>الملاحظات</label><textarea id="visitNotes"></textarea></div>
+          </div>
+          <div class="actions"><button class="btn green" id="saveVisitBtn">حفظ الزيارة</button><button class="btn secondary" id="clearVisitFormBtn">تنظيف نموذج الزيارة</button></div>
+          <div class="note" id="saveMessage">الفني سيشاهد فقط المنطقة والمدينة والفروع المصرح بها له. وعند اختيار المشرف لمنطقة/مدينة، سيظهر فقط الفنيون المسؤولون عنها.</div>
+        </div>
+        <div class="card"><h3>تفاصيل الفرع المختار</h3><div id="selectedBranchCard"><div class="note">لم يتم اختيار فرع بعد.</div></div></div>
+      </div>
+    </section>
+
+    <section id="branches" class="tab-panel">
+      <div class="grid-2">
+        <div class="card">
+          <h3>إدارة الفروع</h3>
+          <div class="form-grid wide">
+            <div class="field"><label>Hostname</label><input id="branchId" type="text"></div>
+            <div class="field"><label>اسم الفرع</label><input id="branchName" type="text"></div>
+            <div class="field"><label>العلامة</label><input id="branchBrand" type="text"></div>
+            <div class="field"><label>المنطقة</label><input id="branchRegion" type="text"></div>
+            <div class="field"><label>المدينة</label><input id="branchCity" type="text"></div>
+            <div class="field"><label>نوع الفرع</label><input id="branchType" type="text"></div>
+            <div class="field"><label>الإحداثيات</label><input id="branchCoordinates" type="text"></div>
+            <div class="field"><label>Contact Showroom</label><input id="branchContactShowroom" type="text"></div>
+            <div class="field"><label>Contact Service</label><input id="branchContactService" type="text"></div>
+            <div class="field"><label>Contact Spare Parts</label><input id="branchContactSpareParts" type="text"></div>
+          </div>
+          <div class="actions"><button class="btn green" id="saveBranchBtn">إضافة / تحديث الفرع</button><button class="btn secondary" id="clearBranchFormBtn">تنظيف الحقول</button></div>
+        </div>
+        <div class="card"><h3>الفروع الحالية</h3><div class="list" id="branchesList"></div></div>
+      </div>
+    </section>
+
+    <section id="technicians" class="tab-panel">
+      <div class="grid-2">
+        <div class="card">
+          <h3>إدارة الفنيين</h3>
+          <div class="form-grid wide">
+            <div class="field"><label>معرف الفني</label><input id="technicianId" type="text"></div>
+            <div class="field"><label>اسم الفني</label><input id="technicianNameInput" type="text"></div>
+            <div class="field"><label>البريد الإلكتروني</label><input id="technicianEmail" type="email" placeholder="name@company.com"></div>
+            <div class="field"><label>رقم الجوال</label><input id="technicianPhone" type="text"></div>
+            <div class="field"><label>المنطقة</label><input id="technicianRegion" type="text"></div>
+            <div class="field"><label>المدينة</label><input id="technicianCity" type="text"></div>
+            <div class="field"><label>الحالة</label><select id="technicianStatus"><option value="active">Active / نشط</option><option value="inactive">Inactive / غير نشط</option></select></div>
+          </div>
+          <div class="actions"><button class="btn green" id="saveTechnicianBtn">حفظ الفني</button><button class="btn secondary" id="clearTechnicianFormBtn">تنظيف الحقول</button></div>
+          <div class="note" id="technicianMessage">يمكن ربط الفني بـ authUid و allowedRegion و allowedCity و allowedBranchIds.</div>
+        </div>
+        <div class="card"><h3>الفنيون الحاليون</h3><div class="list" id="techniciansList"></div></div>
+      </div>
+    </section>
+
+    <section id="permissions" class="tab-panel">
+      <div class="grid-2">
+        <div class="card">
+          <h3>تحديد صلاحيات الفنيين</h3>
+          <div class="form-grid wide">
+            <div class="field"><label>اختر الفني</label><select id="permissionTechnician"></select></div>
+            <div class="field"><label>المنطقة المصرح بها</label><select id="permissionRegion"></select></div>
+            <div class="field"><label>المدينة المصرح بها</label><select id="permissionCity"></select></div>
+          </div>
+          <div class="note">اختر الفني، ثم المنطقة، ثم المدينة، ثم الفروع داخل المدينة.</div>
+          <div id="permissionBranchesList" class="list" style="margin-top:14px;"></div>
+          <div class="actions"><button class="btn green" id="savePermissionsBtn">حفظ الصلاحيات</button></div>
+          <div class="note" id="permissionsMessage">لم يتم اختيار فني بعد.</div>
+        </div>
+        <div class="card"><h3>ملخص الصلاحيات</h3><div id="permissionsSummary" class="list"></div></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      };
+    });
+  </script>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, query, orderBy, onSnapshot, Timestamp, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    // Version: v1.3.3-region-city-permissions
+    const firebaseConfig = {
+      apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
+      authDomain: "baghethan-ba325.firebaseapp.com",
+      projectId: "baghethan-ba325",
+      storageBucket: "baghethan-ba325.firebasestorage.app",
+      messagingSenderId: "944819735112",
+      appId: "1:944819735112:web:07315600da39377320667d",
+      measurementId: "G-45X2SXD2E4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const state = { branches: [], visits: [], technicians: [], currentUser: null, currentUserProfile: null };
+    const $ = id => document.getElementById(id);
+    const unique = arr => [...new Set(arr.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b)));
+    const showMessage = m => $('saveMessage').textContent = m;
+
+    function setOptions(id, items, placeholder='اختر / Select') {
+      const el = $(id), cur = el.value;
+      el.innerHTML = '<option value="">'+placeholder+'</option>' + items.map(x => '<option value="'+x+'">'+x+'</option>').join('');
+      if (items.includes(cur)) el.value = cur;
     }
 
-    function isAdmin() {
-      return signedIn() &&
-        request.auth.token.email in [
-          "baghethanhh@almajdouie.com"
-        ];
+    function renderStats() {
+      $('statBranches').textContent = state.branches.length;
+      $('statVisits').textContent = state.visits.length;
+      $('statTechnicians').textContent = state.technicians.length;
+      $('statRegions').textContent = unique(state.branches.map(b => b.region)).length;
     }
 
-    function techDocById(techId) {
-      return get(/databases/$(database)/documents/technicians/$(techId));
+    function renderBranchesList() {
+      $('branchesList').innerHTML = state.branches.map(b => `<div class="item"><strong>${b.branchName || '-'}</strong><small>Brand: ${b.brand || '-'}</small><small>Region: ${b.region || '-'} | City: ${b.city || '-'}</small><small>ID: ${b.id || '-'}</small></div>`).join('');
     }
 
-    function techExists(techId) {
-      return exists(/databases/$(database)/documents/technicians/$(techId));
+    function renderTechniciansList() {
+      $('techniciansList').innerHTML = state.technicians.map(t => `
+        <div class="item">
+          <strong>${t.name || '-'}</strong>
+          <small>ID: ${t.id || '-'}</small>
+          <small>Email: ${t.email || '-'}</small>
+          <small>Phone: ${t.phone || '-'}</small>
+          <small>Region: ${t.region || '-'} | City: ${t.city || '-'}</small>
+          <small>Allowed Region: ${t.allowedRegion || 'كل المناطق'}</small>
+          <small>Allowed City: ${t.allowedCity || 'كل المدن'}</small>
+          <small>Allowed Branches: ${Array.isArray(t.allowedBranchIds) ? t.allowedBranchIds.length : 0}</small>
+          <small>Status: ${t.status || '-'}</small>
+        </div>
+      `).join('');
     }
 
-    function techBelongsToRequester(techId) {
-      return techExists(techId) &&
-        techDocById(techId).data.authUid == request.auth.uid;
+    function renderVisitTable(rows = state.visits) {
+      const statusMap = { planned:'مخطط', completed:'مكتمل', postponed:'مؤجل', cancelled:'ملغي' };
+      const statusClass = { planned:'status-planned', completed:'status-completed', postponed:'status-postponed', cancelled:'status-cancelled' };
+      $('visitsTableBody').innerHTML = rows.slice(0,50).map(v => `<tr><td>${v.date || '-'}</td><td>${v.branchName || '-'}</td><td>${v.brand || '-'}</td><td>${v.technicianName || '-'}</td><td><span class="status-pill ${statusClass[v.status || 'planned']}">${statusMap[v.status || 'planned']}</span></td><td>${state.currentUserProfile?.role === 'admin' ? `<button class="btn secondary" style="padding:6px 12px" onclick="window.editVisitFromUI('${v.id}')">تعديل</button> <button class="btn danger" style="padding:6px 12px" onclick="window.deleteVisitFromUI('${v.id}')">حذف</button>` : ''}</td></tr>`).join('');
     }
 
-    function regionAllowedForTech(techId, regionValue) {
-      return !('allowedRegion' in techDocById(techId).data) ||
-             techDocById(techId).data.allowedRegion == "" ||
-             techDocById(techId).data.allowedRegion == regionValue;
+    function findCurrentTechnicianDoc() {
+      return state.technicians.find(t =>
+        (state.currentUserProfile?.technicianId && t.id === state.currentUserProfile.technicianId) ||
+        (state.currentUserProfile?.name && t.name === state.currentUserProfile.name) ||
+        (state.currentUserProfile?.email && t.email === state.currentUserProfile.email)
+      );
     }
 
-    function cityAllowedForTech(techId, cityValue) {
-      return !('allowedCity' in techDocById(techId).data) ||
-             techDocById(techId).data.allowedCity == "" ||
-             techDocById(techId).data.allowedCity == cityValue;
+    function getFilteredBranches() {
+      const r = $('visitRegion').value, c = $('visitCity').value, b = $('visitBrand').value;
+      let branches = state.branches.filter(x => (!r || x.region === r) && (!c || x.city === c) && (!b || x.brand === b));
+      if (state.currentUserProfile?.role === 'technician') {
+        const technician = findCurrentTechnicianDoc();
+        const allowedRegion = technician?.allowedRegion || '';
+        const allowedCity = technician?.allowedCity || '';
+        const allowedBranchIds = technician?.allowedBranchIds || [];
+        if (allowedRegion) branches = branches.filter(branch => branch.region === allowedRegion);
+        if (allowedCity) branches = branches.filter(branch => branch.city === allowedCity);
+        if (allowedBranchIds.length > 0) branches = branches.filter(branch => allowedBranchIds.includes(branch.id));
+      }
+      return branches;
     }
 
-    function branchAllowedForTech(techId, branchIdValue) {
-      return !('allowedBranchIds' in techDocById(techId).data) ||
-             techDocById(techId).data.allowedBranchIds.size() == 0 ||
-             branchIdValue in techDocById(techId).data.allowedBranchIds;
+    function populateVisitSelectors() {
+      let regionSource = state.branches.map(b => b.region);
+      if (state.currentUserProfile?.role === 'technician') {
+        const technician = findCurrentTechnicianDoc();
+        const allowedRegion = technician?.allowedRegion || '';
+        const allowedCity = technician?.allowedCity || '';
+        const allowedBranchIds = technician?.allowedBranchIds || [];
+        if (allowedRegion) {
+          regionSource = [allowedRegion];
+        } else if (allowedCity) {
+          regionSource = state.branches.filter(b => b.city === allowedCity).map(b => b.region);
+        } else if (allowedBranchIds.length > 0) {
+          regionSource = state.branches.filter(b => allowedBranchIds.includes(b.id)).map(b => b.region);
+        }
+      }
+      setOptions('visitRegion', unique(regionSource));
+      if (state.currentUserProfile?.role === 'technician') {
+        const options = $('visitRegion').options;
+        if (options.length === 2 && options[1].value) $('visitRegion').value = options[1].value;
+      }
+      syncVisitCityBrand();
     }
 
-    function canCreateOwnVisit() {
-      return signedIn() &&
-        request.resource.data.technicianUid == request.auth.uid &&
-        techBelongsToRequester(request.resource.data.technicianId) &&
-        regionAllowedForTech(
-          request.resource.data.technicianId,
-          request.resource.data.region
-        ) &&
-        cityAllowedForTech(
-          request.resource.data.technicianId,
-          request.resource.data.city
-        ) &&
-        branchAllowedForTech(
-          request.resource.data.technicianId,
-          request.resource.data.branchId
+    function syncVisitCityBrand() {
+      const r = $('visitRegion').value;
+      let citySource = state.branches.filter(x => !r || x.region === r).map(x => x.city);
+
+      if (state.currentUserProfile?.role === 'technician') {
+        const technician = findCurrentTechnicianDoc();
+        const allowedCity = technician?.allowedCity || '';
+        const allowedBranchIds = technician?.allowedBranchIds || [];
+        if (allowedCity) {
+          citySource = [allowedCity];
+        } else if (allowedBranchIds.length > 0) {
+          citySource = state.branches.filter(x => (!r || x.region === r) && allowedBranchIds.includes(x.id)).map(x => x.city);
+        }
+      }
+
+      setOptions('visitCity', unique(citySource));
+
+      if (state.currentUserProfile?.role === 'technician') {
+        const options = $('visitCity').options;
+        if (options.length === 2 && options[1].value) $('visitCity').value = options[1].value;
+      }
+
+      const c = $('visitCity').value;
+      setOptions('visitBrand', unique(state.branches.filter(x => (!r || x.region === r) && (!c || x.city === c)).map(x => x.brand)));
+      $('visitBranch').innerHTML = '<option value="">اختر / Select</option>' + getFilteredBranches().map(b => `<option value="${b.id}">${b.branchName}</option>`).join('');
+      populateTechnicianSelector();
+      renderSelectedBranch();
+    }
+
+    function populateTechnicianSelector() {
+      const el = $('visitTechnician');
+      const cur = el.value;
+      const selectedRegion = $('visitRegion')?.value || '';
+      const selectedCity = $('visitCity')?.value || '';
+
+      let source = state.technicians.filter(t => (t.status || '').toLowerCase() !== 'inactive');
+
+      if (state.currentUserProfile?.role === 'technician') {
+        source = source.filter(t =>
+          (state.currentUserProfile.technicianId && t.id === state.currentUserProfile.technicianId) ||
+          (state.currentUserProfile.name && t.name === state.currentUserProfile.name) ||
+          (state.currentUserProfile.email && t.email === state.currentUserProfile.email)
         );
+      } else {
+        if (selectedRegion) {
+          source = source.filter(t =>
+            (t.allowedRegion ? t.allowedRegion === selectedRegion : t.region === selectedRegion)
+          );
+          if (selectedCity) {
+            source = source.filter(t =>
+              (t.allowedCity ? t.allowedCity === selectedCity : t.city === selectedCity)
+            );
+          }
+        } else {
+          source = [];
+        }
+      }
+
+      el.innerHTML = '<option value="">اختر الفني / Select Technician</option>' +
+        source.sort((a,b) => (a.name || '').localeCompare(b.name || '')).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+      if (source.some(t => t.id === cur)) el.value = cur;
+      if (state.currentUserProfile?.role === 'technician' && source.length === 1) el.value = source[0].id;
     }
 
-    function canUpdateOwnVisit() {
-      return signedIn() &&
-        resource.data.technicianUid == request.auth.uid &&
-        request.resource.data.technicianUid == request.auth.uid &&
-        techBelongsToRequester(request.resource.data.technicianId) &&
-        regionAllowedForTech(
-          request.resource.data.technicianId,
-          request.resource.data.region
-        ) &&
-        cityAllowedForTech(
-          request.resource.data.technicianId,
-          request.resource.data.city
-        ) &&
-        branchAllowedForTech(
-          request.resource.data.technicianId,
-          request.resource.data.branchId
-        );
+    function renderSelectedBranch() {
+      const b = state.branches.find(x => x.id === $('visitBranch').value);
+      $('selectedBranchCard').innerHTML = !b ? '<div class="note">لم يتم اختيار فرع بعد.</div>' : `<div class="item"><strong>${b.branchName}</strong><small>ID: ${b.id}</small><small>Brand: ${b.brand || '-'} | Type: ${b.branchType || '-'}</small><small>Region: ${b.region || '-'} | City: ${b.city || '-'}</small><small>Coordinates: ${b.coordinates || '-'}</small></div>`;
     }
 
-    function canDeleteOwnVisit() {
-      return signedIn() &&
-        resource.data.technicianUid == request.auth.uid &&
-        techBelongsToRequester(resource.data.technicianId) &&
-        regionAllowedForTech(
-          resource.data.technicianId,
-          resource.data.region
-        ) &&
-        cityAllowedForTech(
-          resource.data.technicianId,
-          resource.data.city
-        ) &&
-        branchAllowedForTech(
-          resource.data.technicianId,
-          resource.data.branchId
-        );
+    function applyRoleVisibility() {
+      const isAdmin = state.currentUserProfile?.role === 'admin';
+      document.querySelector('[data-tab="dashboard"]').classList.toggle('hidden', !isAdmin);
+      document.querySelector('[data-tab="branches"]').classList.toggle('hidden', !isAdmin);
+      document.querySelector('[data-tab="technicians"]').classList.toggle('hidden', !isAdmin);
+      document.querySelector('[data-tab="permissions"]').classList.toggle('hidden', !isAdmin);
+      document.querySelector('[data-tab="visit"]').classList.remove('hidden');
+      if (!isAdmin) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.querySelector('[data-tab="visit"]').classList.add('active');
+        $('visit').classList.add('active');
+      }
     }
 
-    match /app_users/{docId} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+    async function resolveCurrentUserProfile(user) {
+      let q = query(collection(db, 'app_users'), where('email', '==', user.email), limit(1));
+      let snap = await getDocs(q);
+      if (!snap.empty) return { id: snap.docs[0].id, ...snap.docs[0].data() };
+      q = query(collection(db, 'app_users'), where('authUid', '==', user.uid), limit(1));
+      snap = await getDocs(q);
+      if (!snap.empty) return { id: snap.docs[0].id, ...snap.docs[0].data() };
+      return null;
     }
 
-    match /branches/{branchId} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+    async function loginWithEmail() {
+      const email = $('loginEmail').value.trim(); const password = $('loginPassword').value;
+      if (!email || !password) { $('loginMessage').textContent = 'أدخل البريد الإلكتروني وكلمة المرور.'; return; }
+      try { $('loginMessage').textContent = 'جاري تسجيل الدخول...'; await signInWithEmailAndPassword(auth, email, password); }
+      catch (err) { console.error('Login error:', err); $('loginMessage').textContent = (err.code || 'خطأ') + ' | ' + (err.message || ''); }
     }
 
-    match /technicians/{technicianId} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+    let stopBranchesListener = null, stopTechniciansListener = null, stopVisitsListener = null;
+    function clearRealtimeListeners() { if (stopBranchesListener) stopBranchesListener(); if (stopTechniciansListener) stopTechniciansListener(); if (stopVisitsListener) stopVisitsListener(); stopBranchesListener = stopTechniciansListener = stopVisitsListener = null; }
+
+    async function postLoginSetup(user) {
+      state.currentUser = user;
+      const profile = await resolveCurrentUserProfile(user);
+      if (!profile) { $('loginMessage').textContent = 'تم تسجيل الدخول لكن لم يتم العثور على المستخدم في app_users.'; await signOut(auth); return; }
+      state.currentUserProfile = profile;
+      if (!profile.authUid) {
+        await setDoc(doc(db, 'app_users', profile.id), { authUid: user.uid, email: user.email || profile.email || '' }, { merge: true });
+        profile.authUid = user.uid;
+      }
+      $('currentUserChip').classList.remove('hidden');
+      $('currentUserChip').textContent = (profile.name || user.email) + ' | ' + (profile.role || 'technician');
+      $('logoutBtn').classList.remove('hidden');
+      $('loginOverlay').classList.add('hidden');
+      $('appRoot').classList.remove('hidden');
+      applyRoleVisibility();
+      listenBranches(); listenTechnicians(); listenVisits();
     }
 
-    match /siteVisits/{visitId} {
-      // المشرف يرى كل شيء
-      // الفني يرى فقط زياراته
-      allow read: if isAdmin() ||
-                  (signedIn() && resource.data.technicianUid == request.auth.uid);
-
-      // الإنشاء:
-      // - المشرف مسموح
-      // - الفني فقط إذا كانت الزيارة تخصه، والفني نفسه مطابق authUid،
-      //   والمنطقة + المدينة + الفرع ضمن صلاحياته
-      allow create: if isAdmin() || canCreateOwnVisit();
-
-      // التعديل:
-      // - المشرف مسموح
-      // - الفني فقط على زياراته وضمن صلاحياته
-      allow update: if isAdmin() || canUpdateOwnVisit();
-
-      // الحذف:
-      // - المشرف مسموح
-      // - الفني فقط على زياراته وضمن صلاحياته
-      allow delete: if isAdmin() || canDeleteOwnVisit();
+    async function saveVisit() {
+      const branch = state.branches.find(x => x.id === $('visitBranch').value);
+      const techSelected = state.technicians.find(x => x.id === $('visitTechnician').value);
+      const visitId = $('editingVisitId').value.trim();
+      if (!branch) return showMessage('اختر فرعًا صحيحًا.');
+      let technicianRef = techSelected;
+      if (state.currentUserProfile?.role === 'technician') {
+        technicianRef = findCurrentTechnicianDoc() || techSelected;
+      }
+      if (!technicianRef) return showMessage('لا يوجد ربط صحيح مع الفني الحالي.');
+      const visit = { branchId: branch.id, branchName: branch.branchName, brand: branch.brand, region: branch.region, city: branch.city, technicianId: technicianRef.id, technicianName: technicianRef.name, technicianEmail: technicianRef.email || state.currentUserProfile?.email || '', technicianUid: technicianRef.authUid || auth.currentUser.uid, date: $('visitDate').value, status: $('visitStatus').value || 'planned', notes: $('visitNotes').value.trim(), updatedAt: Timestamp.now() };
+      if (!visit.date) return showMessage('أدخل تاريخ الزيارة.');
+      if (visitId) { await setDoc(doc(db, 'siteVisits', visitId), visit, { merge: true }); showMessage('تم تحديث الزيارة بنجاح.'); }
+      else { await addDoc(collection(db, 'siteVisits'), { ...visit, createdAt: Timestamp.now() }); showMessage('تم حفظ الزيارة بنجاح.'); }
+      clearVisitForm();
     }
 
-    match /{document=**} {
-      allow read, write: if false;
+    function clearVisitForm() {
+      $('editingVisitId').value=''; $('visitDate').value=''; $('visitNotes').value=''; $('visitStatus').value='planned';
+      if ($('visitRegion').options.length) $('visitRegion').selectedIndex = 0; syncVisitCityBrand();
+      if ($('visitTechnician').options.length && state.currentUserProfile?.role !== 'technician') $('visitTechnician').selectedIndex = 0;
+      if (state.currentUserProfile?.role === 'technician') populateTechnicianSelector();
+      showMessage('تم تنظيف نموذج الزيارة.');
     }
-  }
-}
+
+    function fillVisitFormForEdit(id) {
+      const v = state.visits.find(x => x.id === id); if (!v) return;
+      $('editingVisitId').value = v.id; $('visitRegion').value = v.region || ''; syncVisitCityBrand(); $('visitCity').value = v.city || ''; syncVisitCityBrand(); $('visitBrand').value = v.brand || ''; syncVisitCityBrand(); $('visitBranch').value = v.branchId || ''; renderSelectedBranch(); $('visitTechnician').value = v.technicianId || ''; $('visitDate').value = v.date || ''; $('visitStatus').value = v.status || 'planned'; $('visitNotes').value = v.notes || ''; document.querySelector('[data-tab="visit"]').click();
+    }
+    async function deleteVisit(id) { if (!id) return; const ok = confirm('هل تريد حذف هذه الزيارة؟'); if (!ok) return; await deleteDoc(doc(db, 'siteVisits', id)); if ($('editingVisitId').value === id) clearVisitForm(); showMessage('تم حذف الزيارة.'); }
+    window.editVisitFromUI = fillVisitFormForEdit; window.deleteVisitFromUI = deleteVisit;
+
+    async function saveBranch() {
+      const b = { id:$('branchId').value.trim(), branchName:$('branchName').value.trim(), brand:$('branchBrand').value.trim(), region:$('branchRegion').value.trim(), city:$('branchCity').value.trim(), branchType:$('branchType').value.trim(), coordinates:$('branchCoordinates').value.trim(), contactShowroom:$('branchContactShowroom').value.trim(), contactService:$('branchContactService').value.trim(), contactSpareParts:$('branchContactSpareParts').value.trim(), updatedAt:Timestamp.now() };
+      if (!b.id || !b.branchName || !b.region || !b.city) return showMessage('أدخل كود الفرع واسم الفرع والمنطقة والمدينة.');
+      await setDoc(doc(db, 'branches', b.id), { ...b, createdAt: Timestamp.now() }, { merge: true });
+      showMessage('تم حفظ الفرع بنجاح.'); ['branchId','branchName','branchBrand','branchRegion','branchCity','branchType','branchCoordinates','branchContactShowroom','branchContactService','branchContactSpareParts'].forEach(id => $(id).value='');
+    }
+
+    async function saveTechnician() {
+      const t = { id:$('technicianId').value.trim(), name:$('technicianNameInput').value.trim(), email:$('technicianEmail').value.trim(), phone:$('technicianPhone').value.trim(), region:$('technicianRegion').value.trim(), city:$('technicianCity').value.trim(), status:$('technicianStatus').value, updatedAt:Timestamp.now() };
+      if (!t.id || !t.name) return $('technicianMessage').textContent = 'أدخل معرف الفني واسم الفني.';
+      await setDoc(doc(db, 'technicians', t.id), { ...t, createdAt: Timestamp.now() }, { merge: true });
+      $('technicianMessage').textContent = 'تم حفظ الفني بنجاح.'; ['technicianId','technicianNameInput','technicianEmail','technicianPhone','technicianRegion','technicianCity'].forEach(id => $(id).value=''); $('technicianStatus').value='active';
+    }
+
+    function populatePermissionRegionSelector() {
+      const el = $('permissionRegion'); if (!el) return; const current = el.value; const regions = unique(state.branches.map(b => b.region));
+      el.innerHTML = '<option value="">كل المناطق</option>' + regions.map(r => `<option value="${r}">${r}</option>`).join('');
+      if (current && regions.includes(current)) el.value = current;
+    }
+
+    function populatePermissionCitySelector() {
+      const el = $('permissionCity'); if (!el) return;
+      const current = el.value; const selectedRegion = $('permissionRegion')?.value || '';
+      const cities = unique(state.branches.filter(b => !selectedRegion || b.region === selectedRegion).map(b => b.city));
+      el.innerHTML = '<option value="">كل المدن</option>' + cities.map(c => `<option value="${c}">${c}</option>`).join('');
+      if (current && cities.includes(current)) el.value = current;
+    }
+
+    function populatePermissionTechnicianSelector() {
+      const el = $('permissionTechnician'); if (!el) return; const current = el.value;
+      const source = state.technicians.filter(t => (t.status || '').toLowerCase() !== 'inactive').sort((a,b) => (a.name || '').localeCompare(b.name || ''));
+      el.innerHTML = '<option value="">اختر الفني</option>' + source.map(t => `<option value="${t.id}">${t.name}</option>`).join(''); if (source.some(t => t.id === current)) el.value = current;
+    }
+
+    function renderPermissionBranches() {
+      const technicianId = $('permissionTechnician')?.value; const regionFilterEl = $('permissionRegion'); const cityFilterEl = $('permissionCity'); const container = $('permissionBranchesList'); const msg = $('permissionsMessage');
+      if (!container || !msg) return; if (!technicianId) { container.innerHTML=''; msg.textContent='اختر الفني أولاً.'; return; }
+      const technician = state.technicians.find(t => t.id === technicianId); if (!technician) { container.innerHTML=''; msg.textContent='الفني غير موجود.'; return; }
+      if (regionFilterEl && technician.allowedRegion && regionFilterEl.value !== technician.allowedRegion) regionFilterEl.value = technician.allowedRegion;
+      populatePermissionCitySelector();
+      if (cityFilterEl && technician.allowedCity && cityFilterEl.value !== technician.allowedCity) cityFilterEl.value = technician.allowedCity;
+      const regionFilter = regionFilterEl?.value || ''; const cityFilter = cityFilterEl?.value || ''; const allowed = technician.allowedBranchIds || [];
+      const sortedBranches = [...state.branches].filter(branch => (!regionFilter || branch.region === regionFilter) && (!cityFilter || branch.city === cityFilter)).sort((a,b) => (a.branchName || '').localeCompare(b.branchName || ''));
+      container.innerHTML = sortedBranches.map(branch => `<label class="item" style="display:flex;align-items:center;gap:10px;"><input type="checkbox" class="permission-branch-checkbox" value="${branch.id}" ${allowed.includes(branch.id) ? 'checked' : ''}><div><strong>${branch.branchName || '-'}</strong><small>${branch.brand || '-'} | ${branch.region || '-'} | ${branch.city || '-'}</small></div></label>`).join('');
+      msg.textContent = `يمكنك الآن تحديد المنطقة والمدينة والفروع المسموح بها للفني: ${technician.name || technician.id}`;
+    }
+
+    async function saveTechnicianPermissions() {
+      const technicianId = $('permissionTechnician')?.value; const msg = $('permissionsMessage');
+      if (!technicianId) { if (msg) msg.textContent='اختر الفني أولاً.'; return; }
+      const technician = state.technicians.find(t => t.id === technicianId); if (!technician) { if (msg) msg.textContent='الفني غير موجود.'; return; }
+      const selectedRegion = $('permissionRegion')?.value || '';
+      const selectedCity = $('permissionCity')?.value || '';
+      const selectedBranchIds = [...document.querySelectorAll('.permission-branch-checkbox:checked')].map(cb => cb.value);
+      await setDoc(doc(db, 'technicians', technicianId), { allowedRegion:selectedRegion, allowedCity:selectedCity, allowedBranchIds:selectedBranchIds, updatedAt:Timestamp.now() }, { merge: true });
+      if (msg) msg.textContent = `تم حفظ صلاحيات الفني ${technician.name || technicianId} بنجاح.`; renderPermissionsSummary();
+    }
+
+    function renderPermissionsSummary() {
+      const container = $('permissionsSummary'); if (!container) return; const branchMap = {}; state.branches.forEach(b => { branchMap[b.id] = b.branchName || b.id; });
+      const techniciansWithPermissions = state.technicians.filter(t => (t.allowedRegion && t.allowedRegion.trim()) || (t.allowedCity && t.allowedCity.trim()) || (Array.isArray(t.allowedBranchIds) && t.allowedBranchIds.length > 0)).sort((a,b) => (a.name || '').localeCompare(b.name || ''));
+      if (!techniciansWithPermissions.length) { container.innerHTML = '<div class="note">لا توجد صلاحيات محفوظة بعد.</div>'; return; }
+      container.innerHTML = techniciansWithPermissions.map(t => `<div class="item"><strong>${t.name || '-'}</strong><small>المنطقة المصرح بها: ${t.allowedRegion || 'كل المناطق'}</small><small>المدينة المصرح بها: ${t.allowedCity || 'كل المدن'}</small><small>عدد الفروع المصرح بها: ${(t.allowedBranchIds || []).length}</small><small>${(t.allowedBranchIds || []).map(id => branchMap[id] || id).join('، ')}</small></div>`).join('');
+    }
+
+    function listenBranches() {
+      if (stopBranchesListener) stopBranchesListener();
+      stopBranchesListener = onSnapshot(query(collection(db, 'branches'), orderBy('branchName')), snap => { state.branches = snap.docs.map(d => ({ id:d.id, ...d.data() })); renderStats(); renderBranchesList(); populateVisitSelectors(); populatePermissionRegionSelector(); populatePermissionCitySelector(); renderPermissionBranches(); renderPermissionsSummary(); }, err => console.error(err));
+    }
+
+    function listenTechnicians() {
+      if (stopTechniciansListener) stopTechniciansListener();
+      stopTechniciansListener = onSnapshot(query(collection(db, 'technicians'), orderBy('name')), snap => { state.technicians = snap.docs.map(d => ({ id:d.id, ...d.data() })); renderStats(); renderTechniciansList(); populateTechnicianSelector(); populatePermissionTechnicianSelector(); populatePermissionRegionSelector(); populatePermissionCitySelector(); renderPermissionsSummary(); renderPermissionBranches(); }, err => console.error(err));
+    }
+
+    function listenVisits() {
+      if (stopVisitsListener) stopVisitsListener(); const isAdmin = state.currentUserProfile?.role === 'admin';
+      const q = isAdmin ? query(collection(db, 'siteVisits')) : query(collection(db, 'siteVisits'), where('technicianUid', '==', auth.currentUser.uid));
+      stopVisitsListener = onSnapshot(q, snap => { state.visits = snap.docs.map(d => ({ id:d.id, ...d.data() })).sort((a,b) => ((b.createdAt && b.createdAt.seconds) || 0) - ((a.createdAt && a.createdAt.seconds) || 0)); renderStats(); renderVisitTable(); }, err => console.error(err));
+    }
+
+    $('visitRegion').addEventListener('change', syncVisitCityBrand);
+    $('visitCity').addEventListener('change', syncVisitCityBrand);
+    $('visitBrand').addEventListener('change', syncVisitCityBrand);
+    $('visitBranch').addEventListener('change', renderSelectedBranch);
+    $('saveVisitBtn').addEventListener('click', saveVisit);
+    $('clearVisitFormBtn').addEventListener('click', clearVisitForm);
+    $('saveBranchBtn').addEventListener('click', saveBranch);
+    $('clearBranchFormBtn').addEventListener('click', () => ['branchId','branchName','branchBrand','branchRegion','branchCity','branchType','branchCoordinates','branchContactShowroom','branchContactService','branchContactSpareParts'].forEach(id => $(id).value=''));
+    $('saveTechnicianBtn').addEventListener('click', saveTechnician);
+    $('clearTechnicianFormBtn').addEventListener('click', () => ['technicianId','technicianNameInput','technicianEmail','technicianPhone','technicianRegion','technicianCity'].forEach(id => $(id).value=''));
+    $('permissionTechnician')?.addEventListener('change', renderPermissionBranches);
+    $('permissionRegion')?.addEventListener('change', () => { populatePermissionCitySelector(); renderPermissionBranches(); });
+    $('permissionCity')?.addEventListener('change', renderPermissionBranches);
+    $('savePermissionsBtn')?.addEventListener('click', saveTechnicianPermissions);
+    document.getElementById('loginBtn').addEventListener('click', loginWithEmail);
+    document.getElementById('logoutBtn').addEventListener('click', async () => { clearRealtimeListeners(); await signOut(auth); });
+
+    onAuthStateChanged(auth, async user => {
+      if (user) await postLoginSetup(user);
+      else { clearRealtimeListeners(); state.currentUser=null; state.currentUserProfile=null; state.branches=[]; state.visits=[]; state.technicians=[]; $('currentUserChip').classList.add('hidden'); $('logoutBtn').classList.add('hidden'); $('loginOverlay').classList.remove('hidden'); $('appRoot').classList.add('hidden'); $('loginMessage').textContent='أدخل البريد الإلكتروني وكلمة المرور.'; renderStats(); renderBranchesList(); renderTechniciansList(); renderVisitTable(); }
+    });
+
+    renderStats(); renderBranchesList(); renderTechniciansList(); renderVisitTable();
+  </script>
+</body>
+</html>
