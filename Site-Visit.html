@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.5.3</title>
+  <title>Site-Visit-v1.5.4</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.5.3</span>
+        <span class="chip">v1.5.4</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -317,7 +317,13 @@
       <div class="grid-2">
         <div class="card">
           <h3 data-i18n="technicianFormTitle">إدارة الفنيين</h3>
-          <div class="grid-4">
+          <div class="note">اختر الفني الموجود من القائمة لتحميل بياناته، ثم حدّد له <span class="rtl-en">Region / City</span> المناسبة ليتم حصر الفروع عليه وقت إدخال الزيارة.</div>
+          <div class="grid-3" style="margin-top:12px">
+            <div class="field"><label>اختيار فني موجود</label><select id="technicianSelector"></select></div>
+            <div class="field"><label> </label><button class="btn" id="loadTechnicianBtn" type="button">تحميل بيانات الفني</button></div>
+            <div class="field"><label> </label><span class="badge">تعديل فني موجود أو إضافة فني جديد</span></div>
+          </div>
+          <div class="grid-4" style="margin-top:12px">
             <div class="field"><label data-i18n="technicianDocId">Document ID / UID</label><input id="technicianDocId"></div>
             <div class="field"><label data-i18n="technicianCode">معرف الفني (Code)</label><input id="technicianCode"></div>
             <div class="field"><label data-i18n="technicianNameField">اسم الفني</label><input id="technicianNameInput"></div>
@@ -331,7 +337,7 @@
             <button class="btn green" id="saveTechnicianBtn" data-i18n="saveTechnician">حفظ الفني</button>
             <button class="btn" id="clearTechnicianBtn" data-i18n="clearForm">تنظيف النموذج</button>
           </div>
-          <div class="note" id="technicianMessage">حدد لكل فني المنطقة والمدينة. عند إدخال الزيارة ستظهر له فقط الفروع المطابقة للمنطقة/المدينة المحددة له.</div>
+          <div class="note" id="technicianMessage">اختر الفني أولاً من القائمة أو من بطاقة الفنيين الحالية، ثم حدّد المنطقة والمدينة واحفظ التعديل.</div>
           <div id="technicianError" class="alert error hidden"></div>
         </div>
         <div class="card"><h3 data-i18n="techniciansCurrent">الفنيون الحاليون</h3><div class="list" id="techniciansList"></div></div>
@@ -466,7 +472,7 @@
       ].some(v => String(v || '').toLowerCase().includes(q)));
       $('branchesList').innerHTML = rows.length ? rows.map(b=>`<div class="item"><strong>${esc(b.branchName || b.id)}</strong><small>Branch_ID: ${esc(b.id)} | Brand: ${esc(b.brand || '-')} | Type: ${esc(b.branchType || '-')}</small><small>Region: ${esc(b.region || '-')} | City: ${esc(b.city || '-')} | Location: ${esc(b.location || '-')}</small><small>GPS: ${esc(b.gps || '-')} | Showroom: ${esc(b.contactShowroom || '-')}</small><small>Service: ${esc(b.contactService || '-')} | Spare Parts: ${esc(b.contactSpareParts || '-')} | Function: ${esc(b.functionName || b.function || '-')}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا توجد فروع.':'No branches found.'}</div>`;
     }
-    function renderTechniciansList(){ $('techniciansList').innerHTML = state.technicians.length ? state.technicians.map(t=>`<div class="item"><strong>${esc(t.name || t.id)}</strong><small>Doc ID: ${esc(t.id)} | Code: ${esc(t.technicianCode || t.id)}</small><small>Email: ${esc(t.email || '-')} | authUid: ${esc(t.authUid || '-')}</small><small>Region: ${esc(t.region || '-')} | City: ${esc(t.city || '-')}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا يوجد فنيون.':'No technicians found.'}</div>`; }
+    function renderTechniciansList(){ $('techniciansList').innerHTML = state.technicians.length ? state.technicians.map(t=>`<div class="item"><strong>${esc(t.name || t.id)}</strong><small>Doc ID: ${esc(t.id)} | Code: ${esc(t.technicianCode || t.id)}</small><small>Email: ${esc(t.email || '-')} | authUid: ${esc(t.authUid || '-')}</small><small>Region: ${esc(t.region || '-')} | City: ${esc(t.city || '-')}</small><div class="mini-actions"><button class="btn small" onclick="window.openTechnicianForEdit('${t.id}')">${state.currentLang==='ar'?'تحديد المنطقة/المدينة':'Edit Region/City'}</button></div></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا يوجد فنيون.':'No technicians found.'}</div>`; }
     function renderLatestBrands(){ $('latestBrandsList').innerHTML = state.brands.length ? state.brands.slice(0,8).map(b=>`<div class="item"><strong>${esc(b.nameAr || b.brand || b.nameEn || b.key || '-')} <span class="rtl-en">/ ${esc(b.nameEn || b.brand || b.key || '-')}</span></strong><small>Key: ${esc(b.key || b.brandKey || '-')}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا توجد براندات.':'No brands.'}</div>`; }
     function renderBrandsDatalist(){ $('brandsDatalist').innerHTML = state.brands.map(b => `<option value="${esc(b.brand || b.nameEn || b.nameAr || b.key || '')}"></option>`).join(''); }
 
@@ -489,12 +495,13 @@
     }
 
     function renderTechnicianSelectors(){
-      const techOptions = state.technicians
+      const activeTechs = state.technicians
         .filter(t => (t.status||'active') !== 'inactive')
-        .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')))
-        .map(t => `<option value="${esc(t.id)}">${esc(t.name || t.id)}${t.region || t.city ? ` - ${esc(t.region || '-')}/${esc(t.city || '-')}` : ''}</option>`);
+        .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+      const techOptions = activeTechs.map(t => `<option value="${esc(t.id)}">${esc(t.name || t.id)}${t.region || t.city ? ` - ${esc(t.region || '-')}/${esc(t.city || '-')}` : ''}</option>`);
       setOptions('cl_technician', techOptions, state.currentLang==='ar'?'اختر الفني':'Select technician');
       setOptions('visitTechnician', techOptions, state.currentLang==='ar'?'اختر الفني':'Select technician');
+      setOptions('technicianSelector', techOptions, state.currentLang==='ar'?'اختر فني للتعديل':'Select technician to edit');
     }
 
     function normalizeMatchValue(v){ return String(v || '').trim().toLowerCase(); }
@@ -573,7 +580,7 @@
     function clearBrandForm(){ $('editingBrandId').value=''; ['brandNameAr','brandNameEn','brandKey','brandLogoUrl','brandNotes'].forEach(id=>$(id).value=''); $('brandLogoFile').value=''; setPreview(''); $('deleteBrandBtn').classList.add('hidden'); setMessage('brandMessage', state.currentLang==='ar'?'يمكنك إضافة براند جديد مع صورته أو تعديل براند موجود.':'You can add or edit a brand.'); setAlert('brandsError'); }
     function clearVisitForm(){ $('editingVisitId').value=''; ['visitDate','visitBrand','visitBranchId','visitLocation','visitNotes'].forEach(id=>$(id).value=''); ['visitBranch','visitTechnician','visitStatus'].forEach((id,i)=>$(id).value = i===2 ? 'planned' : ''); renderBranchSelectors(); $('deleteVisitBtn').classList.add('hidden'); setMessage('visitMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('visitError'); }
     function clearBranchForm(){ ['branchId','branchName','branchBrand','branchType','branchRegion','branchCity','branchLocation','branchGps','branchContactShowroom','branchContactService','branchContactSpareParts','branchFunction'].forEach(id=>$(id).value=''); setMessage('branchMessage', state.currentLang==='ar'?'يمكنك البحث، رفع ملف Excel، تنزيل نسخة من البيانات الحالية أو حفظ فرع بشكل يدوي.':'You can filter, import Excel, export current data, or save a branch manually.'); setAlert('branchError'); }
-    function clearTechnicianForm(){ ['technicianDocId','technicianCode','technicianNameInput','technicianEmail','technicianAuthUid','technicianRegion','technicianCity'].forEach(id=>$(id).value=''); $('technicianStatus').value='active'; setMessage('technicianMessage', state.currentLang==='ar'?'حدد لكل فني المنطقة والمدينة، وعند إدخال زيارة ستظهر له فقط الفروع المطابقة له.':'Assign region and city per technician so only matching branches appear when creating a visit.'); setAlert('technicianError'); }
+    function clearTechnicianForm(){ ['technicianDocId','technicianCode','technicianNameInput','technicianEmail','technicianAuthUid','technicianRegion','technicianCity'].forEach(id=>$(id).value=''); $('technicianStatus').value='active'; if($('technicianSelector')) $('technicianSelector').value=''; setMessage('technicianMessage', state.currentLang==='ar'?'اختر الفني أولاً من القائمة أو من بطاقة الفنيين الحالية، ثم حدّد المنطقة والمدينة واحفظ التعديل.':'Choose a technician first, then set region and city and save.'); setAlert('technicianError'); }
     function clearUserForm(){ ['userUid','userEmail','userTechnicianId'].forEach(id=>$(id).value=''); $('userRole').value='user'; $('userActive').value='true'; setMessage('permissionsMessage', state.currentLang==='ar'?'هذا التبويب يحتاج Admin حسب قواعدك الحالية.':'This tab requires admin according to your rules.'); setAlert('permissionsError'); }
 
     async function loginWithEmail(){
@@ -622,6 +629,8 @@
     async function deleteChecklistById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف السجل؟':'Delete this record?')) return; await deleteDoc(doc(db,'branch_checklists',id)); clearChecklistForm(); } catch(err){ setAlert('checklistError', err.message || String(err)); } }
     window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.visitDate||''; $('cl_month').value=x.month||''; $('cl_calendarBooked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
 
+    function loadSelectedTechnician(){ const id = $('technicianSelector')?.value || ''; if(!id){ setAlert('technicianError', state.currentLang==='ar'?'اختر الفني أولاً من القائمة.':'Choose a technician from the list first.'); return; } window.openTechnicianForEdit(id); }
+    window.openTechnicianForEdit = function(id){ const t = state.technicians.find(x=>x.id===id); if(!t) return; $('technicianSelector').value = t.id||''; $('technicianDocId').value=t.id||''; $('technicianCode').value=t.technicianCode||''; $('technicianNameInput').value=t.name||''; $('technicianEmail').value=t.email||''; $('technicianAuthUid').value=t.authUid||''; $('technicianRegion').value=t.region||''; $('technicianCity').value=t.city||''; $('technicianStatus').value=t.status||'active'; setMessage('technicianMessage', state.currentLang==='ar'?'تم تحميل بيانات الفني. حدّد المنطقة والمدينة ثم احفظ.':'Technician loaded. Set region/city and save.'); setAlert('technicianError'); activateTab('technicians'); };
     async function saveBrand(){ try{ const id = $('editingBrandId').value.trim() || crypto.randomUUID(); const key = makeBrandKey(); if(!key) throw new Error(state.currentLang==='ar'?'أدخل اسم البراند أو المفتاح.':'Enter brand name or key.'); const payload = { id, key, brandKey:key, brand:$('brandNameEn').value.trim() || $('brandNameAr').value.trim(), nameAr:$('brandNameAr').value.trim(), nameEn:$('brandNameEn').value.trim(), logoUrl:$('brandLogoUrl').value.trim(), logoData: state.previewData || $('brandLogoUrl').value.trim(), notes:$('brandNotes').value.trim(), updatedAt: Timestamp.now() }; if(!$('editingBrandId').value.trim()) payload.createdAt = Timestamp.now(); await setDoc(doc(db,'brand_assets',id), payload, {merge:true}); setMessage('brandMessage', state.currentLang==='ar'?'تم حفظ البراند بنجاح.':'Brand saved successfully.'); setAlert('brandsError'); clearBrandForm(); } catch(err){ setAlert('brandsError', err.message || String(err)); } }
     async function deleteBrandById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف البراند؟':'Delete this brand?')) return; await deleteDoc(doc(db,'brand_assets',id)); clearBrandForm(); } catch(err){ setAlert('brandsError', err.message || String(err)); } }
     window.openBrandForEdit = function(id){ const b=state.brands.find(x=>x.id===id); if(!b) return; $('editingBrandId').value=b.id; $('brandNameAr').value=b.nameAr||''; $('brandNameEn').value=b.nameEn||b.brand||''; $('brandKey').value=b.key||b.brandKey||''; $('brandLogoUrl').value=b.logoUrl||''; $('brandNotes').value=b.notes||''; setPreview(b.logoData||b.logoUrl||''); $('deleteBrandBtn').classList.remove('hidden'); activateTab('brands'); };
@@ -647,21 +656,7 @@
       if(!branchId) return null;
       const fn = String(normalized.function || normalized.functionname || '').trim();
       const city = String(normalized.city || normalized.location || '').trim();
-      return {
-        branchId,
-        branchType: String(normalized.branchtype || '').trim(),
-        contactShowroom: String(normalized.contactshowroom || '').trim(),
-        contactService: String(normalized.contactservice || '').trim(),
-        contactSpareParts: String(normalized.contactspareparts || '').trim(),
-        brand: String(normalized.brand || '').trim(),
-        functionName: fn,
-        function: fn,
-        branchName: String(normalized.branchname || '').trim(),
-        gps: String(normalized.gps || '').trim(),
-        location: String(normalized.location || '').trim(),
-        region: String(normalized.region || '').trim(),
-        city
-      };
+      return { branchId, branchType: String(normalized.branchtype || '').trim(), contactShowroom: String(normalized.contactshowroom || '').trim(), contactService: String(normalized.contactservice || '').trim(), contactSpareParts: String(normalized.contactspareparts || '').trim(), brand: String(normalized.brand || '').trim(), functionName: fn, function: fn, branchName: String(normalized.branchname || '').trim(), gps: String(normalized.gps || '').trim(), location: String(normalized.location || '').trim(), region: String(normalized.region || '').trim(), city };
     }
     async function importBranchesFromExcel(){
       try{
@@ -748,7 +743,7 @@
       $('visitTechnician').addEventListener('change', ()=>{ renderBranchSelectors(); fillVisitFromBranch(); });
       $('visitBranch').addEventListener('change', fillVisitFromBranch); $('saveVisitBtn').addEventListener('click', saveVisit); $('clearVisitBtn').addEventListener('click', clearVisitForm); $('deleteVisitBtn').addEventListener('click', ()=>deleteVisitById($('editingVisitId').value.trim()));
       $('saveBranchBtn').addEventListener('click', saveBranch); $('clearBranchBtn').addEventListener('click', clearBranchForm); $('branchSearch')?.addEventListener('input', renderBranchesList); $('importBranchesBtn')?.addEventListener('click', importBranchesFromExcel); $('exportBranchesBtn')?.addEventListener('click', exportBranchesToExcel);
-      $('saveTechnicianBtn').addEventListener('click', saveTechnician); $('clearTechnicianBtn').addEventListener('click', clearTechnicianForm);
+      $('technicianSelector')?.addEventListener('change', loadSelectedTechnician); $('loadTechnicianBtn')?.addEventListener('click', loadSelectedTechnician); $('saveTechnicianBtn').addEventListener('click', saveTechnician); $('clearTechnicianBtn').addEventListener('click', clearTechnicianForm);
       $('saveUserBtn').addEventListener('click', saveUser); $('clearUserBtn').addEventListener('click', clearUserForm);
       $('runReportBtn').addEventListener('click', runReport);
     }
