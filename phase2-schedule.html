@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.5.8.5</title>
+  <title>Site-Visit-v1.5.8.6</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -53,7 +53,7 @@
           <div class="field"><label data-i18n="passwordLabel">كلمة المرور / Password</label><input id="loginPassword" type="password" placeholder="Password"></div>
           <div class="field"><label>&nbsp;</label><button class="btn green" id="loginBtn" type="button" data-i18n="loginBtn">دخول / Login</button></div>
         </div>
-        <div class="note" id="loginMessage">ادخل بحساب موجود في Firebase Authentication و app_users. إذا كنت تفتح الملف مباشرة بصيغة <span class="rtl-en">file://</span> فقد تمنع بعض المتصفحات تثبيت الجلسة محليًا؛ الأفضل فتح الملف من استضافة أو خادم محلي.</div>
+        <div class="note" id="loginMessage">ادخل بحساب موجود في Firebase Authentication و app_users. تم تفعيل تثبيت الجلسة محليًا. إذا فتحت الملف بصيغة <span class="rtl-en">file://</span> فقد يقيّد المتصفح التخزين المحلي أحيانًا.</div>
       </div>
     </div>
   </div>
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.5.8.5</span>
+        <span class="chip">v1.5.8.6</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -460,7 +460,48 @@
       return null;
     }
 
+    function currentRole(){ return state.currentUserProfile?.role || 'user'; }
+    function getCurrentTechnicianRecord(){
+      const techKey = state.currentUserProfile?.technicianId || '';
+      return state.technicians.find(t => t.id === techKey || t.technicianCode === techKey || t.authUid === state.currentUser?.uid || t.email === state.currentUser?.email) || null;
+    }
+    function isChecklistMine(row){
+      const tech = getCurrentTechnicianRecord();
+      if(!row || !tech) return false;
+      return row.technicianDocId === tech.id || row.technicianId === state.currentUser?.uid || row.technicianEmail === state.currentUser?.email;
+    }
+    function applyTechnicianLockedMode(){
+      const isTech = currentRole() === 'technician';
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const show = !isTech || btn.dataset.tab === 'checklist';
+        btn.style.display = show ? '' : 'none';
+      });
+      document.querySelectorAll('.panel').forEach(panel => {
+        const show = !isTech || panel.id === 'checklist';
+        panel.style.display = show ? '' : 'none';
+        if(isTech && panel.id !== 'checklist') panel.classList.remove('active');
+      });
+      if(isTech){
+        activateTab('checklist');
+        $('deleteChecklistBtn').classList.add('hidden');
+        const tech = getCurrentTechnicianRecord();
+        if(tech){
+          $('cl_technician').value = tech.id || '';
+          $('cl_technician').disabled = true;
+          populateVisitsForTechnician();
+          $('cl_technician_id').value = tech.authUid || tech.id || '';
+          $('cl_technician_email').value = tech.email || '';
+          setMessage('checklistMessage', state.currentLang==='ar' ? 'وضع الفني المقفل مفعّل: يظهر لك فقط نموذج Check-List وسجلاتك الخاصة.' : 'Locked technician mode enabled: only your checklist form and your own records are visible.');
+        }
+      } else {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.style.display = '');
+        document.querySelectorAll('.panel').forEach(panel => panel.style.display = '');
+        $('cl_technician').disabled = false;
+      }
+    }
+
     function activateTab(tabId){
+      if(currentRole() === 'technician' && tabId !== 'checklist') tabId = 'checklist';
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab === tabId));
       document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id === tabId));
     }
@@ -479,10 +520,11 @@
     function renderLatestBrands(){ $('latestBrandsList').innerHTML = state.brands.length ? state.brands.slice(0,8).map(b=>`<div class="item"><strong>${esc(b.nameAr || b.brand || b.nameEn || b.key || '-')} <span class="rtl-en">/ ${esc(b.nameEn || b.brand || b.key || '-')}</span></strong><small>Key: ${esc(b.key || b.brandKey || '-')}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا توجد براندات.':'No brands.'}</div>`; }
     function renderBrandsDatalist(){ $('brandsDatalist').innerHTML = state.brands.map(b => `<option value="${esc(b.brand || b.nameEn || b.nameAr || b.key || '')}"></option>`).join(''); }
 
-    function renderLatestChecklistTable(){ $('latestChecklistBody').innerHTML = state.checklists.slice(0,10).map(r => `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.branchManager)}</td></tr>`).join('') || `<tr><td colspan="5">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`; }
+    function renderLatestChecklistTable(){ const rows = currentRole()==='technician' ? state.checklists.filter(isChecklistMine) : state.checklists; $('latestChecklistBody').innerHTML = rows.slice(0,10).map(r => `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.branchManager)}</td></tr>`).join('') || `<tr><td colspan="5">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`; }
     function renderChecklistTable(){
       const q=($('checklistSearch').value||'').trim().toLowerCase();
-      const rows=state.checklists.filter(r => !q || [r.brand,r.branchId,r.locationSite,r.branchManager,r.technicianName].some(v => String(v||'').toLowerCase().includes(q)));
+      const baseRows = currentRole()==='technician' ? state.checklists.filter(isChecklistMine) : state.checklists;
+      const rows=baseRows.filter(r => !q || [r.brand,r.branchId,r.locationSite,r.branchManager,r.technicianName].some(v => String(v||'').toLowerCase().includes(q)));
       $('checklistTableBody').innerHTML = rows.map(r => `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.branchManager)}</td></tr>`).join('') || `<tr><td colspan="6">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`;
       renderLatestChecklistTable();
     }
@@ -623,7 +665,8 @@
       ['cl_technician_id','cl_technician_email','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_branch_manager','cl_visit_date','cl_month','cl_users_count','cl_q20','cl_q28'].forEach(id=>$(id).value='');
       ['cl_technician','cl_visit_ref','cl_visit_scheduled','cl_calendar_booked','cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id=>$(id).value='');
       document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=false);
-      $('deleteChecklistBtn').classList.add('hidden'); setMessage('checklistMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('checklistError'); populateVisitsForTechnician();
+      $('deleteChecklistBtn').classList.add('hidden'); setAlert('checklistError'); populateVisitsForTechnician();
+      if(currentRole()==='technician'){ const tech = getCurrentTechnicianRecord(); if(tech){ $('cl_technician').value = tech.id || ''; $('cl_technician').disabled = true; populateVisitsForTechnician(); $('cl_technician_id').value = tech.authUid || tech.id || ''; $('cl_technician_email').value = tech.email || ''; setMessage('checklistMessage', state.currentLang==='ar'?'وضع الفني المقفل مفعّل. تستطيع رؤية وحفظ سجلاتك فقط.':'Locked technician mode enabled. You can only view and save your own records.'); } } else { $('cl_technician').disabled = false; setMessage('checklistMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); }
     }
     function clearBrandForm(){ $('editingBrandId').value=''; ['brandNameAr','brandNameEn','brandKey','brandLogoUrl','brandNotes'].forEach(id=>$(id).value=''); $('brandLogoFile').value=''; setPreview(''); $('deleteBrandBtn').classList.add('hidden'); setMessage('brandMessage', state.currentLang==='ar'?'يمكنك إضافة براند جديد مع صورته أو تعديل براند موجود.':'You can add or edit a brand.'); setAlert('brandsError'); }
     function clearVisitForm(){ $('editingVisitId').value=''; ['visitDate','visitBrand','visitBranchId','visitLocation','visitNotes'].forEach(id=>$(id).value=''); ['visitBranch','visitTechnician','visitStatus'].forEach((id,i)=>$(id).value = i===2 ? 'planned' : ''); renderBranchSelectors(); $('deleteVisitBtn').classList.add('hidden'); setMessage('visitMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('visitError'); }
@@ -667,6 +710,7 @@
           updatedAt: Timestamp.now()
         };
         if(!payload.technicianId) throw new Error(state.currentLang==='ar'?'اختر الفني أولاً.':'Choose technician first.');
+        if(currentRole()==='technician' && payload.technicianDocId !== (getCurrentTechnicianRecord()?.id || '')) throw new Error(state.currentLang==='ar'?'لا يمكنك حفظ Check-List إلا باسمك فقط.':'You can only save your own checklist.');
         if(!payload.brand || !payload.branchId || !payload.locationSite || !payload.visitDate) throw new Error(state.currentLang==='ar'?'أكمل الحقول الأساسية المطلوبة.':'Complete required fields.');
         const editId = $('editingChecklistId').value.trim();
         if(editId) await setDoc(doc(db,'branch_checklists',editId), payload, {merge:true}); else await addDoc(collection(db,'branch_checklists'), { ...payload, createdAt: Timestamp.now() });
@@ -679,7 +723,7 @@
       } catch(err){ setAlert('checklistError', err.message || String(err)); }
     }
     async function deleteChecklistById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف السجل؟':'Delete this record?')) return; await deleteDoc(doc(db,'branch_checklists',id)); clearChecklistForm(); } catch(err){ setAlert('checklistError', err.message || String(err)); } }
-    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.visitDate||''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
+    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; if(currentRole()==='technician' && !isChecklistMine(x)) return; $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.visitDate||''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
 
     function loadSelectedTechnician(){
       const id = $('technicianSelector')?.value || '';
@@ -801,8 +845,8 @@
     function attachListeners(){
       $('loginBtn').addEventListener('click', loginWithEmail);
       $('logoutBtn').addEventListener('click', async ()=>{ clearAllListeners(); await signOut(auth); });
-      $('langArBtn').addEventListener('click', ()=>applyLanguage('ar'));
-      $('langEnBtn').addEventListener('click', ()=>applyLanguage('en'));
+      $('langArBtn').addEventListener('click', ()=>{ applyLanguage('ar'); applyTechnicianLockedMode(); });
+      $('langEnBtn').addEventListener('click', ()=>{ applyLanguage('en'); applyTechnicianLockedMode(); });
       $('checklistSearch').addEventListener('input', renderChecklistTable);
       $('brandSearch').addEventListener('input', renderBrands);
       $('cl_technician').addEventListener('change', populateVisitsForTechnician);
@@ -826,7 +870,7 @@
     }
 
     function listenBranches(){ if(unsub.branches) unsub.branches(); unsub.branches = onSnapshot(query(collection(db,'branches'), orderBy('branchName')), snap=>{ state.branches = snap.docs.map(d=>({id:d.id, ...d.data()})); renderBranchesList(); renderBranchSelectors(); populateTechnicianAssignmentOptions({}); renderStats(); }, err=>setAlert('branchError', 'branches: ' + err.message)); }
-    function listenTechnicians(){ if(unsub.technicians) unsub.technicians(); unsub.technicians = onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap=>{ state.technicians = snap.docs.map(d=>({id:d.id, ...d.data()})); renderTechniciansList(); renderTechnicianSelectors(); renderBranchSelectors(); renderStats(); populateVisitsForTechnician(); }, err=>setAlert('technicianError', 'technicians: ' + err.message)); }
+    function listenTechnicians(){ if(unsub.technicians) unsub.technicians(); unsub.technicians = onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap=>{ state.technicians = snap.docs.map(d=>({id:d.id, ...d.data()})); renderTechniciansList(); renderTechnicianSelectors(); renderBranchSelectors(); renderStats(); populateVisitsForTechnician(); applyTechnicianLockedMode(); }, err=>setAlert('technicianError', 'technicians: ' + err.message)); }
     function listenVisits(){ if(unsub.visits) unsub.visits(); unsub.visits = onSnapshot(query(collection(db,'siteVisits'), orderBy('date','desc')), snap=>{ state.visits = snap.docs.map(d=>({id:d.id, ...d.data()})); renderVisitsTable(); populateVisitsForTechnician(); }, err=>setAlert('visitError', 'siteVisits: ' + err.message)); }
     function listenChecklists(){ if(unsub.checklists) unsub.checklists(); unsub.checklists = onSnapshot(query(collection(db,'branch_checklists'), orderBy('visitDate','desc')), snap=>{ state.checklists = snap.docs.map(d=>({id:d.id, ...d.data()})); renderChecklistTable(); renderLatestChecklistTable(); renderStats(); }, err=>{ setAlert('checklistError', 'branch_checklists: ' + err.message); setAlert('dashboardError', 'branch_checklists: ' + err.message); }); }
     function listenBrands(){ if(unsub.brands) unsub.brands(); unsub.brands = onSnapshot(query(collection(db,'brand_assets'), orderBy('nameAr')), snap=>{ state.brands = snap.docs.map(d=>({id:d.id, ...d.data()})); renderBrands(); renderStats(); }, err=>{ setAlert('brandsError', 'brand_assets: ' + err.message); setAlert('dashboardError', 'brand_assets: ' + err.message); }); }
@@ -840,7 +884,7 @@
         state.currentUserProfile = profile;
         $('currentUserChip').classList.remove('hidden'); $('currentUserChip').textContent = `${profile?.name || user.email} | ${profile?.role || 'user'}`; $('logoutBtn').classList.remove('hidden'); $('loginOverlay').classList.add('hidden'); $('appRoot').classList.remove('hidden');
         if(!profile){ setAlert('dashboardError', state.currentLang==='ar' ? 'تنبيه: لم يتم العثور على app_users/{UID}. قد تعمل بعض التبويبات للقراءة فقط أو تفشل حسب القواعد.' : 'Warning: app_users/{UID} was not found. Some tabs may fail according to rules.'); }
-        listenBranches(); listenTechnicians(); listenVisits(); listenChecklists(); listenBrands(); listenUsers();
+        listenBranches(); listenTechnicians(); listenVisits(); listenChecklists(); listenBrands(); listenUsers(); applyTechnicianLockedMode(); if(currentRole()==='technician') activateTab('checklist');
       } else {
         clearAllListeners(); state.currentUser=null; state.currentUserProfile=null; state.branches=[]; state.technicians=[]; state.visits=[]; state.checklists=[]; state.brands=[]; state.users=[];
         $('currentUserChip').classList.add('hidden'); $('logoutBtn').classList.add('hidden'); $('loginOverlay').classList.remove('hidden'); $('appRoot').classList.add('hidden'); $('loginMessage').textContent = 'ادخل بحساب موجود في Firebase Authentication و app_users.';
@@ -848,10 +892,7 @@
       }
     });
 
-    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && auth.currentUser){ state.currentUser = auth.currentUser; } });
-    window.addEventListener('focus', ()=>{ if(auth.currentUser){ state.currentUser = auth.currentUser; } });
-
-    attachListeners(); applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm();
+    attachListeners(); applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); applyTechnicianLockedMode();
   </script>
 </body>
 </html>
