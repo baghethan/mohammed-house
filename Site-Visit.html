@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.6.1.1</title>
+  <title>Site-Visit-v1.6.1.2</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.6.1.1</span>
+        <span class="chip">v1.6.1.2</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -151,6 +151,7 @@
             <div class="field"><label>18- Unified Communication</label><select id="cl_q18"><option></option><option>Fully Functioning</option><option>Requires Service</option></select></div>
             <div class="field"><label>19- Unused or Damaged IT Assets</label><select id="cl_q19"><option></option><option>Yes</option><option>No</option></select></div>
             <div class="field" style="grid-column:1/-1"><label>20- Report Unused/Damaged IT Asset</label><textarea id="cl_q20"></textarea></div>
+            <div class="field" style="grid-column:1/-1"><label>21- PC Assessment Form</label><div class="link-box"><a href="https://forms.office.com/pages/responsepage.aspx?id=grqwSLXbSkmGsaw8Xw8Lyqhc0cvAJ6ZOqTEAoyt96bBUMlQ2ODhCOTlLSUVDV01RSjNQOVJaWVNaNy4u&route=shorturl" target="_blank" rel="noopener noreferrer">Open Microsoft Form</a></div></div>
           </div>
 
           <div class="section-title">Software & Systems Assessment</div>
@@ -266,7 +267,7 @@
         <div class="card">
           <h3 data-i18n="latestVisits">أحدث الزيارات</h3>
           <div class="actions" style="margin-bottom:12px"><button class="btn" id="copyVisitsTableBtn" type="button">نسخ جدول أحدث الزيارات للإيميل</button></div>
-          <div class="table-wrap"><table id="latestVisitsTable"><thead><tr><th data-i18n="visitDate">تاريخ الزيارة</th><th data-i18n="branch">الفرع</th><th data-i18n="technician">الفني</th><th data-i18n="status">الحالة</th></tr></thead><tbody id="visitsTableBody"></tbody></table></div>
+          <div class="table-wrap"><table id="latestVisitsTable"><thead><tr><th data-i18n="visitDate">تاريخ الزيارة</th><th data-i18n="branch">الفرع</th><th data-i18n="technician">الفني</th><th data-i18n="status">الحالة</th><th>Check-List</th></tr></thead><tbody id="visitsTableBody"></tbody></table></div>
         </div>
       </div>
     </section>
@@ -650,7 +651,21 @@
       if(currentValue && !rows.some(b => String(b.id) === String(currentValue))){ $('visitBranch').value=''; $('visitBrand').value=''; $('visitBranchId').value=''; $('visitLocation').value=''; }
     }
 
-    function renderVisitsTable(){ $('visitsTableBody').innerHTML = state.visits.slice(0,20).map(v=>`<tr class="clickable" onclick="window.openVisitForEdit('${v.id}')"><td>${esc(v.date)}</td><td>${esc(v.branchName)}</td><td>${esc(v.technicianName)}</td><td>${esc(v.status)}</td></tr>`).join('') || `<tr><td colspan="4">${state.currentLang==='ar'?'لا توجد زيارات.':'No visits.'}</td></tr>`; }
+    function renderVisitsTable(){
+      $('visitsTableBody').innerHTML = state.visits.slice(0,20).map(v => `
+        <tr class="clickable" onclick="window.openVisitForEdit('${v.id}')">
+          <td>${esc(v.date)}</td>
+          <td>${esc(v.branchName)}</td>
+          <td>${esc(v.technicianName)}</td>
+          <td>${esc(v.status)}</td>
+          <td>
+            <button class="btn small green" type="button" onclick="event.stopPropagation(); window.openChecklistFromVisitLink('${v.id}')">
+              ${state.currentLang==='ar' ? 'فتح Check-List' : 'Open Check-List'}
+            </button>
+          </td>
+        </tr>
+      `).join('') || `<tr><td colspan="5">${state.currentLang==='ar' ? 'لا توجد زيارات.' : 'No visits.'}</td></tr>`;
+    }')"><td>${esc(v.date)}</td><td>${esc(v.branchName)}</td><td>${esc(v.technicianName)}</td><td>${esc(v.status)}</td></tr>`).join('') || `<tr><td colspan="4">${state.currentLang==='ar'?'لا توجد زيارات.':'No visits.'}</td></tr>`; }
 
     function populateVisitsForTechnician(){
       const techDocId = $('cl_technician').value || '';
@@ -723,7 +738,7 @@
       try{
         let techDoc = state.technicians.find(t => t.id === $('cl_technician').value) || null; if(currentRole() === 'technician') techDoc = getCurrentTechnicianRecord() || techDoc;
         const linkedVisit = state.visits.find(v => v.id === $('cl_visit_ref').value) || null;
-        const payload = { technicianId: techDoc?.authUid || techDoc?.id || '', technicianDocId: techDoc?.id || '', technicianName: techDoc?.name || '', technicianEmail: techDoc?.email || '', linkedVisitId: linkedVisit?.id || '', brand: $('cl_brand').value.trim(), brandKey: $('cl_brandKey').value.trim() || makeBrandKey(), branchId: $('cl_branch_id').value.trim(), locationSite: $('cl_location').value.trim(), visitScheduledWithBranchManager: $('cl_visit_scheduled').value, branchManager: $('cl_branch_manager').value.trim(), visitDate: $('cl_visit_date').value, month: $('cl_month').value.trim() || monthName($('cl_visit_date').value), calendarBooked: $('cl_calendar_booked').value, numberOfUsers: $('cl_users_count').value ? Number($('cl_users_count').value) : null, q10_networkCabinetsCondition: $('cl_q10').value, q11_lowCurrentInfrastructure: $('cl_q11').value, q12_uploadSpeed: $('cl_q12').value, q13_downloadSpeed: $('cl_q13').value, q14_serverRoomTemperature: $('cl_q14').value, q15_upsStatus: $('cl_q15').value, q16_pcCondition: $('cl_q16').value, q17_printersCondition: $('cl_q17').value, q18_unifiedCommunication: $('cl_q18').value, q19_unusedDamagedAssets: $('cl_q19').value, q20_assetReport: $('cl_q20').value.trim(), q22_osUpToDate: $('cl_q22').value, q23_cleanup: $('cl_q23').value, q24_oneDriveBackup: $('cl_q24').value, q25_customerFacingPortals: $('cl_q25').value, q26_erpBusinessApps: $('cl_q26').value, q27_trainingRequirement: [...document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]:checked')].map(cb=>cb.value), q28_serviceReportSummary: $('cl_q28').value.trim(), q29_upgradeWindows10To11: $('cl_q29').value, updatedAt: Timestamp.now() };
+        const payload = { technicianId: techDoc?.authUid || techDoc?.id || '', technicianDocId: techDoc?.id || '', technicianName: techDoc?.name || '', technicianEmail: techDoc?.email || '', linkedVisitId: linkedVisit?.id || '', brand: $('cl_brand').value.trim(), brandKey: $('cl_brandKey').value.trim() || makeBrandKey(), branchId: $('cl_branch_id').value.trim(), locationSite: $('cl_location').value.trim(), visitScheduledWithBranchManager: $('cl_visit_scheduled').value, branchManager: $('cl_branch_manager').value.trim(), visitDate: $('cl_visit_date').value, month: $('cl_month').value.trim() || monthName($('cl_visit_date').value), calendarBooked: $('cl_calendar_booked').value, numberOfUsers: $('cl_users_count').value ? Number($('cl_users_count').value) : null, q10_networkCabinetsCondition: $('cl_q10').value, q11_lowCurrentInfrastructure: $('cl_q11').value, q12_uploadSpeed: $('cl_q12').value, q13_downloadSpeed: $('cl_q13').value, q14_serverRoomTemperature: $('cl_q14').value, q15_upsStatus: $('cl_q15').value, q16_pcCondition: $('cl_q16').value, q17_printersCondition: $('cl_q17').value, q18_unifiedCommunication: $('cl_q18').value, q19_unusedDamagedAssets: $('cl_q19').value, q20_assetReport: $('cl_q20').value.trim(), q21_pcAssessmentForm: 'https://forms.office.com/pages/responsepage.aspx?id=grqwSLXbSkmGsaw8Xw8Lyqhc0cvAJ6ZOqTEAoyt96bBUMlQ2ODhCOTlLSUVDV01RSjNQOVJaWVNaNy4u&route=shorturl', q22_osUpToDate: $('cl_q22').value, q23_cleanup: $('cl_q23').value, q24_oneDriveBackup: $('cl_q24').value, q25_customerFacingPortals: $('cl_q25').value, q26_erpBusinessApps: $('cl_q26').value, q27_trainingRequirement: [...document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]:checked')].map(cb=>cb.value), q28_serviceReportSummary: $('cl_q28').value.trim(), q29_upgradeWindows10To11: $('cl_q29').value, updatedAt: Timestamp.now() };
         if(!payload.technicianId) throw new Error(state.currentLang==='ar'?'اختر الفني أولاً.':'Choose technician first.');
         if(currentRole() === 'technician' && linkedVisit && payload.technicianDocId && linkedVisit.technicianDocId && linkedVisit.technicianDocId !== payload.technicianDocId) throw new Error(state.currentLang==='ar'?'لا يمكنك تعبئة Check-List لزيارة لا تخصك.':'You cannot fill a checklist for a visit that is not assigned to you.');
         if(!payload.brand || !payload.branchId || !payload.locationSite || !payload.visitDate) throw new Error(state.currentLang==='ar'?'أكمل الحقول الأساسية المطلوبة.':'Complete required fields.');
@@ -734,6 +749,35 @@
     }
     async function deleteChecklistById(id){ try{ if(currentRole()==='technician') return; if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف السجل؟':'Delete this record?')) return; await deleteDoc(doc(db,'branch_checklists',id)); clearChecklistForm(); } catch(err){ setAlert('checklistError', err.message || String(err)); } }
     window.openChecklistForEdit = function(id){ if(currentRole() === 'technician') return; const x = state.checklists.find(r=>r.id===id); if(!x) return; clearChecklistForm(); $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.visitDate||''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
+
+    function loadSelectedTechnician(){
+      const id = $('technicianSelector')?.value || '';
+      if(!id){
+        setAlert('technicianError', state.currentLang==='ar' ? 'اختر الفني أولاً من القائمة.' : 'Choose a technician from the list first.');
+        return;
+      }
+      window.openTechnicianForEdit(id);
+    }
+    window.openTechnicianForEdit = function(id){
+      const t = state.technicians.find(x => x.id === id);
+      if(!t) return;
+      if($('technicianSelector')) $('technicianSelector').value = t.id || '';
+      $('technicianDocId').value = t.id || '';
+      $('technicianCode').value = t.technicianCode || '';
+      $('technicianNameInput').value = t.name || '';
+      $('technicianEmail').value = t.email || '';
+      $('technicianAuthUid').value = t.authUid || '';
+      $('technicianStatus').value = t.status || 'active';
+      populateTechnicianAssignmentOptions({ region:t.region || '', city:t.city || '', brand:t.brand || '', branchId:t.assignedBranchId || '' });
+      if(t.region && Array.from($('techAssignRegion').options).some(o => o.value === t.region)) $('techAssignRegion').value = t.region;
+      populateTechnicianAssignmentOptions({ region:t.region || '', city:t.city || '', brand:t.brand || '', branchId:t.assignedBranchId || '' });
+      if(t.city && Array.from($('techAssignCity').options).some(o => o.value === t.city)) $('techAssignCity').value = t.city;
+      if(t.brand && Array.from($('techAssignBrand').options).some(o => o.value === t.brand)) $('techAssignBrand').value = t.brand;
+      if(t.assignedBranchId && Array.from($('techAssignBranch').options).some(o => o.value === t.assignedBranchId)) $('techAssignBranch').value = t.assignedBranchId;
+      setMessage('technicianMessage', state.currentLang==='ar' ? 'تم تحميل بيانات الفني. حدّد النطاق ثم احفظ.' : 'Technician loaded. Set the scope and save.');
+      setAlert('technicianError');
+      activateTab('technicians');
+    }
 
     async function saveBrand(){ try{ const id = $('editingBrandId').value.trim() || crypto.randomUUID(); const key = makeBrandKey(); if(!key) throw new Error(state.currentLang==='ar'?'أدخل اسم البراند أو المفتاح.':'Enter brand name or key.'); const payload = { id, key, brandKey:key, brand:$('brandNameEn').value.trim() || $('brandNameAr').value.trim(), nameAr:$('brandNameAr').value.trim(), nameEn:$('brandNameEn').value.trim(), logoUrl:$('brandLogoUrl').value.trim(), logoData: state.previewData || $('brandLogoUrl').value.trim(), notes:$('brandNotes').value.trim(), updatedAt: Timestamp.now() }; if(!$('editingBrandId').value.trim()) payload.createdAt = Timestamp.now(); await setDoc(doc(db,'brand_assets',id), payload, {merge:true}); setMessage('brandMessage', state.currentLang==='ar'?'تم حفظ البراند بنجاح.':'Brand saved successfully.'); setAlert('brandsError'); clearBrandForm(); } catch(err){ setAlert('brandsError', err.message || String(err)); } }
     async function deleteBrandById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف البراند؟':'Delete this brand?')) return; await deleteDoc(doc(db,'brand_assets',id)); clearBrandForm(); } catch(err){ setAlert('brandsError', err.message || String(err)); } }
