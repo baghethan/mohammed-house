@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.5.8.2</title>
+  <title>Site-Visit-v1.5.8.5</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -53,7 +53,7 @@
           <div class="field"><label data-i18n="passwordLabel">كلمة المرور / Password</label><input id="loginPassword" type="password" placeholder="Password"></div>
           <div class="field"><label>&nbsp;</label><button class="btn green" id="loginBtn" type="button" data-i18n="loginBtn">دخول / Login</button></div>
         </div>
-        <div class="note" id="loginMessage">ادخل بحساب موجود في Firebase Authentication و app_users.</div>
+        <div class="note" id="loginMessage">ادخل بحساب موجود في Firebase Authentication و app_users. إذا كنت تفتح الملف مباشرة بصيغة <span class="rtl-en">file://</span> فقد تمنع بعض المتصفحات تثبيت الجلسة محليًا؛ الأفضل فتح الملف من استضافة أو خادم محلي.</div>
       </div>
     </div>
   </div>
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.5.8.2</span>
+        <span class="chip">v1.5.8.5</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -324,11 +324,11 @@
             <div class="field"><label> </label><span class="badge">اختر الفني ثم احفظ التعديل</span></div>
           </div>
           <div class="grid-4" style="margin-top:12px">
-            <div class="field"><label data-i18n="technicianDocId">Document ID (سجل الفني)</label><input id="technicianDocId" placeholder="مثال: 70033 أو TECH-001"></div>
+            <div class="field"><label data-i18n="technicianDocId">Document ID / UID</label><input id="technicianDocId"></div>
             <div class="field"><label data-i18n="technicianCode">معرف الفني (Code)</label><input id="technicianCode"></div>
             <div class="field"><label data-i18n="technicianNameField">اسم الفني</label><input id="technicianNameInput"></div>
             <div class="field"><label data-i18n="technicianEmail">البريد الإلكتروني</label><input id="technicianEmail" type="email"></div>
-            <div class="field"><label>Firebase Auth UID</label><input id="technicianAuthUid" placeholder="UID من Firebase Authentication"></div>
+            <div class="field"><label>authUid</label><input id="technicianAuthUid"></div>
             <div class="field"><label data-i18n="status">الحالة</label><select id="technicianStatus"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
             <div class="field"><label>Region</label><select id="techAssignRegion"></select></div>
             <div class="field"><label>City</label><select id="techAssignCity"></select></div>
@@ -372,7 +372,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
     import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, query, orderBy, onSnapshot, Timestamp, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     const firebaseConfig = {
@@ -386,6 +386,7 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    setPersistence(auth, browserLocalPersistence).catch(err=>console.warn('Auth persistence warning:', err));
     const db = getFirestore(app);
 
     const state = {
@@ -410,7 +411,7 @@
         reports:'التقارير', reportType:'نوع التقرير', fromDate:'من تاريخ', toDate:'إلى تاريخ', runReport:'تشغيل التقرير',
         visitFormTitle:'إدخال / تعديل زيارة', branch:'الفرع', locationSite:'Location / Site', status:'الحالة', saveVisit:'حفظ الزيارة', latestVisits:'أحدث الزيارات',
         branchFormTitle:'إدارة الفروع', branchName:'اسم الفرع', region:'المنطقة', city:'المدينة', branchType:'نوع الفرع', saveBranch:'حفظ الفرع', branchesCurrent:'الفروع الحالية',
-        technicianFormTitle:'إدارة الفنيين', technicianDocId:'Document ID (سجل الفني)', technicianCode:'معرف الفني (Code)', technicianNameField:'اسم الفني', saveTechnician:'حفظ الفني', techniciansCurrent:'الفنيون الحاليون',
+        technicianFormTitle:'إدارة الفنيين', technicianDocId:'Document ID / UID', technicianCode:'معرف الفني (Code)', technicianNameField:'اسم الفني', saveTechnician:'حفظ الفني', techniciansCurrent:'الفنيون الحاليون',
         permissionsTitle:'إدارة الصلاحيات (app_users)', savePermissions:'حفظ الصلاحيات', usersCurrent:'المستخدمون الحاليون'
       },
       en: {
@@ -426,7 +427,7 @@
         reports:'Reports', reportType:'Report Type', fromDate:'From Date', toDate:'To Date', runReport:'Run Report',
         visitFormTitle:'Add / Edit Visit', branch:'Branch', locationSite:'Location / Site', status:'Status', saveVisit:'Save Visit', latestVisits:'Latest Visits',
         branchFormTitle:'Branch Management', branchName:'Branch Name', region:'Region', city:'City', branchType:'Branch Type', saveBranch:'Save Branch', branchesCurrent:'Current Branches',
-        technicianFormTitle:'Technician Management', technicianDocId:'Technician Document ID', technicianCode:'Technician Code', technicianNameField:'Technician Name', saveTechnician:'Save Technician', techniciansCurrent:'Current Technicians',
+        technicianFormTitle:'Technician Management', technicianDocId:'Document ID / UID', technicianCode:'Technician Code', technicianNameField:'Technician Name', saveTechnician:'Save Technician', techniciansCurrent:'Current Technicians',
         permissionsTitle:'Permissions (app_users)', savePermissions:'Save Permissions', usersCurrent:'Current Users'
       }
     };
@@ -633,7 +634,7 @@
     async function loginWithEmail(){
       const email=$('loginEmail').value.trim(), password=$('loginPassword').value;
       if(!email || !password){ $('loginMessage').textContent = state.currentLang==='ar'?'أدخل البريد الإلكتروني وكلمة المرور.':'Enter email and password.'; return; }
-      try { $('loginBtn').disabled=true; $('loginMessage').textContent = state.currentLang==='ar'?'جاري تسجيل الدخول...':'Signing in...'; await signInWithEmailAndPassword(auth, email, password); }
+      try { $('loginBtn').disabled=true; $('loginMessage').textContent = state.currentLang==='ar'?'جاري تسجيل الدخول وتثبيت الجلسة...':'Signing in and persisting session...'; await setPersistence(auth, browserLocalPersistence); await signInWithEmailAndPassword(auth, email, password); }
       catch(err){ $('loginMessage').textContent = (err.code||'error') + ' | ' + (err.message||''); }
       finally { $('loginBtn').disabled=false; }
     }
@@ -846,6 +847,9 @@
         renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm();
       }
     });
+
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && auth.currentUser){ state.currentUser = auth.currentUser; } });
+    window.addEventListener('focus', ()=>{ if(auth.currentUser){ state.currentUser = auth.currentUser; } });
 
     attachListeners(); applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm();
   </script>
