@@ -271,27 +271,44 @@
     </section>
 
     <section id="branches" class="panel">
-      <div class="grid-2">
-        <div class="card">
-          <h3 data-i18n="branchFormTitle">إدارة الفروع</h3>
-          <div class="grid-3">
-            <div class="field"><label>Branch ID</label><input id="branchId"></div>
-            <div class="field"><label data-i18n="branchName">اسم الفرع</label><input id="branchName"></div>
-            <div class="field"><label>Brand</label><input id="branchBrand"></div>
-            <div class="field"><label data-i18n="region">المنطقة</label><input id="branchRegion"></div>
-            <div class="field"><label data-i18n="city">المدينة</label><input id="branchCity"></div>
-            <div class="field"><label data-i18n="branchType">نوع الفرع</label><input id="branchType"></div>
-          </div>
-          <div class="actions">
-            <button class="btn green" id="saveBranchBtn" data-i18n="saveBranch">حفظ الفرع</button>
-            <button class="btn" id="clearBranchBtn" data-i18n="clearForm">تنظيف النموذج</button>
-          </div>
-          <div class="note" id="branchMessage">يتطلب Admin للحفظ إذا كانت القواعد لديك تقيد الكتابة.</div>
-          <div id="branchError" class="alert error hidden"></div>
-        </div>
-        <div class="card"><h3 data-i18n="branchesCurrent">الفروع الحالية</h3><div class="list" id="branchesList"></div></div>
-      </div>
-    </section>
+ <div class="grid-2">
+ <div class="card">
+ <h3 data-i18n="branchFormTitle">إدارة الفروع</h3>
+ <div class="section-title">استيراد / تصدير Excel</div>
+ <div class="grid-3">
+ <div class="field"><label>ملف Excel</label><input id="branchesExcelFile" type="file" accept=".xlsx,.xls"></div>
+ <div class="field"><label> </label><button class="btn warning" id="importBranchesBtn">رفع ملف Excel (يمسح القديم)</button></div>
+ <div class="field"><label> </label><button class="btn" id="exportBranchesBtn">تنزيل ملف Excel</button></div>
+ </div>
+ <div class="note">سيتم حذف كل بيانات الفروع الحالية من مخزن <span class="rtl-en">branches</span> ثم استيراد الملف الجديد. الأعمدة المعتمدة: <span class="rtl-en">Branch_ID, Branch_Type, Contact Showroom, Contact_Service, Contact_Spare_Parts, Brand, function, Branch_Name, GPS, Location, Region</span>.</div>
+ <div class="section-title">إدارة الفرع يدويًا</div>
+ <div class="grid-4">
+ <div class="field"><label>Branch_ID</label><input id="branchId"></div>
+ <div class="field"><label>Branch_Name</label><input id="branchName"></div>
+ <div class="field"><label>Brand</label><input id="branchBrand"></div>
+ <div class="field"><label>Branch_Type</label><input id="branchType"></div>
+ <div class="field"><label>Contact Showroom</label><input id="branchContactShowroom"></div>
+ <div class="field"><label>Contact_Service</label><input id="branchContactService"></div>
+ <div class="field"><label>Contact_Spare_Parts</label><input id="branchContactSpareParts"></div>
+ <div class="field"><label>function</label><input id="branchFunction"></div>
+ <div class="field"><label>GPS</label><input id="branchGps"></div>
+ <div class="field"><label>Location</label><input id="branchLocation"></div>
+ <div class="field"><label>Region</label><input id="branchRegion"></div>
+ </div>
+ <div class="actions">
+ <button class="btn green" id="saveBranchBtn" data-i18n="saveBranch">حفظ الفرع</button>
+ <button class="btn" id="clearBranchBtn" data-i18n="clearForm">تنظيف النموذج</button>
+ </div>
+ <div class="note" id="branchMessage">يمكنك البحث، رفع ملف Excel، تنزيل نسخة من البيانات الحالية أو حفظ فرع بشكل يدوي.</div>
+ <div id="branchError" class="alert error hidden"></div>
+ </div>
+ <div class="card">
+ <h3 data-i18n="branchesCurrent">الفروع الحالية</h3>
+ <div class="field" style="margin-bottom:12px"><label>فلتر الفروع</label><input id="branchSearch" placeholder="ابحث بـ Branch_ID / Branch_Name / Brand / Region / Location"></div>
+ <div class="list" id="branchesList"></div>
+ </div>
+ </div>
+ </section>
 
     <section id="technicians" class="panel">
       <div class="grid-2">
@@ -339,7 +356,8 @@
     </section>
   </main>
 
-  <script type="module">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
     import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, query, orderBy, onSnapshot, Timestamp, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
@@ -435,7 +453,22 @@
     document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', ()=>activateTab(btn.dataset.tab)));
 
     function renderStats(){ $('statBranches').textContent = state.branches.length; $('statTechnicians').textContent = state.technicians.length; $('statChecklists').textContent = state.checklists.length; $('statBrands').textContent = state.brands.length; }
-    function renderBranchesList(){ $('branchesList').innerHTML = state.branches.length ? state.branches.map(b=>`<div class="item"><strong>${esc(b.branchName || b.id)}</strong><small>Branch ID: ${esc(b.id)}</small><small>Brand: ${esc(b.brand || '-')} | ${esc(b.region || '-')} | ${esc(b.city || '-')}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا توجد فروع.':'No branches found.'}</div>`; }
+    function renderBranchesList(){
+ const q = ($('branchSearch')?.value || '').trim().toLowerCase();
+ const rows = state.branches.filter(b => !q || [
+  b.id, b.branchName, b.brand, b.branchType, b.contactShowroom, b.contactService,
+  b.contactSpareParts, b.functionName, b.function, b.gps, b.location, b.region, b.city
+ ].some(v => String(v || '').toLowerCase().includes(q)));
+ $('branchesList').innerHTML = rows.length ? rows.map(b => `
+  <div class="item">
+   <strong>${esc(b.branchName || b.id)}</strong>
+   <small>Branch_ID: ${esc(b.id)} | Brand: ${esc(b.brand || '-')} | Type: ${esc(b.branchType || '-')}</small>
+   <small>Region: ${esc(b.region || '-')} | Location: ${esc(b.location || b.city || '-')} | GPS: ${esc(b.gps || '-')}</small>
+   <small>Showroom: ${esc(b.contactShowroom || '-')} | Service: ${esc(b.contactService || '-')} | Spare Parts: ${esc(b.contactSpareParts || '-')}</small>
+   <small>Function: ${esc(b.functionName || b.function || '-')}</small>
+  </div>
+ `).join('') : `<div class="note">${state.currentLang==='ar'?'لا توجد فروع.':'No branches found.'}</div>`;
+}</strong><small>Branch ID: ${esc(b.id)}</small><small>Brand: ${esc(b.brand || '-')} | ${esc(b.region || '-')} | ${esc(b.city || '-')}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا توجد فروع.':'No branches found.'}</div>`; }
     function renderTechniciansList(){ $('techniciansList').innerHTML = state.technicians.length ? state.technicians.map(t=>`<div class="item"><strong>${esc(t.name || t.id)}</strong><small>Doc ID: ${esc(t.id)} | Code: ${esc(t.technicianCode || t.id)}</small><small>Email: ${esc(t.email || '-')} | authUid: ${esc(t.authUid || '-')}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا يوجد فنيون.':'No technicians found.'}</div>`; }
     function renderLatestBrands(){ $('latestBrandsList').innerHTML = state.brands.length ? state.brands.slice(0,8).map(b=>`<div class="item"><strong>${esc(b.nameAr || b.brand || b.nameEn || b.key || '-')} <span class="rtl-en">/ ${esc(b.nameEn || b.brand || b.key || '-')}</span></strong><small>Key: ${esc(b.key || b.brandKey || '-')}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا توجد براندات.':'No brands.'}</div>`; }
     function renderBrandsDatalist(){ $('brandsDatalist').innerHTML = state.brands.map(b => `<option value="${esc(b.brand || b.nameEn || b.nameAr || b.key || '')}"></option>`).join(''); }
@@ -496,7 +529,7 @@
       updateMonthFromVisitDate();
     }
 
-    function fillVisitFromBranch(){ const b = state.branches.find(x=>x.id === $('visitBranch').value); if(!b) return; $('visitBrand').value=b.brand||''; $('visitBranchId').value=b.id||''; $('visitLocation').value=b.branchName||''; }
+    function fillVisitFromBranch(){ const b = state.branches.find(x=>x.id === $('visitBranch').value); if(!b) return; $('visitBrand').value=b.brand||''; $('visitBranchId').value=b.id||''; $('visitLocation').value=b.location||b.branchName||b.city||''; }
 
     function setPreview(src){ state.previewData = src || ''; $('logoPreview').src = src || ''; $('logoPreview').classList.toggle('hidden', !src); $('logoPreviewEmpty').classList.toggle('hidden', !!src); }
     function makeBrandKey(){ const fromKey = $('brandKey').value.trim().toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,40); if(fromKey) return fromKey; const fromEn = $('brandNameEn').value.trim().toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,40); if(fromEn) return fromEn; return $('brandNameAr').value.trim().toLowerCase().replace(/[\s\-_/]+/g,''); }
@@ -510,7 +543,7 @@
     }
     function clearBrandForm(){ $('editingBrandId').value=''; ['brandNameAr','brandNameEn','brandKey','brandLogoUrl','brandNotes'].forEach(id=>$(id).value=''); $('brandLogoFile').value=''; setPreview(''); $('deleteBrandBtn').classList.add('hidden'); setMessage('brandMessage', state.currentLang==='ar'?'يمكنك إضافة براند جديد مع صورته أو تعديل براند موجود.':'You can add or edit a brand.'); setAlert('brandsError'); }
     function clearVisitForm(){ $('editingVisitId').value=''; ['visitDate','visitBrand','visitBranchId','visitLocation','visitNotes'].forEach(id=>$(id).value=''); ['visitBranch','visitTechnician','visitStatus'].forEach((id,i)=>$(id).value = i===2 ? 'planned' : ''); $('deleteVisitBtn').classList.add('hidden'); setMessage('visitMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('visitError'); }
-    function clearBranchForm(){ ['branchId','branchName','branchBrand','branchRegion','branchCity','branchType'].forEach(id=>$(id).value=''); setMessage('branchMessage', state.currentLang==='ar'?'يتطلب Admin للحفظ إذا كانت القواعد لديك تقيد الكتابة.':'Admin may be required to save.'); setAlert('branchError'); }
+    function clearBranchForm(){ ['branchId','branchName','branchBrand','branchType','branchContactShowroom','branchContactService','branchContactSpareParts','branchFunction','branchGps','branchLocation','branchRegion'].forEach(id=>$(id).value=''); setMessage('branchMessage', state.currentLang==='ar'?'يمكنك البحث، رفع ملف Excel، تنزيل نسخة من البيانات الحالية أو حفظ فرع بشكل يدوي.':'You can filter, import Excel, export current data, or save a branch manually.'); setAlert('branchError'); }
     function clearTechnicianForm(){ ['technicianDocId','technicianCode','technicianNameInput','technicianEmail','technicianAuthUid'].forEach(id=>$(id).value=''); $('technicianStatus').value='active'; setMessage('technicianMessage', state.currentLang==='ar'?'اجعل Document ID أو authUid مساويًا لـ Firebase Auth UID إذا كنت تريد أن تعمل قواعد الملكية بسهولة.':'Use UID/authUid to match ownership rules.'); setAlert('technicianError'); }
     function clearUserForm(){ ['userUid','userEmail','userTechnicianId'].forEach(id=>$(id).value=''); $('userRole').value='user'; $('userActive').value='true'; setMessage('permissionsMessage', state.currentLang==='ar'?'هذا التبويب يحتاج Admin حسب قواعدك الحالية.':'This tab requires admin according to your rules.'); setAlert('permissionsError'); }
 
@@ -576,8 +609,96 @@
     async function deleteVisitById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف الزيارة؟':'Delete this visit?')) return; await deleteDoc(doc(db,'siteVisits',id)); clearVisitForm(); } catch(err){ setAlert('visitError', err.message || String(err)); } }
     window.openVisitForEdit = function(id){ const v=state.visits.find(x=>x.id===id); if(!v) return; $('editingVisitId').value=v.id; $('visitBranch').value=v.branchId||''; $('visitTechnician').value=v.technicianDocId||''; $('visitDate').value=v.date||''; $('visitStatus').value=v.status||'planned'; $('visitNotes').value=v.notes||''; fillVisitFromBranch(); $('deleteVisitBtn').classList.remove('hidden'); activateTab('visit'); };
 
-    async function saveBranch(){ try{ const id=$('branchId').value.trim(); if(!id) throw new Error('Branch ID required'); const payload = { branchName:$('branchName').value.trim(), brand:$('branchBrand').value.trim(), region:$('branchRegion').value.trim(), city:$('branchCity').value.trim(), branchType:$('branchType').value.trim(), updatedAt: Timestamp.now() }; await setDoc(doc(db,'branches',id), payload, {merge:true}); setMessage('branchMessage', state.currentLang==='ar'?'تم حفظ الفرع.':'Branch saved.'); setAlert('branchError'); clearBranchForm(); } catch(err){ setAlert('branchError', err.message || String(err)); } }
-    async function saveTechnician(){ try{ const docId=$('technicianDocId').value.trim(); if(!docId) throw new Error('Document ID / UID required'); const payload = { technicianCode:$('technicianCode').value.trim(), name:$('technicianNameInput').value.trim(), email:$('technicianEmail').value.trim(), authUid:$('technicianAuthUid').value.trim(), status:$('technicianStatus').value, updatedAt: Timestamp.now() }; await setDoc(doc(db,'technicians',docId), payload, {merge:true}); setMessage('technicianMessage', state.currentLang==='ar'?'تم حفظ الفني.':'Technician saved.'); setAlert('technicianError'); clearTechnicianForm(); } catch(err){ setAlert('technicianError', err.message || String(err)); } }
+    async function saveBranch(){ try{ const id=$('branchId').value.trim(); if(!id) throw new Error('Branch_ID required'); const payload = { branchName:$('branchName').value.trim(), brand:$('branchBrand').value.trim(), region:$('branchRegion').value.trim(), city:'', branchType:$('branchType').value.trim(), contactShowroom:$('branchContactShowroom').value.trim(), contactService:$('branchContactService').value.trim(), contactSpareParts:$('branchContactSpareParts').value.trim(), functionName:$('branchFunction').value.trim(), function:$('branchFunction').value.trim(), gps:$('branchGps').value.trim(), location:$('branchLocation').value.trim(), updatedAt: Timestamp.now() }; await setDoc(doc(db,'branches',id), payload, {merge:true}); setMessage('branchMessage', state.currentLang==='ar'?'تم حفظ الفرع.':'Branch saved.'); setAlert('branchError'); clearBranchForm(); } catch(err){ setAlert('branchError', err.message || String(err)); } }; await setDoc(doc(db,'branches',id), payload, {merge:true}); setMessage('branchMessage', state.currentLang==='ar'?'تم حفظ الفرع.':'Branch saved.'); setAlert('branchError'); clearBranchForm(); } catch(err){ setAlert('branchError', err.message || String(err)); } }
+    function normalizeExcelHeader(key){ return String(key || '').toLowerCase().replace(/[\s_\-\/]+/g,''); }
+function normalizeBranchImportRow(row){
+ const normalized = Object.fromEntries(Object.entries(row || {}).map(([k,v]) => [normalizeExcelHeader(k), v]));
+ const branchId = String(normalized.branchid || '').trim();
+ if(!branchId) return null;
+ const fn = String(normalized.function || normalized.functionname || '').trim();
+ return {
+  branchId,
+  branchType: String(normalized.branchtype || '').trim(),
+  contactShowroom: String(normalized.contactshowroom || '').trim(),
+  contactService: String(normalized.contactservice || '').trim(),
+  contactSpareParts: String(normalized.contactspareparts || '').trim(),
+  brand: String(normalized.brand || '').trim(),
+  functionName: fn,
+  function: fn,
+  branchName: String(normalized.branchname || '').trim(),
+  gps: String(normalized.gps || '').trim(),
+  location: String(normalized.location || '').trim(),
+  region: String(normalized.region || '').trim(),
+  city: ''
+ };
+}
+async function importBranchesFromExcel(){
+ try{
+  if(typeof XLSX === 'undefined') throw new Error('XLSX library not loaded');
+  const file = $('branchesExcelFile').files?.[0];
+  if(!file) throw new Error(state.currentLang==='ar'?'اختر ملف Excel أولاً.':'Choose an Excel file first.');
+  if(!confirm(state.currentLang==='ar'?'سيتم حذف كل الفروع القديمة من المخزن ثم رفع الملف الجديد. هل تريد المتابعة؟':'All current branches will be deleted before importing the new file. Continue?')) return;
+  setMessage('branchMessage', state.currentLang==='ar'?'جاري قراءة الملف ومسح القديم...':'Reading Excel and clearing old records...');
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, {type:'array'});
+  const sheetName = workbook.SheetNames[0];
+  if(!sheetName) throw new Error(state.currentLang==='ar'?'ملف Excel لا يحتوي على أي ورقة.':'Excel file has no sheets.');
+  const sheet = workbook.Sheets[sheetName];
+  const rawRows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+  const rows = rawRows.map(normalizeBranchImportRow).filter(Boolean);
+  if(!rows.length) throw new Error(state.currentLang==='ar'?'لم يتم العثور على صفوف صالحة. تأكد من أسماء الأعمدة المطلوبة.':'No valid rows found. Check the required column names.');
+  const existing = await getDocs(collection(db,'branches'));
+  for(const snapDoc of existing.docs){ await deleteDoc(doc(db,'branches', snapDoc.id)); }
+  for(const row of rows){
+   await setDoc(doc(db,'branches', row.branchId), {
+    branchName: row.branchName,
+    brand: row.brand,
+    region: row.region,
+    city: row.city,
+    branchType: row.branchType,
+    contactShowroom: row.contactShowroom,
+    contactService: row.contactService,
+    contactSpareParts: row.contactSpareParts,
+    functionName: row.functionName,
+    function: row.function,
+    gps: row.gps,
+    location: row.location,
+    updatedAt: Timestamp.now(),
+    createdAt: Timestamp.now()
+   }, {merge:true});
+  }
+  $('branchesExcelFile').value='';
+  setMessage('branchMessage', (state.currentLang==='ar'?'تم استيراد ':'Imported ') + rows.length + (state.currentLang==='ar'?' فرع بنجاح بعد حذف القديم.':' branches successfully after clearing old data.'));
+  setAlert('branchError');
+ } catch(err){ setAlert('branchError', err.message || String(err)); }
+}
+function exportBranchesToExcel(){
+ try{
+  if(typeof XLSX === 'undefined') throw new Error('XLSX library not loaded');
+  if(!state.branches.length) throw new Error(state.currentLang==='ar'?'لا توجد بيانات فروع للتنزيل.':'No branch data to export.');
+  const rows = state.branches.map(b => ({
+   'Branch_ID': b.id || '',
+   'Branch_Type': b.branchType || '',
+   'Contact Showroom': b.contactShowroom || '',
+   'Contact_Service': b.contactService || '',
+   'Contact_Spare_Parts': b.contactSpareParts || '',
+   'Brand': b.brand || '',
+   'function': b.functionName || b.function || '',
+   'Branch_Name': b.branchName || '',
+   'GPS': b.gps || '',
+   'Location': b.location || b.city || '',
+   'Region': b.region || ''
+  }));
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.json_to_sheet(rows, {header:['Branch_ID','Branch_Type','Contact Showroom','Contact_Service','Contact_Spare_Parts','Brand','function','Branch_Name','GPS','Location','Region']});
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Branches');
+  XLSX.writeFile(workbook, 'branches_export.xlsx');
+  setMessage('branchMessage', state.currentLang==='ar'?'تم تنزيل ملف Excel للفروع الحالية.':'Current branches Excel exported.');
+  setAlert('branchError');
+ } catch(err){ setAlert('branchError', err.message || String(err)); }
+}
+
+async function saveTechnician(){ try{ const docId=$('technicianDocId').value.trim(); if(!docId) throw new Error('Document ID / UID required'); const payload = { technicianCode:$('technicianCode').value.trim(), name:$('technicianNameInput').value.trim(), email:$('technicianEmail').value.trim(), authUid:$('technicianAuthUid').value.trim(), status:$('technicianStatus').value, updatedAt: Timestamp.now() }; await setDoc(doc(db,'technicians',docId), payload, {merge:true}); setMessage('technicianMessage', state.currentLang==='ar'?'تم حفظ الفني.':'Technician saved.'); setAlert('technicianError'); clearTechnicianForm(); } catch(err){ setAlert('technicianError', err.message || String(err)); } }
     async function saveUser(){ try{ const uid=$('userUid').value.trim(); if(!uid) throw new Error('UID required'); const payload = { email:$('userEmail').value.trim(), role:$('userRole').value, active:$('userActive').value==='true', technicianId:$('userTechnicianId').value.trim(), updatedAt: Timestamp.now() }; await setDoc(doc(db,'app_users',uid), payload, {merge:true}); setMessage('permissionsMessage', state.currentLang==='ar'?'تم حفظ المستخدم.':'User saved.'); setAlert('permissionsError'); clearUserForm(); } catch(err){ setAlert('permissionsError', err.message || String(err)); } }
 
     function renderUsersTable(){ $('usersTableBody').innerHTML = state.users.map(u=>`<tr class="clickable" onclick="window.openUserForEdit('${u.id}')"><td>${esc(u.id)}</td><td>${esc(u.email)}</td><td>${esc(u.role)}</td><td>${String(!!u.active)}</td><td>${esc(u.technicianId)}</td></tr>`).join('') || `<tr><td colspan="5">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`; }
@@ -621,7 +742,7 @@
       $('brandLogoFile').addEventListener('change', e=>{ const file=e.target.files?.[0]; if(!file){ if(!$('brandLogoUrl').value.trim()) setPreview(''); return; } const reader=new FileReader(); reader.onload = ev => setPreview(ev.target.result); reader.readAsDataURL(file); });
       $('saveBrandBtn').addEventListener('click', saveBrand); $('clearBrandFormBtn').addEventListener('click', clearBrandForm); $('deleteBrandBtn').addEventListener('click', ()=>deleteBrandById($('editingBrandId').value.trim()));
       $('visitBranch').addEventListener('change', fillVisitFromBranch); $('saveVisitBtn').addEventListener('click', saveVisit); $('clearVisitBtn').addEventListener('click', clearVisitForm); $('deleteVisitBtn').addEventListener('click', ()=>deleteVisitById($('editingVisitId').value.trim()));
-      $('saveBranchBtn').addEventListener('click', saveBranch); $('clearBranchBtn').addEventListener('click', clearBranchForm);
+      $('saveBranchBtn').addEventListener('click', saveBranch); $('clearBranchBtn').addEventListener('click', clearBranchForm); $('branchSearch')?.addEventListener('input', renderBranchesList); $('importBranchesBtn')?.addEventListener('click', importBranchesFromExcel); $('exportBranchesBtn')?.addEventListener('click', exportBranchesToExcel);
       $('saveTechnicianBtn').addEventListener('click', saveTechnician); $('clearTechnicianBtn').addEventListener('click', clearTechnicianForm);
       $('saveUserBtn').addEventListener('click', saveUser); $('clearUserBtn').addEventListener('click', clearUserForm);
       $('runReportBtn').addEventListener('click', runReport);
