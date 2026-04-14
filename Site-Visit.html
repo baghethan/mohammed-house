@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.5.8.9</title>
+  <title>Site-Visit-v1.5.9.1</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.5.8.9</span>
+        <span class="chip">v1.5.9.1</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -461,48 +461,7 @@
       return null;
     }
 
-    function currentRole(){ return state.currentUserProfile?.role || 'user'; }
-    function getCurrentTechnicianRecord(){
-      const techKey = state.currentUserProfile?.technicianId || '';
-      return state.technicians.find(t => t.id === techKey || t.technicianCode === techKey || t.authUid === state.currentUser?.uid || t.email === state.currentUser?.email) || null;
-    }
-    function isChecklistMine(row){
-      const tech = getCurrentTechnicianRecord();
-      if(!row || !tech) return false;
-      return row.technicianDocId === tech.id || row.technicianId === state.currentUser?.uid || row.technicianEmail === state.currentUser?.email;
-    }
-    function applyTechnicianLockedMode(){
-      const isTech = currentRole() === 'technician';
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        const show = !isTech || btn.dataset.tab === 'checklist';
-        btn.style.display = show ? '' : 'none';
-      });
-      document.querySelectorAll('.panel').forEach(panel => {
-        const show = !isTech || panel.id === 'checklist';
-        panel.style.display = show ? '' : 'none';
-        if(isTech && panel.id !== 'checklist') panel.classList.remove('active');
-      });
-      if(isTech){
-        activateTab('checklist');
-        $('deleteChecklistBtn').classList.add('hidden');
-        const tech = getCurrentTechnicianRecord();
-        if(tech){
-          $('cl_technician').value = tech.id || '';
-          $('cl_technician').disabled = true;
-          populateVisitsForTechnician();
-          $('cl_technician_id').value = tech.authUid || tech.id || '';
-          $('cl_technician_email').value = tech.email || '';
-          setMessage('checklistMessage', state.currentLang==='ar' ? 'وضع الفني المقفل مفعّل: يظهر لك فقط نموذج Check-List وسجلاتك الخاصة.' : 'Locked technician mode enabled: only your checklist form and your own records are visible.');
-        }
-      } else {
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.style.display = '');
-        document.querySelectorAll('.panel').forEach(panel => panel.style.display = '');
-        $('cl_technician').disabled = false;
-      }
-    }
-
     function activateTab(tabId){
-      if(currentRole() === 'technician' && tabId !== 'checklist') tabId = 'checklist';
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab === tabId));
       document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id === tabId));
     }
@@ -528,14 +487,30 @@
       $('branchesList').innerHTML = rows.length ? rows.map(b=>`<div class="item"><strong>${esc(b.branchName || b.id)}</strong><small>Branch_ID: ${esc(b.id)} | Brand: ${esc(b.brand || '-')} | Type: ${esc(b.branchType || '-')}</small><small>Region: ${esc(b.region || '-')} | City: ${esc(b.city || '-')} | Location: ${esc(b.location || '-')}</small><small>GPS: ${esc(b.gps || '-')} | Showroom: ${esc(b.contactShowroom || '-')}</small><small>Service: ${esc(b.contactService || '-')} | Spare Parts: ${esc(b.contactSpareParts || '-')} | Function: ${esc(b.functionName || b.function || '-')}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا توجد فروع.':'No branches found.'}</div>`;
     }
     function renderTechniciansList(){ $('techniciansList').innerHTML = state.technicians.length ? state.technicians.map(t=>`<div class="item"><strong>${esc(t.name || t.id)}</strong><small>Doc ID: ${esc(t.id)} | Code: ${esc(t.technicianCode || t.id)}</small><small>Email: ${esc(t.email || '-')} | authUid: ${esc(t.authUid || '-')}</small><small>Region: ${esc(t.region || '-')} | City: ${esc(t.city || '-')} | Brand: ${esc(t.brand || '-')}</small><small>Branch: ${esc(t.assignedBranchName || t.branchName || '-')}</small><div class="mini-actions"><button class="btn small" onclick="window.openTechnicianForEdit('${t.id}')">${state.currentLang==='ar'?'تحديد نطاق الزيارة':'Edit Visit Scope'}</button></div></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا يوجد فنيون.':'No technicians found.'}</div>`; }
-    function renderLatestBrands(){ const rows = state.technicians.map(t => { const count = state.visits.filter(v => (v.technicianDocId && v.technicianDocId === t.id) || (v.technicianId && (v.technicianId === t.authUid || v.technicianId === t.id)) || (v.technicianEmail && t.email && v.technicianEmail === t.email)).length; return { name: t.name || t.id || '-', email: t.email || '-', code: t.technicianCode || t.id || '-', count }; }).sort((a,b)=> b.count - a.count || String(a.name).localeCompare(String(b.name))); $('latestBrandsList').innerHTML = rows.length ? rows.map(t=>`<div class="item"><strong>${esc(t.name)}</strong><small>${state.currentLang==='ar'?'عدد الزيارات':'Visits'}: ${t.count}</small><small>${state.currentLang==='ar'?'البريد':'Email'}: ${esc(t.email)} | ${state.currentLang==='ar'?'الكود':'Code'}: ${esc(t.code)}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا يوجد فنيون.':'No technicians.'}</div>`; }
+    function renderLatestBrands(){
+      const rows = state.technicians.map(t => {
+        const techVisits = state.visits.filter(v =>
+          (v.technicianDocId && v.technicianDocId === t.id) ||
+          (v.technicianId && (v.technicianId === t.authUid || v.technicianId === t.id)) ||
+          (v.technicianEmail && t.email && v.technicianEmail === t.email)
+        );
+        const completed = techVisits.filter(v => (String(v.status || '').toLowerCase()==='completed') || v.checklistCompleted===true).length;
+        const pending = techVisits.filter(v => !((String(v.status || '').toLowerCase()==='completed') || v.checklistCompleted===true) && String(v.status || '').toLowerCase() !== 'cancelled').length;
+        return {
+          name: t.name || t.id || '-',
+          total: techVisits.length,
+          pending,
+          completed
+        };
+      }).sort((a,b)=> b.total - a.total || String(a.name).localeCompare(String(b.name)));
+      $('latestBrandsList').innerHTML = rows.length ? rows.map(t=>`<div class="item"><strong>${esc(t.name)}</strong><small>${state.currentLang==='ar'?'مجموع الزيارات':'Total Visits'}: ${t.total}</small><small>${state.currentLang==='ar'?'معلقة':'Pending'}: ${t.pending} | ${state.currentLang==='ar'?'مكتملة':'Completed'}: ${t.completed}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا يوجد فنيون.':'No technicians.'}</div>`;
+    }
     function renderBrandsDatalist(){ $('brandsDatalist').innerHTML = state.brands.map(b => `<option value="${esc(b.brand || b.nameEn || b.nameAr || b.key || '')}"></option>`).join(''); }
 
-    function renderLatestChecklistTable(){ const rows = currentRole()==='technician' ? state.checklists.filter(isChecklistMine) : state.checklists; $('latestChecklistBody').innerHTML = rows.slice(0,10).map(r => `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.branchManager)}</td></tr>`).join('') || `<tr><td colspan="5">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`; }
+    function renderLatestChecklistTable(){ $('latestChecklistBody').innerHTML = state.checklists.slice(0,10).map(r => `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.branchManager)}</td></tr>`).join('') || `<tr><td colspan="5">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`; }
     function renderChecklistTable(){
       const q=($('checklistSearch').value||'').trim().toLowerCase();
-      const baseRows = currentRole()==='technician' ? state.checklists.filter(isChecklistMine) : state.checklists;
-      const rows=baseRows.filter(r => !q || [r.brand,r.branchId,r.locationSite,r.branchManager,r.technicianName].some(v => String(v||'').toLowerCase().includes(q)));
+      const rows=state.checklists.filter(r => !q || [r.brand,r.branchId,r.locationSite,r.branchManager,r.technicianName].some(v => String(v||'').toLowerCase().includes(q)));
       $('checklistTableBody').innerHTML = rows.map(r => `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.branchManager)}</td></tr>`).join('') || `<tr><td colspan="6">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`;
       renderLatestChecklistTable();
     }
@@ -676,8 +651,7 @@
       ['cl_technician_id','cl_technician_email','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_branch_manager','cl_visit_date','cl_month','cl_users_count','cl_q20','cl_q28'].forEach(id=>$(id).value='');
       ['cl_technician','cl_visit_ref','cl_visit_scheduled','cl_calendar_booked','cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id=>$(id).value='');
       document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=false);
-      $('deleteChecklistBtn').classList.add('hidden'); setAlert('checklistError'); populateVisitsForTechnician();
-      if(currentRole()==='technician'){ const tech = getCurrentTechnicianRecord(); if(tech){ $('cl_technician').value = tech.id || ''; $('cl_technician').disabled = true; populateVisitsForTechnician(); $('cl_technician_id').value = tech.authUid || tech.id || ''; $('cl_technician_email').value = tech.email || ''; setMessage('checklistMessage', state.currentLang==='ar'?'وضع الفني المقفل مفعّل. تستطيع رؤية وحفظ سجلاتك فقط.':'Locked technician mode enabled. You can only view and save your own records.'); } } else { $('cl_technician').disabled = false; setMessage('checklistMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); }
+      $('deleteChecklistBtn').classList.add('hidden'); setMessage('checklistMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('checklistError'); populateVisitsForTechnician();
     }
     function clearBrandForm(){ $('editingBrandId').value=''; ['brandNameAr','brandNameEn','brandKey','brandLogoUrl','brandNotes'].forEach(id=>$(id).value=''); $('brandLogoFile').value=''; setPreview(''); $('deleteBrandBtn').classList.add('hidden'); setMessage('brandMessage', state.currentLang==='ar'?'يمكنك إضافة براند جديد مع صورته أو تعديل براند موجود.':'You can add or edit a brand.'); setAlert('brandsError'); }
     function clearVisitForm(){ $('editingVisitId').value=''; ['visitDate','visitBrand','visitBranchId','visitLocation','visitNotes'].forEach(id=>$(id).value=''); ['visitBranch','visitTechnician','visitStatus'].forEach((id,i)=>$(id).value = i===2 ? 'planned' : ''); renderBranchSelectors(); $('deleteVisitBtn').classList.add('hidden'); setMessage('visitMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('visitError'); }
@@ -720,7 +694,6 @@
           updatedAt: Timestamp.now()
         };
         if(!payload.technicianId) throw new Error(state.currentLang==='ar'?'اختر الفني أولاً.':'Choose technician first.');
-        if(currentRole()==='technician' && payload.technicianDocId !== (getCurrentTechnicianRecord()?.id || '')) throw new Error(state.currentLang==='ar'?'لا يمكنك حفظ Check-List إلا باسمك فقط.':'You can only save your own checklist.');
         if(!payload.brand || !payload.branchId || !payload.locationSite || !payload.visitDate) throw new Error(state.currentLang==='ar'?'أكمل الحقول الأساسية المطلوبة.':'Complete required fields.');
         const editId = $('editingChecklistId').value.trim();
         if(editId) await setDoc(doc(db,'branch_checklists',editId), payload, {merge:true}); else await addDoc(collection(db,'branch_checklists'), { ...payload, createdAt: Timestamp.now() });
@@ -733,7 +706,7 @@
       } catch(err){ setAlert('checklistError', err.message || String(err)); }
     }
     async function deleteChecklistById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف السجل؟':'Delete this record?')) return; await deleteDoc(doc(db,'branch_checklists',id)); clearChecklistForm(); } catch(err){ setAlert('checklistError', err.message || String(err)); } }
-    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; if(currentRole()==='technician' && !isChecklistMine(x)) return; $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.visitDate||''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
+    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.visitDate||''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
 
     function loadSelectedTechnician(){
       const id = $('technicianSelector')?.value || '';
@@ -855,8 +828,8 @@
     function attachListeners(){
       $('loginBtn').addEventListener('click', loginWithEmail);
       $('logoutBtn').addEventListener('click', async ()=>{ clearAllListeners(); await signOut(auth); });
-      $('langArBtn').addEventListener('click', ()=>{ applyLanguage('ar'); applyTechnicianLockedMode(); });
-      $('langEnBtn').addEventListener('click', ()=>{ applyLanguage('en'); applyTechnicianLockedMode(); });
+      $('langArBtn').addEventListener('click', ()=>applyLanguage('ar'));
+      $('langEnBtn').addEventListener('click', ()=>applyLanguage('en'));
       $('checklistSearch').addEventListener('input', renderChecklistTable);
       $('brandSearch').addEventListener('input', renderBrands);
       $('cl_technician').addEventListener('change', populateVisitsForTechnician);
@@ -894,7 +867,7 @@
         state.currentUserProfile = profile;
         $('currentUserChip').classList.remove('hidden'); $('currentUserChip').textContent = `${profile?.name || user.email} | ${profile?.role || 'user'}`; $('logoutBtn').classList.remove('hidden'); $('loginOverlay').classList.add('hidden'); $('appRoot').classList.remove('hidden');
         if(!profile){ setAlert('dashboardError', state.currentLang==='ar' ? 'تنبيه: لم يتم العثور على app_users/{UID}. قد تعمل بعض التبويبات للقراءة فقط أو تفشل حسب القواعد.' : 'Warning: app_users/{UID} was not found. Some tabs may fail according to rules.'); }
-        listenBranches(); listenTechnicians(); listenVisits(); listenChecklists(); listenBrands(); listenUsers(); applyTechnicianLockedMode(); if(currentRole()==='technician') activateTab('checklist');
+        listenBranches(); listenTechnicians(); listenVisits(); listenChecklists(); listenBrands(); listenUsers();
       } else {
         clearAllListeners(); state.currentUser=null; state.currentUserProfile=null; state.branches=[]; state.technicians=[]; state.visits=[]; state.checklists=[]; state.brands=[]; state.users=[];
         $('currentUserChip').classList.add('hidden'); $('logoutBtn').classList.add('hidden'); $('loginOverlay').classList.remove('hidden'); $('appRoot').classList.add('hidden'); $('loginMessage').textContent = 'ادخل بحساب موجود في Firebase Authentication و app_users.';
@@ -902,7 +875,7 @@
       }
     });
 
-    attachListeners(); applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); renderLatestBrands(); applyTechnicianLockedMode();
+    attachListeners(); applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm();
   </script>
 </body>
 </html>
