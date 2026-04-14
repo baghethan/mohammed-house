@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.5.11</title>
+  <title>Site-Visit-v1.5.12</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.5.11</span>
+        <span class="chip">v1.5.12</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -260,12 +260,15 @@
             <button class="btn" id="clearVisitBtn" data-i18n="clearForm">تنظيف النموذج</button>
             <button class="btn danger hidden" id="deleteVisitBtn" data-i18n="deleteRecord">حذف السجل</button>
           </div>
-          <div class="note" id="visitMessage">جاهز للحفظ. بعد حفظ الزيارة سيظهر لك رابط مباشر إلى صفحة <span class="rtl-en">Check-List</span> لهذه الزيارة.</div>
+          <div class="note" id="visitMessage">جاهز للحفظ.</div>
           <div id="visitError" class="alert error hidden"></div>
         </div>
         <div class="card">
           <h3 data-i18n="latestVisits">أحدث الزيارات</h3>
-          <div class="table-wrap"><table><thead><tr><th data-i18n="visitDate">تاريخ الزيارة</th><th data-i18n="branch">الفرع</th><th data-i18n="technician">الفني</th><th data-i18n="status">الحالة</th></tr></thead><tbody id="visitsTableBody"></tbody></table></div>
+          <div class="actions" style="margin-bottom:12px">
+            <button class="btn" id="copyVisitsTableBtn" type="button">نسخ جدول أحدث الزيارات للإيميل</button>
+          </div>
+          <div class="table-wrap"><table id="latestVisitsTable"><thead><tr><th data-i18n="visitDate">تاريخ الزيارة</th><th data-i18n="branch">الفرع</th><th data-i18n="technician">الفني</th><th data-i18n="status">الحالة</th></tr></thead><tbody id="visitsTableBody"></tbody></table></div>
         </div>
       </div>
     </section>
@@ -501,45 +504,12 @@
     function setPreview(src){ state.previewData = src || ''; $('logoPreview').src = src || ''; $('logoPreview').classList.toggle('hidden', !src); $('logoPreviewEmpty').classList.toggle('hidden', !!src); }
     function makeBrandKey(){ const fromKey = $('brandKey').value.trim().toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,40); if(fromKey) return fromKey; const fromEn = $('brandNameEn').value.trim().toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,40); if(fromEn) return fromEn; return $('brandNameAr').value.trim().toLowerCase().replace(/[\s\-_/]+/g,''); }
 
-    function setChecklistPrefillLock(lock){
-      ['cl_technician','cl_visit_ref','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_visit_date','cl_month'].forEach(id=>{
-        const el = $(id); if(!el) return;
-        if(lock) el.setAttribute('readonly','readonly'); else el.removeAttribute('readonly');
-        if(el.tagName === 'SELECT'){ el.disabled = !!lock; }
-      });
-    }
-    function openChecklistFromVisitId(visitId){
-      const visit = state.visits.find(v => v.id === visitId);
-      if(!visit) return;
-      clearChecklistForm();
-      const techDocId = visit.technicianDocId || '';
-      if(techDocId) $('cl_technician').value = techDocId;
-      populateVisitsForTechnician();
-      $('cl_visit_ref').value = visit.id || '';
-      fillChecklistFromVisit(visit);
-      $('cl_technician_id').value = visit.technicianUid || visit.technicianId || '';
-      $('cl_technician_email').value = visit.technicianEmail || '';
-      setChecklistPrefillLock(true);
-      setMessage('checklistMessage', state.currentLang==='ar' ? 'تم تعبئة معلومات الزيارة تلقائيًا. فقط أجب على نقاط Check-List ثم احفظ.' : 'Visit information has been filled automatically. Answer the checklist points only, then save.');
-      activateTab('checklist');
-    }
-    function renderChecklistLinkForVisit(visitId){
-      const label = state.currentLang==='ar' ? 'فتح Check-List لهذه الزيارة' : 'Open Check-List for this visit';
-      const note = state.currentLang==='ar' ? 'تم حفظ الزيارة بنجاح. يمكنك الآن فتح نموذج Check-List وسيتم تعبئة بيانات الزيارة تلقائيًا.' : 'Visit saved successfully. You can now open the Check-List form and the visit information will be filled automatically.';
-      return `<div class="mini-note-strong">${note}</div><div class="inline-link-actions"><button class="btn green" type="button" onclick="window.openChecklistFromVisitLink('${visitId}')">${label}</button></div>`;
-    }
-    window.openChecklistFromVisitLink = function(visitId){ openChecklistFromVisitId(visitId); };
-
     function clearChecklistForm(){
       $('editingChecklistId').value='';
       ['cl_technician_id','cl_technician_email','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_branch_manager','cl_visit_date','cl_month','cl_users_count','cl_q20','cl_q28'].forEach(id=>$(id).value='');
       ['cl_technician','cl_visit_ref','cl_visit_scheduled','cl_calendar_booked','cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id=>$(id).value='');
       document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=false);
-      setChecklistPrefillLock(false);
-      $('deleteChecklistBtn').classList.add('hidden');
-      setMessage('checklistMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.');
-      setAlert('checklistError');
-      populateVisitsForTechnician();
+      $('deleteChecklistBtn').classList.add('hidden'); setMessage('checklistMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('checklistError'); populateVisitsForTechnician();
     }
     function clearBrandForm(){ $('editingBrandId').value=''; ['brandNameAr','brandNameEn','brandKey','brandLogoUrl','brandNotes'].forEach(id=>$(id).value=''); $('brandLogoFile').value=''; setPreview(''); $('deleteBrandBtn').classList.add('hidden'); setMessage('brandMessage', state.currentLang==='ar'?'يمكنك إضافة براند جديد مع صورته أو تعديل براند موجود.':'You can add or edit a brand.'); setAlert('brandsError'); }
     function clearVisitForm(){ $('editingVisitId').value=''; ['visitDate','visitBrand','visitBranchId','visitLocation','visitNotes'].forEach(id=>$(id).value=''); ['visitBranch','visitTechnician','visitStatus'].forEach((id,i)=>$(id).value = i===2 ? 'planned' : ''); $('deleteVisitBtn').classList.add('hidden'); setMessage('visitMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('visitError'); }
@@ -591,7 +561,7 @@
     }
 
     async function deleteChecklistById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف السجل؟':'Delete this record?')) return; await deleteDoc(doc(db,'branch_checklists',id)); clearChecklistForm(); } catch(err){ setAlert('checklistError', err.message || String(err)); } }
-    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; clearChecklistForm(); $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.visitDate||''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
+    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.visitDate||''; $('cl_month').value=x.month||''; $('cl_calendarBooked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
 
     async function saveBrand(){ try{ const id = $('editingBrandId').value.trim() || crypto.randomUUID(); const key = makeBrandKey(); if(!key) throw new Error(state.currentLang==='ar'?'أدخل اسم البراند أو المفتاح.':'Enter brand name or key.'); const payload = { id, key, brandKey:key, brand:$('brandNameEn').value.trim() || $('brandNameAr').value.trim(), nameAr:$('brandNameAr').value.trim(), nameEn:$('brandNameEn').value.trim(), logoUrl:$('brandLogoUrl').value.trim(), logoData: state.previewData || $('brandLogoUrl').value.trim(), notes:$('brandNotes').value.trim(), updatedAt: Timestamp.now() }; if(!$('editingBrandId').value.trim()) payload.createdAt = Timestamp.now(); await setDoc(doc(db,'brand_assets',id), payload, {merge:true}); setMessage('brandMessage', state.currentLang==='ar'?'تم حفظ البراند بنجاح.':'Brand saved successfully.'); setAlert('brandsError'); clearBrandForm(); } catch(err){ setAlert('brandsError', err.message || String(err)); } }
     async function deleteBrandById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف البراند؟':'Delete this brand?')) return; await deleteDoc(doc(db,'brand_assets',id)); clearBrandForm(); } catch(err){ setAlert('brandsError', err.message || String(err)); } }
@@ -600,24 +570,10 @@
 
     async function saveVisit(){
       try{
-        const branch = state.branches.find(b=>b.id === $('visitBranch').value);
-        const tech = state.technicians.find(t=>t.id === $('visitTechnician').value);
-        if(!branch) throw new Error(state.currentLang==='ar'?'اختر الفرع.':'Choose branch.');
-        if(!tech) throw new Error(state.currentLang==='ar'?'اختر الفني.':'Choose technician.');
-        if(!$('visitDate').value) throw new Error(state.currentLang==='ar'?'أدخل تاريخ الزيارة.':'Enter visit date.');
+        const branch = state.branches.find(b=>b.id === $('visitBranch').value); const tech = state.technicians.find(t=>t.id === $('visitTechnician').value);
+        if(!branch) throw new Error(state.currentLang==='ar'?'اختر الفرع.':'Choose branch.'); if(!tech) throw new Error(state.currentLang==='ar'?'اختر الفني.':'Choose technician.'); if(!$('visitDate').value) throw new Error(state.currentLang==='ar'?'أدخل تاريخ الزيارة.':'Enter visit date.');
         const payload = { branchId:branch.id, branchName:branch.branchName || branch.id, brand:branch.brand || '', brandKey:'', region:branch.region || '', city:branch.city || '', technicianId: tech.authUid || tech.id, technicianDocId: tech.id, technicianUid: tech.authUid || tech.id, technicianName: tech.name || tech.id, technicianEmail: tech.email || '', date:$('visitDate').value, status:$('visitStatus').value, notes:$('visitNotes').value.trim(), updatedAt: Timestamp.now() };
-        const editId = $('editingVisitId').value.trim();
-        let savedVisitId = editId;
-        if(editId){
-          await setDoc(doc(db,'siteVisits',editId), payload, {merge:true});
-        } else {
-          const docRef = await addDoc(collection(db,'siteVisits'), { ...payload, createdAt: Timestamp.now() });
-          savedVisitId = docRef.id;
-        }
-        $('visitMessage').innerHTML = renderChecklistLinkForVisit(savedVisitId);
-        setAlert('visitError');
-        clearVisitForm();
-        $('visitMessage').innerHTML = renderChecklistLinkForVisit(savedVisitId);
+        const editId = $('editingVisitId').value.trim(); if(editId) await setDoc(doc(db,'siteVisits',editId), payload, {merge:true}); else await addDoc(collection(db,'siteVisits'), { ...payload, createdAt: Timestamp.now() }); setMessage('visitMessage', state.currentLang==='ar'?'تم حفظ الزيارة بنجاح.':'Visit saved successfully.'); setAlert('visitError'); clearVisitForm();
       } catch(err){ setAlert('visitError', err.message || String(err)); }
     }
     async function deleteVisitById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف الزيارة؟':'Delete this visit?')) return; await deleteDoc(doc(db,'siteVisits',id)); clearVisitForm(); } catch(err){ setAlert('visitError', err.message || String(err)); } }
@@ -648,6 +604,67 @@
       $('reportsHead').innerHTML=head; $('reportsBody').innerHTML = body || `<tr><td colspan="6">${state.currentLang==='ar'?'لا توجد نتائج.':'No results.'}</td></tr>`;
     }
 
+    function buildVisitsEmailTableData(){
+      const rows = state.visits.slice(0,20).map(v => ({
+        date: v.date || '',
+        branch: v.branchName || '',
+        technician: v.technicianName || '',
+        status: v.status || ''
+      }));
+      return rows;
+    }
+    function buildVisitsEmailHtml(){
+      const rows = buildVisitsEmailTableData();
+      const title = state.currentLang==='ar' ? 'أحدث الزيارات' : 'Latest Visits';
+      const noData = state.currentLang==='ar' ? 'لا توجد زيارات.' : 'No visits.';
+      const headers = state.currentLang==='ar'
+        ? ['تاريخ الزيارة','الفرع','الفني','الحالة']
+        : ['Visit Date','Branch','Technician','Status'];
+      if(!rows.length){
+        return `<div><strong>${title}</strong></div><p>${noData}</p>`;
+      }
+      const head = headers.map(h => `<th style="border:1px solid #cfd8e3;padding:8px;background:#f4f8fb;text-align:${state.currentLang==='ar'?'right':'left'}">${esc(h)}</th>`).join('');
+      const body = rows.map(r => `<tr><td style="border:1px solid #cfd8e3;padding:8px">${esc(r.date)}</td><td style="border:1px solid #cfd8e3;padding:8px">${esc(r.branch)}</td><td style="border:1px solid #cfd8e3;padding:8px">${esc(r.technician)}</td><td style="border:1px solid #cfd8e3;padding:8px">${esc(r.status)}</td></tr>`).join('');
+      return `<div style="font-family:Segoe UI,Tahoma,Arial,sans-serif"><div style="font-weight:700;margin-bottom:10px">${title}</div><table style="border-collapse:collapse;width:100%"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+    }
+    function buildVisitsEmailText(){
+      const rows = buildVisitsEmailTableData();
+      const title = state.currentLang==='ar' ? 'أحدث الزيارات' : 'Latest Visits';
+      const headers = state.currentLang==='ar'
+        ? ['تاريخ الزيارة','الفرع','الفني','الحالة']
+        : ['Visit Date','Branch','Technician','Status'];
+      const lines = [title, headers.join(' | ')];
+      rows.forEach(r => lines.push([r.date, r.branch, r.technician, r.status].join(' | ')));
+      return lines.join('
+');
+    }
+    async function copyVisitsTableForEmail(){
+      try{
+        const html = buildVisitsEmailHtml();
+        const text = buildVisitsEmailText();
+        if(navigator.clipboard && window.ClipboardItem){
+          const item = new ClipboardItem({
+            'text/html': new Blob([html], {type:'text/html'}),
+            'text/plain': new Blob([text], {type:'text/plain'})
+          });
+          await navigator.clipboard.write([item]);
+        } else if(navigator.clipboard && navigator.clipboard.writeText){
+          await navigator.clipboard.writeText(text);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+        }
+        setMessage('visitMessage', state.currentLang==='ar' ? 'تم نسخ جدول أحدث الزيارات. يمكنك لصقه مباشرة في البريد.' : 'Latest visits table copied. You can paste it directly into email.');
+        setAlert('visitError');
+      } catch(err){
+        setAlert('visitError', (state.currentLang==='ar' ? 'تعذر نسخ الجدول: ' : 'Could not copy table: ') + (err.message || String(err)));
+      }
+    }
+
     function attachListeners(){
       $('loginBtn').addEventListener('click', loginWithEmail);
       $('logoutBtn').addEventListener('click', async ()=>{ clearAllListeners(); await signOut(auth); });
@@ -667,7 +684,7 @@
       $('brandLogoUrl').addEventListener('input', ()=>{ const url=$('brandLogoUrl').value.trim(); if(url) setPreview(url); else if(!$('brandLogoFile').value) setPreview(''); });
       $('brandLogoFile').addEventListener('change', e=>{ const file=e.target.files?.[0]; if(!file){ if(!$('brandLogoUrl').value.trim()) setPreview(''); return; } const reader=new FileReader(); reader.onload = ev => setPreview(ev.target.result); reader.readAsDataURL(file); });
       $('saveBrandBtn').addEventListener('click', saveBrand); $('clearBrandFormBtn').addEventListener('click', clearBrandForm); $('deleteBrandBtn').addEventListener('click', ()=>deleteBrandById($('editingBrandId').value.trim()));
-      $('visitBranch').addEventListener('change', fillVisitFromBranch); $('saveVisitBtn').addEventListener('click', saveVisit); $('clearVisitBtn').addEventListener('click', clearVisitForm); $('deleteVisitBtn').addEventListener('click', ()=>deleteVisitById($('editingVisitId').value.trim()));
+      $('visitBranch').addEventListener('change', fillVisitFromBranch); $('copyVisitsTableBtn')?.addEventListener('click', copyVisitsTableForEmail); $('saveVisitBtn').addEventListener('click', saveVisit); $('clearVisitBtn').addEventListener('click', clearVisitForm); $('deleteVisitBtn').addEventListener('click', ()=>deleteVisitById($('editingVisitId').value.trim()));
       $('saveBranchBtn').addEventListener('click', saveBranch); $('clearBranchBtn').addEventListener('click', clearBranchForm);
       $('saveTechnicianBtn').addEventListener('click', saveTechnician); $('clearTechnicianBtn').addEventListener('click', clearTechnicianForm);
       $('saveUserBtn').addEventListener('click', saveUser); $('clearUserBtn').addEventListener('click', clearUserForm);
