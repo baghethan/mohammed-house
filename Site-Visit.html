@@ -249,7 +249,7 @@
       <div class="grid-2">
         <div class="card">
           <h3 data-i18n="visitFormTitle">إدخال / تعديل زيارة</h3>
-          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني. وإذا كان الفرع من نوع <span class="rtl-en">Stellantis (Peugeot + Citroën)</span> فسيتم تسجيل الزيارة على نفس الفرع ولكن تُحتسب للبراندين <span class="rtl-en">Peugeot</span> و<span class="rtl-en">Citroën</span>.</div>
+          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني. وإذا كان الفرع من نوع <span class="rtl-en">Stellantis (Peugeot + Citroën)</span> فسيتم تسجيل الزيارة على نفس الفرع ولكن تُحتسب للبراندين <span class="rtl-en">Peugeot</span> و<span class="rtl-en">Citroën</span>. كما تم دعم تهجئات مختلفة لاسم <span class="rtl-en">Peugeot</span> مثل <span class="rtl-en">Peugedt / Peugot</span> حتى تظهر الأعداد بشكل صحيح في لوحة التحكم.</div>
           <input type="hidden" id="editingVisitId">
           <div class="grid-3">
             <div class="field"><label data-i18n="branch">الفرع</label><select id="visitBranch"></select></div>
@@ -511,7 +511,14 @@
         const related = state.visits.filter(v => shouldCountVisitForBrand(v, brandName, brandKey));
         const completed = related.filter(v => (String(v.status || '').toLowerCase()==='completed') || v.checklistCompleted===true).length;
         const pending = related.filter(v => !((String(v.status || '').toLowerCase()==='completed') || v.checklistCompleted===true) && String(v.status || '').toLowerCase() !== 'cancelled').length;
-        return { nameAr: b.nameAr || b.brand || '-', nameEn: b.nameEn || b.brand || b.key || '-', logo: b.logoData || b.logoUrl || '', total: related.length, completed, pending };
+        return {
+          nameAr: b.nameAr || b.brand || '-',
+          nameEn: getCanonicalBrandDisplay(b.nameEn || b.brand || b.key || '-'),
+          logo: b.logoData || b.logoUrl || '',
+          total: related.length,
+          completed,
+          pending
+        };
       });
       $('dashboardBrandStatsGrid').innerHTML = rows.length ? rows.map(b => `<div class="brand-card">${b.logo?`<img src="${esc(b.logo)}" alt="${esc(b.nameEn)}" onerror="this.style.display='none'">`:`<div class="note">${state.currentLang==='ar'?'لا يوجد شعار.':'No logo.'}</div>`}<div class="brand-name">${esc(b.nameAr)} <span class="rtl-en">/ ${esc(b.nameEn)}</span></div><div class="brand-key">${state.currentLang==='ar'?'إجمالي الزيارات':'Total Visits'}: ${b.total}</div><div class="note" style="margin-top:8px">${state.currentLang==='ar'?'مكتملة':'Completed'}: ${b.completed} | ${state.currentLang==='ar'?'معلقة':'Pending'}: ${b.pending}</div></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا توجد براندات.':'No brands.'}</div>`;
     }
@@ -652,27 +659,42 @@
     }
 
     function normalizeVisitBrandToken(v){ return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
+    function canonicalBrandToken(v){
+      const token = normalizeVisitBrandToken(v);
+      if(['peugeot','peugot','peugedt','peugotksa','peugeotksa'].includes(token)) return 'peugeot';
+      if(['citroen','citron','citroenksa'].includes(token)) return 'citroen';
+      if(token.includes('peugeot') || token.includes('peugot') || token.includes('peugedt')) return 'peugeot';
+      if(token.includes('citroen') || token.includes('citron')) return 'citroen';
+      if(token.includes('stellantis')) return 'stellantis';
+      return token;
+    }
+    function getCanonicalBrandDisplay(v){
+      const token = canonicalBrandToken(v);
+      if(token === 'peugeot') return 'Peugeot';
+      if(token === 'citroen') return 'Citroën';
+      return v || '';
+    }
     function isStellantisCompoundBranch(branch){
       if(!branch) return false;
-      const combined = [branch.brand, branch.branchName, branch.location, branch.id].map(normalizeVisitBrandToken).join(' ');
-      const hasStellantis = combined.includes('stellantis');
-      const hasPeugeot = combined.includes('peugeot');
-      const hasCitroen = combined.includes('citroen');
+      const combinedTokens = [branch.brand, branch.branchName, branch.location, branch.id].map(canonicalBrandToken).join(' ');
+      const hasStellantis = combinedTokens.includes('stellantis');
+      const hasPeugeot = combinedTokens.includes('peugeot');
+      const hasCitroen = combinedTokens.includes('citroen');
       return hasStellantis || (hasPeugeot && hasCitroen);
     }
-    function getVisitBrandsForBranch(branch){ return isStellantisCompoundBranch(branch) ? ['Peugeot','Citroën'] : [branch?.brand || '']; }
-    function getVisitBrandKey(value){ return normalizeVisitBrandToken(value); }
-    function getVisitBrandDisplay(branch){ return isStellantisCompoundBranch(branch) ? 'Stellantis (Peugeot + Citroën)' : (branch?.brand || ''); }
+    function getVisitBrandsForBranch(branch){ return isStellantisCompoundBranch(branch) ? ['Peugeot','Citroën'] : [getCanonicalBrandDisplay(branch?.brand || '')]; }
+    function getVisitBrandKey(value){ return canonicalBrandToken(value); }
+    function getVisitBrandDisplay(branch){ return isStellantisCompoundBranch(branch) ? 'Stellantis (Peugeot + Citroën)' : getCanonicalBrandDisplay(branch?.brand || ''); }
     function isLegacyStellantisVisit(visit){
       if(!visit) return false;
-      const combined = [visit.brand, visit.brandKey, visit.branchName, visit.branchId, visit.compoundSource].map(normalizeVisitBrandToken).join(' ');
+      const combined = [visit.brand, visit.brandKey, visit.branchName, visit.branchId, visit.compoundSource].map(canonicalBrandToken).join(' ');
       return combined.includes('stellantis');
     }
     function shouldCountVisitForBrand(visit, brandName, brandKey){
-      const visitBrand = normalizeVisitBrandToken(visit?.brand);
-      const visitBrandKey = normalizeVisitBrandToken(visit?.brandKey);
-      const targetName = normalizeVisitBrandToken(brandName);
-      const targetKey = normalizeVisitBrandToken(brandKey);
+      const visitBrand = canonicalBrandToken(visit?.brand);
+      const visitBrandKey = canonicalBrandToken(visit?.brandKey);
+      const targetName = canonicalBrandToken(brandName);
+      const targetKey = canonicalBrandToken(brandKey);
       if((targetName && visitBrand === targetName) || (targetKey && visitBrandKey === targetKey)) return true;
       if(isLegacyStellantisVisit(visit) && ['peugeot','citroen'].includes(targetName || targetKey)) return true;
       return false;
@@ -792,7 +814,7 @@
           const related = existingGroupId ? state.visits.filter(v => v.visitGroupId === existingGroupId) : (existing ? [existing] : []);
           if(brandsToSave.length > 1){
             for(let i = 0; i < brandsToSave.length; i++){
-              const brandName = brandsToSave[i];
+              const brandName = getCanonicalBrandDisplay(brandsToSave[i]);
               const recordPayload = { ...basePayload, brand: brandName, brandKey: getVisitBrandKey(brandName) };
               const target = related[i];
               if(target?.id) await setDoc(doc(db,'siteVisits', target.id), recordPayload, {merge:true});
@@ -800,7 +822,7 @@
             }
             for(let i = brandsToSave.length; i < related.length; i++) if(related[i]?.id) await deleteDoc(doc(db,'siteVisits', related[i].id));
           } else {
-            const brandName = brandsToSave[0] || branch.brand || '';
+            const brandName = getCanonicalBrandDisplay(brandsToSave[0] || branch.brand || '');
             await setDoc(doc(db,'siteVisits', editId), { ...basePayload, visitGroupId:'', compoundSource:'', brand: brandName, brandKey: getVisitBrandKey(brandName) }, {merge:true});
             if(existingGroupId){
               for(const row of related.filter(v => v.id !== editId)) await deleteDoc(doc(db,'siteVisits', row.id));
@@ -808,11 +830,12 @@
           }
         } else {
           if(brandsToSave.length > 1){
-            for(const brandName of brandsToSave){
+            for(const rawBrandName of brandsToSave){
+              const brandName = getCanonicalBrandDisplay(rawBrandName);
               await addDoc(collection(db,'siteVisits'), { ...basePayload, brand: brandName, brandKey: getVisitBrandKey(brandName), createdAt: Timestamp.now() });
             }
           } else {
-            const brandName = brandsToSave[0] || branch.brand || '';
+            const brandName = getCanonicalBrandDisplay(brandsToSave[0] || branch.brand || '');
             await addDoc(collection(db,'siteVisits'), { ...basePayload, visitGroupId:'', compoundSource:'', brand: brandName, brandKey: getVisitBrandKey(brandName), createdAt: Timestamp.now() });
           }
         }
