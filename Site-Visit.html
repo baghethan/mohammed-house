@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.5.9.12 - Upgrade Windows Tab</title>
+  <title>Site-Visit-v1.5.9.13 - Dashboard Upgrade Windows Summary</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.5.9.12</span>
+        <span class="chip">v1.5.9.13</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -93,6 +93,15 @@
         <div class="stat"><span class="label" data-i18n="statCompletedVisits">زيارات مكتملة</span><div class="value" id="statCompletedVisits">0</div></div>
         <div class="stat"><span class="label" data-i18n="statPendingVisits">زيارات معلقة</span><div class="value" id="statPendingVisits">0</div></div>
         <div class="stat"><span class="label" data-i18n="statVisitedTechs">عدد الفنيين زيارة</span><div class="value" id="statVisitedTechnicians">0</div></div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <h3>ملخص سريع Upgrade Windows</h3>
+        <div class="grid-4">
+          <div class="stat"><span class="label">إجمالي السجلات</span><div class="value" id="dashboardUpgradeWindowsTotal">0</div></div>
+          <div class="stat"><span class="label">إجمالي الأجهزة</span><div class="value" id="dashboardUpgradeWindowsDevices">0</div></div>
+          <div class="stat"><span class="label">قيد التنفيذ</span><div class="value" id="dashboardUpgradeWindowsInProgress">0</div></div>
+          <div class="stat"><span class="label">مكتمل</span><div class="value" id="dashboardUpgradeWindowsCompleted">0</div></div>
+        </div>
       </div>
       <div class="grid-2">
         <div class="card">
@@ -451,7 +460,7 @@
       currentUser:null, currentUserProfile:null, previewData:'', currentLang:'ar'
     };
 
-    const APP_VERSION = 'v1.5.9.12';
+    const APP_VERSION = 'v1.5.9.13';
     const SHARED_BRAND_GROUPS = [
       { id:'changan_deepal', brands:['changan','deepal'] }
     ];
@@ -765,10 +774,18 @@
       const q = ($('upgradeWindowsSearch')?.value || '').trim().toLowerCase();
       const rows = state.windowsUpgrades.filter(r => !q || [r.branchId, r.branchName, r.brand, r.functionName, r.city, r.region, r.technicianName, r.status].some(v => String(v || '').toLowerCase().includes(q)));
       $('upgradeWindowsTableBody').innerHTML = rows.length ? rows.map(r => `<tr><td>${esc(r.branchId)}</td><td>${esc(r.branchName)}</td><td>${esc(r.brand)}</td><td>${esc(r.functionName)}</td><td>${esc(r.city)}</td><td>${esc(r.region)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.technicianVisitDate)}</td><td>${esc(r.checklistSavedDate)}</td><td>${esc(r.devicesCount ?? '')}</td><td>${esc(r.status || 'planned')}</td></tr>`).join('') : `<tr><td colspan="11">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`;
-      $('upgradeWindowsStatTotal').textContent = state.windowsUpgrades.length;
-      $('upgradeWindowsStatDevices').textContent = state.windowsUpgrades.reduce((sum, r) => sum + (Number(r.devicesCount) || 0), 0);
-      $('upgradeWindowsStatInProgress').textContent = state.windowsUpgrades.filter(r => ['planned','in progress','pending'].includes(String(r.status || '').toLowerCase())).length;
-      $('upgradeWindowsStatCompleted').textContent = state.windowsUpgrades.filter(r => String(r.status || '').toLowerCase() === 'completed').length;
+      const totalRecords = state.windowsUpgrades.length;
+      const totalDevices = state.windowsUpgrades.reduce((sum, r) => sum + (Number(r.devicesCount) || 0), 0);
+      const inProgress = state.windowsUpgrades.filter(r => ['planned','in progress','pending'].includes(String(r.status || '').toLowerCase())).length;
+      const completed = state.windowsUpgrades.filter(r => String(r.status || '').toLowerCase() === 'completed').length;
+      $('upgradeWindowsStatTotal').textContent = totalRecords;
+      $('upgradeWindowsStatDevices').textContent = totalDevices;
+      $('upgradeWindowsStatInProgress').textContent = inProgress;
+      $('upgradeWindowsStatCompleted').textContent = completed;
+      if($('dashboardUpgradeWindowsTotal')) $('dashboardUpgradeWindowsTotal').textContent = totalRecords;
+      if($('dashboardUpgradeWindowsDevices')) $('dashboardUpgradeWindowsDevices').textContent = totalDevices;
+      if($('dashboardUpgradeWindowsInProgress')) $('dashboardUpgradeWindowsInProgress').textContent = inProgress;
+      if($('dashboardUpgradeWindowsCompleted')) $('dashboardUpgradeWindowsCompleted').textContent = completed;
     }
     async function importUpgradeWindowsFromExcel(){
       try{
@@ -812,7 +829,7 @@
     async function syncUpgradeWindowsFromChecklists(){
       try{
         if(!confirm(state.currentLang==='ar'?'سيتم إنشاء/تحديث سجلات Upgrade Windows من بيانات Check-List الحالية. هل تريد المتابعة؟':'This will create/update Upgrade Windows records from current Check-List data. Continue?')) return;
-        const rows = state.checklists.filter(r => String(r.q29_upgradeWindows10To11 || r.q29_upgradeWindows10to11 || r.q29_upgradeWindows10To11).toLowerCase() === 'yes' || String(r.q29_upgradeWindows10To11 || '').toLowerCase() === 'yes' || String(r.q29_upgradeWindows10To11 || '').toLowerCase() === 'yes');
+        const rows = state.checklists.filter(r => String(r.q29_upgradeWindows10To11 || '').toLowerCase() === 'yes');
         if(!rows.length) throw new Error(state.currentLang==='ar'?'لا توجد سجلات Check-List تحتوي على Upgrade Windows = Yes.':'No Check-List records with Upgrade Windows = Yes.');
         for(const row of rows){
           const docId = row.linkedVisitId || row.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2,7));
