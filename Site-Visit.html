@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.5.9.13 - Dashboard Upgrade Windows Summary</title>
+  <title>Site-Visit-v1.5.9.14 - Checklist to Upgrade Windows Auto Link</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.5.9.13</span>
+        <span class="chip">v1.5.9.14</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -253,7 +253,7 @@
             <div class="field"><label> </label><button class="btn warning" id="importUpgradeWindowsBtn" type="button">رفع ملف Excel (يمسح القديم)</button></div>
             <div class="field"><label> </label><button class="btn" id="exportUpgradeWindowsBtn" type="button">تنزيل ملف Excel</button></div>
           </div>
-          <div class="note">الأعمدة المعتمدة في ملف Excel: <span class="rtl-en">Branch_ID, Branch_Name, Brand, function, City, Region, Technician_Name, Technician_Visit_Date, Checklist_Saved_Date, Devices_Count, Status, Notes</span>. يمكنك أيضًا استخدام عمود اختياري باسم <span class="rtl-en">Record_ID</span>. عند الرفع سيتم حذف البيانات القديمة في مخزن <span class="rtl-en">windows_upgrades</span> ثم إدخال الملف الجديد.</div>
+          <div class="note">الأعمدة المعتمدة في ملف Excel: <span class="rtl-en">Branch_ID, Branch_Name, Brand, function, City, Region, Technician_Name, Technician_Visit_Date, Checklist_Saved_Date, Devices_Count, Status, Notes</span>. ويمكنك أيضًا استخدام عمود اختياري باسم <span class="rtl-en">Record_ID</span>. كما أن السؤال 29 في Check-List سيقوم الآن بإنشاء/تحديث السجل تلقائيًا هنا عند الحفظ.</div>
           <div class="section-title">ملخص سريع</div>
           <div class="grid-4">
             <div class="stat"><span class="label">إجمالي السجلات</span><div class="value" id="upgradeWindowsStatTotal">0</div></div>
@@ -264,7 +264,7 @@
           <div class="actions">
             <button class="btn green" id="syncUpgradeWindowsFromChecklistBtn" type="button">تحديث من Check-List</button>
           </div>
-          <div class="note" id="upgradeWindowsMessage">يمكنك رفع ملف Excel أو تنزيل البيانات الحالية. كما يمكنك تحديث الجدول تلقائيًا من سجلات Check-List للسؤال 29.</div>
+          <div class="note" id="upgradeWindowsMessage">عند حفظ Check-List والسؤال 29 = Yes، سيتم إنشاء أو تحديث سجل Upgrade Windows تلقائيًا. وعدد المكتمل يعتمد على الحقل Status في windows_upgrades عندما تكون قيمته Completed.</div>
           <div id="upgradeWindowsError" class="alert error hidden"></div>
         </div>
         <div class="card">
@@ -460,7 +460,7 @@
       currentUser:null, currentUserProfile:null, previewData:'', currentLang:'ar'
     };
 
-    const APP_VERSION = 'v1.5.9.13';
+    const APP_VERSION = 'v1.5.9.14';
     const SHARED_BRAND_GROUPS = [
       { id:'changan_deepal', brands:['changan','deepal'] }
     ];
@@ -787,6 +787,29 @@
       if($('dashboardUpgradeWindowsInProgress')) $('dashboardUpgradeWindowsInProgress').textContent = inProgress;
       if($('dashboardUpgradeWindowsCompleted')) $('dashboardUpgradeWindowsCompleted').textContent = completed;
     }
+    async function upsertWindowsUpgradeFromChecklist(checklistDocId, payload){
+      if(!payload || String(payload.q29_upgradeWindows10To11 || '').toLowerCase() !== 'yes') return;
+      const docId = payload.linkedVisitId || checklistDocId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2,7));
+      await setDoc(doc(db,'windows_upgrades', docId), {
+        branchId: payload.branchId || '',
+        branchName: payload.locationSite || payload.location || '',
+        brand: payload.brand || '',
+        functionName: payload.functionName || payload.function || '',
+        function: payload.functionName || payload.function || '',
+        city: payload.city || '',
+        region: payload.region || '',
+        technicianName: payload.technicianName || '',
+        technicianVisitDate: payload.technicianVisitDate || payload.visitDate || '',
+        checklistSavedDate: payload.checklistSavedDate || '',
+        devicesCount: payload.q29_upgradeWindows10To11DeviceCount ?? null,
+        status: 'planned',
+        notes: payload.q28_serviceReportSummary || '',
+        sourceChecklistId: checklistDocId || '',
+        linkedVisitId: payload.linkedVisitId || '',
+        updatedAt: Timestamp.now(),
+        createdAt: Timestamp.now()
+      }, {merge:true});
+    }
     async function importUpgradeWindowsFromExcel(){
       try{
         if(typeof XLSX === 'undefined') throw new Error('XLSX library not loaded');
@@ -832,27 +855,7 @@
         const rows = state.checklists.filter(r => String(r.q29_upgradeWindows10To11 || '').toLowerCase() === 'yes');
         if(!rows.length) throw new Error(state.currentLang==='ar'?'لا توجد سجلات Check-List تحتوي على Upgrade Windows = Yes.':'No Check-List records with Upgrade Windows = Yes.');
         for(const row of rows){
-          const docId = row.linkedVisitId || row.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2,7));
-          const branchMeta = resolveBranchMeta(row.branchId);
-          await setDoc(doc(db,'windows_upgrades', docId), {
-            branchId: row.branchId || '',
-            branchName: row.locationSite || row.location || branchMeta.branchName || '',
-            brand: row.brand || '',
-            functionName: row.functionName || row.function || branchMeta.functionName || '',
-            function: row.functionName || row.function || branchMeta.functionName || '',
-            city: row.city || branchMeta.city || '',
-            region: row.region || branchMeta.region || '',
-            technicianName: row.technicianName || '',
-            technicianVisitDate: row.technicianVisitDate || row.visitDate || '',
-            checklistSavedDate: row.checklistSavedDate || '',
-            devicesCount: row.q29_upgradeWindows10To11DeviceCount ?? null,
-            status: 'planned',
-            notes: row.q28_serviceReportSummary || '',
-            sourceChecklistId: row.id || '',
-            linkedVisitId: row.linkedVisitId || '',
-            updatedAt: Timestamp.now(),
-            createdAt: Timestamp.now()
-          }, {merge:true});
+          await upsertWindowsUpgradeFromChecklist(row.id || '', row);
         }
         setMessage('upgradeWindowsMessage', (state.currentLang==='ar'?'تم تحديث بيانات Upgrade Windows من ':'Upgrade Windows synced from ') + rows.length + (state.currentLang==='ar'?' سجل Check-List.':' Check-List records.'));
         setAlert('upgradeWindowsError');
@@ -1008,12 +1011,18 @@
         }
 
         if(targetId) await setDoc(doc(db,'branch_checklists',targetId), payload, {merge:true});
-        else await addDoc(collection(db,'branch_checklists'), { ...payload, createdAt: Timestamp.now() });
+        else {
+          const newRef = await addDoc(collection(db,'branch_checklists'), { ...payload, createdAt: Timestamp.now() });
+          targetId = newRef.id;
+        }
 
         if(payload.linkedVisitId){
           await setDoc(doc(db,'siteVisits', payload.linkedVisitId), { status:'completed', checklistCompleted:true, checklistCompletedAt: Timestamp.now(), updatedAt: Timestamp.now() }, {merge:true});
         }
-        setMessage('checklistMessage', targetId ? (state.currentLang==='ar'?'تم تحديث Check-List بنجاح بدون تكرار.':'Check-List updated successfully without duplication.') : (state.currentLang==='ar'?'تم حفظ Check-List وتحديث حالة الزيارة إلى مكتمل.':'Check-List saved and visit status updated to completed.'));
+        if(String(payload.q29_upgradeWindows10To11 || '').toLowerCase() === 'yes') {
+          await upsertWindowsUpgradeFromChecklist(targetId, payload);
+        }
+        setMessage('checklistMessage', targetId ? (state.currentLang==='ar'?'تم حفظ Check-List وربطه تلقائيًا مع Upgrade Windows بدون تكرار.':'Check-List saved and auto-linked to Upgrade Windows without duplication.') : (state.currentLang==='ar'?'تم حفظ Check-List.':'Check-List saved.'));
         setAlert('checklistError');
         clearChecklistForm();
       } catch(err){
