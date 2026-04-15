@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.5.9.11 - Dashboard Latest Checklists Columns Fix</title>
+  <title>Site-Visit-v1.5.9.12 - Upgrade Windows Tab</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.5.9.11</span>
+        <span class="chip">v1.5.9.12</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -78,6 +78,7 @@
       <button class="tab-btn active" data-tab="dashboard" data-i18n="tabDashboard">لوحة التحكم</button>
       <button class="tab-btn" data-tab="checklist" data-i18n="tabChecklist">Check-List</button>
       <button class="tab-btn" data-tab="brands" data-i18n="tabBrands">البراندات</button>
+      <button class="tab-btn" data-tab="upgradeWindows">Upgrade Windows</button>
       <button class="tab-btn" data-tab="reports" data-i18n="tabReports">التقارير</button>
       <button class="tab-btn" data-tab="visit" data-i18n="tabVisits">إدخال زيارة</button>
       <button class="tab-btn" data-tab="branches" data-i18n="tabBranches">إدارة الفروع</button>
@@ -228,6 +229,56 @@
           <h3 data-i18n="brandsCurrent">البراندات الحالية</h3>
           <div class="field" style="margin-bottom:12px"><label data-i18n="search">بحث</label><input id="brandSearch"></div>
           <div class="brand-grid" id="brandsGrid"></div>
+        </div>
+      </div>
+    </section>
+
+
+    <section id="upgradeWindows" class="panel">
+      <div class="grid-2">
+        <div class="card">
+          <h3>Upgrade Windows</h3>
+          <div class="section-title">استيراد / تصدير Excel</div>
+          <div class="grid-3">
+            <div class="field"><label>ملف Excel</label><input id="upgradeWindowsExcelFile" type="file" accept=".xlsx,.xls"></div>
+            <div class="field"><label> </label><button class="btn warning" id="importUpgradeWindowsBtn" type="button">رفع ملف Excel (يمسح القديم)</button></div>
+            <div class="field"><label> </label><button class="btn" id="exportUpgradeWindowsBtn" type="button">تنزيل ملف Excel</button></div>
+          </div>
+          <div class="note">الأعمدة المعتمدة في ملف Excel: <span class="rtl-en">Branch_ID, Branch_Name, Brand, function, City, Region, Technician_Name, Technician_Visit_Date, Checklist_Saved_Date, Devices_Count, Status, Notes</span>. يمكنك أيضًا استخدام عمود اختياري باسم <span class="rtl-en">Record_ID</span>. عند الرفع سيتم حذف البيانات القديمة في مخزن <span class="rtl-en">windows_upgrades</span> ثم إدخال الملف الجديد.</div>
+          <div class="section-title">ملخص سريع</div>
+          <div class="grid-4">
+            <div class="stat"><span class="label">إجمالي السجلات</span><div class="value" id="upgradeWindowsStatTotal">0</div></div>
+            <div class="stat"><span class="label">إجمالي الأجهزة</span><div class="value" id="upgradeWindowsStatDevices">0</div></div>
+            <div class="stat"><span class="label">قيد التنفيذ</span><div class="value" id="upgradeWindowsStatInProgress">0</div></div>
+            <div class="stat"><span class="label">مكتمل</span><div class="value" id="upgradeWindowsStatCompleted">0</div></div>
+          </div>
+          <div class="actions">
+            <button class="btn green" id="syncUpgradeWindowsFromChecklistBtn" type="button">تحديث من Check-List</button>
+          </div>
+          <div class="note" id="upgradeWindowsMessage">يمكنك رفع ملف Excel أو تنزيل البيانات الحالية. كما يمكنك تحديث الجدول تلقائيًا من سجلات Check-List للسؤال 29.</div>
+          <div id="upgradeWindowsError" class="alert error hidden"></div>
+        </div>
+        <div class="card">
+          <h3>سجلات Upgrade Windows</h3>
+          <div class="field" style="margin-bottom:12px"><label>بحث</label><input id="upgradeWindowsSearch" placeholder="ابحث بـ Branch_ID / Branch_Name / Brand / function / City / Region / Technician"></div>
+          <div class="table-wrap"><table>
+            <thead>
+              <tr>
+                <th>Branch ID</th>
+                <th>Branch Name</th>
+                <th>Brand</th>
+                <th>function</th>
+                <th>City</th>
+                <th>Region</th>
+                <th>اسم الفني</th>
+                <th>تاريخ زيارة الفني</th>
+                <th>تاريخ حفظ Check-List</th>
+                <th>عدد الأجهزة</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="upgradeWindowsTableBody"></tbody>
+          </table></div>
         </div>
       </div>
     </section>
@@ -396,16 +447,16 @@
     const db = getFirestore(app);
 
     const state = {
-      branches:[], technicians:[], visits:[], checklists:[], brands:[], users:[],
+      branches:[], technicians:[], visits:[], checklists:[], brands:[], users:[], windowsUpgrades:[],
       currentUser:null, currentUserProfile:null, previewData:'', currentLang:'ar'
     };
 
-    const APP_VERSION = 'v1.5.9.11';
+    const APP_VERSION = 'v1.5.9.12';
     const SHARED_BRAND_GROUPS = [
       { id:'changan_deepal', brands:['changan','deepal'] }
     ];
 
-    let unsub = { branches:null, technicians:null, visits:null, checklists:null, brands:null, users:null };
+    let unsub = { branches:null, technicians:null, visits:null, checklists:null, brands:null, users:null, windowsUpgrades:null };
     const $ = id => document.getElementById(id);
 
     const I18N = {
@@ -687,6 +738,108 @@
         location: branch?.location || '',
         branchName: branch?.branchName || ''
       };
+    }
+    function normalizeUpgradeWindowsHeader(key){
+      return String(key || '').toLowerCase().replace(/[\s_\-\/]+/g,'');
+    }
+    function normalizeUpgradeWindowsRow(row){
+      const normalized = Object.fromEntries(Object.entries(row || {}).map(([k,v]) => [normalizeUpgradeWindowsHeader(k), v]));
+      const recordId = String(normalized.recordid || normalized.id || '').trim();
+      return {
+        recordId,
+        branchId: String(normalized.branchid || '').trim(),
+        branchName: String(normalized.branchname || '').trim(),
+        brand: String(normalized.brand || '').trim(),
+        functionName: String(normalized.function || normalized.functionname || '').trim(),
+        city: String(normalized.city || '').trim(),
+        region: String(normalized.region || '').trim(),
+        technicianName: String(normalized.technicianname || '').trim(),
+        technicianVisitDate: String(normalized.technicianvisitdate || normalized.visitdate || '').trim(),
+        checklistSavedDate: String(normalized.checklistsaveddate || '').trim(),
+        devicesCount: normalized.devicescount === '' || normalized.devicescount == null ? null : Number(normalized.devicescount),
+        status: String(normalized.status || 'planned').trim(),
+        notes: String(normalized.notes || '').trim()
+      };
+    }
+    function renderUpgradeWindows(){
+      const q = ($('upgradeWindowsSearch')?.value || '').trim().toLowerCase();
+      const rows = state.windowsUpgrades.filter(r => !q || [r.branchId, r.branchName, r.brand, r.functionName, r.city, r.region, r.technicianName, r.status].some(v => String(v || '').toLowerCase().includes(q)));
+      $('upgradeWindowsTableBody').innerHTML = rows.length ? rows.map(r => `<tr><td>${esc(r.branchId)}</td><td>${esc(r.branchName)}</td><td>${esc(r.brand)}</td><td>${esc(r.functionName)}</td><td>${esc(r.city)}</td><td>${esc(r.region)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.technicianVisitDate)}</td><td>${esc(r.checklistSavedDate)}</td><td>${esc(r.devicesCount ?? '')}</td><td>${esc(r.status || 'planned')}</td></tr>`).join('') : `<tr><td colspan="11">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`;
+      $('upgradeWindowsStatTotal').textContent = state.windowsUpgrades.length;
+      $('upgradeWindowsStatDevices').textContent = state.windowsUpgrades.reduce((sum, r) => sum + (Number(r.devicesCount) || 0), 0);
+      $('upgradeWindowsStatInProgress').textContent = state.windowsUpgrades.filter(r => ['planned','in progress','pending'].includes(String(r.status || '').toLowerCase())).length;
+      $('upgradeWindowsStatCompleted').textContent = state.windowsUpgrades.filter(r => String(r.status || '').toLowerCase() === 'completed').length;
+    }
+    async function importUpgradeWindowsFromExcel(){
+      try{
+        if(typeof XLSX === 'undefined') throw new Error('XLSX library not loaded');
+        const file = $('upgradeWindowsExcelFile').files?.[0];
+        if(!file) throw new Error(state.currentLang==='ar'?'اختر ملف Excel أولاً.':'Choose an Excel file first.');
+        if(!confirm(state.currentLang==='ar'?'سيتم حذف كل السجلات القديمة في Upgrade Windows ثم رفع الملف الجديد. هل تريد المتابعة؟':'All current Upgrade Windows records will be deleted before importing the new file. Continue?')) return;
+        setMessage('upgradeWindowsMessage', state.currentLang==='ar'?'جاري قراءة الملف ومسح البيانات القديمة...':'Reading Excel and clearing old data...');
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, {type:'array'});
+        const sheetName = workbook.SheetNames[0];
+        if(!sheetName) throw new Error(state.currentLang==='ar'?'ملف Excel لا يحتوي على أي ورقة.':'Excel file has no sheets.');
+        const sheet = workbook.Sheets[sheetName];
+        const rawRows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+        const rows = rawRows.map(normalizeUpgradeWindowsRow).filter(r => r.branchId || r.branchName || r.brand || r.technicianName);
+        if(!rows.length) throw new Error(state.currentLang==='ar'?'لم يتم العثور على صفوف صالحة في الملف.':'No valid rows found in the file.');
+        const existing = await getDocs(collection(db,'windows_upgrades'));
+        for(const snapDoc of existing.docs){ await deleteDoc(doc(db,'windows_upgrades', snapDoc.id)); }
+        for(const row of rows){
+          const docId = row.recordId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2,7));
+          await setDoc(doc(db,'windows_upgrades', docId), { branchId: row.branchId, branchName: row.branchName, brand: row.brand, functionName: row.functionName, function: row.functionName, city: row.city, region: row.region, technicianName: row.technicianName, technicianVisitDate: row.technicianVisitDate, checklistSavedDate: row.checklistSavedDate, devicesCount: row.devicesCount, status: row.status || 'planned', notes: row.notes, updatedAt: Timestamp.now(), createdAt: Timestamp.now() }, {merge:true});
+        }
+        $('upgradeWindowsExcelFile').value='';
+        setMessage('upgradeWindowsMessage', (state.currentLang==='ar'?'تم استيراد ':'Imported ') + rows.length + (state.currentLang==='ar'?' سجل Upgrade Windows بنجاح.':' Upgrade Windows records successfully.'));
+        setAlert('upgradeWindowsError');
+      } catch(err){ setAlert('upgradeWindowsError', err.message || String(err)); }
+    }
+    function exportUpgradeWindowsToExcel(){
+      try{
+        if(typeof XLSX === 'undefined') throw new Error('XLSX library not loaded');
+        if(!state.windowsUpgrades.length) throw new Error(state.currentLang==='ar'?'لا توجد بيانات Upgrade Windows للتنزيل.':'No Upgrade Windows data to export.');
+        const rows = state.windowsUpgrades.map(r => ({ 'Record_ID': r.id || '', 'Branch_ID': r.branchId || '', 'Branch_Name': r.branchName || '', 'Brand': r.brand || '', 'function': r.functionName || r.function || '', 'City': r.city || '', 'Region': r.region || '', 'Technician_Name': r.technicianName || '', 'Technician_Visit_Date': r.technicianVisitDate || '', 'Checklist_Saved_Date': r.checklistSavedDate || '', 'Devices_Count': r.devicesCount ?? '', 'Status': r.status || '', 'Notes': r.notes || '' }));
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(rows, {header:['Record_ID','Branch_ID','Branch_Name','Brand','function','City','Region','Technician_Name','Technician_Visit_Date','Checklist_Saved_Date','Devices_Count','Status','Notes']});
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'UpgradeWindows');
+        XLSX.writeFile(workbook, 'upgrade_windows_export.xlsx');
+        setMessage('upgradeWindowsMessage', state.currentLang==='ar'?'تم تنزيل ملف Excel لبيانات Upgrade Windows.':'Upgrade Windows Excel exported.');
+        setAlert('upgradeWindowsError');
+      } catch(err){ setAlert('upgradeWindowsError', err.message || String(err)); }
+    }
+    async function syncUpgradeWindowsFromChecklists(){
+      try{
+        if(!confirm(state.currentLang==='ar'?'سيتم إنشاء/تحديث سجلات Upgrade Windows من بيانات Check-List الحالية. هل تريد المتابعة؟':'This will create/update Upgrade Windows records from current Check-List data. Continue?')) return;
+        const rows = state.checklists.filter(r => String(r.q29_upgradeWindows10To11 || r.q29_upgradeWindows10to11 || r.q29_upgradeWindows10To11).toLowerCase() === 'yes' || String(r.q29_upgradeWindows10To11 || '').toLowerCase() === 'yes' || String(r.q29_upgradeWindows10To11 || '').toLowerCase() === 'yes');
+        if(!rows.length) throw new Error(state.currentLang==='ar'?'لا توجد سجلات Check-List تحتوي على Upgrade Windows = Yes.':'No Check-List records with Upgrade Windows = Yes.');
+        for(const row of rows){
+          const docId = row.linkedVisitId || row.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2,7));
+          const branchMeta = resolveBranchMeta(row.branchId);
+          await setDoc(doc(db,'windows_upgrades', docId), {
+            branchId: row.branchId || '',
+            branchName: row.locationSite || row.location || branchMeta.branchName || '',
+            brand: row.brand || '',
+            functionName: row.functionName || row.function || branchMeta.functionName || '',
+            function: row.functionName || row.function || branchMeta.functionName || '',
+            city: row.city || branchMeta.city || '',
+            region: row.region || branchMeta.region || '',
+            technicianName: row.technicianName || '',
+            technicianVisitDate: row.technicianVisitDate || row.visitDate || '',
+            checklistSavedDate: row.checklistSavedDate || '',
+            devicesCount: row.q29_upgradeWindows10To11DeviceCount ?? null,
+            status: 'planned',
+            notes: row.q28_serviceReportSummary || '',
+            sourceChecklistId: row.id || '',
+            linkedVisitId: row.linkedVisitId || '',
+            updatedAt: Timestamp.now(),
+            createdAt: Timestamp.now()
+          }, {merge:true});
+        }
+        setMessage('upgradeWindowsMessage', (state.currentLang==='ar'?'تم تحديث بيانات Upgrade Windows من ':'Upgrade Windows synced from ') + rows.length + (state.currentLang==='ar'?' سجل Check-List.':' Check-List records.'));
+        setAlert('upgradeWindowsError');
+      } catch(err){ setAlert('upgradeWindowsError', err.message || String(err)); }
     }
 
     function normalizeVisitBrandToken(v){ return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
@@ -1073,6 +1226,7 @@
       $('saveBranchBtn').addEventListener('click', saveBranch); $('clearBranchBtn').addEventListener('click', clearBranchForm); $('branchSearch')?.addEventListener('input', renderBranchesList); $('importBranchesBtn')?.addEventListener('click', importBranchesFromExcel); $('exportBranchesBtn')?.addEventListener('click', exportBranchesToExcel);
       $('technicianSelector')?.addEventListener('change', loadSelectedTechnician); $('loadTechnicianBtn')?.addEventListener('click', loadSelectedTechnician); $('techAssignRegion')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value })); $('techAssignCity')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value, city: $('techAssignCity').value })); $('techAssignBrand')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value, city: $('techAssignCity').value, brand: $('techAssignBrand').value })); $('techAssignBranch')?.addEventListener('change', syncTechnicianAssignmentFromBranch); $('saveTechnicianBtn').addEventListener('click', saveTechnician); $('clearTechnicianBtn').addEventListener('click', clearTechnicianForm);
       $('saveUserBtn').addEventListener('click', saveUser); $('clearUserBtn').addEventListener('click', clearUserForm);
+      $('importUpgradeWindowsBtn')?.addEventListener('click', importUpgradeWindowsFromExcel); $('exportUpgradeWindowsBtn')?.addEventListener('click', exportUpgradeWindowsToExcel); $('syncUpgradeWindowsFromChecklistBtn')?.addEventListener('click', syncUpgradeWindowsFromChecklists); $('upgradeWindowsSearch')?.addEventListener('input', renderUpgradeWindows);
       $('runReportBtn').addEventListener('click', runReport);
     }
 
@@ -1082,6 +1236,7 @@
     function listenChecklists(){ if(unsub.checklists) unsub.checklists(); unsub.checklists = onSnapshot(query(collection(db,'branch_checklists'), orderBy('visitDate','desc')), snap=>{ state.checklists = snap.docs.map(d=>({id:d.id, ...d.data()})); renderChecklistTable(); renderLatestChecklistTable(); renderStats(); }, err=>{ setAlert('checklistError', 'branch_checklists: ' + err.message); setAlert('dashboardError', 'branch_checklists: ' + err.message); }); }
     function listenBrands(){ if(unsub.brands) unsub.brands(); unsub.brands = onSnapshot(query(collection(db,'brand_assets'), orderBy('nameAr')), snap=>{ state.brands = snap.docs.map(d=>({id:d.id, ...d.data()})); renderBrands(); renderDashboardBrandBoxes(); renderStats(); }, err=>{ setAlert('brandsError', 'brand_assets: ' + err.message); setAlert('dashboardError', 'brand_assets: ' + err.message); }); }
     function listenUsers(){ if(unsub.users) unsub.users(); unsub.users = onSnapshot(query(collection(db,'app_users')), snap=>{ state.users = snap.docs.map(d=>({id:d.id, ...d.data()})); renderUsersTable(); }, err=>setAlert('permissionsError', 'app_users: ' + err.message)); }
+    function listenWindowsUpgrades(){ if(unsub.windowsUpgrades) unsub.windowsUpgrades(); unsub.windowsUpgrades = onSnapshot(query(collection(db,'windows_upgrades')), snap=>{ state.windowsUpgrades = snap.docs.map(d=>({id:d.id, ...d.data()})); renderUpgradeWindows(); }, err=>setAlert('upgradeWindowsError', 'windows_upgrades: ' + err.message)); }
 
     onAuthStateChanged(auth, async user => {
       if(user){
@@ -1091,15 +1246,15 @@
         state.currentUserProfile = profile;
         $('currentUserChip').classList.remove('hidden'); $('currentUserChip').textContent = `${profile?.name || user.email} | ${profile?.role || 'user'}`; $('logoutBtn').classList.remove('hidden'); $('loginOverlay').classList.add('hidden'); $('appRoot').classList.remove('hidden');
         if(!profile){ setAlert('dashboardError', state.currentLang==='ar' ? 'تنبيه: لم يتم العثور على app_users/{UID}. قد تعمل بعض التبويبات للقراءة فقط أو تفشل حسب القواعد.' : 'Warning: app_users/{UID} was not found. Some tabs may fail according to rules.'); }
-        listenBranches(); listenTechnicians(); listenVisits(); listenChecklists(); listenBrands(); listenUsers();
+        listenBranches(); listenTechnicians(); listenVisits(); listenChecklists(); listenBrands(); listenUsers(); listenWindowsUpgrades();
       } else {
-        clearAllListeners(); state.currentUser=null; state.currentUserProfile=null; state.branches=[]; state.technicians=[]; state.visits=[]; state.checklists=[]; state.brands=[]; state.users=[];
+        clearAllListeners(); state.currentUser=null; state.currentUserProfile=null; state.branches=[]; state.technicians=[]; state.visits=[]; state.checklists=[]; state.brands=[]; state.users=[]; state.windowsUpgrades=[];
         $('currentUserChip').classList.add('hidden'); $('logoutBtn').classList.add('hidden'); $('loginOverlay').classList.remove('hidden'); $('appRoot').classList.add('hidden'); $('loginMessage').textContent = 'ادخل بحساب موجود في Firebase Authentication و app_users.';
-        renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm();
+        renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); renderUpgradeWindows(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm();
       }
     });
 
-    attachListeners(); const versionChip = document.querySelector('header .chip'); if(versionChip) versionChip.textContent = APP_VERSION; applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); renderLatestBrands(); renderDashboardBrandBoxes(); toggleUpgradeDeviceCount();
+    attachListeners(); applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); renderUpgradeWindows(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); renderLatestBrands(); renderDashboardBrandBoxes();
   </script>
 </body>
 </html>
