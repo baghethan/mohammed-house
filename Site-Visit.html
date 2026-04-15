@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.5.9.4</title>
+  <title>Site-Visit-v1.5.9.8 - Changan Deepal Shared Branch Fix</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.5.9.4</span>
+        <span class="chip">v1.5.9.8</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -249,7 +249,7 @@
       <div class="grid-2">
         <div class="card">
           <h3 data-i18n="visitFormTitle">إدخال / تعديل زيارة</h3>
-          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني. وإذا كان الفرع من نوع <span class="rtl-en">Stellantis (Peugeot + Citroën)</span> فسيتم تسجيل الزيارة على نفس الفرع ولكن تُحتسب للبراندين <span class="rtl-en">Peugeot</span> و<span class="rtl-en">Citroën</span>. كما تم دعم تهجئات مختلفة لاسم <span class="rtl-en">Peugeot</span> مثل <span class="rtl-en">Peugedt / Peugot</span> حتى تظهر الأعداد بشكل صحيح في لوحة التحكم.</div>
+          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني. وإذا كان الفرع من نوع <span class="rtl-en">Stellantis (Peugeot + Citroën)</span> فسيتم تسجيل الزيارة على نفس الفرع ولكن تُحتسب للبراندين <span class="rtl-en">Peugeot</span> و<span class="rtl-en">Citroën</span>. كذلك تم تفعيل منطق <span class="rtl-en">Shared Branch</span> لبراندي <span class="rtl-en">Changan</span> و<span class="rtl-en">Deepal</span> بحيث إذا سُجلت الزيارة على أحدهما تُحتسب للآخر داخل لوحة التحكم. كما تم دعم تهجئات مختلفة لاسم <span class="rtl-en">Peugeot</span> مثل <span class="rtl-en">Peugedt / Peugot</span> حتى تظهر الأعداد بشكل صحيح في لوحة التحكم.</div>
           <input type="hidden" id="editingVisitId">
           <div class="grid-3">
             <div class="field"><label data-i18n="branch">الفرع</label><select id="visitBranch"></select></div>
@@ -398,6 +398,11 @@
       branches:[], technicians:[], visits:[], checklists:[], brands:[], users:[],
       currentUser:null, currentUserProfile:null, previewData:'', currentLang:'ar'
     };
+
+    const APP_VERSION = 'v1.5.9.8';
+    const SHARED_BRAND_GROUPS = [
+      { id:'changan_deepal', brands:['changan','deepal'] }
+    ];
 
     let unsub = { branches:null, technicians:null, visits:null, checklists:null, brands:null, users:null };
     const $ = id => document.getElementById(id);
@@ -663,15 +668,30 @@
       const token = normalizeVisitBrandToken(v);
       if(['peugeot','peugot','peugedt','peugotksa','peugeotksa'].includes(token)) return 'peugeot';
       if(['citroen','citron','citroenksa'].includes(token)) return 'citroen';
+      if(['changan','changanauto','changansa','shangan','shanjan','chnagan','شنجان','شانجان'].includes(token)) return 'changan';
+      if(['deepal','deepl','dpal','ديبال','ديبل'].includes(token)) return 'deepal';
       if(token.includes('peugeot') || token.includes('peugot') || token.includes('peugedt')) return 'peugeot';
       if(token.includes('citroen') || token.includes('citron')) return 'citroen';
+      if(token.includes('deepal')) return 'deepal';
+      if(token.includes('changan')) return 'changan';
       if(token.includes('stellantis')) return 'stellantis';
       return token;
+    }
+    function getSharedBrandTokens(brandName, brandKey){
+      const base = canonicalBrandToken(brandKey || brandName);
+      const related = new Set(base ? [base] : []);
+      SHARED_BRAND_GROUPS.forEach(group => {
+        const members = (group.brands || []).map(canonicalBrandToken).filter(Boolean);
+        if(base && members.includes(base)) members.forEach(x => related.add(x));
+      });
+      return related;
     }
     function getCanonicalBrandDisplay(v){
       const token = canonicalBrandToken(v);
       if(token === 'peugeot') return 'Peugeot';
       if(token === 'citroen') return 'Citroën';
+      if(token === 'changan') return 'Changan';
+      if(token === 'deepal') return 'Deepal';
       return v || '';
     }
     function isStellantisCompoundBranch(branch){
@@ -693,10 +713,10 @@
     function shouldCountVisitForBrand(visit, brandName, brandKey){
       const visitBrand = canonicalBrandToken(visit?.brand);
       const visitBrandKey = canonicalBrandToken(visit?.brandKey);
-      const targetName = canonicalBrandToken(brandName);
-      const targetKey = canonicalBrandToken(brandKey);
-      if((targetName && visitBrand === targetName) || (targetKey && visitBrandKey === targetKey)) return true;
-      if(isLegacyStellantisVisit(visit) && ['peugeot','citroen'].includes(targetName || targetKey)) return true;
+      const relatedTargets = getSharedBrandTokens(brandName, brandKey);
+      if((visitBrand && relatedTargets.has(visitBrand)) || (visitBrandKey && relatedTargets.has(visitBrandKey))) return true;
+      const primaryTarget = canonicalBrandToken(brandKey || brandName);
+      if(isLegacyStellantisVisit(visit) && ['peugeot','citroen'].includes(primaryTarget)) return true;
       return false;
     }
     function fillVisitFromBranch(){ const b = state.branches.find(x=>x.id === $('visitBranch').value); if(!b) return; $('visitBrand').value=getVisitBrandDisplay(b); $('visitBranchId').value=b.id||''; $('visitLocation').value=b.location||b.city||b.branchName||''; }
@@ -984,7 +1004,7 @@
       }
     });
 
-    attachListeners(); applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); renderLatestBrands(); renderDashboardBrandBoxes();
+    attachListeners(); const versionChip = document.querySelector('header .chip'); if(versionChip) versionChip.textContent = APP_VERSION; applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); renderLatestBrands(); renderDashboardBrandBoxes();
   </script>
 </body>
 </html>
