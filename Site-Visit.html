@@ -249,7 +249,7 @@
       <div class="grid-2">
         <div class="card">
           <h3 data-i18n="visitFormTitle">إدخال / تعديل زيارة</h3>
-          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني. وإذا كان الفرع من نوع <span class="rtl-en">Stellantis (Peugeot + Citroën)</span> فسيتم حفظ زيارتين منفصلتين على نفس الفرع: واحدة لـ <span class="rtl-en">Peugeot</span> وواحدة لـ <span class="rtl-en">Citroën</span>.</div>
+          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني. وإذا كان الفرع من نوع <span class="rtl-en">Stellantis (Peugeot + Citroën)</span> فسيتم تسجيل الزيارة على نفس الفرع ولكن تُحتسب للبراندين <span class="rtl-en">Peugeot</span> و<span class="rtl-en">Citroën</span>.</div>
           <input type="hidden" id="editingVisitId">
           <div class="grid-3">
             <div class="field"><label data-i18n="branch">الفرع</label><select id="visitBranch"></select></div>
@@ -508,7 +508,7 @@
       const rows = state.brands.map(b => {
         const brandName = b.brand || b.nameEn || b.nameAr || '';
         const brandKey = b.key || b.brandKey || '';
-        const related = state.visits.filter(v => String(v.brand || '').trim().toLowerCase() === String(brandName).trim().toLowerCase() || (brandKey && String(v.brandKey || '').trim().toLowerCase() === String(brandKey).trim().toLowerCase()));
+        const related = state.visits.filter(v => shouldCountVisitForBrand(v, brandName, brandKey));
         const completed = related.filter(v => (String(v.status || '').toLowerCase()==='completed') || v.checklistCompleted===true).length;
         const pending = related.filter(v => !((String(v.status || '').toLowerCase()==='completed') || v.checklistCompleted===true) && String(v.status || '').toLowerCase() !== 'cancelled').length;
         return { nameAr: b.nameAr || b.brand || '-', nameEn: b.nameEn || b.brand || b.key || '-', logo: b.logoData || b.logoUrl || '', total: related.length, completed, pending };
@@ -661,8 +661,22 @@
       return hasStellantis || (hasPeugeot && hasCitroen);
     }
     function getVisitBrandsForBranch(branch){ return isStellantisCompoundBranch(branch) ? ['Peugeot','Citroën'] : [branch?.brand || '']; }
-    function getVisitBrandKey(value){ return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
+    function getVisitBrandKey(value){ return normalizeVisitBrandToken(value); }
     function getVisitBrandDisplay(branch){ return isStellantisCompoundBranch(branch) ? 'Stellantis (Peugeot + Citroën)' : (branch?.brand || ''); }
+    function isLegacyStellantisVisit(visit){
+      if(!visit) return false;
+      const combined = [visit.brand, visit.brandKey, visit.branchName, visit.branchId, visit.compoundSource].map(normalizeVisitBrandToken).join(' ');
+      return combined.includes('stellantis');
+    }
+    function shouldCountVisitForBrand(visit, brandName, brandKey){
+      const visitBrand = normalizeVisitBrandToken(visit?.brand);
+      const visitBrandKey = normalizeVisitBrandToken(visit?.brandKey);
+      const targetName = normalizeVisitBrandToken(brandName);
+      const targetKey = normalizeVisitBrandToken(brandKey);
+      if((targetName && visitBrand === targetName) || (targetKey && visitBrandKey === targetKey)) return true;
+      if(isLegacyStellantisVisit(visit) && ['peugeot','citroen'].includes(targetName || targetKey)) return true;
+      return false;
+    }
     function fillVisitFromBranch(){ const b = state.branches.find(x=>x.id === $('visitBranch').value); if(!b) return; $('visitBrand').value=getVisitBrandDisplay(b); $('visitBranchId').value=b.id||''; $('visitLocation').value=b.location||b.city||b.branchName||''; }
 
     function setPreview(src){ state.previewData = src || ''; $('logoPreview').src = src || ''; $('logoPreview').classList.toggle('hidden', !src); $('logoPreviewEmpty').classList.toggle('hidden', !!src); }
@@ -767,29 +781,12 @@
         if(!branch) throw new Error(state.currentLang==='ar'?'اختر الفرع.':'Choose branch.');
         if(!tech) throw new Error(state.currentLang==='ar'?'اختر الفني.':'Choose technician.');
         if(!$('visitDate').value) throw new Error(state.currentLang==='ar'?'أدخل تاريخ الزيارة.':'Enter visit date.');
-
         const brandsToSave = getVisitBrandsForBranch(branch);
         const editId = $('editingVisitId').value.trim();
         const existing = editId ? state.visits.find(v => v.id === editId) : null;
         const existingGroupId = existing?.visitGroupId || '';
         const targetGroupId = brandsToSave.length > 1 ? (existingGroupId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()))) : '';
-        const basePayload = {
-          branchId:branch.id,
-          branchName:branch.branchName || branch.id,
-          region:branch.region || '',
-          city:branch.city || '',
-          technicianId: tech.authUid || tech.id,
-          technicianDocId: tech.id,
-          technicianUid: tech.authUid || tech.id,
-          technicianName: tech.name || tech.id,
-          technicianEmail: tech.email || '',
-          date:$('visitDate').value,
-          status:$('visitStatus').value,
-          notes:$('visitNotes').value.trim(),
-          visitGroupId: targetGroupId,
-          compoundSource: brandsToSave.length > 1 ? 'stellantis' : '',
-          updatedAt: Timestamp.now()
-        };
+        const basePayload = { branchId:branch.id, branchName:branch.branchName || branch.id, region:branch.region || '', city:branch.city || '', technicianId: tech.authUid || tech.id, technicianDocId: tech.id, technicianUid: tech.authUid || tech.id, technicianName: tech.name || tech.id, technicianEmail: tech.email || '', date:$('visitDate').value, status:$('visitStatus').value, notes:$('visitNotes').value.trim(), visitGroupId: targetGroupId, compoundSource: brandsToSave.length > 1 ? 'stellantis' : '', updatedAt: Timestamp.now() };
 
         if(editId){
           const related = existingGroupId ? state.visits.filter(v => v.visitGroupId === existingGroupId) : (existing ? [existing] : []);
@@ -801,9 +798,7 @@
               if(target?.id) await setDoc(doc(db,'siteVisits', target.id), recordPayload, {merge:true});
               else await addDoc(collection(db,'siteVisits'), { ...recordPayload, createdAt: Timestamp.now() });
             }
-            for(let i = brandsToSave.length; i < related.length; i++){
-              if(related[i]?.id) await deleteDoc(doc(db,'siteVisits', related[i].id));
-            }
+            for(let i = brandsToSave.length; i < related.length; i++) if(related[i]?.id) await deleteDoc(doc(db,'siteVisits', related[i].id));
           } else {
             const brandName = brandsToSave[0] || branch.brand || '';
             await setDoc(doc(db,'siteVisits', editId), { ...basePayload, visitGroupId:'', compoundSource:'', brand: brandName, brandKey: getVisitBrandKey(brandName) }, {merge:true});
@@ -821,12 +816,8 @@
             await addDoc(collection(db,'siteVisits'), { ...basePayload, visitGroupId:'', compoundSource:'', brand: brandName, brandKey: getVisitBrandKey(brandName), createdAt: Timestamp.now() });
           }
         }
-
-        setMessage('visitMessage', brandsToSave.length > 1
-          ? (state.currentLang==='ar'?'تم حفظ زيارتين لنفس الفرع: Peugeot و Citroën.':'Two visits were saved for the same branch: Peugeot and Citroën.')
-          : (state.currentLang==='ar'?'تم حفظ الزيارة بنجاح.':'Visit saved successfully.'));
-        setAlert('visitError');
-        clearVisitForm();
+        setMessage('visitMessage', brandsToSave.length > 1 ? (state.currentLang==='ar'?'تم حفظ الزيارة لنفس الفرع واحتسابها على Peugeot و Citroën.':'Visit saved for the same branch and counted for Peugeot and Citroën.') : (state.currentLang==='ar'?'تم حفظ الزيارة بنجاح.':'Visit saved successfully.'));
+        setAlert('visitError'); clearVisitForm();
       } catch(err){ setAlert('visitError', err.message || String(err)); }
     }
     async function deleteVisitById(id){
@@ -843,19 +834,7 @@
         clearVisitForm();
       } catch(err){ setAlert('visitError', err.message || String(err)); }
     }
-    window.openVisitForEdit = function(id){
-      const v=state.visits.find(x=>x.id===id); if(!v) return;
-      $('editingVisitId').value=v.id;
-      $('visitTechnician').value=v.technicianDocId||'';
-      renderBranchSelectors();
-      $('visitBranch').value=v.branchId||'';
-      $('visitDate').value=v.date||'';
-      $('visitStatus').value=v.status||'planned';
-      $('visitNotes').value=v.notes||'';
-      fillVisitFromBranch();
-      $('deleteVisitBtn').classList.remove('hidden');
-      activateTab('visit');
-    };
+    window.openVisitForEdit = function(id){ const v=state.visits.find(x=>x.id===id); if(!v) return; $('editingVisitId').value=v.id; $('visitTechnician').value=v.technicianDocId||''; renderBranchSelectors(); $('visitBranch').value=v.branchId||''; $('visitDate').value=v.date||''; $('visitStatus').value=v.status||'planned'; $('visitNotes').value=v.notes||''; fillVisitFromBranch(); $('deleteVisitBtn').classList.remove('hidden'); activateTab('visit'); };
 
     async function saveBranch(){ try{ const id=$('branchId').value.trim(); if(!id) throw new Error('Branch_ID required'); const payload = { branchName:$('branchName').value.trim(), brand:$('branchBrand').value.trim(), region:$('branchRegion').value.trim(), city:$('branchCity').value.trim(), branchType:$('branchType').value.trim(), contactShowroom:$('branchContactShowroom').value.trim(), contactService:$('branchContactService').value.trim(), contactSpareParts:$('branchContactSpareParts').value.trim(), functionName:$('branchFunction').value.trim(), function:$('branchFunction').value.trim(), gps:$('branchGps').value.trim(), location:$('branchLocation').value.trim(), updatedAt: Timestamp.now() }; await setDoc(doc(db,'branches',id), payload, {merge:true}); setMessage('branchMessage', state.currentLang==='ar'?'تم حفظ الفرع.':'Branch saved.'); setAlert('branchError'); clearBranchForm(); } catch(err){ setAlert('branchError', err.message || String(err)); } }
 
