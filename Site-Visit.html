@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.5.9.9 - Checklist Save Fix + Dashboard Columns</title>
+  <title>Site-Visit-v1.5.9.10 - Visit Date vs Checklist Save Fix</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.5.9.9</span>
+        <span class="chip">v1.5.9.10</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -400,7 +400,7 @@
       currentUser:null, currentUserProfile:null, previewData:'', currentLang:'ar'
     };
 
-    const APP_VERSION = 'v1.5.9.9';
+    const APP_VERSION = 'v1.5.9.10';
     const SHARED_BRAND_GROUPS = [
       { id:'changan_deepal', brands:['changan','deepal'] }
     ];
@@ -533,10 +533,11 @@
     function renderLatestChecklistTable(){
       $('latestChecklistBody').innerHTML = state.checklists.slice(0,10).map(r => {
         const branchMeta = resolveBranchMeta(r.branchId);
-        const plannedDate = r.plannedVisitDate || r.requestedPlanDate || r.linkedVisitDate || r.visitDate || '';
+        const technicianVisitDate = r.visitDate || r.technicianVisitDate || '';
+        const plannedDate = r.plannedVisitDate || r.requestedPlanDate || r.linkedVisitDate || '';
         const city = r.city || branchMeta.city || '-';
         const location = r.locationSite || r.location || branchMeta.location || branchMeta.branchName || '-';
-        return `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(plannedDate)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(city)} | ${esc(location)}</td></tr>`;
+        return `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(technicianVisitDate)}</td><td>${esc(plannedDate)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(city)} | ${esc(location)}</td></tr>`;
       }).join('') || `<tr><td colspan="5">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`;
     }
     function renderChecklistTable(){
@@ -788,8 +789,12 @@
           technicianName: techDoc?.name || '',
           technicianEmail: techDoc?.email || '',
           linkedVisitId: linkedVisit?.id || '',
+          linkedVisitDate: linkedVisit?.date || '',
           plannedVisitDate: linkedVisit?.date || '',
           requestedPlanDate: linkedVisit?.date || '',
+          technicianVisitDate: $('cl_visit_date').value,
+          checklistSavedDate: new Date().toISOString().slice(0,10),
+          checklistSavedAt: Timestamp.now(),
           brand: $('cl_brand').value.trim(),
           brandKey: $('cl_brandKey').value.trim() || makeBrandKey(),
           branchId,
@@ -856,7 +861,7 @@
       $('cl_location').value=x.locationSite||x.location||'';
       $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||'';
       $('cl_branch_manager').value=x.branchManager||'';
-      $('cl_visit_date').value=x.visitDate||'';
+      $('cl_visit_date').value=x.technicianVisitDate || x.visitDate || '';
       $('cl_month').value=x.month||'';
       if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||'';
       $('cl_users_count').value=x.numberOfUsers ?? '';
