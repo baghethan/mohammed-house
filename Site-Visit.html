@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.5.9.10 - Visit Date vs Checklist Save Fix</title>
+  <title>Site-Visit-v1.5.9.11 - Dashboard Latest Checklists Columns Fix</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.5.9.10</span>
+        <span class="chip">v1.5.9.11</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -96,7 +96,7 @@
       <div class="grid-2">
         <div class="card">
           <h3 data-i18n="latestChecklists">أحدث سجلات Check-List</h3>
-          <div class="table-wrap"><table><thead><tr><th>تاريخ زيارة الفني</th><th>تاريخ الخطة طلب من المشرف</th><th>Brand</th><th>Branch ID</th><th>City | Location</th></tr></thead><tbody id="latestChecklistBody"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>تاريخ زيارة الفني</th><th>تاريخ حفظ من Check-List</th><th>اسم الفني</th><th>Brand</th><th>function</th><th>City</th><th>Region</th></tr></thead><tbody id="latestChecklistBody"></tbody></table></div>
         </div>
         <div class="card">
           <h3 data-i18n="latestBrands">قائمة الفنيين زيارة</h3>
@@ -400,7 +400,7 @@
       currentUser:null, currentUserProfile:null, previewData:'', currentLang:'ar'
     };
 
-    const APP_VERSION = 'v1.5.9.10';
+    const APP_VERSION = 'v1.5.9.11';
     const SHARED_BRAND_GROUPS = [
       { id:'changan_deepal', brands:['changan','deepal'] }
     ];
@@ -533,12 +533,13 @@
     function renderLatestChecklistTable(){
       $('latestChecklistBody').innerHTML = state.checklists.slice(0,10).map(r => {
         const branchMeta = resolveBranchMeta(r.branchId);
-        const technicianVisitDate = r.visitDate || r.technicianVisitDate || '';
-        const plannedDate = r.plannedVisitDate || r.requestedPlanDate || r.linkedVisitDate || '';
+        const technicianVisitDate = r.technicianVisitDate || r.visitDate || '';
+        const checklistSavedDate = r.checklistSavedDate || '';
+        const functionName = r.functionName || r.function || branchMeta.functionName || '-';
         const city = r.city || branchMeta.city || '-';
-        const location = r.locationSite || r.location || branchMeta.location || branchMeta.branchName || '-';
-        return `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(technicianVisitDate)}</td><td>${esc(plannedDate)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(city)} | ${esc(location)}</td></tr>`;
-      }).join('') || `<tr><td colspan="5">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`;
+        const region = r.region || branchMeta.region || '-';
+        return `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(technicianVisitDate)}</td><td>${esc(checklistSavedDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(functionName)}</td><td>${esc(city)}</td><td>${esc(region)}</td></tr>`;
+      }).join('') || `<tr><td colspan="7">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`;
     }
     function renderChecklistTable(){
       const q=($('checklistSearch').value||'').trim().toLowerCase();
@@ -681,6 +682,8 @@
       const branch = state.branches.find(b => String(b.id) === String(branchId));
       return {
         city: branch?.city || '',
+        region: branch?.region || '',
+        functionName: branch?.functionName || branch?.function || '',
         location: branch?.location || '',
         branchName: branch?.branchName || ''
       };
@@ -799,6 +802,9 @@
           brandKey: $('cl_brandKey').value.trim() || makeBrandKey(),
           branchId,
           city: branchMeta.city,
+          region: branchMeta.region,
+          functionName: branchMeta.functionName,
+          function: branchMeta.functionName,
           location: branchMeta.location,
           locationSite: $('cl_location').value.trim() || branchMeta.location || branchMeta.branchName || '',
           visitScheduledWithBranchManager: $('cl_visit_scheduled').value,
