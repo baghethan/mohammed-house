@@ -3,262 +3,889 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>إدارة زيارات الفروع والفنيين</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <title>Site-Visit-v1.5.9.4</title>
   <style>
-    :root {
-      --primary:#0d4b73; --secondary:#0a668e; --green:#3ca36a; --danger:#d64545;
-      --border:#d7e0ea; --text:#163247; --muted:#6e8192; --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px;
+    :root{
+      --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
+      --border:#d7e0ea; --text:#163247; --muted:#6e8192; --bg:#edf3f8; --card:#fff; --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px;
     }
-    * { box-sizing:border-box; }
-    body { margin:0; font-family:Segoe UI,Tahoma,Arial,sans-serif; background:linear-gradient(180deg,#f5f7fb 0%,#ecf2f8 100%); color:var(--text); }
-    .header { background:linear-gradient(135deg,var(--primary),var(--secondary)); color:#fff; padding:18px 22px; position:sticky; top:0; z-index:10; box-shadow:var(--shadow); }
-    .header-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; }
-    .header h1 { margin:0 0 6px; font-size:28px; }
-    .header p { margin:0; color:rgba(255,255,255,.88); }
-    .container { max-width:1480px; margin:22px auto; padding:0 16px 28px; }
-    .tabs { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
-    .tab-btn,.btn { border:1px solid var(--border); border-radius:999px; padding:10px 16px; background:#fff; color:var(--primary); font-weight:700; cursor:pointer; }
-    .tab-btn.active,.tab-btn:hover,.btn.primary { background:var(--primary); color:#fff; }
-    .btn.green { background:var(--green); color:#fff; border:none; }
-    .btn.secondary { background:#fff; color:var(--primary); }
-    .btn.danger { background:var(--danger); color:#fff; border:none; }
-    .tab-panel { display:none; }
-    .tab-panel.active { display:block; }
-    .grid-2 { display:grid; grid-template-columns:1.1fr .9fr; gap:18px; }
-    .stats { display:grid; grid-template-columns:repeat(4,minmax(180px,1fr)); gap:14px; margin-bottom:18px; }
-    .stat,.card { background:#fff; border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); }
-    .stat { padding:16px; }
-    .label { display:block; color:var(--muted); font-size:13px; margin-bottom:6px; }
-    .value { font-size:30px; font-weight:800; color:var(--primary); }
-    .card { padding:16px; overflow:hidden; }
-    .card h3 { margin:-16px -16px 14px; padding:12px 16px; background:var(--primary); color:#fff; font-size:15px; }
-    .toolbar-grid,.form-grid { display:grid; grid-template-columns:repeat(4,minmax(170px,1fr)); gap:14px; }
-    .form-grid.wide { grid-template-columns:repeat(3,minmax(220px,1fr)); }
-    .field { display:grid; gap:8px; }
-    .field label { font-size:14px; font-weight:700; color:#28465a; }
-    .field input,.field select,.field textarea { width:100%; border:1px solid var(--border); border-radius:12px; padding:11px 12px; font:inherit; background:#fbfcfe; }
-    .field textarea { min-height:100px; resize:vertical; }
-    .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
-    .note { background:#f6fbff; border:1px dashed #bfd7e8; color:#33546b; border-radius:12px; padding:12px 14px; margin-top:14px; line-height:1.6; font-size:14px; }
-    .table-wrap { overflow:auto; border:1px solid var(--border); border-radius:14px; }
-    table { width:100%; border-collapse:collapse; background:#fff; }
-    th,td { padding:12px 10px; border-bottom:1px solid #edf2f7; text-align:right; white-space:nowrap; font-size:14px; }
-    th { background:#f8fbff; color:var(--primary); position:sticky; top:0; }
-    .list { display:grid; gap:10px; max-height:520px; overflow:auto; }
-    .item { background:#fcfdff; border:1px solid var(--border); border-radius:14px; padding:12px; }
-    .item strong { display:block; color:var(--primary); margin-bottom:6px; }
-    .item small { display:block; color:var(--muted); line-height:1.55; }
-    .chart-wrap { min-height:300px; position:relative; }
-    [dir="ltr"] th,[dir="ltr"] td,[dir="ltr"] .field label,[dir="ltr"] .item small,[dir="ltr"] .item strong,[dir="ltr"] .note { text-align:left; }
-    @media (max-width:1100px) { .stats,.grid-2,.toolbar-grid,.form-grid,.form-grid.wide { grid-template-columns:1fr; } }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg)}
+    .hidden{display:none!important}.rtl-en{display:inline-block;direction:ltr;unicode-bidi:embed}
+    header{background:var(--primary);color:#fff;padding:14px 18px;box-shadow:var(--shadow);position:sticky;top:0;z-index:50}
+    .header-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.title{font-size:24px;font-weight:800}.user-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:8px 12px;border-radius:999px}
+    .container{max-width:1500px;margin:18px auto;padding:0 14px 28px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+    .tab-btn,.btn{border:1px solid var(--border);border-radius:999px;padding:10px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer}
+    .tab-btn.active,.btn.primary{background:var(--primary);color:#fff}.btn.green{background:var(--green);border-color:var(--green);color:#fff}.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}.btn.warning{background:var(--warning);border-color:var(--warning);color:#fff}
+    .btn.small{padding:7px 11px;font-size:12px}
+    .panel{display:none}.panel.active{display:block}
+    .grid-2{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}.grid-3{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:14px}.grid-4{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px}
+    .card,.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}.card{padding:16px;overflow:hidden}.card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}.stat{padding:16px}.stat .label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}.stat .value{font-size:30px;font-weight:800;color:var(--primary)}
+    .stats{display:grid;grid-template-columns:repeat(5,minmax(180px,1fr));gap:14px;margin-bottom:18px}
+    .field{display:grid;gap:8px}.field label{font-size:14px;font-weight:700}.field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:inherit;background:#fbfcfe}.field textarea{min-height:96px;resize:vertical}.field input[readonly]{background:#f2f6fa}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.note{background:#f6fbff;border:1px dashed #bfd7e8;color:#33546b;border-radius:12px;padding:10px 12px;margin-top:12px;line-height:1.7}
+    .alert{padding:10px 12px;border-radius:12px;margin-top:10px}.alert.error{background:#ffecec;border:1px solid #f3b0b0;color:#8a1f1f}.alert.ok{background:#eaf9f0;border:1px solid #bce3c9;color:#20643b}
+    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px;background:#fff} table{width:100%;border-collapse:collapse} th,td{padding:12px 10px;border-bottom:1px solid #edf2f7;text-align:right;white-space:nowrap;font-size:14px;vertical-align:top} th{background:#f8fbff;color:var(--primary)} tr.clickable{cursor:pointer}
+    .list{display:grid;gap:10px;max-height:520px;overflow:auto}.item{background:#fcfdff;border:1px solid var(--border);border-radius:14px;padding:12px}.item strong{display:block;color:var(--primary);margin-bottom:6px}.item small{display:block;color:var(--muted);line-height:1.55}
+    .section-title{margin:18px 0 10px;font-weight:800;color:var(--primary);font-size:16px;border-inline-start:4px solid var(--primary);padding-inline-start:10px}
+    .overlay{position:fixed;inset:0;background:rgba(13,75,115,.18);display:flex;align-items:center;justify-content:center;padding:16px}.login-card{width:min(760px,96vw);background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 20px 50px rgba(0,0,0,.15);overflow:hidden}.login-head{background:var(--primary);color:#fff;padding:16px 20px;font-size:18px;font-weight:800}.login-body{padding:18px}
+    .choice-group{display:flex;gap:8px;flex-wrap:wrap}.choice-pill{padding:8px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;font-size:13px}
+    .link-box{padding:12px;border:1px dashed #bfd7e8;border-radius:12px;background:#f8fbff}
+    .brand-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;max-height:70vh;overflow:auto}
+    .brand-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+    .brand-card img{display:block;width:100%;height:96px;object-fit:contain;background:#fff;border:1px solid #eef3f7;border-radius:12px;padding:8px;margin-bottom:10px}
+    .brand-name{font-weight:800;color:var(--primary);margin-bottom:6px}.brand-key{font-size:12px;color:var(--muted);margin-bottom:10px}.brand-card .mini-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .preview-box{border:1px dashed #bfd7e8;border-radius:16px;padding:12px;text-align:center;background:#fcfeff}.preview-box img{max-width:100%;max-height:140px;object-fit:contain}
+    .switcher{display:flex;gap:8px;align-items:center}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef5ff;color:#295fa5;font-size:12px;font-weight:700}
+    @media (max-width:1200px){.grid-2,.grid-3,.grid-4,.stats,.brand-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-  <header class="header">
-    <div class="header-top">
-      <div>
-        <h1 data-i18n="pageTitle">إدارة زيارات الفروع والفنيين</h1>
-        <p data-i18n="pageSubtitle">نسخة محدثة بالكامل: فروع، فنيون، بريد إلكتروني، زيارات، تعديل، حذف، تأجيل، واستيراد/تصدير Excel.</p>
+  <div class="overlay" id="loginOverlay">
+    <div class="login-card">
+      <div class="login-head" data-i18n="loginTitle">تسجيل الدخول / Sign In</div>
+      <div class="login-body">
+        <div class="note" data-i18n="loginNote">نسخة كاملة تعمل لكل التبويبات مع تبديل اللغة ورسائل واضحة عند وجود مشكلة صلاحيات.</div>
+        <div class="grid-3" style="margin-top:14px">
+          <div class="field"><label data-i18n="emailLabel">البريد الإلكتروني / Email</label><input id="loginEmail" type="email" placeholder="name@company.com"></div>
+          <div class="field"><label data-i18n="passwordLabel">كلمة المرور / Password</label><input id="loginPassword" type="password" placeholder="Password"></div>
+          <div class="field"><label>&nbsp;</label><button class="btn green" id="loginBtn" type="button" data-i18n="loginBtn">دخول / Login</button></div>
+        </div>
+        <div class="note" id="loginMessage">ادخل بحساب موجود في Firebase Authentication و app_users.</div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn secondary" id="langArBtn">العربية</button>
-        <button class="btn secondary" id="langEnBtn">English</button>
+    </div>
+  </div>
+
+  <header>
+    <div class="header-row">
+      <div class="title" id="appTitle">إدارة زيارات الفروع والفنيين / Branch & Technician Visits</div>
+      <div class="user-row">
+        <div class="switcher">
+          <button class="btn small" id="langArBtn">AR</button>
+          <button class="btn small" id="langEnBtn">EN</button>
+        </div>
+        <span class="chip">v1.5.9.4</span>
+        <span class="chip hidden" id="currentUserChip"></span>
+        <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
     </div>
   </header>
 
-  <main class="container">
+  <main class="container hidden" id="appRoot">
     <div class="tabs">
       <button class="tab-btn active" data-tab="dashboard" data-i18n="tabDashboard">لوحة التحكم</button>
-      <button class="tab-btn" data-tab="visit" data-i18n="tabVisit">إدخال زيارة</button>
+      <button class="tab-btn" data-tab="checklist" data-i18n="tabChecklist">Check-List</button>
+      <button class="tab-btn" data-tab="brands" data-i18n="tabBrands">البراندات</button>
+      <button class="tab-btn" data-tab="reports" data-i18n="tabReports">التقارير</button>
+      <button class="tab-btn" data-tab="visit" data-i18n="tabVisits">إدخال زيارة</button>
       <button class="tab-btn" data-tab="branches" data-i18n="tabBranches">إدارة الفروع</button>
       <button class="tab-btn" data-tab="technicians" data-i18n="tabTechnicians">إدارة الفنيين</button>
-      <button class="tab-btn" data-tab="firebase" data-i18n="tabFirebase">إعداد Firebase</button>
+      <button class="tab-btn" data-tab="permissions" data-i18n="tabPermissions">الصلاحيات</button>
     </div>
 
-    <section id="dashboard" class="tab-panel active">
+    <section id="dashboard" class="panel active">
       <div class="stats">
-        <div class="stat"><span class="label" data-i18n="totalBranches">إجمالي الفروع</span><div class="value" id="statBranches">0</div></div>
-        <div class="stat"><span class="label" data-i18n="totalVisits">إجمالي الزيارات</span><div class="value" id="statVisits">0</div></div>
-        <div class="stat"><span class="label" data-i18n="totalTechnicians">إجمالي الفنيين</span><div class="value" id="statTechnicians">0</div></div>
-        <div class="stat"><span class="label" data-i18n="regions">المناطق</span><div class="value" id="statRegions">0</div></div>
+        <div class="stat"><span class="label" data-i18n="statBranches">إجمالي الفروع</span><div class="value" id="statBranches">0</div></div>
+        <div class="stat"><span class="label" data-i18n="statVisits">إجمالي الزيارات</span><div class="value" id="statVisits">0</div></div>
+        <div class="stat"><span class="label" data-i18n="statCompletedVisits">زيارات مكتملة</span><div class="value" id="statCompletedVisits">0</div></div>
+        <div class="stat"><span class="label" data-i18n="statPendingVisits">زيارات معلقة</span><div class="value" id="statPendingVisits">0</div></div>
+        <div class="stat"><span class="label" data-i18n="statVisitedTechs">عدد الفنيين زيارة</span><div class="value" id="statVisitedTechnicians">0</div></div>
       </div>
       <div class="grid-2">
         <div class="card">
-          <h3 data-i18n="visitsByBrand">عدد الزيارات حسب العلامة</h3>
-          <div class="chart-wrap"><canvas id="brandVisitsChart"></canvas></div>
+          <h3 data-i18n="latestChecklists">أحدث سجلات Check-List</h3>
+          <div class="table-wrap"><table><thead><tr><th data-i18n="visitDate">تاريخ الزيارة</th><th data-i18n="technician">الفني</th><th>Brand</th><th>Branch ID</th><th data-i18n="manager">مدير الفرع</th></tr></thead><tbody id="latestChecklistBody"></tbody></table></div>
         </div>
         <div class="card">
-          <h3 data-i18n="latestVisits">آخر الزيارات</h3>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th data-i18n="date">التاريخ</th>
-                  <th data-i18n="branch">الفرع</th>
-                  <th data-i18n="brand">العلامة</th>
-                  <th data-i18n="technician">الفني</th>
-                  <th data-i18n="visitStatus">الحالة</th>
-                  <th data-i18n="actions">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody id="visitsTableBody"></tbody>
-            </table>
+          <h3 data-i18n="latestBrands">قائمة الفنيين زيارة</h3>
+          <div class="list" id="latestBrandsList"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h3 data-i18n="dashboardBrandStats">مربعات البراندات</h3>
+        <div class="brand-grid" id="dashboardBrandStatsGrid" style="max-height:none"></div>
+      </div>
+      <div id="dashboardError" class="alert error hidden"></div>
+    </section>
+
+    <section id="checklist" class="panel">
+      <div class="grid-2">
+        <div class="card">
+          <h3 data-i18n="checklistTitle">نموذج Check-List (مرتبط بالفنيين والزيارة)</h3>
+          <input id="editingChecklistId" type="hidden">
+
+          <div class="section-title" data-i18n="linkTechVisit">الربط مع الفني والزيارة</div>
+          <div class="grid-4">
+            <div class="field"><label data-i18n="technician">الفني</label><select id="cl_technician"></select></div>
+            <div class="field"><label data-i18n="linkedVisit">الزيارة المرتبطة</label><select id="cl_visit_ref"></select></div>
+            <div class="field"><label data-i18n="technicianEmail">البريد الإلكتروني للفني</label><input id="cl_technician_email" readonly></div>
+            <div class="field"><label data-i18n="technicianId">معرف الفني</label><input id="cl_technician_id" readonly></div>
           </div>
+          <div class="note" data-i18n="checklistLinkNote">اختر الفني ثم الزيارة المرتبطة. سيتم تعبئة Brand / Branch ID / Location/Site / Visit Date تلقائيًا من سجل الزيارة.</div>
+
+          <div class="section-title">Basic Information</div>
+          <div class="grid-4">
+            <div class="field"><label>1- Brand</label><input id="cl_brand" list="brandsDatalist"></div>
+            <div class="field"><label>Brand Key</label><input id="cl_brandKey"></div>
+            <div class="field"><label>2- Branch ID</label><input id="cl_branch_id"></div>
+            <div class="field"><label>3- Location/Site</label><input id="cl_location"></div>
+            <div class="field"><label>4- Visit Scheduled with Branch Manager</label><select id="cl_visit_scheduled"><option value=""></option><option>Yes</option><option>No</option></select></div>
+            <div class="field"><label>5- Branch Manager ID, Name</label><input id="cl_branch_manager"></div>
+            <div class="field"><label>6- Visit Date</label><input id="cl_visit_date" type="date"></div>
+            <div class="field"><label>7- Month</label><input id="cl_month"></div>
+            <div class="field"><label>8- Calendar Booked</label><select id="cl_calendar_booked"><option value=""></option><option>Yes</option><option>No</option></select></div>
+            <div class="field"><label>9- Number of Users</label><input id="cl_users_count" type="number" min="0"></div>
+          </div>
+
+          <div class="section-title">Network Infrastructure Assessment</div>
+          <div class="grid-3">
+            <div class="field"><label>10- Network Cabinets Condition</label><select id="cl_q10"><option></option><option>In Shape</option><option>Requires Arrangement</option></select></div>
+            <div class="field"><label>11- Low Current Infrastructure Condition</label><select id="cl_q11"><option></option><option>In Shape</option><option>Requires Arrangement</option></select></div>
+            <div class="field"><label>12- Upload 4-6 Mbps</label><select id="cl_q12"><option></option><option>Above the Range</option><option>Within the Range</option><option>Below the Range</option></select></div>
+            <div class="field"><label>13- Download 6-9 Mbps</label><select id="cl_q13"><option></option><option>Above the Range</option><option>Within the Range</option><option>Below the Range</option></select></div>
+            <div class="field"><label>14- Server Room Temperature</label><select id="cl_q14"><option></option><option>Above the Range</option><option>Within the Range</option><option>Below the Range</option></select></div>
+            <div class="field"><label>15- UPS Status</label><select id="cl_q15"><option></option><option>Fully Functioning</option><option>Requires Service</option></select></div>
+          </div>
+
+          <div class="section-title">Hardware & Peripherals Assessment</div>
+          <div class="grid-3">
+            <div class="field"><label>16- PCs Condition</label><select id="cl_q16"><option></option><option>Fully Functioning</option><option>Requires Service</option></select></div>
+            <div class="field"><label>17- Printers Condition</label><select id="cl_q17"><option></option><option>Fully Functioning</option><option>Requires Service</option></select></div>
+            <div class="field"><label>18- Unified Communication</label><select id="cl_q18"><option></option><option>Fully Functioning</option><option>Requires Service</option></select></div>
+            <div class="field"><label>19- Unused or Damaged IT Assets</label><select id="cl_q19"><option></option><option>Yes</option><option>No</option></select></div>
+            <div class="field" style="grid-column:1/-1"><label>20- Report Unused/Damaged IT Asset</label><textarea id="cl_q20"></textarea></div>
+            
+          </div>
+
+          <div class="section-title">Software & Systems Assessment</div>
+          <div class="grid-3">
+            <div class="field"><label>22- Operating System Up to Date</label><select id="cl_q22"><option></option><option>Yes</option><option>No</option></select></div>
+            <div class="field"><label>23- Cleanup and Remove Unwanted Apps</label><select id="cl_q23"><option></option><option>Yes</option><option>No</option><option>Partially</option></select></div>
+            <div class="field"><label>24- OneDrive Backup</label><select id="cl_q24"><option></option><option>Yes</option><option>No</option><option>Partially</option></select></div>
+            <div class="field"><label>25- Customer Facing Portals</label><select id="cl_q25"><option></option><option>Yes</option><option>No</option><option>Partially</option></select></div>
+            <div class="field"><label>26- ERP & Business Applications</label><select id="cl_q26"><option></option><option>Yes</option><option>No</option><option>Requires Maintenance</option></select></div>
+            <div class="field" style="grid-column:1/-1"><label>27- Training Requirement</label><div class="choice-group" id="trainingRequirementsGroup">
+              <label class="choice-pill"><input type="checkbox" value="Customer Facing Portals"> Customer Facing Portals</label>
+              <label class="choice-pill"><input type="checkbox" value="ERP Functions"> ERP Functions</label>
+              <label class="choice-pill"><input type="checkbox" value="Business Solutions"> Business Solutions</label>
+              <label class="choice-pill"><input type="checkbox" value="Service Desk & End User Support"> Service Desk & End User Support</label>
+              <label class="choice-pill"><input type="checkbox" value="IT Soft Skills"> IT Soft Skills</label>
+              <label class="choice-pill"><input type="checkbox" value="No Requirement for IT Training"> No Requirement for IT Training</label>
+              <label class="choice-pill"><input type="checkbox" value="Other"> Other</label>
+            </div></div>
+            <div class="field" style="grid-column:1/-1"><label>28- Service Report Summary</label><textarea id="cl_q28"></textarea></div>
+            <div class="field"><label>29- Upgrade Windows 10 to 11</label><select id="cl_q29"><option></option><option>Yes</option><option>No</option><option>Other</option></select></div>
+          </div>
+
+          <div class="actions">
+            <button class="btn green" id="saveChecklistBtn" data-i18n="saveChecklist">حفظ Check-List</button>
+            <button class="btn" id="clearChecklistBtn" data-i18n="clearForm">تنظيف النموذج</button>
+            <button class="btn danger hidden" id="deleteChecklistBtn" data-i18n="deleteRecord">حذف السجل</button>
+          </div>
+          <div class="note" id="checklistMessage">جاهز للحفظ.</div>
+          <div id="checklistError" class="alert error hidden"></div>
+        </div>
+
+        <div class="card">
+          <h3 data-i18n="savedRecords">السجلات المحفوظة</h3>
+          <div class="field" style="margin-bottom:12px"><label data-i18n="search">بحث</label><input id="checklistSearch" placeholder="ابحث..."></div>
+          <div class="table-wrap"><table><thead><tr><th data-i18n="visitDate">تاريخ الزيارة</th><th data-i18n="technician">الفني</th><th>Brand</th><th>Branch ID</th><th>Location/Site</th><th data-i18n="manager">مدير الفرع</th></tr></thead><tbody id="checklistTableBody"></tbody></table></div>
+        </div>
+      </div>
+      <datalist id="brandsDatalist"></datalist>
+    </section>
+
+    <section id="brands" class="panel">
+      <div class="grid-2">
+        <div class="card">
+          <h3 data-i18n="brandFormTitle">إضافة / تعديل براند</h3>
+          <input type="hidden" id="editingBrandId">
+          <div class="grid-3">
+            <div class="field"><label data-i18n="brandNameAr">اسم البراند بالعربي</label><input id="brandNameAr"></div>
+            <div class="field"><label data-i18n="brandNameEn">اسم البراند بالإنجليزي</label><input id="brandNameEn"></div>
+            <div class="field"><label>Brand Key</label><input id="brandKey"></div>
+            <div class="field"><label>Logo URL</label><input id="brandLogoUrl"></div>
+            <div class="field"><label data-i18n="uploadLogo">رفع صورة الشعار</label><input id="brandLogoFile" type="file" accept="image/*"></div>
+            <div class="field"><label data-i18n="notes">ملاحظات</label><textarea id="brandNotes"></textarea></div>
+          </div>
+          <div class="preview-box" style="margin-top:14px">
+            <div style="font-weight:700;margin-bottom:8px" data-i18n="logoPreview">معاينة الشعار</div>
+            <img id="logoPreview" alt="Brand Logo Preview" class="hidden">
+            <div id="logoPreviewEmpty" class="note">لا توجد معاينة بعد.</div>
+          </div>
+          <div class="actions">
+            <button class="btn green" id="saveBrandBtn" data-i18n="saveBrand">حفظ البراند</button>
+            <button class="btn" id="clearBrandFormBtn" data-i18n="clearForm">تنظيف النموذج</button>
+            <button class="btn danger hidden" id="deleteBrandBtn" data-i18n="deleteBrand">حذف البراند</button>
+          </div>
+          <div class="note" id="brandMessage">يمكنك إضافة براند جديد مع صورته أو تعديل براند موجود.</div>
+          <div id="brandsError" class="alert error hidden"></div>
+        </div>
+        <div class="card">
+          <h3 data-i18n="brandsCurrent">البراندات الحالية</h3>
+          <div class="field" style="margin-bottom:12px"><label data-i18n="search">بحث</label><input id="brandSearch"></div>
+          <div class="brand-grid" id="brandsGrid"></div>
         </div>
       </div>
     </section>
 
-    <section id="visit" class="tab-panel">
+    <section id="reports" class="panel">
+      <div class="card">
+        <h3 data-i18n="reports">التقارير</h3>
+        <div class="grid-4">
+          <div class="field"><label data-i18n="reportType">نوع التقرير</label><select id="reportType"><option value="checklists">Check-Lists</option><option value="visits">Visits</option><option value="brands">Brands</option></select></div>
+          <div class="field"><label data-i18n="fromDate">من تاريخ</label><input id="reportFrom" type="date"></div>
+          <div class="field"><label data-i18n="toDate">إلى تاريخ</label><input id="reportTo" type="date"></div>
+          <div class="field"><label>&nbsp;</label><button class="btn green" id="runReportBtn" data-i18n="runReport">تشغيل التقرير</button></div>
+        </div>
+        <div class="table-wrap" style="margin-top:14px"><table><thead id="reportsHead"></thead><tbody id="reportsBody"></tbody></table></div>
+        <div id="reportsError" class="alert error hidden"></div>
+      </div>
+    </section>
+
+    <section id="visit" class="panel">
       <div class="grid-2">
         <div class="card">
-          <h3 data-i18n="newVisit">تسجيل زيارة جديدة</h3>
-          <input id="editingVisitId" type="hidden">
-          <div class="form-grid wide">
-            <div class="field"><label data-i18n="region">المنطقة</label><select id="visitRegion"></select></div>
-            <div class="field"><label data-i18n="city">المدينة</label><select id="visitCity"></select></div>
-            <div class="field"><label data-i18n="brand">العلامة</label><select id="visitBrand"></select></div>
+          <h3 data-i18n="visitFormTitle">إدخال / تعديل زيارة</h3>
+          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني.</div>
+          <input type="hidden" id="editingVisitId">
+          <div class="grid-3">
             <div class="field"><label data-i18n="branch">الفرع</label><select id="visitBranch"></select></div>
             <div class="field"><label data-i18n="technician">الفني</label><select id="visitTechnician"></select></div>
-            <div class="field"><label data-i18n="date">تاريخ الزيارة</label><input id="visitDate" type="date"></div>
-            <div class="field"><label data-i18n="visitStatus">حالة الخطة</label><select id="visitStatus"><option value="planned">Planned / مخطط</option><option value="completed">Completed / مكتمل</option><option value="postponed">Postponed / مؤجل</option><option value="cancelled">Cancelled / ملغي</option></select></div>
-            <div class="field" style="grid-column:1 / -1"><label data-i18n="notes">الملاحظات</label><textarea id="visitNotes"></textarea></div>
+            <div class="field"><label data-i18n="visitDate">تاريخ الزيارة</label><input id="visitDate" type="date"></div>
+            <div class="field"><label>Brand</label><input id="visitBrand" readonly></div>
+            <div class="field"><label>Branch ID</label><input id="visitBranchId" readonly></div>
+            <div class="field"><label data-i18n="locationSite">Location / Site</label><input id="visitLocation" readonly></div>
+            <div class="field"><label data-i18n="status">الحالة</label><select id="visitStatus"><option value="planned">Planned</option><option value="completed">Completed</option><option value="postponed">Postponed</option><option value="cancelled">Cancelled</option></select></div>
+            <div class="field" style="grid-column:1/-1"><label data-i18n="notes">ملاحظات</label><textarea id="visitNotes"></textarea></div>
           </div>
           <div class="actions">
             <button class="btn green" id="saveVisitBtn" data-i18n="saveVisit">حفظ الزيارة</button>
-            <button class="btn secondary" id="clearVisitFormBtn" data-i18n="clearVisitForm">تنظيف نموذج الزيارة</button>
-            <button class="btn secondary" id="seedBranchesBtn" data-i18n="uploadSeed">رفع الفروع الأولية</button>
+            <button class="btn" id="clearVisitBtn" data-i18n="clearForm">تنظيف النموذج</button>
+            <button class="btn danger hidden" id="deleteVisitBtn" data-i18n="deleteRecord">حذف السجل</button>
           </div>
-          <div class="note" id="saveMessage">اختر المنطقة ← المدينة ← العلامة ← الفرع ← الفني، ثم احفظ الزيارة. ويمكنك التعديل أو الحذف أو التأجيل لوقت آخر.</div>
+          <div class="note" id="visitMessage">جاهز للحفظ.</div>
+          <div id="visitError" class="alert error hidden"></div>
         </div>
         <div class="card">
-          <h3 data-i18n="selectedBranch">تفاصيل الفرع المختار</h3>
-          <div id="selectedBranchCard"><div class="note" data-i18n="noBranchSelected">لم يتم اختيار فرع بعد.</div></div>
+          <h3 data-i18n="latestVisits">أحدث الزيارات</h3>
+          <div class="table-wrap"><table><thead><tr><th data-i18n="visitDate">تاريخ الزيارة</th><th data-i18n="branch">الفرع</th><th data-i18n="technician">الفني</th><th data-i18n="status">الحالة</th></tr></thead><tbody id="visitsTableBody"></tbody></table></div>
         </div>
       </div>
     </section>
 
-    <section id="branches" class="tab-panel">
+    <section id="branches" class="panel">
       <div class="grid-2">
         <div class="card">
-          <h3 data-i18n="branchManagement">إدارة الفروع</h3>
-          <div class="form-grid wide">
-            <div class="field"><label>Hostname</label><input id="branchId" type="text"></div>
-            <div class="field"><label data-i18n="branchName">اسم الفرع</label><input id="branchName" type="text"></div>
-            <div class="field"><label data-i18n="brand">العلامة</label><input id="branchBrand" type="text"></div>
-            <div class="field"><label data-i18n="region">المنطقة</label><input id="branchRegion" type="text"></div>
-            <div class="field"><label data-i18n="city">المدينة</label><input id="branchCity" type="text"></div>
-            <div class="field"><label data-i18n="branchType">نوع الفرع</label><input id="branchType" type="text"></div>
-            <div class="field"><label data-i18n="coordinates">الإحداثيات</label><input id="branchCoordinates" type="text"></div>
-            <div class="field"><label>Contact Showroom</label><input id="branchContactShowroom" type="text"></div>
-            <div class="field"><label>Contact Service</label><input id="branchContactService" type="text"></div>
-            <div class="field"><label>Contact Spare Parts</label><input id="branchContactSpareParts" type="text"></div>
+          <h3 data-i18n="branchFormTitle">إدارة الفروع</h3>
+          <div class="section-title">استيراد / تصدير Excel</div>
+          <div class="grid-3">
+            <div class="field"><label>ملف Excel</label><input id="branchesExcelFile" type="file" accept=".xlsx,.xls"></div>
+            <div class="field"><label> </label><button class="btn warning" id="importBranchesBtn" type="button">رفع ملف Excel (يمسح القديم)</button></div>
+            <div class="field"><label> </label><button class="btn" id="exportBranchesBtn" type="button">تنزيل ملف Excel</button></div>
+          </div>
+          <div class="note">سيتم حذف كل بيانات الفروع الحالية من مخزن <span class="rtl-en">branches</span> ثم استيراد الملف الجديد. الأعمدة المعتمدة: <span class="rtl-en">Branch_ID, Branch_Type, Contact Showroom, Contact_Service, Contact_Spare_Parts, Brand, function, Branch_Name, GPS, Location, Region</span>. ويمكن أيضًا قبول عمود اختياري باسم <span class="rtl-en">City</span>.</div>
+
+          <div class="section-title">إدارة الفرع يدويًا</div>
+          <div class="grid-4">
+            <div class="field"><label>Branch_ID</label><input id="branchId"></div>
+            <div class="field"><label>Branch_Name</label><input id="branchName"></div>
+            <div class="field"><label>Brand</label><input id="branchBrand"></div>
+            <div class="field"><label>Branch_Type</label><input id="branchType"></div>
+            <div class="field"><label>Region</label><input id="branchRegion"></div>
+            <div class="field"><label>City</label><input id="branchCity"></div>
+            <div class="field"><label>Location</label><input id="branchLocation"></div>
+            <div class="field"><label>GPS</label><input id="branchGps"></div>
+            <div class="field"><label>Contact Showroom</label><input id="branchContactShowroom"></div>
+            <div class="field"><label>Contact_Service</label><input id="branchContactService"></div>
+            <div class="field"><label>Contact_Spare_Parts</label><input id="branchContactSpareParts"></div>
+            <div class="field"><label>function</label><input id="branchFunction"></div>
           </div>
           <div class="actions">
-            <button class="btn green" id="saveBranchBtn" data-i18n="saveBranch">إضافة / تحديث الفرع</button>
-            <button class="btn secondary" id="clearBranchFormBtn" data-i18n="clearForm">تنظيف الحقول</button>
-            <button class="btn primary" id="importBranchesBtn" data-i18n="importExcel">استيراد Excel</button>
-            <button class="btn secondary" id="exportBranchesBtn" data-i18n="exportExcel">تنزيل Excel</button>
-            <button class="btn secondary" id="downloadTemplateBtn" data-i18n="downloadTemplate">تنزيل القالب</button>
-            <input id="importBranchesInput" type="file" accept=".xlsx,.xls" style="display:none">
+            <button class="btn green" id="saveBranchBtn" data-i18n="saveBranch">حفظ الفرع</button>
+            <button class="btn" id="clearBranchBtn" data-i18n="clearForm">تنظيف النموذج</button>
           </div>
+          <div class="note" id="branchMessage">يمكنك البحث، رفع ملف Excel، تنزيل نسخة من البيانات الحالية أو حفظ فرع بشكل يدوي.</div>
+          <div id="branchError" class="alert error hidden"></div>
         </div>
-        <div class="card"><h3 data-i18n="currentBranches">الفروع الحالية</h3><div class="list" id="branchesList"></div></div>
+        <div class="card">
+          <h3 data-i18n="branchesCurrent">الفروع الحالية</h3>
+          <div class="field" style="margin-bottom:12px"><label>فلتر الفروع</label><input id="branchSearch" placeholder="ابحث بـ Branch_ID / Branch_Name / Brand / Region / City / Location"></div>
+          <div class="list" id="branchesList"></div>
+        </div>
       </div>
     </section>
 
-    <section id="technicians" class="tab-panel">
+    <section id="technicians" class="panel">
       <div class="grid-2">
         <div class="card">
-          <h3 data-i18n="technicianManagement">إدارة الفنيين</h3>
-          <div class="form-grid wide">
-            <div class="field"><label data-i18n="technicianId">معرف الفني</label><input id="technicianId" type="text"></div>
-            <div class="field"><label data-i18n="technicianName">اسم الفني</label><input id="technicianNameInput" type="text"></div>
-            <div class="field"><label data-i18n="email">البريد الإلكتروني</label><input id="technicianEmail" type="email" placeholder="name@company.com"></div>
-            <div class="field"><label data-i18n="phone">رقم الجوال</label><input id="technicianPhone" type="text"></div>
-            <div class="field"><label data-i18n="region">المنطقة</label><input id="technicianRegion" type="text"></div>
-            <div class="field"><label data-i18n="city">المدينة</label><input id="technicianCity" type="text"></div>
-            <div class="field"><label data-i18n="status">الحالة</label><select id="technicianStatus"><option value="active">Active / نشط</option><option value="inactive">Inactive / غير نشط</option></select></div>
+          <h3 data-i18n="technicianFormTitle">إدارة الفنيين</h3>
+          <div class="note">اختر الفني الموجود من القائمة أو من زر التعديل، ثم حدّد له نطاق الزيارة من الاختيارات التالية: <span class="rtl-en">Region / City / Brand / Branch Name</span>. عند إدخال زيارة لهذا الفني ستظهر له فقط الفروع المطابقة.</div>
+          <div class="grid-3" style="margin-top:12px">
+            <div class="field"><label>اختيار فني موجود</label><select id="technicianSelector"></select></div>
+            <div class="field"><label> </label><button class="btn" id="loadTechnicianBtn" type="button">تحميل بيانات الفني</button></div>
+            <div class="field"><label> </label><span class="badge">اختر الفني ثم احفظ التعديل</span></div>
+          </div>
+          <div class="grid-4" style="margin-top:12px">
+            <div class="field"><label data-i18n="technicianDocId">Document ID / UID</label><input id="technicianDocId"></div>
+            <div class="field"><label data-i18n="technicianCode">معرف الفني (Code)</label><input id="technicianCode"></div>
+            <div class="field"><label data-i18n="technicianNameField">اسم الفني</label><input id="technicianNameInput"></div>
+            <div class="field"><label data-i18n="technicianEmail">البريد الإلكتروني</label><input id="technicianEmail" type="email"></div>
+            <div class="field"><label>authUid</label><input id="technicianAuthUid"></div>
+            <div class="field"><label data-i18n="status">الحالة</label><select id="technicianStatus"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+            <div class="field"><label>Region</label><select id="techAssignRegion"></select></div>
+            <div class="field"><label>City</label><select id="techAssignCity"></select></div>
+            <div class="field"><label>Brand</label><select id="techAssignBrand"></select></div>
+            <div class="field" style="grid-column: span 2;"><label>Branch_Name</label><select id="techAssignBranch"></select></div>
           </div>
           <div class="actions">
             <button class="btn green" id="saveTechnicianBtn" data-i18n="saveTechnician">حفظ الفني</button>
-            <button class="btn secondary" id="clearTechnicianFormBtn" data-i18n="clearForm">تنظيف الحقول</button>
-            <button class="btn primary" id="importTechniciansBtn" data-i18n="importExcel">استيراد Excel</button>
-            <button class="btn secondary" id="exportTechniciansBtn" data-i18n="exportExcel">تنزيل Excel</button>
-            <button class="btn secondary" id="downloadTechniciansTemplateBtn" data-i18n="downloadTemplate">تنزيل القالب</button>
-            <input id="importTechniciansInput" type="file" accept=".xlsx,.xls" style="display:none">
+            <button class="btn" id="clearTechnicianBtn" data-i18n="clearForm">تنظيف النموذج</button>
           </div>
-          <div class="note" id="technicianMessage" data-i18n="technicianNote">يمكنك إضافة الفنيين من هنا ليظهروا في نموذج الزيارة.</div>
+          <div class="note" id="technicianMessage">اختر الفني أولاً، ثم حدّد له <span class="rtl-en">Region / City / Brand / Branch Name</span> واحفظ التعديل.</div>
+          <div id="technicianError" class="alert error hidden"></div>
         </div>
-        <div class="card"><h3 data-i18n="currentTechnicians">الفنيون الحاليون</h3><div class="list" id="techniciansList"></div></div>
+        <div class="card"><h3 data-i18n="techniciansCurrent">الفنيون الحاليون</h3><div class="list" id="techniciansList"></div></div>
       </div>
     </section>
 
-    <section id="firebase" class="tab-panel">
-      <div class="card"><h3 data-i18n="firebaseSetup">إعداد Firebase</h3><div class="note">const firebaseConfig = { apiKey:'PUT_YOUR_API_KEY', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.appspot.com', messagingSenderId:'PUT_YOUR_MESSAGING_SENDER_ID', appId:'PUT_YOUR_APP_ID' }</div></div>
+    <section id="permissions" class="panel">
+      <div class="grid-2">
+        <div class="card">
+          <h3 data-i18n="permissionsTitle">إدارة الصلاحيات (app_users)</h3>
+          <div class="grid-3">
+            <div class="field"><label>UID</label><input id="userUid"></div>
+            <div class="field"><label>Email</label><input id="userEmail"></div>
+            <div class="field"><label>Role</label><select id="userRole"><option value="admin">admin</option><option value="technician">technician</option><option value="user">user</option></select></div>
+            <div class="field"><label>Active</label><select id="userActive"><option value="true">true</option><option value="false">false</option></select></div>
+            <div class="field"><label>technicianId / code</label><input id="userTechnicianId"></div>
+          </div>
+          <div class="actions">
+            <button class="btn green" id="saveUserBtn" data-i18n="savePermissions">حفظ الصلاحيات</button>
+            <button class="btn" id="clearUserBtn" data-i18n="clearForm">تنظيف النموذج</button>
+          </div>
+          <div class="note" id="permissionsMessage">هذا التبويب يحتاج Admin حسب قواعدك الحالية.</div>
+          <div id="permissionsError" class="alert error hidden"></div>
+        </div>
+        <div class="card"><h3 data-i18n="usersCurrent">المستخدمون الحاليون</h3><div class="table-wrap"><table><thead><tr><th>UID</th><th>Email</th><th>Role</th><th>Active</th><th>technicianId</th></tr></thead><tbody id="usersTableBody"></tbody></table></div></div>
+      </div>
     </section>
   </main>
 
-  <script>
-    const i18n = {
-      ar:{ pageTitle:'إدارة زيارات الفروع والفنيين', pageSubtitle:'نسخة محدثة بالكامل: فروع، فنيون، بريد إلكتروني، زيارات، تعديل، حذف، تأجيل، واستيراد/تصدير Excel.', tabDashboard:'لوحة التحكم', tabVisit:'إدخال زيارة', tabBranches:'إدارة الفروع', tabTechnicians:'إدارة الفنيين', tabFirebase:'إعداد Firebase', totalBranches:'إجمالي الفروع', totalVisits:'إجمالي الزيارات', totalTechnicians:'إجمالي الفنيين', regions:'المناطق', visitsByBrand:'عدد الزيارات حسب العلامة', latestVisits:'آخر الزيارات', date:'التاريخ', branch:'الفرع', brand:'العلامة', technician:'الفني', newVisit:'تسجيل زيارة جديدة', region:'المنطقة', city:'المدينة', notes:'الملاحظات', saveVisit:'حفظ الزيارة', uploadSeed:'رفع الفروع الأولية', selectedBranch:'تفاصيل الفرع المختار', noBranchSelected:'لم يتم اختيار فرع بعد.', branchManagement:'إدارة الفروع', branchName:'اسم الفرع', branchType:'نوع الفرع', coordinates:'الإحداثيات', saveBranch:'إضافة / تحديث الفرع', clearForm:'تنظيف الحقول', importExcel:'استيراد Excel', exportExcel:'تنزيل Excel', downloadTemplate:'تنزيل القالب', currentBranches:'الفروع الحالية', technicianManagement:'إدارة الفنيين', technicianId:'معرف الفني', technicianName:'اسم الفني', email:'البريد الإلكتروني', phone:'رقم الجوال', status:'الحالة', saveTechnician:'حفظ الفني', technicianNote:'يمكنك إضافة الفنيين من هنا ليظهروا في نموذج الزيارة.', currentTechnicians:'الفنيون الحاليون', firebaseSetup:'إعداد Firebase', visitStatus:'حالة الخطة', actions:'إجراءات', clearVisitForm:'تنظيف نموذج الزيارة' },
-      en:{ pageTitle:'Branch and Technician Visit Management', pageSubtitle:'Fully updated version: branches, technicians, email, visits, edit, delete, postpone, and Excel import/export.', tabDashboard:'Dashboard', tabVisit:'Visit Entry', tabBranches:'Branch Management', tabTechnicians:'Technicians', tabFirebase:'Firebase Setup', totalBranches:'Total Branches', totalVisits:'Total Visits', totalTechnicians:'Total Technicians', regions:'Regions', visitsByBrand:'Visits by Brand', latestVisits:'Latest Visits', date:'Date', branch:'Branch', brand:'Brand', technician:'Technician', newVisit:'New Visit Entry', region:'Region', city:'City', notes:'Notes', saveVisit:'Save Visit', uploadSeed:'Upload Seed Branches', selectedBranch:'Selected Branch Details', noBranchSelected:'No branch selected yet.', branchManagement:'Branch Management', branchName:'Branch Name', branchType:'Branch Type', coordinates:'Coordinates', saveBranch:'Add / Update Branch', clearForm:'Clear Form', importExcel:'Import Excel', exportExcel:'Export Excel', downloadTemplate:'Download Template', currentBranches:'Current Branches', technicianManagement:'Technician Management', technicianId:'Technician ID', technicianName:'Technician Name', email:'Email', phone:'Phone', status:'Status', saveTechnician:'Save Technician', technicianNote:'Add technicians here to show them in the visit form.', currentTechnicians:'Current Technicians', firebaseSetup:'Firebase Setup', visitStatus:'Plan Status', actions:'Actions', clearVisitForm:'Clear Visit Form' }
-    };
-    function applyLanguage(lang){ document.documentElement.lang=lang; document.documentElement.dir=lang==='en'?'ltr':'rtl'; localStorage.setItem('ui_lang',lang); document.querySelectorAll('[data-i18n]').forEach(el=>{ const key=el.dataset.i18n; if(i18n[lang][key]) el.textContent=i18n[lang][key]; }); renderVisitTable && renderVisitTable(); }
-    document.getElementById('langArBtn').onclick=()=>applyLanguage('ar');
-    document.getElementById('langEnBtn').onclick=()=>applyLanguage('en');
-    document.querySelectorAll('.tab-btn').forEach(btn=>btn.onclick=()=>{ document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active')); btn.classList.add('active'); document.getElementById(btn.dataset.tab).classList.add('active'); });
-  </script>
-
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, query, orderBy, onSnapshot, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-    const firebaseConfig = { apiKey:'PUT_YOUR_API_KEY', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.appspot.com', messagingSenderId:'PUT_YOUR_MESSAGING_SENDER_ID', appId:'PUT_YOUR_APP_ID' };
-    const app=initializeApp(firebaseConfig); const db=getFirestore(app); const seedBranches=[{"id": "CNGN-DMM-1", "branchName": "Changan Dhahran Qeshla", "brand": "Changan", "region": "Eastern", "city": "Dammam", "coordinates": "26.3627, 50.17802", "branchType": "1S", "contactShowroom": "Hashem Ahmed Al-Ali 0542297470", "contactService": "No Branch", "contactSpareParts": "No Branch"}, {"id": "CNGN-KHB-2", "branchName": "Changan Khobar - Tamimi", "brand": "Changan", "region": "Eastern", "city": "Khobar", "coordinates": "26.33716, 50.19817", "branchType": "3S", "contactShowroom": "Mutaib Sameer Al-Muslim 0559233337", "contactService": "Mukhtar Fadhel Alabdrabulridha 0544583202", "contactSpareParts": "Abdullah Mazin Alramahi 0545680036"}, {"id": "CNGN-KHB-1", "branchName": "Changan Karawan Tower", "brand": "Changan", "region": "Eastern", "city": "Khobar", "coordinates": "26.318555, 50.216056", "branchType": "1S", "contactShowroom": "Ahmad Saleh Al-Ghamdi 0551599390", "contactService": "No Branch", "contactSpareParts": "No Branch"}, {"id": "CNGN-DMM-2", "branchName": "Changan Alkhaldia - Service", "brand": "Changan", "region": "Eastern", "city": "Dammam", "coordinates": "26.40208, 50.17073", "branchType": "2S", "contactShowroom": "No Branch", "contactService": "Mohammed Mahmoud Matar 0564114985", "contactSpareParts": "Mohmmad Abdulbaset Eltayeb 0546570363"}, {"id": "MMS-DMM-3", "branchName": "Changan Khair - Service", "brand": "Changan", "region": "Eastern", "city": "Dammam", "coordinates": "26.44396, 50.04225", "branchType": "2S", "contactShowroom": "No Branch", "contactService": "Hamdi Mohammed Mohammed 0556310555", "contactSpareParts": "Abdullah Mohammed Bawazir 0598505500"}, {"id": "GEN-KHB-1", "branchName": "Khubar Genesis", "brand": "Genesis", "region": "Eastern", "city": "Khobar", "coordinates": "26.362830, 50.186364", "branchType": "1S", "contactShowroom": "Abdullah Ali Al-Duhaim 0561611131", "contactService": "No Branch", "contactSpareParts": "No Branch"}, {"id": "PCA-KHB-1", "branchName": "Peugeot", "brand": "Stellantis", "region": "Eastern", "city": "Khobar", "coordinates": "26.319856, 50.209314", "branchType": "3S", "contactShowroom": "Mohammed Muid Al Shihri 0590066667", "contactService": "Mohammad Awni Odeh 0593235522", "contactSpareParts": "Amr Saadeldein Hassoba 0541571057"}, {"id": "HQ-DMM", "branchName": "Hyundai 91 HQ", "brand": "Hyundai", "region": "Eastern", "city": "Dammam", "coordinates": "26.400945, 50.051463", "branchType": "3S", "contactShowroom": "Hussain Ali Bajwi 0504773367", "contactService": "Ossama Shogaa Abdul Azim 0538166683", "contactSpareParts": "Yasser Bafaqas 0534847021"}, {"id": "MMSM-KHB-1", "branchName": "Hyundai Khobar", "brand": "Hyundai", "region": "Eastern", "city": "Khobar", "coordinates": "26.31767, 50.21066", "branchType": "3S", "contactShowroom": "Mohammad Yehya Maslebi 0555889763", "contactService": "Rami Mohammed Qaqa 0506658679", "contactSpareParts": "Abdul Hakeem Khaja 0508862294"}, {"id": "MMSM-KHB-2", "branchName": "Hyundai Thuqbah - Showroom", "brand": "Hyundai", "region": "Eastern", "city": "Khobar", "coordinates": "26.285429, 50.189966", "branchType": "1S", "contactShowroom": "Abdulrheem Ahmed Alkhalfan 0565205500", "contactService": "No Branch", "contactSpareParts": "No Branch"}, {"id": "MMS-THQ-2", "branchName": "Hyundai Thuqbah - Service", "brand": "Hyundai", "region": "Eastern", "city": "Khobar", "coordinates": "26.254208, 50.199228", "branchType": "2S", "contactShowroom": "No Branch", "contactService": "Ali Ezzeldeen Ibrahim 0551541565", "contactSpareParts": "Imteyaz Ramzanali Timalia 0595205469"}, {"id": "MMP-DMM-3", "branchName": "Hyundai Khdoriah - Spare Parts", "brand": "Hyundai", "region": "Eastern", "city": "Dammam", "coordinates": "26.448461, 50.055211", "branchType": "S1", "contactShowroom": "No Branch", "contactService": "No Branch", "contactSpareParts": "Hani Jumah Al Ali 0509082940"}, {"id": "MMSM-DMM-2", "branchName": "Hyundai Jarir", "brand": "Hyundai", "region": "Eastern", "city": "Dammam", "coordinates": "26.410089, 50.110040", "branchType": "1S", "contactShowroom": "Naif Hassan Sahari 0557015815", "contactService": "No Branch", "contactSpareParts": "No Branch"}, {"id": "MMS-DMM-2", "branchName": "Hyundai Al Khodaryah - Service", "brand": "Hyundai", "region": "Eastern", "city": "Dammam", "coordinates": "26.450849, 50.034180", "branchType": "1S", "contactShowroom": "No Branch", "contactService": "Ali Mohammed Beirouty 0502062673", "contactSpareParts": "No Branch"}, {"id": "MMSM-QTF-1", "branchName": "Hyundai Sihat", "brand": "Hyundai", "region": "Eastern", "city": "Qatef", "coordinates": "26.50412, 50.03771", "branchType": "3S", "contactShowroom": "Majed Abdullah Al Basha 0563355302", "contactService": "Mohammad Yousef Abu Awad 0536181815", "contactSpareParts": "Tawfik Mohammed Qasem 0502902938"}, {"id": "MMS-HSA-1", "branchName": "Hyundai Hassa Indestrial - Service", "brand": "Hyundai", "region": "Eastern", "city": "Hassa", "coordinates": "25.404583, 49.479291", "branchType": "2S", "contactShowroom": "No Branch", "contactService": "Jasem Ahmed Al Nazal 0599409559", "contactSpareParts": "Mohammad Ali Alabdallah 0506967890"}, {"id": "MMSM-HSA-1", "branchName": "Hyundai Dhahran road", "brand": "Hyundai", "region": "Eastern", "city": "Hassa", "coordinates": "25.441442, 49.57073", "branchType": "3S", "contactShowroom": "Ibrahim Eissa Abdulrahman AL Hekan 0541114119", "contactService": "Abdullah Abdulgani Al Ibrahim 0506733393", "contactSpareParts": "Sultan Ali Al-Farhan 0544363281"}, {"id": "CNGN-HSA-1", "branchName": "Changan Hassa - Service", "brand": "Changan", "region": "Eastern", "city": "Hassa", "coordinates": "25.361743, 49.55257", "branchType": "2S", "contactShowroom": "No Branch", "contactService": "Yaser Ahmed Al-Masri 0557996640", "contactSpareParts": "Abdulhamid Ali Al-Sultan 0557677663"}, {"id": "MMSM-HSA-2", "branchName": "Hyundai Qatar road", "brand": "Hyundai", "region": "Eastern", "city": "Hassa", "coordinates": "25.34302, 49.615107", "branchType": "1S", "contactShowroom": "Anwar Essa Aljaafar 0561166141", "contactService": "No Branch", "contactSpareParts": "No Branch"}, {"id": "MMSM-HSA-3", "branchName": "Hyundai Salmania", "brand": "Hyundai", "region": "Eastern", "city": "Hassa", "coordinates": "25.361153, 49.550744", "branchType": "3S", "contactShowroom": "Ali Hussain Al Abdullatif 0540389998", "contactService": "Mohammad Mostafa Alaeraj 0508241116", "contactSpareParts": "Fadil Heji Al Hassan 0509288189"}, {"id": "MMSM-JUB-1", "branchName": "Hyundai Jubail", "brand": "Hyundai", "region": "Eastern", "city": "Jubail", "coordinates": "26.980729, 49.648035", "branchType": "3S", "contactShowroom": "Nawaf Muteb Alorayir 0546971624", "contactService": "Ahmed Abdulrahman Alghamdi 0594044087", "contactSpareParts": "Abdullah Saleh Albukhawwah 0507798852"}, {"id": "MMSM-ARR-1", "branchName": "Hyundai Arar", "brand": "Hyundai", "region": "Eastern", "city": "Arar", "coordinates": "30.967941, 41.030363", "branchType": "3S", "contactShowroom": "Khalil Ibrahim Abdullah 0599355433", "contactService": "Abdulsalam Aqeel AlhussAin 0544231999", "contactSpareParts": "Talal Awad AL Anzi 0508516637"}, {"id": "MMSM-HAF-1", "branchName": "Hyundai Hafer albaten", "brand": "Hyundai", "region": "Eastern", "city": "Hafer albaten", "coordinates": "28.40643, 45.96685", "branchType": "3S", "contactShowroom": "Bader Salem Aqil 0505949098", "contactService": "Fares Hamad Jamal 0503174086", "contactSpareParts": "Yousef Almutairy 0508444083"}, {"id": "CNPC-DMM-1", "branchName": "Changan warehouse", "brand": "Changan", "region": "Eastern", "city": "Dammam", "coordinates": "26.39927, 50.16122", "branchType": "1S", "contactShowroom": "No Branch", "contactService": "No Branch", "contactSpareParts": "Saleh Abdullah Kaabi 0552826100"}, {"id": "PCA-KHB-2", "branchName": "", "brand": "Stellantis", "region": "Eastern", "city": "Khobar", "coordinates": "Need the location", "branchType": "", "contactShowroom": "No Branch", "contactService": "No Branch", "contactSpareParts": "No Branch"}, {"id": "PCA-JED-1", "branchName": "Peugeot Automall", "brand": "Multi Brand", "region": "Westeren", "city": "Jeddah", "coordinates": "21.64854, 39.11281", "branchType": "3S", "contactShowroom": "Saleh Mohmmad Hafiz 0557917634", "contactService": "Mahmoud Elsayed Akl 0548972520", "contactSpareParts": "Zeeshanjawid Sayedjawaid 0572873839"}, {"id": "PCA-JED-2", "branchName": "Peugeot  Workshop Asfan - Service", "brand": "Stellantis", "region": "Westeren", "city": "Jeddah", "coordinates": "", "branchType": "", "contactShowroom": "No Branch", "contactService": "Mahmoud Elsayed Akl 0548972520", "contactSpareParts": "Zeeshanjawid Sayedjawaid 0572873839"}, {"id": "CNGN-JED-4", "branchName": "Changan Jeddah Sultan", "brand": "Multi Brand", "region": "Westeren", "city": "Jeddah", "coordinates": "21.608057, 39.141912", "branchType": "3S", "contactShowroom": "Mohammed Omar Balubaid 0540085184", "contactService": "Ahmed Salah Habib 0597602066", "contactSpareParts": "Tawfiq Saleh Aqeel 0567078738"}, {"id": "SLN-JED-1", "branchName": "Asfan Autosolution - Service", "brand": "Hyundai", "region": "Westeren", "city": "Jeddah", "coordinates": "", "branchType": "1S", "contactShowroom": "No Branch", "contactService": "No Branch", "contactSpareParts": "Abdullah Sadiq Alkadi 0502267095"}, {"id": "CNGN-JED-5", "branchName": "Changan Workshop Asfan - Service", "brand": "Changan", "region": "Westeren", "city": "Jeddah", "coordinates": "21.923561, 39.311567", "branchType": "2S", "contactShowroom": "No Branch", "contactService": "Mohamed Saad Eid 0552625088", "contactSpareParts": "Tawfiq Saleh Aqeel 0567078738"}, {"id": "CNGN-JED-6", "branchName": "Changan Warehouse", "brand": "Changan", "region": "Westeren", "city": "Jeddah", "coordinates": "21.30493, 39.17382", "branchType": "1S", "contactShowroom": "No Branch", "contactService": "No Branch", "contactSpareParts": "Mostafa Bakr 0544882887"}, {"id": "CNPC-RYD-1", "branchName": "changan exit 13", "brand": "Multi Brand", "region": "Centeral", "city": "Riyadh", "coordinates": "24.71754, 46.75932", "branchType": "S3", "contactShowroom": "Sami Abdullah Alhmami - 0533309596", "contactService": "Hazim Abdulhalem Elfawair - 0565083583", "contactSpareParts": "Alaa Eldeen Adel Nuri - 0504541898"}, {"id": "CNGN-RYD-3", "branchName": "peugeot exit 13", "brand": "Multi Brand", "region": "Centeral", "city": "Riyadh", "coordinates": "26.4605, 50.11643", "branchType": "S3", "contactShowroom": "Hany Mohamed Al-Jared - 0590983299‬", "contactService": "Ahmed Shehab Elasra -   0556364068", "contactSpareParts": "Ali Ibrahim Alghamdi - 0566257257"}, {"id": "PCA-RYD-1", "branchName": "North industry", "brand": "Multi Brand", "region": "Centeral", "city": "Riyadh", "coordinates": "24.74405, 46.80325", "branchType": "S2", "contactShowroom": "No Branch", "contactService": "Haytham Elsayed Elshiekh -  0564803157", "contactSpareParts": "Mohammed Babiker -  0501023470"}, {"id": "PCA-RYD-1-2", "branchName": "North industry", "brand": "Multi Brand", "region": "Centeral", "city": "Riyadh", "coordinates": "24.74405, 46.80325", "branchType": "S2", "contactShowroom": "No Branch", "contactService": "Ahmed Hamad Al-Bdairat -  561766096", "contactSpareParts": "Sari Alhassan Aseri  -  0536340827"}, {"id": "PCA-RYD-1-3", "branchName": "changan exit 25", "brand": "Multi Brand", "region": "Centeral", "city": "Riyadh", "coordinates": "24.74405, 46.80325", "branchType": "S2", "contactShowroom": "No Branch", "contactService": "Haytham Elsayed Elshiekh -  0564803157", "contactSpareParts": "Mohammed Babiker -  0501023470"}, {"id": "PCA-RYD-1-4", "branchName": "changan exit 17", "brand": "Multi Brand", "region": "Centeral", "city": "Riyadh", "coordinates": "24.74405, 46.80325", "branchType": "S2", "contactShowroom": "No Branch", "contactService": "Ahmed Hamad Al-Bdairat -  0561766096", "contactSpareParts": "Ahmed Mohmmad Hassan - 0505628372"}, {"id": "PCA-RYD-2", "branchName": "Stellantis exit 5", "brand": "Stellantis", "region": "Centeral", "city": "Riyadh", "coordinates": "24.74405, 46.80325", "branchType": "", "contactShowroom": "Mahmoud Mohammed Hejazi -  0550224989", "contactService": "No Branch", "contactSpareParts": "No Branch"}]; const state={ branches:[...seedBranches], visits:[], technicians:[], charts:{} }; const $=id=>document.getElementById(id);
-    Chart.defaults.font={ family:'Segoe UI, Tahoma, Arial, sans-serif', size:12 }; Chart.defaults.color='#486176';
-    state.charts.brand=new Chart($('brandVisitsChart'),{ type:'bar', data:{ labels:[], datasets:[{ label:'Visits', data:[], backgroundColor:'#2f79bd' }] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } } });
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, query, orderBy, onSnapshot, Timestamp, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
+      authDomain:'baghethan-ba325.firebaseapp.com',
+      projectId:'baghethan-ba325',
+      storageBucket:'baghethan-ba325.firebasestorage.app',
+      messagingSenderId:'944819735112',
+      appId:'1:944819735112:web:07315600da39377320667d'
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    setPersistence(auth, browserLocalPersistence).catch(err=>console.warn('Auth persistence warning:', err));
+    const db = getFirestore(app);
+
+    const state = {
+      branches:[], technicians:[], visits:[], checklists:[], brands:[], users:[],
+      currentUser:null, currentUserProfile:null, previewData:'', currentLang:'ar'
+    };
+
+    let unsub = { branches:null, technicians:null, visits:null, checklists:null, brands:null, users:null };
+    const $ = id => document.getElementById(id);
+
+    const I18N = {
+      ar: {
+        appTitle:'إدارة زيارات الفروع والفنيين / Branch & Technician Visits',
+        loginTitle:'تسجيل الدخول / Sign In', loginNote:'نسخة كاملة تعمل لكل التبويبات مع تبديل اللغة ورسائل واضحة عند وجود مشكلة صلاحيات.',
+        emailLabel:'البريد الإلكتروني / Email', passwordLabel:'كلمة المرور / Password', loginBtn:'دخول / Login',
+        tabDashboard:'لوحة التحكم', tabChecklist:'Check-List', tabBrands:'البراندات', tabReports:'التقارير', tabVisits:'إدخال زيارة', tabBranches:'إدارة الفروع', tabTechnicians:'إدارة الفنيين', tabPermissions:'الصلاحيات',
+        statBranches:'إجمالي الفروع', statTechs:'إجمالي الفنيين', statChecklists:'سجلات Check-List', statBrands:'عدد البراندات', statVisits:'إجمالي الزيارات', statCompletedVisits:'زيارات مكتملة', statPendingVisits:'زيارات معلقة', statVisitedTechs:'عدد الفنيين زيارة', dashboardBrandStats:'مربعات البراندات',
+        latestChecklists:'أحدث سجلات Check-List', latestBrands:'قائمة الفنيين زيارة', visitDate:'تاريخ الزيارة', technician:'الفني', manager:'مدير الفرع',
+        checklistTitle:'نموذج Check-List (مرتبط بالفنيين والزيارة)', linkTechVisit:'الربط مع الفني والزيارة', linkedVisit:'الزيارة المرتبطة', technicianEmail:'البريد الإلكتروني للفني', technicianId:'معرف الفني', checklistLinkNote:'اختر الفني ثم الزيارة المرتبطة. سيتم تعبئة Brand / Branch ID / Location/Site / Visit Date تلقائيًا من سجل الزيارة.',
+        saveChecklist:'حفظ Check-List', clearForm:'تنظيف النموذج', deleteRecord:'حذف السجل', savedRecords:'السجلات المحفوظة', search:'بحث',
+        brandFormTitle:'إضافة / تعديل براند', brandNameAr:'اسم البراند بالعربي', brandNameEn:'اسم البراند بالإنجليزي', uploadLogo:'رفع صورة الشعار', notes:'ملاحظات', logoPreview:'معاينة الشعار', saveBrand:'حفظ البراند', deleteBrand:'حذف البراند', brandsCurrent:'البراندات الحالية',
+        reports:'التقارير', reportType:'نوع التقرير', fromDate:'من تاريخ', toDate:'إلى تاريخ', runReport:'تشغيل التقرير',
+        visitFormTitle:'إدخال / تعديل زيارة', branch:'الفرع', locationSite:'Location / Site', status:'الحالة', saveVisit:'حفظ الزيارة', latestVisits:'أحدث الزيارات',
+        branchFormTitle:'إدارة الفروع', branchName:'اسم الفرع', region:'المنطقة', city:'المدينة', branchType:'نوع الفرع', saveBranch:'حفظ الفرع', branchesCurrent:'الفروع الحالية',
+        technicianFormTitle:'إدارة الفنيين', technicianDocId:'Document ID / UID', technicianCode:'معرف الفني (Code)', technicianNameField:'اسم الفني', saveTechnician:'حفظ الفني', techniciansCurrent:'الفنيون الحاليون',
+        permissionsTitle:'إدارة الصلاحيات (app_users)', savePermissions:'حفظ الصلاحيات', usersCurrent:'المستخدمون الحاليون'
+      },
+      en: {
+        appTitle:'Branch & Technician Visits / إدارة زيارات الفروع والفنيين',
+        loginTitle:'Sign In / تسجيل الدخول', loginNote:'A full version with all tabs working, language switching, and clear permission error messages.',
+        emailLabel:'Email / البريد الإلكتروني', passwordLabel:'Password / كلمة المرور', loginBtn:'Login / دخول',
+        tabDashboard:'Dashboard', tabChecklist:'Check-List', tabBrands:'Brands', tabReports:'Reports', tabVisits:'Visits', tabBranches:'Branches', tabTechnicians:'Technicians', tabPermissions:'Permissions',
+        statBranches:'Total Branches', statTechs:'Total Technicians', statChecklists:'Check-List Records', statBrands:'Total Brands', statVisits:'Total Visits', statCompletedVisits:'Completed Visits', statPendingVisits:'Pending Visits', statVisitedTechs:'Technicians With Visits', dashboardBrandStats:'Brand Boxes',
+        latestChecklists:'Latest Check-Lists', latestBrands:'Technicians Visit List', visitDate:'Visit Date', technician:'Technician', manager:'Branch Manager',
+        checklistTitle:'Check-List Form (linked to technician and visit)', linkTechVisit:'Link to technician and visit', linkedVisit:'Linked Visit', technicianEmail:'Technician Email', technicianId:'Technician ID', checklistLinkNote:'Choose the technician then the linked visit. Brand / Branch ID / Location/Site / Visit Date will auto-fill from the visit record.',
+        saveChecklist:'Save Check-List', clearForm:'Clear Form', deleteRecord:'Delete Record', savedRecords:'Saved Records', search:'Search',
+        brandFormTitle:'Add / Edit Brand', brandNameAr:'Arabic Brand Name', brandNameEn:'English Brand Name', uploadLogo:'Upload Logo', notes:'Notes', logoPreview:'Logo Preview', saveBrand:'Save Brand', deleteBrand:'Delete Brand', brandsCurrent:'Current Brands',
+        reports:'Reports', reportType:'Report Type', fromDate:'From Date', toDate:'To Date', runReport:'Run Report',
+        visitFormTitle:'Add / Edit Visit', branch:'Branch', locationSite:'Location / Site', status:'Status', saveVisit:'Save Visit', latestVisits:'Latest Visits',
+        branchFormTitle:'Branch Management', branchName:'Branch Name', region:'Region', city:'City', branchType:'Branch Type', saveBranch:'Save Branch', branchesCurrent:'Current Branches',
+        technicianFormTitle:'Technician Management', technicianDocId:'Document ID / UID', technicianCode:'Technician Code', technicianNameField:'Technician Name', saveTechnician:'Save Technician', techniciansCurrent:'Current Technicians',
+        permissionsTitle:'Permissions (app_users)', savePermissions:'Save Permissions', usersCurrent:'Current Users'
+      }
+    };
+
+    function t(key){ return I18N[state.currentLang][key] || key; }
+    function applyLanguage(lang){
+      state.currentLang = lang;
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      $('appTitle').textContent = t('appTitle');
+      document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+    }
+
+    function setAlert(id, msg='', kind='error'){ const el=$(id); if(!msg){ el.classList.add('hidden'); el.textContent=''; return; } el.className = `alert ${kind}`; el.textContent = msg; el.classList.remove('hidden'); }
+    function setMessage(id, msg){ $(id).textContent = msg; }
+    function setOptions(id, rows, placeholder=''){ const el=$(id); const cur=el.value; el.innerHTML = `<option value="">${placeholder}</option>` + rows.join(''); if(cur && Array.from(el.options).some(o=>o.value===cur)) el.value = cur; }
     function unique(arr){ return [...new Set(arr.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b))); }
-    function showMessage(m){ $('saveMessage').textContent=m; }
-    function setOptions(id, items, placeholder='اختر / Select'){ const el=$(id), cur=el.value; el.innerHTML=`<option value="">${placeholder}</option>`+items.map(x=>`<option value="${x}">${x}</option>`).join(''); if(items.includes(cur)) el.value=cur; }
-    function renderStats(){ $('statBranches').textContent=state.branches.length; $('statVisits').textContent=state.visits.length; $('statTechnicians').textContent=state.technicians.length; $('statRegions').textContent=unique(state.branches.map(b=>b.region)).length; }
-    function renderBranchesList(){ $('branchesList').innerHTML=state.branches.slice().sort((a,b)=>(a.region+a.city+a.branchName).localeCompare(b.region+b.city+b.branchName)).map(b=>`<div class="item"><strong>${b.branchName}</strong><small>Brand: ${b.brand||'-'} | Type: ${b.branchType||'-'}</small><small>Region: ${b.region||'-'} | City: ${b.city||'-'}</small><small>Coordinates: ${b.coordinates||'-'}</small><small>ID: ${b.id||'-'}</small></div>`).join(''); }
-    function renderTechniciansList(){ $('techniciansList').innerHTML=state.technicians.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(t=>`<div class="item"><strong>${t.name||'-'}</strong><small>ID: ${t.id||'-'}</small><small>Email: ${t.email||'-'}</small><small>Phone: ${t.phone||'-'}</small><small>Region: ${t.region||'-'} | City: ${t.city||'-'}</small><small>Status: ${t.status||'-'}</small></div>`).join(''); }
-    function renderVisitTable(rows=state.visits){ const lang=document.documentElement.lang==='en'?'en':'ar'; const statusMap={planned:lang==='en'?'Planned':'مخطط',completed:lang==='en'?'Completed':'مكتمل',postponed:lang==='en'?'Postponed':'مؤجل',cancelled:lang==='en'?'Cancelled':'ملغي'}; $('visitsTableBody').innerHTML=rows.slice(0,50).map(v=>`<tr><td>${v.date||'-'}</td><td>${v.branchName||'-'}</td><td>${v.brand||'-'}</td><td>${v.technicianName||'-'}</td><td>${statusMap[v.status||'planned']||'-'}</td><td><button class="btn secondary" style="padding:6px 12px" onclick="window.editVisitFromUI('${v.id}')">${lang==='en'?'Edit':'تعديل'}</button> <button class="btn danger" style="padding:6px 12px" onclick="window.deleteVisitFromUI('${v.id}')">${lang==='en'?'Delete':'حذف'}</button></td></tr>`).join(''); }
-    function renderChart(rows=state.visits){ const m={}; rows.forEach(v=>m[v.brand||'Unknown']=(m[v.brand||'Unknown']||0)+1); state.charts.brand.data.labels=Object.keys(m); state.charts.brand.data.datasets[0].data=Object.values(m); state.charts.brand.update(); }
-    function getFilteredBranches(){ const r=$('visitRegion').value, c=$('visitCity').value, b=$('visitBrand').value; return state.branches.filter(x=>(!r||x.region===r)&&(!c||x.city===c)&&(!b||x.brand===b)); }
-    function populateVisitSelectors(){ setOptions('visitRegion', unique(state.branches.map(b=>b.region))); syncVisitCityBrand(); }
-    function syncVisitCityBrand(){ const r=$('visitRegion').value; setOptions('visitCity', unique(state.branches.filter(x=>!r||x.region===r).map(x=>x.city))); const c=$('visitCity').value; setOptions('visitBrand', unique(state.branches.filter(x=>(!r||x.region===r)&&(!c||x.city===c)).map(x=>x.brand))); $('visitBranch').innerHTML='<option value="">اختر / Select</option>'+getFilteredBranches().map(b=>`<option value="${b.id}">${b.branchName}</option>`).join(''); populateTechnicianSelector(); renderSelectedBranch(); }
-    function populateTechnicianSelector(){ const el=$('visitTechnician'); const cur=el.value; el.innerHTML='<option value="">اختر الفني / Select Technician</option>'+state.technicians.filter(t=>(t.status||'').toLowerCase()!=='inactive').sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map(t=>`<option value="${t.id}">${t.name}</option>`).join(''); if(state.technicians.some(t=>t.id===cur)) el.value=cur; }
-    function renderSelectedBranch(){ const b=state.branches.find(x=>x.id===$('visitBranch').value); $('selectedBranchCard').innerHTML=!b?`<div class="note">${document.documentElement.lang==='en'?'No branch selected yet.':'لم يتم اختيار فرع بعد.'}</div>`:`<div class="item"><strong>${b.branchName}</strong><small>ID: ${b.id}</small><small>Brand: ${b.brand||'-'} | Type: ${b.branchType||'-'}</small><small>Region: ${b.region||'-'} | City: ${b.city||'-'}</small><small>Coordinates: ${b.coordinates||'-'}</small><small>Showroom: ${b.contactShowroom||'-'}</small><small>Service: ${b.contactService||'-'}</small><small>Spare Parts: ${b.contactSpareParts||'-'}</small></div>`; }
-    function clearVisitForm(){ $('editingVisitId').value=''; $('visitDate').value=''; $('visitNotes').value=''; $('visitStatus').value='planned'; if($('visitRegion').options.length) $('visitRegion').selectedIndex=0; syncVisitCityBrand(); if($('visitTechnician').options.length) $('visitTechnician').selectedIndex=0; showMessage(document.documentElement.lang==='en'?'Visit form cleared.':'تم تنظيف نموذج الزيارة.'); }
-    function fillVisitFormForEdit(id){ const v=state.visits.find(x=>x.id===id); if(!v) return; $('editingVisitId').value=v.id; $('visitRegion').value=v.region||''; syncVisitCityBrand(); $('visitCity').value=v.city||''; syncVisitCityBrand(); $('visitBrand').value=v.brand||''; syncVisitCityBrand(); $('visitBranch').value=v.branchId||''; renderSelectedBranch(); $('visitTechnician').value=v.technicianId||''; $('visitDate').value=v.date||''; $('visitStatus').value=v.status||'planned'; $('visitNotes').value=v.notes||''; showMessage(document.documentElement.lang==='en'?'Editing visit. You can change the date or status.':'أنت الآن تعدّل الزيارة. يمكنك تغيير التاريخ أو الحالة.'); document.querySelector('[data-tab="visit"]').click(); }
-    async function deleteVisit(id){ if(!id) return; const ok=confirm(document.documentElement.lang==='en'?'Delete this visit?':'هل تريد حذف هذه الزيارة؟'); if(!ok) return; await deleteDoc(doc(db,'siteVisits',id)); if($('editingVisitId').value===id) clearVisitForm(); showMessage(document.documentElement.lang==='en'?'Visit deleted.':'تم حذف الزيارة.'); }
-    window.editVisitFromUI=fillVisitFormForEdit; window.deleteVisitFromUI=deleteVisit;
-    async function seedInitialBranches(){ for(const b of seedBranches){ await setDoc(doc(db,'branches',b.id), {...b, createdAt:Timestamp.now(), updatedAt:Timestamp.now()}, {merge:true}); } showMessage('Seed branches uploaded / تم رفع الفروع الأولية'); }
-    async function saveBranch(){ const b={ id:$('branchId').value.trim(), branchName:$('branchName').value.trim(), brand:$('branchBrand').value.trim(), region:$('branchRegion').value.trim(), city:$('branchCity').value.trim(), branchType:$('branchType').value.trim(), coordinates:$('branchCoordinates').value.trim(), contactShowroom:$('branchContactShowroom').value.trim(), contactService:$('branchContactService').value.trim(), contactSpareParts:$('branchContactSpareParts').value.trim(), updatedAt:Timestamp.now() }; if(!b.id||!b.branchName||!b.region||!b.city) return showMessage('Please fill ID, Branch Name, Region, City / أدخل كود الفرع واسم الفرع والمنطقة والمدينة'); await setDoc(doc(db,'branches',b.id), {...b, createdAt:Timestamp.now()}, {merge:true}); showMessage('Branch saved / تم حفظ الفرع'); ['branchId','branchName','branchBrand','branchRegion','branchCity','branchType','branchCoordinates','branchContactShowroom','branchContactService','branchContactSpareParts'].forEach(id=>$(id).value=''); }
-    function branchToExcelRow(b){ return { Hostname:b.id||'', 'Branch Name':b.branchName||'', Brand:b.brand||'', Region:b.region||'', City:b.city||'', Coordinates:b.coordinates||'', 'Branch Type':b.branchType||'', 'Contact Showroom':b.contactShowroom||'', 'Contact Service':b.contactService||'', 'Contact Spare Parts':b.contactSpareParts||'' }; }
-    function normalizeImportedBranch(row){ const pick=(...keys)=>{ for(const key of keys){ if(row[key]!==undefined&&row[key]!==null&&String(row[key]).trim()!=='') return String(row[key]).trim(); } return ''; }; let id=pick('Hostname','hostname','ID','id'); const b={ id:'', branchName:pick('Branch Name','branchName'), brand:pick('Brand','brand'), region:pick('Region','region'), city:pick('City','city','Location.1'), coordinates:pick('Coordinates','coordinates','Location'), branchType:pick('Branch Type','branchType'), contactShowroom:pick('Contact Showroom'), contactService:pick('Contact Service'), contactSpareParts:pick('Contact Spare Parts'), updatedAt:Timestamp.now() }; if(!id) id=((b.branchName||'BRANCH').replace(/\s+/g,'-')+'-'+(b.city||'CITY').replace(/\s+/g,'-')).toUpperCase(); b.id=id; return b; }
-    async function importBranchesExcel(file){ if(!file) return; try{ const buf=await file.arrayBuffer(); const wb=XLSX.read(buf,{type:'array'}); const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}); let count=0; for(const row of rows){ const b=normalizeImportedBranch(row); if(!b.id||!b.branchName) continue; await setDoc(doc(db,'branches',b.id), {...b, createdAt:Timestamp.now()}, {merge:true}); count++; } showMessage(`Imported ${count} branches / تم استيراد ${count} فرع`); }catch(e){ console.error(e); showMessage('Import failed / فشل الاستيراد'); } }
-    function exportBranchesExcel(){ if(!state.branches.length) return showMessage('No branches / لا توجد فروع'); const ws=XLSX.utils.json_to_sheet(state.branches.map(branchToExcelRow)); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Branches'); XLSX.writeFile(wb,'branches_export.xlsx'); }
-    function downloadBranchesTemplate(){ const ws=XLSX.utils.json_to_sheet([{Hostname:'NEW-DMM-1','Branch Name':'اسم الفرع / Branch Name',Brand:'Hyundai',Region:'Eastern',City:'Dammam',Coordinates:'26.3627, 50.17802','Branch Type':'1S','Contact Showroom':'Name & Number','Contact Service':'Name & Number','Contact Spare Parts':'Name & Number'}]); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Template'); XLSX.writeFile(wb,'branch_import_template.xlsx'); }
-    async function saveTechnician(){ const t={ id:$('technicianId').value.trim(), name:$('technicianNameInput').value.trim(), email:$('technicianEmail').value.trim(), phone:$('technicianPhone').value.trim(), region:$('technicianRegion').value.trim(), city:$('technicianCity').value.trim(), status:$('technicianStatus').value, updatedAt:Timestamp.now() }; if(!t.id||!t.name) return $('technicianMessage').textContent='Please enter Technician ID and Name / أدخل معرف الفني واسم الفني'; await setDoc(doc(db,'technicians',t.id), {...t, createdAt:Timestamp.now()}, {merge:true}); $('technicianMessage').textContent='Technician saved / تم حفظ الفني'; ['technicianId','technicianNameInput','technicianEmail','technicianPhone','technicianRegion','technicianCity'].forEach(id=>$(id).value=''); $('technicianStatus').value='active'; }
-    function technicianToExcelRow(t){ return { TechnicianID:t.id||'', Name:t.name||'', Email:t.email||'', Phone:t.phone||'', Region:t.region||'', City:t.city||'', Status:t.status||'active' }; }
-    function normalizeImportedTechnician(row){ const pick=(...keys)=>{ for(const key of keys){ if(row[key]!==undefined&&row[key]!==null&&String(row[key]).trim()!=='') return String(row[key]).trim(); } return ''; }; let id=pick('TechnicianID','technicianId','ID','id'); const t={ id:'', name:pick('Name','name','Technician Name'), email:pick('Email','email'), phone:pick('Phone','phone','Mobile'), region:pick('Region','region'), city:pick('City','city'), status:pick('Status','status')||'active', updatedAt:Timestamp.now() }; if(!id) id=((t.name||'TECH').replace(/\s+/g,'-')).toUpperCase(); t.id=id; return t; }
-    async function importTechniciansExcel(file){ if(!file) return; try{ const buf=await file.arrayBuffer(); const wb=XLSX.read(buf,{type:'array'}); const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}); let count=0; for(const row of rows){ const t=normalizeImportedTechnician(row); if(!t.id||!t.name) continue; await setDoc(doc(db,'technicians',t.id), {...t, createdAt:Timestamp.now()}, {merge:true}); count++; } $('technicianMessage').textContent=`Imported ${count} technicians / تم استيراد ${count} فني`; }catch(e){ console.error(e); $('technicianMessage').textContent='Import failed / فشل الاستيراد'; } }
-    function exportTechniciansExcel(){ if(!state.technicians.length) return $('technicianMessage').textContent='No technicians / لا يوجد فنيون'; const ws=XLSX.utils.json_to_sheet(state.technicians.map(technicianToExcelRow)); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Technicians'); XLSX.writeFile(wb,'technicians_export.xlsx'); }
-    function downloadTechniciansTemplate(){ const ws=XLSX.utils.json_to_sheet([{TechnicianID:'10452', Name:'اسم الفني / Technician Name', Email:'name@company.com', Phone:'05XXXXXXXX', Region:'Eastern', City:'Dammam', Status:'active'}]); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Template'); XLSX.writeFile(wb,'technician_import_template.xlsx'); }
-    async function saveVisit(){ const b=state.branches.find(x=>x.id===$('visitBranch').value); const t=state.technicians.find(x=>x.id===$('visitTechnician').value); if(!b) return showMessage('Select a valid branch / اختر فرعًا صحيحًا'); if(!t) return showMessage('Select a valid technician / اختر فنيًا صحيحًا'); const visitId=$('editingVisitId').value.trim(); const v={ branchId:b.id, branchName:b.branchName, brand:b.brand, region:b.region, city:b.city, technicianId:t.id, technicianName:t.name, technicianEmail:t.email||'', date:$('visitDate').value, status:$('visitStatus').value||'planned', notes:$('visitNotes').value.trim(), updatedAt:Timestamp.now() }; if(!v.date) return showMessage('Enter date / أدخل التاريخ'); if(visitId){ await setDoc(doc(db,'siteVisits',visitId), v, {merge:true}); showMessage(document.documentElement.lang==='en'?'Visit updated successfully.':'تم تحديث الزيارة بنجاح.'); } else { await addDoc(collection(db,'siteVisits'), {...v, createdAt:Timestamp.now()}); showMessage(document.documentElement.lang==='en'?'Visit saved.':'تم حفظ الزيارة.'); } clearVisitForm(); }
-    function listenBranches(){ onSnapshot(query(collection(db,'branches'), orderBy('branchName')), snap=>{ if(!snap.empty) state.branches=snap.docs.map(d=>({id:d.id,...d.data()})); renderStats(); renderBranchesList(); populateVisitSelectors(); }, err=>{ console.error(err); renderStats(); renderBranchesList(); populateVisitSelectors(); }); }
-    function listenTechnicians(){ onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap=>{ state.technicians=snap.docs.map(d=>({id:d.id,...d.data()})); renderStats(); renderTechniciansList(); populateTechnicianSelector(); }, err=>console.error(err)); }
-    function listenVisits(){ onSnapshot(query(collection(db,'siteVisits'), orderBy('createdAt','desc')), snap=>{ state.visits=snap.docs.map(d=>({id:d.id,...d.data()})); renderStats(); renderVisitTable(); renderChart(); }, err=>console.error(err)); }
-    $('visitRegion').addEventListener('change', syncVisitCityBrand); $('visitCity').addEventListener('change', syncVisitCityBrand); $('visitBrand').addEventListener('change', syncVisitCityBrand); $('visitBranch').addEventListener('change', renderSelectedBranch);
-    $('saveVisitBtn').addEventListener('click', saveVisit); $('clearVisitFormBtn').addEventListener('click', clearVisitForm); $('seedBranchesBtn').addEventListener('click', seedInitialBranches);
-    $('saveBranchBtn').addEventListener('click', saveBranch); $('clearBranchFormBtn').addEventListener('click', ()=>['branchId','branchName','branchBrand','branchRegion','branchCity','branchType','branchCoordinates','branchContactShowroom','branchContactService','branchContactSpareParts'].forEach(id=>$(id).value='')); $('importBranchesBtn').addEventListener('click', ()=>$('importBranchesInput').click()); $('importBranchesInput').addEventListener('change', async e=>{ await importBranchesExcel(e.target.files?.[0]); e.target.value=''; }); $('exportBranchesBtn').addEventListener('click', exportBranchesExcel); $('downloadTemplateBtn').addEventListener('click', downloadBranchesTemplate);
-    $('saveTechnicianBtn').addEventListener('click', saveTechnician); $('clearTechnicianFormBtn').addEventListener('click', ()=>['technicianId','technicianNameInput','technicianEmail','technicianPhone','technicianRegion','technicianCity'].forEach(id=>$(id).value='')); $('importTechniciansBtn').addEventListener('click', ()=>$('importTechniciansInput').click()); $('importTechniciansInput').addEventListener('change', async e=>{ await importTechniciansExcel(e.target.files?.[0]); e.target.value=''; }); $('exportTechniciansBtn').addEventListener('click', exportTechniciansExcel); $('downloadTechniciansTemplateBtn').addEventListener('click', downloadTechniciansTemplate);
-    applyLanguage(localStorage.getItem('ui_lang') || 'ar');
-    renderStats(); renderBranchesList(); renderTechniciansList(); populateVisitSelectors(); populateTechnicianSelector(); renderVisitTable(); renderChart(); listenBranches(); listenTechnicians(); listenVisits();
+    function esc(v){ return String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+    function monthName(dateValue){ if(!dateValue) return ''; const d=new Date(dateValue); return ['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()] || ''; }
+
+    function clearAllListeners(){ Object.keys(unsub).forEach(k=>{ if(unsub[k]) unsub[k](); unsub[k]=null; }); }
+
+    async function resolveCurrentUserProfile(user){
+      // Primary lookup by UID document id (matches your rules)
+      let snap = await getDocs(query(collection(db,'app_users'), where('__name__','==', user.uid), limit(1)));
+      if(!snap.empty) return { id:snap.docs[0].id, ...snap.docs[0].data() };
+      // Fallback read by email for UI only (rules may still require UID doc)
+      snap = await getDocs(query(collection(db,'app_users'), where('email','==', user.email), limit(1)));
+      if(!snap.empty) return { id:snap.docs[0].id, ...snap.docs[0].data() };
+      return null;
+    }
+
+    function activateTab(tabId){
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab === tabId));
+      document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id === tabId));
+    }
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', ()=>activateTab(btn.dataset.tab)));
+
+    function renderStats(){
+      const totalVisits = state.visits.length;
+      const completedVisits = state.visits.filter(v => (String(v.status || '').toLowerCase()==='completed') || v.checklistCompleted===true).length;
+      const pendingVisits = state.visits.filter(v => !((String(v.status || '').toLowerCase()==='completed') || v.checklistCompleted===true) && String(v.status || '').toLowerCase() !== 'cancelled').length;
+      const visitedTechs = [...new Set(state.visits.map(v => v.technicianDocId || v.technicianId || v.technicianName).filter(Boolean))].length;
+      $('statBranches').textContent = state.branches.length;
+      if($('statVisits')) $('statVisits').textContent = totalVisits;
+      if($('statCompletedVisits')) $('statCompletedVisits').textContent = completedVisits;
+      if($('statPendingVisits')) $('statPendingVisits').textContent = pendingVisits;
+      if($('statVisitedTechnicians')) $('statVisitedTechnicians').textContent = visitedTechs;
+    }
+    function renderBranchesList(){
+      const q = ($('branchSearch')?.value || '').trim().toLowerCase();
+      const rows = state.branches.filter(b => !q || [
+        b.id, b.branchName, b.brand, b.branchType, b.contactShowroom, b.contactService,
+        b.contactSpareParts, b.functionName, b.function, b.gps, b.location, b.region, b.city
+      ].some(v => String(v || '').toLowerCase().includes(q)));
+      $('branchesList').innerHTML = rows.length ? rows.map(b=>`<div class="item"><strong>${esc(b.branchName || b.id)}</strong><small>Branch_ID: ${esc(b.id)} | Brand: ${esc(b.brand || '-')} | Type: ${esc(b.branchType || '-')}</small><small>Region: ${esc(b.region || '-')} | City: ${esc(b.city || '-')} | Location: ${esc(b.location || '-')}</small><small>GPS: ${esc(b.gps || '-')} | Showroom: ${esc(b.contactShowroom || '-')}</small><small>Service: ${esc(b.contactService || '-')} | Spare Parts: ${esc(b.contactSpareParts || '-')} | Function: ${esc(b.functionName || b.function || '-')}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا توجد فروع.':'No branches found.'}</div>`;
+    }
+    function renderTechniciansList(){ $('techniciansList').innerHTML = state.technicians.length ? state.technicians.map(t=>`<div class="item"><strong>${esc(t.name || t.id)}</strong><small>Doc ID: ${esc(t.id)} | Code: ${esc(t.technicianCode || t.id)}</small><small>Email: ${esc(t.email || '-')} | authUid: ${esc(t.authUid || '-')}</small><small>Region: ${esc(t.region || '-')} | City: ${esc(t.city || '-')} | Brand: ${esc(t.brand || '-')}</small><small>Branch: ${esc(t.assignedBranchName || t.branchName || '-')}</small><div class="mini-actions"><button class="btn small" onclick="window.openTechnicianForEdit('${t.id}')">${state.currentLang==='ar'?'تحديد نطاق الزيارة':'Edit Visit Scope'}</button></div></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا يوجد فنيون.':'No technicians found.'}</div>`; }
+    function renderLatestBrands(){
+      const rows = state.technicians.map(t => {
+        const techVisits = state.visits.filter(v =>
+          (v.technicianDocId && v.technicianDocId === t.id) ||
+          (v.technicianId && (v.technicianId === t.authUid || v.technicianId === t.id)) ||
+          (v.technicianEmail && t.email && v.technicianEmail === t.email)
+        );
+        const completed = techVisits.filter(v => (String(v.status || '').toLowerCase()==='completed') || v.checklistCompleted===true).length;
+        const pending = techVisits.filter(v => !((String(v.status || '').toLowerCase()==='completed') || v.checklistCompleted===true) && String(v.status || '').toLowerCase() !== 'cancelled').length;
+        return { name: t.name || t.id || '-', total: techVisits.length, pending, completed };
+      }).sort((a,b)=> b.total - a.total || String(a.name).localeCompare(String(b.name)));
+      $('latestBrandsList').innerHTML = rows.length ? rows.map(t=>`<div class="item"><strong>${esc(t.name)}</strong><small>${state.currentLang==='ar'?'مجموع الزيارات':'Total Visits'}: ${t.total}</small><small>${state.currentLang==='ar'?'معلقة':'Pending'}: ${t.pending} | ${state.currentLang==='ar'?'مكتملة':'Completed'}: ${t.completed}</small></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا يوجد فنيون.':'No technicians.'}</div>`;
+    }
+    function renderDashboardBrandBoxes(){
+      const rows = state.brands.map(b => {
+        const brandName = b.brand || b.nameEn || b.nameAr || '';
+        const brandKey = b.key || b.brandKey || '';
+        const related = state.visits.filter(v => String(v.brand || '').trim().toLowerCase() === String(brandName).trim().toLowerCase() || (brandKey && String(v.brandKey || '').trim().toLowerCase() === String(brandKey).trim().toLowerCase()));
+        const completed = related.filter(v => (String(v.status || '').toLowerCase()==='completed') || v.checklistCompleted===true).length;
+        const pending = related.filter(v => !((String(v.status || '').toLowerCase()==='completed') || v.checklistCompleted===true) && String(v.status || '').toLowerCase() !== 'cancelled').length;
+        return { nameAr: b.nameAr || b.brand || '-', nameEn: b.nameEn || b.brand || b.key || '-', logo: b.logoData || b.logoUrl || '', total: related.length, completed, pending };
+      });
+      $('dashboardBrandStatsGrid').innerHTML = rows.length ? rows.map(b => `<div class="brand-card">${b.logo?`<img src="${esc(b.logo)}" alt="${esc(b.nameEn)}" onerror="this.style.display='none'">`:`<div class="note">${state.currentLang==='ar'?'لا يوجد شعار.':'No logo.'}</div>`}<div class="brand-name">${esc(b.nameAr)} <span class="rtl-en">/ ${esc(b.nameEn)}</span></div><div class="brand-key">${state.currentLang==='ar'?'إجمالي الزيارات':'Total Visits'}: ${b.total}</div><div class="note" style="margin-top:8px">${state.currentLang==='ar'?'مكتملة':'Completed'}: ${b.completed} | ${state.currentLang==='ar'?'معلقة':'Pending'}: ${b.pending}</div></div>`).join('') : `<div class="note">${state.currentLang==='ar'?'لا توجد براندات.':'No brands.'}</div>`;
+    }
+    function renderBrandsDatalist(){ $('brandsDatalist').innerHTML = state.brands.map(b => `<option value="${esc(b.brand || b.nameEn || b.nameAr || b.key || '')}"></option>`).join(''); }
+
+    function renderLatestChecklistTable(){ $('latestChecklistBody').innerHTML = state.checklists.slice(0,10).map(r => `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.branchManager)}</td></tr>`).join('') || `<tr><td colspan="5">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`; }
+    function renderChecklistTable(){
+      const q=($('checklistSearch').value||'').trim().toLowerCase();
+      const rows=state.checklists.filter(r => !q || [r.brand,r.branchId,r.locationSite,r.branchManager,r.technicianName].some(v => String(v||'').toLowerCase().includes(q)));
+      $('checklistTableBody').innerHTML = rows.map(r => `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.branchManager)}</td></tr>`).join('') || `<tr><td colspan="6">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`;
+      renderLatestChecklistTable();
+    }
+
+    function renderBrands(){
+      const q=($('brandSearch').value||'').trim().toLowerCase();
+      const rows=state.brands.filter(b => !q || [b.nameAr,b.nameEn,b.key,b.brand,b.brandKey].some(v => String(v||'').toLowerCase().includes(q)));
+      $('brandsGrid').innerHTML = rows.length ? rows.map(b => {
+        const logo = b.logoData || b.logoUrl || '';
+        return `<div class="brand-card">${logo?`<img src="${esc(logo)}" alt="${esc(b.nameEn||b.key||'brand')}" onerror="this.style.display='none'">`:`<div class="note">${state.currentLang==='ar'?'لا يوجد شعار.':'No logo.'}</div>`}<div class="brand-name">${esc(b.nameAr || b.brand || '-')} <span class="rtl-en">/ ${esc(b.nameEn || b.brand || '-')}</span></div><div class="brand-key">Key: ${esc(b.key || b.brandKey || '-')}</div><div class="mini-actions"><button class="btn small" onclick="window.openBrandForEdit('${b.id}')">${state.currentLang==='ar'?'تعديل':'Edit'}</button><button class="btn small danger" onclick="window.deleteBrandDirect('${b.id}')">${state.currentLang==='ar'?'حذف':'Delete'}</button></div></div>`;
+      }).join('') : `<div class="note">${state.currentLang==='ar'?'لا توجد براندات.':'No brands.'}</div>`;
+      renderBrandsDatalist(); renderLatestBrands();
+    }
+
+    function renderTechnicianSelectors(){
+      const activeTechs = state.technicians.filter(t => (t.status||'active') !== 'inactive').sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+      const techOptions = activeTechs.map(t => `<option value="${esc(t.id)}">${esc(t.name || t.id)}${t.region || t.city || t.brand ? ` - ${esc(t.region || '-')}/${esc(t.city || '-')}/${esc(t.brand || '-')}` : ''}</option>`);
+      setOptions('cl_technician', techOptions, state.currentLang==='ar'?'اختر الفني':'Select technician');
+      setOptions('visitTechnician', techOptions, state.currentLang==='ar'?'اختر الفني':'Select technician');
+      setOptions('technicianSelector', techOptions, state.currentLang==='ar'?'اختر فني للتعديل':'Select technician to edit');
+    }
+
+    function normalizeMatchValue(v){ return String(v || '').trim().toLowerCase(); }
+    function uniqueSortedValues(arr){ return [...new Set(arr.filter(Boolean).map(v=>String(v).trim()))].sort((a,b)=>a.localeCompare(b)); }
+    function getTechnicianScopedBranches({region='', city='', brand=''} = {}){
+      const r = normalizeMatchValue(region), c = normalizeMatchValue(city), b = normalizeMatchValue(brand);
+      return state.branches.filter(x => {
+        if(r && normalizeMatchValue(x.region) !== r) return false;
+        const xCity = normalizeMatchValue(x.city || x.location);
+        if(c && xCity !== c) return false;
+        if(b && normalizeMatchValue(x.brand) !== b) return false;
+        return true;
+      });
+    }
+    function populateTechnicianAssignmentOptions(preferred = {}){
+      const currentRegion = preferred.region ?? $('techAssignRegion')?.value ?? '';
+      const currentCity = preferred.city ?? $('techAssignCity')?.value ?? '';
+      const currentBrand = preferred.brand ?? $('techAssignBrand')?.value ?? '';
+      const currentBranchId = preferred.branchId ?? $('techAssignBranch')?.value ?? '';
+
+      const regions = uniqueSortedValues(state.branches.map(b => b.region));
+      setOptions('techAssignRegion', regions.map(v => `<option value="${esc(v)}">${esc(v)}</option>`), state.currentLang==='ar'?'كل المناطق':'All regions');
+      if(currentRegion) $('techAssignRegion').value = currentRegion;
+
+      const citySource = getTechnicianScopedBranches({region: $('techAssignRegion').value});
+      const cities = uniqueSortedValues(citySource.map(b => b.city || b.location));
+      setOptions('techAssignCity', cities.map(v => `<option value="${esc(v)}">${esc(v)}</option>`), state.currentLang==='ar'?'كل المدن':'All cities');
+      if(currentCity && Array.from($('techAssignCity').options).some(o => o.value === currentCity)) $('techAssignCity').value = currentCity;
+
+      const brandSource = getTechnicianScopedBranches({region: $('techAssignRegion').value, city: $('techAssignCity').value});
+      const brands = uniqueSortedValues(brandSource.map(b => b.brand));
+      setOptions('techAssignBrand', brands.map(v => `<option value="${esc(v)}">${esc(v)}</option>`), state.currentLang==='ar'?'كل البراندات':'All brands');
+      if(currentBrand && Array.from($('techAssignBrand').options).some(o => o.value === currentBrand)) $('techAssignBrand').value = currentBrand;
+
+      const branchSource = getTechnicianScopedBranches({region: $('techAssignRegion').value, city: $('techAssignCity').value, brand: $('techAssignBrand').value});
+      const branchOptions = branchSource.sort((a,b)=>String(a.branchName||'').localeCompare(String(b.branchName||''))).map(b => `<option value="${esc(b.id)}">${esc(b.branchName || b.id)}${b.brand || b.region || b.city ? ` - ${esc(b.brand || '-')}/${esc(b.region || '-')}/${esc(b.city || b.location || '-')}` : ''}</option>`);
+      setOptions('techAssignBranch', branchOptions, state.currentLang==='ar'?'كل الفروع':'All branches');
+      if(currentBranchId && Array.from($('techAssignBranch').options).some(o => o.value === currentBranchId)) $('techAssignBranch').value = currentBranchId;
+    }
+    function syncTechnicianAssignmentFromBranch(){
+      const branchId = $('techAssignBranch')?.value || '';
+      if(!branchId) return;
+      const b = state.branches.find(x => x.id === branchId);
+      if(!b) return;
+      $('techAssignRegion').value = b.region || '';
+      populateTechnicianAssignmentOptions({ region: b.region || '', city: b.city || b.location || '', brand: b.brand || '', branchId: b.id || '' });
+      if(Array.from($('techAssignCity').options).some(o => o.value === (b.city || b.location || ''))) $('techAssignCity').value = b.city || b.location || '';
+      if(Array.from($('techAssignBrand').options).some(o => o.value === (b.brand || ''))) $('techAssignBrand').value = b.brand || '';
+      if(Array.from($('techAssignBranch').options).some(o => o.value === (b.id || ''))) $('techAssignBranch').value = b.id || '';
+    }
+    function resolveTechnicianForVisitFilter(){
+      const selectedId = $('visitTechnician')?.value || '';
+      if(selectedId) return state.technicians.find(t => t.id === selectedId) || null;
+      if(state.currentUserProfile?.role === 'technician'){
+        const techKey = state.currentUserProfile?.technicianId || '';
+        return state.technicians.find(t => t.id === techKey || t.technicianCode === techKey || t.authUid === state.currentUser?.uid || t.email === state.currentUser?.email) || null;
+      }
+      return null;
+    }
+    function isBranchVisibleForTechnician(branch, tech){
+      if(!tech) return true;
+      if(tech.assignedBranchId && String(branch.id) !== String(tech.assignedBranchId)) return false;
+      if(tech.brand && normalizeMatchValue(branch.brand) !== normalizeMatchValue(tech.brand)) return false;
+      if(tech.region && normalizeMatchValue(branch.region) !== normalizeMatchValue(tech.region)) return false;
+      const branchCity = normalizeMatchValue(branch.city || branch.location);
+      if(tech.city && branchCity !== normalizeMatchValue(tech.city)) return false;
+      if(tech.assignedBranchName && normalizeMatchValue(branch.branchName) !== normalizeMatchValue(tech.assignedBranchName) && !tech.assignedBranchId) return false;
+      return true;
+    }
+    function renderBranchSelectors(){
+      const currentValue = $('visitBranch')?.value || '';
+      const tech = resolveTechnicianForVisitFilter();
+      const rows = state.branches.filter(b => isBranchVisibleForTechnician(b, tech)).sort((a,b)=>String(a.branchName||'').localeCompare(String(b.branchName||'')));
+      const options = rows.map(b => `<option value="${esc(b.id)}">${esc(b.branchName || b.id)}${b.brand || b.region || b.city ? ` - ${esc(b.brand || '-')}/${esc(b.region || '-')}/${esc(b.city || b.location || '-')}` : ''}</option>`);
+      setOptions('visitBranch', options, state.currentLang==='ar'?'اختر الفرع':'Select branch');
+      if(currentValue && !rows.some(b => String(b.id) === String(currentValue))){
+        $('visitBranch').value = '';
+        $('visitBrand').value='';
+        $('visitBranchId').value='';
+        $('visitLocation').value='';
+      }
+    }
+
+    function renderVisitsTable(){ $('visitsTableBody').innerHTML = state.visits.slice(0,20).map(v=>`<tr class="clickable" onclick="window.openVisitForEdit('${v.id}')"><td>${esc(v.date)}</td><td>${esc(v.branchName)}</td><td>${esc(v.technicianName)}</td><td>${esc(v.status)}</td></tr>`).join('') || `<tr><td colspan="4">${state.currentLang==='ar'?'لا توجد زيارات.':'No visits.'}</td></tr>`; }
+
+    function populateVisitsForTechnician(){
+      const techDocId = $('cl_technician').value || '';
+      const tech = state.technicians.find(t => t.id === techDocId);
+      $('cl_technician_id').value = tech?.authUid || tech?.id || '';
+      $('cl_technician_email').value = tech?.email || '';
+      let rows = state.visits.filter(v => !techDocId || v.technicianDocId === techDocId || v.technicianUid === (tech?.authUid||'') || v.technicianEmail === (tech?.email||''));
+      rows = rows.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+      const options = rows.map(v => `<option value="${esc(v.id)}">${esc(v.date||'-')} | ${esc(v.branchName||'-')} | ${esc(v.brand||'-')}</option>`);
+      setOptions('cl_visit_ref', options, state.currentLang==='ar'?'اختر الزيارة':'Select visit');
+      if(techDocId && rows.length===1){ $('cl_visit_ref').value = rows[0].id; fillChecklistFromVisit(rows[0]); }
+    }
+
+    function autoFillFromBranchId(){ const branch = state.branches.find(b => b.id === $('cl_branch_id').value.trim()); if(branch){ if(!$('cl_brand').value) $('cl_brand').value = branch.brand || ''; if(!$('cl_location').value) $('cl_location').value = branch.branchName || branch.city || ''; } }
+    function updateMonthFromVisitDate(){ $('cl_month').value = monthName($('cl_visit_date').value); }
+
+    function fillChecklistFromVisit(visit){
+      if(!visit) return;
+      $('cl_brand').value = visit.brand || '';
+      $('cl_brandKey').value = visit.brandKey || '';
+      $('cl_branch_id').value = visit.branchId || '';
+      $('cl_location').value = visit.branchName || visit.locationSite || '';
+      $('cl_visit_date').value = visit.date || '';
+      updateMonthFromVisitDate();
+    }
+
+    function fillVisitFromBranch(){ const b = state.branches.find(x=>x.id === $('visitBranch').value); if(!b) return; $('visitBrand').value=b.brand||''; $('visitBranchId').value=b.id||''; $('visitLocation').value=b.location||b.city||b.branchName||''; }
+
+    function setPreview(src){ state.previewData = src || ''; $('logoPreview').src = src || ''; $('logoPreview').classList.toggle('hidden', !src); $('logoPreviewEmpty').classList.toggle('hidden', !!src); }
+    function makeBrandKey(){ const fromKey = $('brandKey').value.trim().toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,40); if(fromKey) return fromKey; const fromEn = $('brandNameEn').value.trim().toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,40); if(fromEn) return fromEn; return $('brandNameAr').value.trim().toLowerCase().replace(/[\s\-_/]+/g,''); }
+
+    function clearChecklistForm(){
+      $('editingChecklistId').value='';
+      ['cl_technician_id','cl_technician_email','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_branch_manager','cl_visit_date','cl_month','cl_users_count','cl_q20','cl_q28'].forEach(id=>$(id).value='');
+      ['cl_technician','cl_visit_ref','cl_visit_scheduled','cl_calendar_booked','cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id=>$(id).value='');
+      document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=false);
+      $('deleteChecklistBtn').classList.add('hidden'); setMessage('checklistMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('checklistError'); populateVisitsForTechnician();
+    }
+    function clearBrandForm(){ $('editingBrandId').value=''; ['brandNameAr','brandNameEn','brandKey','brandLogoUrl','brandNotes'].forEach(id=>$(id).value=''); $('brandLogoFile').value=''; setPreview(''); $('deleteBrandBtn').classList.add('hidden'); setMessage('brandMessage', state.currentLang==='ar'?'يمكنك إضافة براند جديد مع صورته أو تعديل براند موجود.':'You can add or edit a brand.'); setAlert('brandsError'); }
+    function clearVisitForm(){ $('editingVisitId').value=''; ['visitDate','visitBrand','visitBranchId','visitLocation','visitNotes'].forEach(id=>$(id).value=''); ['visitBranch','visitTechnician','visitStatus'].forEach((id,i)=>$(id).value = i===2 ? 'planned' : ''); renderBranchSelectors(); $('deleteVisitBtn').classList.add('hidden'); setMessage('visitMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('visitError'); }
+    function clearBranchForm(){ ['branchId','branchName','branchBrand','branchType','branchRegion','branchCity','branchLocation','branchGps','branchContactShowroom','branchContactService','branchContactSpareParts','branchFunction'].forEach(id=>$(id).value=''); setMessage('branchMessage', state.currentLang==='ar'?'يمكنك البحث، رفع ملف Excel، تنزيل نسخة من البيانات الحالية أو حفظ فرع بشكل يدوي.':'You can filter, import Excel, export current data, or save a branch manually.'); setAlert('branchError'); }
+    function clearTechnicianForm(){ ['technicianDocId','technicianCode','technicianNameInput','technicianEmail','technicianAuthUid'].forEach(id=>$(id).value=''); ['techAssignRegion','techAssignCity','techAssignBrand','techAssignBranch'].forEach(id=>$(id).value=''); if($('technicianSelector')) $('technicianSelector').value=''; $('technicianStatus').value='active'; populateTechnicianAssignmentOptions({region:'', city:'', brand:'', branchId:''}); setMessage('technicianMessage', state.currentLang==='ar'?'اختر الفني أولاً، ثم حدّد له Region / City / Brand / Branch Name واحفظ التعديل.':'Choose a technician first, then set Region / City / Brand / Branch Name and save.'); setAlert('technicianError'); }
+    function clearUserForm(){ ['userUid','userEmail','userTechnicianId'].forEach(id=>$(id).value=''); $('userRole').value='user'; $('userActive').value='true'; setMessage('permissionsMessage', state.currentLang==='ar'?'هذا التبويب يحتاج Admin حسب قواعدك الحالية.':'This tab requires admin according to your rules.'); setAlert('permissionsError'); }
+
+    async function loginWithEmail(){
+      const email=$('loginEmail').value.trim(), password=$('loginPassword').value;
+      if(!email || !password){ $('loginMessage').textContent = state.currentLang==='ar'?'أدخل البريد الإلكتروني وكلمة المرور.':'Enter email and password.'; return; }
+      try { $('loginBtn').disabled=true; $('loginMessage').textContent = state.currentLang==='ar'?'جاري تسجيل الدخول وتثبيت الجلسة...':'Signing in and persisting session...'; await setPersistence(auth, browserLocalPersistence); await signInWithEmailAndPassword(auth, email, password); }
+      catch(err){ $('loginMessage').textContent = (err.code||'error') + ' | ' + (err.message||''); }
+      finally { $('loginBtn').disabled=false; }
+    }
+
+    async function saveChecklist(){
+      try{
+        const techDoc = state.technicians.find(t => t.id === $('cl_technician').value) || null;
+        const linkedVisit = state.visits.find(v => v.id === $('cl_visit_ref').value) || null;
+        const payload = {
+          technicianId: techDoc?.authUid || techDoc?.id || '',
+          technicianDocId: techDoc?.id || '',
+          technicianName: techDoc?.name || '',
+          technicianEmail: techDoc?.email || '',
+          linkedVisitId: linkedVisit?.id || '',
+          brand: $('cl_brand').value.trim(),
+          brandKey: $('cl_brandKey').value.trim() || makeBrandKey(),
+          branchId: $('cl_branch_id').value.trim(),
+          locationSite: $('cl_location').value.trim(),
+          visitScheduledWithBranchManager: $('cl_visit_scheduled').value,
+          branchManager: $('cl_branch_manager').value.trim(),
+          visitDate: $('cl_visit_date').value,
+          month: $('cl_month').value.trim() || monthName($('cl_visit_date').value),
+          calendarBooked: $('cl_calendar_booked').value,
+          numberOfUsers: $('cl_users_count').value ? Number($('cl_users_count').value) : null,
+          q10_networkCabinetsCondition: $('cl_q10').value, q11_lowCurrentInfrastructure: $('cl_q11').value, q12_uploadSpeed: $('cl_q12').value, q13_downloadSpeed: $('cl_q13').value, q14_serverRoomTemperature: $('cl_q14').value, q15_upsStatus: $('cl_q15').value,
+          q16_pcCondition: $('cl_q16').value, q17_printersCondition: $('cl_q17').value, q18_unifiedCommunication: $('cl_q18').value, q19_unusedDamagedAssets: $('cl_q19').value, q20_assetReport: $('cl_q20').value.trim(),
+          q22_osUpToDate: $('cl_q22').value, q23_cleanup: $('cl_q23').value, q24_oneDriveBackup: $('cl_q24').value, q25_customerFacingPortals: $('cl_q25').value, q26_erpBusinessApps: $('cl_q26').value,
+          q27_trainingRequirement: [...document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]:checked')].map(cb=>cb.value), q28_serviceReportSummary: $('cl_q28').value.trim(), q29_upgradeWindows10To11: $('cl_q29').value,
+          updatedAt: Timestamp.now()
+        };
+        if(!payload.technicianId) throw new Error(state.currentLang==='ar'?'اختر الفني أولاً.':'Choose technician first.');
+        if(!payload.brand || !payload.branchId || !payload.locationSite || !payload.visitDate) throw new Error(state.currentLang==='ar'?'أكمل الحقول الأساسية المطلوبة.':'Complete required fields.');
+        const editId = $('editingChecklistId').value.trim();
+        if(editId) await setDoc(doc(db,'branch_checklists',editId), payload, {merge:true}); else await addDoc(collection(db,'branch_checklists'), { ...payload, createdAt: Timestamp.now() });
+        if(payload.linkedVisitId){
+          await setDoc(doc(db,'siteVisits', payload.linkedVisitId), { status:'completed', checklistCompleted:true, checklistCompletedAt: Timestamp.now(), updatedAt: Timestamp.now() }, {merge:true});
+        }
+        setMessage('checklistMessage', state.currentLang==='ar'?'تم حفظ Check-List وتحديث حالة الزيارة إلى مكتمل.':'Check-List saved and visit status updated to completed.');
+        setAlert('checklistError');
+        clearChecklistForm();
+      } catch(err){ setAlert('checklistError', err.message || String(err)); }
+    }
+    async function deleteChecklistById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف السجل؟':'Delete this record?')) return; await deleteDoc(doc(db,'branch_checklists',id)); clearChecklistForm(); } catch(err){ setAlert('checklistError', err.message || String(err)); } }
+    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.visitDate||''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
+
+    function loadSelectedTechnician(){
+      const id = $('technicianSelector')?.value || '';
+      if(!id){ setAlert('technicianError', state.currentLang==='ar'?'اختر الفني أولاً من القائمة.':'Choose a technician from the list first.'); return; }
+      window.openTechnicianForEdit(id);
+    }
+    window.openTechnicianForEdit = function(id){
+      const t = state.technicians.find(x=>x.id===id);
+      if(!t) return;
+      $('technicianSelector').value = t.id || '';
+      $('technicianDocId').value = t.id || '';
+      $('technicianCode').value = t.technicianCode || '';
+      $('technicianNameInput').value = t.name || '';
+      $('technicianEmail').value = t.email || '';
+      $('technicianAuthUid').value = t.authUid || '';
+      $('technicianStatus').value = t.status || 'active';
+      populateTechnicianAssignmentOptions({ region: t.region || '', city: t.city || '', brand: t.brand || '', branchId: t.assignedBranchId || '' });
+      if(t.region && Array.from($('techAssignRegion').options).some(o=>o.value===t.region)) $('techAssignRegion').value = t.region;
+      populateTechnicianAssignmentOptions({ region: t.region || '', city: t.city || '', brand: t.brand || '', branchId: t.assignedBranchId || '' });
+      if(t.city && Array.from($('techAssignCity').options).some(o=>o.value===t.city)) $('techAssignCity').value = t.city;
+      if(t.brand && Array.from($('techAssignBrand').options).some(o=>o.value===t.brand)) $('techAssignBrand').value = t.brand;
+      if(t.assignedBranchId && Array.from($('techAssignBranch').options).some(o=>o.value===t.assignedBranchId)) $('techAssignBranch').value = t.assignedBranchId;
+      setMessage('technicianMessage', state.currentLang==='ar'?'تم تحميل بيانات الفني. حدّد النطاق ثم احفظ.':'Technician loaded. Set the scope and save.');
+      setAlert('technicianError');
+      activateTab('technicians');
+    }
+
+    async function saveBrand(){ try{ const id = $('editingBrandId').value.trim() || crypto.randomUUID(); const key = makeBrandKey(); if(!key) throw new Error(state.currentLang==='ar'?'أدخل اسم البراند أو المفتاح.':'Enter brand name or key.'); const payload = { id, key, brandKey:key, brand:$('brandNameEn').value.trim() || $('brandNameAr').value.trim(), nameAr:$('brandNameAr').value.trim(), nameEn:$('brandNameEn').value.trim(), logoUrl:$('brandLogoUrl').value.trim(), logoData: state.previewData || $('brandLogoUrl').value.trim(), notes:$('brandNotes').value.trim(), updatedAt: Timestamp.now() }; if(!$('editingBrandId').value.trim()) payload.createdAt = Timestamp.now(); await setDoc(doc(db,'brand_assets',id), payload, {merge:true}); setMessage('brandMessage', state.currentLang==='ar'?'تم حفظ البراند بنجاح.':'Brand saved successfully.'); setAlert('brandsError'); clearBrandForm(); } catch(err){ setAlert('brandsError', err.message || String(err)); } }
+    async function deleteBrandById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف البراند؟':'Delete this brand?')) return; await deleteDoc(doc(db,'brand_assets',id)); clearBrandForm(); } catch(err){ setAlert('brandsError', err.message || String(err)); } }
+    window.openBrandForEdit = function(id){ const b=state.brands.find(x=>x.id===id); if(!b) return; $('editingBrandId').value=b.id; $('brandNameAr').value=b.nameAr||''; $('brandNameEn').value=b.nameEn||b.brand||''; $('brandKey').value=b.key||b.brandKey||''; $('brandLogoUrl').value=b.logoUrl||''; $('brandNotes').value=b.notes||''; setPreview(b.logoData||b.logoUrl||''); $('deleteBrandBtn').classList.remove('hidden'); activateTab('brands'); };
+    window.deleteBrandDirect = async function(id){ await deleteBrandById(id); };
+
+    async function saveVisit(){
+      try{
+        const branch = state.branches.find(b=>b.id === $('visitBranch').value); const tech = state.technicians.find(t=>t.id === $('visitTechnician').value);
+        if(!branch) throw new Error(state.currentLang==='ar'?'اختر الفرع.':'Choose branch.'); if(!tech) throw new Error(state.currentLang==='ar'?'اختر الفني.':'Choose technician.'); if(!$('visitDate').value) throw new Error(state.currentLang==='ar'?'أدخل تاريخ الزيارة.':'Enter visit date.');
+        const payload = { branchId:branch.id, branchName:branch.branchName || branch.id, brand:branch.brand || '', brandKey:'', region:branch.region || '', city:branch.city || '', technicianId: tech.authUid || tech.id, technicianDocId: tech.id, technicianUid: tech.authUid || tech.id, technicianName: tech.name || tech.id, technicianEmail: tech.email || '', date:$('visitDate').value, status:$('visitStatus').value, notes:$('visitNotes').value.trim(), updatedAt: Timestamp.now() };
+        const editId = $('editingVisitId').value.trim(); if(editId) await setDoc(doc(db,'siteVisits',editId), payload, {merge:true}); else await addDoc(collection(db,'siteVisits'), { ...payload, createdAt: Timestamp.now() }); setMessage('visitMessage', state.currentLang==='ar'?'تم حفظ الزيارة بنجاح.':'Visit saved successfully.'); setAlert('visitError'); clearVisitForm();
+      } catch(err){ setAlert('visitError', err.message || String(err)); }
+    }
+    async function deleteVisitById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف الزيارة؟':'Delete this visit?')) return; await deleteDoc(doc(db,'siteVisits',id)); clearVisitForm(); } catch(err){ setAlert('visitError', err.message || String(err)); } }
+    window.openVisitForEdit = function(id){ const v=state.visits.find(x=>x.id===id); if(!v) return; $('editingVisitId').value=v.id; $('visitTechnician').value=v.technicianDocId||''; renderBranchSelectors(); $('visitBranch').value=v.branchId||''; $('visitDate').value=v.date||''; $('visitStatus').value=v.status||'planned'; $('visitNotes').value=v.notes||''; fillVisitFromBranch(); $('deleteVisitBtn').classList.remove('hidden'); activateTab('visit'); };
+
+    async function saveBranch(){ try{ const id=$('branchId').value.trim(); if(!id) throw new Error('Branch_ID required'); const payload = { branchName:$('branchName').value.trim(), brand:$('branchBrand').value.trim(), region:$('branchRegion').value.trim(), city:$('branchCity').value.trim(), branchType:$('branchType').value.trim(), contactShowroom:$('branchContactShowroom').value.trim(), contactService:$('branchContactService').value.trim(), contactSpareParts:$('branchContactSpareParts').value.trim(), functionName:$('branchFunction').value.trim(), function:$('branchFunction').value.trim(), gps:$('branchGps').value.trim(), location:$('branchLocation').value.trim(), updatedAt: Timestamp.now() }; await setDoc(doc(db,'branches',id), payload, {merge:true}); setMessage('branchMessage', state.currentLang==='ar'?'تم حفظ الفرع.':'Branch saved.'); setAlert('branchError'); clearBranchForm(); } catch(err){ setAlert('branchError', err.message || String(err)); } }
+
+    function normalizeExcelHeader(key){ return String(key || '').toLowerCase().replace(/[\s_\-\/]+/g,''); }
+    function normalizeBranchImportRow(row){
+      const normalized = Object.fromEntries(Object.entries(row || {}).map(([k,v]) => [normalizeExcelHeader(k), v]));
+      const branchId = String(normalized.branchid || '').trim();
+      if(!branchId) return null;
+      const fn = String(normalized.function || normalized.functionname || '').trim();
+      const city = String(normalized.city || normalized.location || '').trim();
+      return { branchId, branchType: String(normalized.branchtype || '').trim(), contactShowroom: String(normalized.contactshowroom || '').trim(), contactService: String(normalized.contactservice || '').trim(), contactSpareParts: String(normalized.contactspareparts || '').trim(), brand: String(normalized.brand || '').trim(), functionName: fn, function: fn, branchName: String(normalized.branchname || '').trim(), gps: String(normalized.gps || '').trim(), location: String(normalized.location || '').trim(), region: String(normalized.region || '').trim(), city };
+    }
+    async function importBranchesFromExcel(){
+      try{
+        if(typeof XLSX === 'undefined') throw new Error('XLSX library not loaded');
+        const file = $('branchesExcelFile').files?.[0];
+        if(!file) throw new Error(state.currentLang==='ar'?'اختر ملف Excel أولاً.':'Choose an Excel file first.');
+        if(!confirm(state.currentLang==='ar'?'سيتم حذف كل الفروع القديمة من المخزن ثم رفع الملف الجديد. هل تريد المتابعة؟':'All current branches will be deleted before importing the new file. Continue?')) return;
+        setMessage('branchMessage', state.currentLang==='ar'?'جاري قراءة الملف ومسح القديم...':'Reading Excel and clearing old records...');
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, {type:'array'});
+        const sheetName = workbook.SheetNames[0];
+        if(!sheetName) throw new Error(state.currentLang==='ar'?'ملف Excel لا يحتوي على أي ورقة.':'Excel file has no sheets.');
+        const sheet = workbook.Sheets[sheetName];
+        const rawRows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+        const rows = rawRows.map(normalizeBranchImportRow).filter(Boolean);
+        if(!rows.length) throw new Error(state.currentLang==='ar'?'لم يتم العثور على صفوف صالحة. تأكد من أسماء الأعمدة المطلوبة.':'No valid rows found. Check the required column names.');
+        const existing = await getDocs(collection(db,'branches'));
+        for(const snapDoc of existing.docs){ await deleteDoc(doc(db,'branches', snapDoc.id)); }
+        for(const row of rows){
+          await setDoc(doc(db,'branches', row.branchId), { branchName: row.branchName, brand: row.brand, region: row.region, city: row.city, branchType: row.branchType, contactShowroom: row.contactShowroom, contactService: row.contactService, contactSpareParts: row.contactSpareParts, functionName: row.functionName, function: row.function, gps: row.gps, location: row.location, updatedAt: Timestamp.now(), createdAt: Timestamp.now() }, {merge:true});
+        }
+        $('branchesExcelFile').value='';
+        populateTechnicianAssignmentOptions({});
+        setMessage('branchMessage', (state.currentLang==='ar'?'تم استيراد ':'Imported ') + rows.length + (state.currentLang==='ar'?' صف/فرع بنجاح بعد حذف القديم.':' branch rows successfully after clearing old data.'));
+        setAlert('branchError');
+      } catch(err){ setAlert('branchError', err.message || String(err)); }
+    }
+    function exportBranchesToExcel(){
+      try{
+        if(typeof XLSX === 'undefined') throw new Error('XLSX library not loaded');
+        if(!state.branches.length) throw new Error(state.currentLang==='ar'?'لا توجد بيانات فروع للتنزيل.':'No branch data to export.');
+        const rows = state.branches.map(b => ({ 'Branch_ID': b.id || '', 'Branch_Type': b.branchType || '', 'Contact Showroom': b.contactShowroom || '', 'Contact_Service': b.contactService || '', 'Contact_Spare_Parts': b.contactSpareParts || '', 'Brand': b.brand || '', 'function': b.functionName || b.function || '', 'Branch_Name': b.branchName || '', 'GPS': b.gps || '', 'Location': b.location || '', 'Region': b.region || '', 'City': b.city || '' }));
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(rows, {header:['Branch_ID','Branch_Type','Contact Showroom','Contact_Service','Contact_Spare_Parts','Brand','function','Branch_Name','GPS','Location','Region','City']});
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Branches');
+        XLSX.writeFile(workbook, 'branches_export.xlsx');
+        setMessage('branchMessage', state.currentLang==='ar'?'تم تنزيل ملف Excel للفروع الحالية.':'Current branches Excel exported.');
+        setAlert('branchError');
+      } catch(err){ setAlert('branchError', err.message || String(err)); }
+    }
+
+    async function saveTechnician(){ try{ const docId=$('technicianDocId').value.trim(); if(!docId) throw new Error('Document ID / UID required'); const assignedBranch = state.branches.find(b => b.id === ($('techAssignBranch').value || '')) || null; const payload = { technicianCode:$('technicianCode').value.trim(), name:$('technicianNameInput').value.trim(), email:$('technicianEmail').value.trim(), authUid:$('technicianAuthUid').value.trim(), region:$('techAssignRegion').value.trim(), city:$('techAssignCity').value.trim(), brand:$('techAssignBrand').value.trim(), assignedBranchId:$('techAssignBranch').value || '', assignedBranchName: assignedBranch?.branchName || '', status:$('technicianStatus').value, updatedAt: Timestamp.now() }; await setDoc(doc(db,'technicians',docId), payload, {merge:true}); setMessage('technicianMessage', state.currentLang==='ar'?'تم حفظ الفني مع نطاق الزيارة.':'Technician saved with visit scope.'); setAlert('technicianError'); clearTechnicianForm(); } catch(err){ setAlert('technicianError', err.message || String(err)); } }
+    async function saveUser(){ try{ const uid=$('userUid').value.trim(); if(!uid) throw new Error('UID required'); const payload = { email:$('userEmail').value.trim(), role:$('userRole').value, active:$('userActive').value==='true', technicianId:$('userTechnicianId').value.trim(), updatedAt: Timestamp.now() }; await setDoc(doc(db,'app_users',uid), payload, {merge:true}); setMessage('permissionsMessage', state.currentLang==='ar'?'تم حفظ المستخدم.':'User saved.'); setAlert('permissionsError'); clearUserForm(); } catch(err){ setAlert('permissionsError', err.message || String(err)); } }
+
+    function renderUsersTable(){ $('usersTableBody').innerHTML = state.users.map(u=>`<tr class="clickable" onclick="window.openUserForEdit('${u.id}')"><td>${esc(u.id)}</td><td>${esc(u.email)}</td><td>${esc(u.role)}</td><td>${String(!!u.active)}</td><td>${esc(u.technicianId)}</td></tr>`).join('') || `<tr><td colspan="5">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`; }
+    window.openUserForEdit = function(id){ const u=state.users.find(x=>x.id===id); if(!u) return; $('userUid').value=u.id||''; $('userEmail').value=u.email||''; $('userRole').value=u.role||'user'; $('userActive').value=String(!!u.active); $('userTechnicianId').value=u.technicianId||''; activateTab('permissions'); };
+
+    function runReport(){
+      setAlert('reportsError');
+      const type=$('reportType').value, from=$('reportFrom').value, to=$('reportTo').value;
+      const inRange = d => { if(!d) return true; if(from && d < from) return false; if(to && d > to) return false; return true; };
+      let head='', body='';
+      if(type==='checklists'){
+        head='<tr><th>Visit Date</th><th>Technician</th><th>Brand</th><th>Branch ID</th><th>Location</th><th>Summary</th></tr>';
+        body = state.checklists.filter(r=>inRange(r.visitDate)).map(r=>`<tr><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.q28_serviceReportSummary)}</td></tr>`).join('');
+      } else if(type==='visits'){
+        head='<tr><th>Date</th><th>Branch</th><th>Brand</th><th>Technician</th><th>Status</th></tr>';
+        body = state.visits.filter(r=>inRange(r.date)).map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.branchName)}</td><td>${esc(r.brand)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.status)}</td></tr>`).join('');
+      } else {
+        head='<tr><th>Brand Key</th><th>Arabic</th><th>English</th><th>Logo</th></tr>';
+        body = state.brands.map(r=>`<tr><td>${esc(r.key||r.brandKey)}</td><td>${esc(r.nameAr||r.brand)}</td><td>${esc(r.nameEn||r.brand)}</td><td>${r.logoUrl||r.logoData?'<span class="badge">Yes</span>':'No'}</td></tr>`).join('');
+      }
+      $('reportsHead').innerHTML=head; $('reportsBody').innerHTML = body || `<tr><td colspan="6">${state.currentLang==='ar'?'لا توجد نتائج.':'No results.'}</td></tr>`;
+    }
+
+    function attachListeners(){
+      $('loginBtn').addEventListener('click', loginWithEmail);
+      $('logoutBtn').addEventListener('click', async ()=>{ clearAllListeners(); await signOut(auth); });
+      $('langArBtn').addEventListener('click', ()=>applyLanguage('ar'));
+      $('langEnBtn').addEventListener('click', ()=>applyLanguage('en'));
+      $('checklistSearch').addEventListener('input', renderChecklistTable);
+      $('brandSearch').addEventListener('input', renderBrands);
+      $('cl_technician').addEventListener('change', populateVisitsForTechnician);
+      $('cl_visit_ref').addEventListener('change', ()=> fillChecklistFromVisit(state.visits.find(v=>v.id === $('cl_visit_ref').value)));
+      $('cl_branch_id').addEventListener('blur', autoFillFromBranchId);
+      $('cl_visit_date').addEventListener('change', updateMonthFromVisitDate);
+      $('saveChecklistBtn').addEventListener('click', saveChecklist);
+      $('clearChecklistBtn').addEventListener('click', clearChecklistForm);
+      $('deleteChecklistBtn').addEventListener('click', ()=>deleteChecklistById($('editingChecklistId').value.trim()));
+      $('brandKey').addEventListener('blur', ()=>{ $('brandKey').value = makeBrandKey(); });
+      $('brandNameEn').addEventListener('blur', ()=>{ if(!$('brandKey').value.trim()) $('brandKey').value = makeBrandKey(); });
+      $('brandLogoUrl').addEventListener('input', ()=>{ const url=$('brandLogoUrl').value.trim(); if(url) setPreview(url); else if(!$('brandLogoFile').value) setPreview(''); });
+      $('brandLogoFile').addEventListener('change', e=>{ const file=e.target.files?.[0]; if(!file){ if(!$('brandLogoUrl').value.trim()) setPreview(''); return; } const reader=new FileReader(); reader.onload = ev => setPreview(ev.target.result); reader.readAsDataURL(file); });
+      $('saveBrandBtn').addEventListener('click', saveBrand); $('clearBrandFormBtn').addEventListener('click', clearBrandForm); $('deleteBrandBtn').addEventListener('click', ()=>deleteBrandById($('editingBrandId').value.trim()));
+      $('visitTechnician').addEventListener('change', ()=>{ renderBranchSelectors(); fillVisitFromBranch(); });
+      $('visitBranch').addEventListener('change', fillVisitFromBranch); $('saveVisitBtn').addEventListener('click', saveVisit); $('clearVisitBtn').addEventListener('click', clearVisitForm); $('deleteVisitBtn').addEventListener('click', ()=>deleteVisitById($('editingVisitId').value.trim()));
+      $('saveBranchBtn').addEventListener('click', saveBranch); $('clearBranchBtn').addEventListener('click', clearBranchForm); $('branchSearch')?.addEventListener('input', renderBranchesList); $('importBranchesBtn')?.addEventListener('click', importBranchesFromExcel); $('exportBranchesBtn')?.addEventListener('click', exportBranchesToExcel);
+      $('technicianSelector')?.addEventListener('change', loadSelectedTechnician); $('loadTechnicianBtn')?.addEventListener('click', loadSelectedTechnician); $('techAssignRegion')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value })); $('techAssignCity')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value, city: $('techAssignCity').value })); $('techAssignBrand')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value, city: $('techAssignCity').value, brand: $('techAssignBrand').value })); $('techAssignBranch')?.addEventListener('change', syncTechnicianAssignmentFromBranch); $('saveTechnicianBtn').addEventListener('click', saveTechnician); $('clearTechnicianBtn').addEventListener('click', clearTechnicianForm);
+      $('saveUserBtn').addEventListener('click', saveUser); $('clearUserBtn').addEventListener('click', clearUserForm);
+      $('runReportBtn').addEventListener('click', runReport);
+    }
+
+    function listenBranches(){ if(unsub.branches) unsub.branches(); unsub.branches = onSnapshot(query(collection(db,'branches'), orderBy('branchName')), snap=>{ state.branches = snap.docs.map(d=>({id:d.id, ...d.data()})); renderBranchesList(); renderBranchSelectors(); populateTechnicianAssignmentOptions({}); renderStats(); }, err=>setAlert('branchError', 'branches: ' + err.message)); }
+    function listenTechnicians(){ if(unsub.technicians) unsub.technicians(); unsub.technicians = onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap=>{ state.technicians = snap.docs.map(d=>({id:d.id, ...d.data()})); renderTechniciansList(); renderTechnicianSelectors(); renderBranchSelectors(); renderLatestBrands(); renderStats(); populateVisitsForTechnician(); }, err=>setAlert('technicianError', 'technicians: ' + err.message)); }
+    function listenVisits(){ if(unsub.visits) unsub.visits(); unsub.visits = onSnapshot(query(collection(db,'siteVisits'), orderBy('date','desc')), snap=>{ state.visits = snap.docs.map(d=>({id:d.id, ...d.data()})); renderVisitsTable(); populateVisitsForTechnician(); renderLatestBrands(); renderDashboardBrandBoxes(); renderStats(); }, err=>setAlert('visitError', 'siteVisits: ' + err.message)); }
+    function listenChecklists(){ if(unsub.checklists) unsub.checklists(); unsub.checklists = onSnapshot(query(collection(db,'branch_checklists'), orderBy('visitDate','desc')), snap=>{ state.checklists = snap.docs.map(d=>({id:d.id, ...d.data()})); renderChecklistTable(); renderLatestChecklistTable(); renderStats(); }, err=>{ setAlert('checklistError', 'branch_checklists: ' + err.message); setAlert('dashboardError', 'branch_checklists: ' + err.message); }); }
+    function listenBrands(){ if(unsub.brands) unsub.brands(); unsub.brands = onSnapshot(query(collection(db,'brand_assets'), orderBy('nameAr')), snap=>{ state.brands = snap.docs.map(d=>({id:d.id, ...d.data()})); renderBrands(); renderDashboardBrandBoxes(); renderStats(); }, err=>{ setAlert('brandsError', 'brand_assets: ' + err.message); setAlert('dashboardError', 'brand_assets: ' + err.message); }); }
+    function listenUsers(){ if(unsub.users) unsub.users(); unsub.users = onSnapshot(query(collection(db,'app_users')), snap=>{ state.users = snap.docs.map(d=>({id:d.id, ...d.data()})); renderUsersTable(); }, err=>setAlert('permissionsError', 'app_users: ' + err.message)); }
+
+    onAuthStateChanged(auth, async user => {
+      if(user){
+        state.currentUser = user;
+        let profile = null;
+        try { profile = await resolveCurrentUserProfile(user); } catch(err){ $('loginMessage').textContent = 'app_users lookup error: ' + err.message; }
+        state.currentUserProfile = profile;
+        $('currentUserChip').classList.remove('hidden'); $('currentUserChip').textContent = `${profile?.name || user.email} | ${profile?.role || 'user'}`; $('logoutBtn').classList.remove('hidden'); $('loginOverlay').classList.add('hidden'); $('appRoot').classList.remove('hidden');
+        if(!profile){ setAlert('dashboardError', state.currentLang==='ar' ? 'تنبيه: لم يتم العثور على app_users/{UID}. قد تعمل بعض التبويبات للقراءة فقط أو تفشل حسب القواعد.' : 'Warning: app_users/{UID} was not found. Some tabs may fail according to rules.'); }
+        listenBranches(); listenTechnicians(); listenVisits(); listenChecklists(); listenBrands(); listenUsers();
+      } else {
+        clearAllListeners(); state.currentUser=null; state.currentUserProfile=null; state.branches=[]; state.technicians=[]; state.visits=[]; state.checklists=[]; state.brands=[]; state.users=[];
+        $('currentUserChip').classList.add('hidden'); $('logoutBtn').classList.add('hidden'); $('loginOverlay').classList.remove('hidden'); $('appRoot').classList.add('hidden'); $('loginMessage').textContent = 'ادخل بحساب موجود في Firebase Authentication و app_users.';
+        renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm();
+      }
+    });
+
+    attachListeners(); applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); renderLatestBrands(); renderDashboardBrandBoxes();
   </script>
 </body>
 </html>
