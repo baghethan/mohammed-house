@@ -249,7 +249,7 @@
       <div class="grid-2">
         <div class="card">
           <h3 data-i18n="visitFormTitle">إدخال / تعديل زيارة</h3>
-          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني. وإذا كان الفرع من نوع <span class="rtl-en">Stellantis (Peugeot + Citroën)</span> فسيتم تسجيل الزيارة على نفس الفرع ولكن تُحتسب للبراندين <span class="rtl-en">Peugeot</span> و<span class="rtl-en">Citroën</span>. كما تم دعم تهجئات مختلفة لاسم <span class="rtl-en">Peugeot</span> مثل <span class="rtl-en">Peugedt / Peugot</span> حتى تظهر الأعداد بشكل صحيح في لوحة التحكم.</div>
+          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني. وإذا كان الفرع من نوع <span class="rtl-en">Stellantis (Peugeot + Citroën)</span> فسيتم تسجيل الزيارة على نفس الفرع ولكن تُحتسب للبراندين <span class="rtl-en">Peugeot</span> و<span class="rtl-en">Citroën</span>. وكذلك إذا كان الفرع من نوع <span class="rtl-en">Deepal / Changan</span> فسيتم تسجيل الزيارة على نفس الفرع ولكن تُحتسب للبراندين <span class="rtl-en">Deepal</span> و<span class="rtl-en">Changan</span>. كما تم دعم تهجئات مختلفة لاسم <span class="rtl-en">Peugeot</span> مثل <span class="rtl-en">Peugedt / Peugot</span> حتى تظهر الأعداد بشكل صحيح في لوحة التحكم.</div>
           <input type="hidden" id="editingVisitId">
           <div class="grid-3">
             <div class="field"><label data-i18n="branch">الفرع</label><select id="visitBranch"></select></div>
@@ -663,8 +663,12 @@
       const token = normalizeVisitBrandToken(v);
       if(['peugeot','peugot','peugedt','peugotksa','peugeotksa'].includes(token)) return 'peugeot';
       if(['citroen','citron','citroenksa'].includes(token)) return 'citroen';
+      if(['changan','changanauto','changanksa'].includes(token)) return 'changan';
+      if(['deepal','deepalauto','deepalksa'].includes(token)) return 'deepal';
       if(token.includes('peugeot') || token.includes('peugot') || token.includes('peugedt')) return 'peugeot';
       if(token.includes('citroen') || token.includes('citron')) return 'citroen';
+      if(token.includes('changan')) return 'changan';
+      if(token.includes('deepal')) return 'deepal';
       if(token.includes('stellantis')) return 'stellantis';
       return token;
     }
@@ -672,23 +676,44 @@
       const token = canonicalBrandToken(v);
       if(token === 'peugeot') return 'Peugeot';
       if(token === 'citroen') return 'Citroën';
+      if(token === 'changan') return 'Changan';
+      if(token === 'deepal') return 'Deepal';
       return v || '';
     }
-    function isStellantisCompoundBranch(branch){
-      if(!branch) return false;
-      const combinedTokens = [branch.brand, branch.branchName, branch.location, branch.id].map(canonicalBrandToken).join(' ');
-      const hasStellantis = combinedTokens.includes('stellantis');
-      const hasPeugeot = combinedTokens.includes('peugeot');
-      const hasCitroen = combinedTokens.includes('citroen');
-      return hasStellantis || (hasPeugeot && hasCitroen);
+    function getCompoundGroupFromValues(values){
+      const tokens = values.map(canonicalBrandToken).join(' ');
+      const hasStellantis = tokens.includes('stellantis');
+      const hasPeugeot = tokens.includes('peugeot');
+      const hasCitroen = tokens.includes('citroen');
+      const hasDeepal = tokens.includes('deepal');
+      const hasChangan = tokens.includes('changan');
+      if(hasStellantis || (hasPeugeot && hasCitroen)) return 'stellantis';
+      if(hasDeepal || (hasDeepal && hasChangan)) return 'deepal';
+      return '';
     }
-    function getVisitBrandsForBranch(branch){ return isStellantisCompoundBranch(branch) ? ['Peugeot','Citroën'] : [getCanonicalBrandDisplay(branch?.brand || '')]; }
+    function getCompoundBrandsByGroup(group){
+      if(group === 'stellantis') return ['Peugeot','Citroën'];
+      if(group === 'deepal') return ['Deepal','Changan'];
+      return [];
+    }
+    function getCompoundGroupForBranch(branch){
+      if(!branch) return '';
+      return getCompoundGroupFromValues([branch.brand, branch.branchName, branch.location, branch.id]);
+    }
+    function getVisitBrandsForBranch(branch){
+      const group = getCompoundGroupForBranch(branch);
+      return group ? getCompoundBrandsByGroup(group) : [getCanonicalBrandDisplay(branch?.brand || '')];
+    }
     function getVisitBrandKey(value){ return canonicalBrandToken(value); }
-    function getVisitBrandDisplay(branch){ return isStellantisCompoundBranch(branch) ? 'Stellantis (Peugeot + Citroën)' : getCanonicalBrandDisplay(branch?.brand || ''); }
-    function isLegacyStellantisVisit(visit){
-      if(!visit) return false;
-      const combined = [visit.brand, visit.brandKey, visit.branchName, visit.branchId, visit.compoundSource].map(canonicalBrandToken).join(' ');
-      return combined.includes('stellantis');
+    function getVisitBrandDisplay(branch){
+      const group = getCompoundGroupForBranch(branch);
+      if(group === 'stellantis') return 'Stellantis (Peugeot + Citroën)';
+      if(group === 'deepal') return 'Deepal / Changan';
+      return getCanonicalBrandDisplay(branch?.brand || '');
+    }
+    function getCompoundGroupForVisit(visit){
+      if(!visit) return '';
+      return canonicalBrandToken(visit.compoundSource) || getCompoundGroupFromValues([visit.brand, visit.brandKey, visit.branchName, visit.branchId]);
     }
     function shouldCountVisitForBrand(visit, brandName, brandKey){
       const visitBrand = canonicalBrandToken(visit?.brand);
@@ -696,7 +721,11 @@
       const targetName = canonicalBrandToken(brandName);
       const targetKey = canonicalBrandToken(brandKey);
       if((targetName && visitBrand === targetName) || (targetKey && visitBrandKey === targetKey)) return true;
-      if(isLegacyStellantisVisit(visit) && ['peugeot','citroen'].includes(targetName || targetKey)) return true;
+      const compoundGroup = getCompoundGroupForVisit(visit);
+      if(compoundGroup){
+        const groupBrands = getCompoundBrandsByGroup(compoundGroup).map(canonicalBrandToken);
+        if(groupBrands.includes(targetName || targetKey)) return true;
+      }
       return false;
     }
     function fillVisitFromBranch(){ const b = state.branches.find(x=>x.id === $('visitBranch').value); if(!b) return; $('visitBrand').value=getVisitBrandDisplay(b); $('visitBranchId').value=b.id||''; $('visitLocation').value=b.location||b.city||b.branchName||''; }
@@ -803,12 +832,13 @@
         if(!branch) throw new Error(state.currentLang==='ar'?'اختر الفرع.':'Choose branch.');
         if(!tech) throw new Error(state.currentLang==='ar'?'اختر الفني.':'Choose technician.');
         if(!$('visitDate').value) throw new Error(state.currentLang==='ar'?'أدخل تاريخ الزيارة.':'Enter visit date.');
+        const compoundGroup = getCompoundGroupForBranch(branch);
         const brandsToSave = getVisitBrandsForBranch(branch);
         const editId = $('editingVisitId').value.trim();
         const existing = editId ? state.visits.find(v => v.id === editId) : null;
         const existingGroupId = existing?.visitGroupId || '';
         const targetGroupId = brandsToSave.length > 1 ? (existingGroupId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()))) : '';
-        const basePayload = { branchId:branch.id, branchName:branch.branchName || branch.id, region:branch.region || '', city:branch.city || '', technicianId: tech.authUid || tech.id, technicianDocId: tech.id, technicianUid: tech.authUid || tech.id, technicianName: tech.name || tech.id, technicianEmail: tech.email || '', date:$('visitDate').value, status:$('visitStatus').value, notes:$('visitNotes').value.trim(), visitGroupId: targetGroupId, compoundSource: brandsToSave.length > 1 ? 'stellantis' : '', updatedAt: Timestamp.now() };
+        const basePayload = { branchId:branch.id, branchName:branch.branchName || branch.id, region:branch.region || '', city:branch.city || '', technicianId: tech.authUid || tech.id, technicianDocId: tech.id, technicianUid: tech.authUid || tech.id, technicianName: tech.name || tech.id, technicianEmail: tech.email || '', date:$('visitDate').value, status:$('visitStatus').value, notes:$('visitNotes').value.trim(), visitGroupId: targetGroupId, compoundSource: compoundGroup, updatedAt: Timestamp.now() };
 
         if(editId){
           const related = existingGroupId ? state.visits.filter(v => v.visitGroupId === existingGroupId) : (existing ? [existing] : []);
@@ -824,9 +854,7 @@
           } else {
             const brandName = getCanonicalBrandDisplay(brandsToSave[0] || branch.brand || '');
             await setDoc(doc(db,'siteVisits', editId), { ...basePayload, visitGroupId:'', compoundSource:'', brand: brandName, brandKey: getVisitBrandKey(brandName) }, {merge:true});
-            if(existingGroupId){
-              for(const row of related.filter(v => v.id !== editId)) await deleteDoc(doc(db,'siteVisits', row.id));
-            }
+            if(existingGroupId){ for(const row of related.filter(v => v.id !== editId)) await deleteDoc(doc(db,'siteVisits', row.id)); }
           }
         } else {
           if(brandsToSave.length > 1){
@@ -839,7 +867,13 @@
             await addDoc(collection(db,'siteVisits'), { ...basePayload, visitGroupId:'', compoundSource:'', brand: brandName, brandKey: getVisitBrandKey(brandName), createdAt: Timestamp.now() });
           }
         }
-        setMessage('visitMessage', brandsToSave.length > 1 ? (state.currentLang==='ar'?'تم حفظ الزيارة لنفس الفرع واحتسابها على Peugeot و Citroën.':'Visit saved for the same branch and counted for Peugeot and Citroën.') : (state.currentLang==='ar'?'تم حفظ الزيارة بنجاح.':'Visit saved successfully.'));
+
+        const groupMessage = compoundGroup === 'stellantis'
+          ? (state.currentLang==='ar'?'تم حفظ الزيارة لنفس الفرع واحتسابها على Peugeot و Citroën.':'Visit saved for the same branch and counted for Peugeot and Citroën.')
+          : compoundGroup === 'deepal'
+            ? (state.currentLang==='ar'?'تم حفظ الزيارة لنفس الفرع واحتسابها على Deepal و Changan.':'Visit saved for the same branch and counted for Deepal and Changan.')
+            : (state.currentLang==='ar'?'تم حفظ الزيارة بنجاح.':'Visit saved successfully.');
+        setMessage('visitMessage', groupMessage);
         setAlert('visitError'); clearVisitForm();
       } catch(err){ setAlert('visitError', err.message || String(err)); }
     }
