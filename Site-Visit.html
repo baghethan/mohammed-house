@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.5.9.4</title>
+  <title>Site-Visit-v1.5.9.10 - Visit Date vs Checklist Save Fix</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -66,7 +66,7 @@
           <button class="btn small" id="langArBtn">AR</button>
           <button class="btn small" id="langEnBtn">EN</button>
         </div>
-        <span class="chip">v1.5.9.4</span>
+        <span class="chip">v1.5.9.10</span>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
@@ -96,7 +96,7 @@
       <div class="grid-2">
         <div class="card">
           <h3 data-i18n="latestChecklists">أحدث سجلات Check-List</h3>
-          <div class="table-wrap"><table><thead><tr><th data-i18n="visitDate">تاريخ الزيارة</th><th data-i18n="technician">الفني</th><th>Brand</th><th>Branch ID</th><th data-i18n="manager">مدير الفرع</th></tr></thead><tbody id="latestChecklistBody"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>تاريخ زيارة الفني</th><th>تاريخ الخطة طلب من المشرف</th><th>Brand</th><th>Branch ID</th><th>City | Location</th></tr></thead><tbody id="latestChecklistBody"></tbody></table></div>
         </div>
         <div class="card">
           <h3 data-i18n="latestBrands">قائمة الفنيين زيارة</h3>
@@ -177,6 +177,7 @@
             </div></div>
             <div class="field" style="grid-column:1/-1"><label>28- Service Report Summary</label><textarea id="cl_q28"></textarea></div>
             <div class="field"><label>29- Upgrade Windows 10 to 11</label><select id="cl_q29"><option></option><option>Yes</option><option>No</option><option>Other</option></select></div>
+            <div class="field hidden" id="cl_q29_count_wrap"><label>29A- Number of devices</label><input id="cl_q29_device_count" type="number" min="1" placeholder="0"></div>
           </div>
 
           <div class="actions">
@@ -249,7 +250,7 @@
       <div class="grid-2">
         <div class="card">
           <h3 data-i18n="visitFormTitle">إدخال / تعديل زيارة</h3>
-          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني. وإذا كان الفرع من نوع <span class="rtl-en">Stellantis (Peugeot + Citroën)</span> فسيتم تسجيل الزيارة على نفس الفرع ولكن تُحتسب للبراندين <span class="rtl-en">Peugeot</span> و<span class="rtl-en">Citroën</span>. كما تم دعم تهجئات مختلفة لاسم <span class="rtl-en">Peugeot</span> مثل <span class="rtl-en">Peugedt / Peugot</span> حتى تظهر الأعداد بشكل صحيح في لوحة التحكم.</div>
+          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني. وإذا كان الفرع من نوع <span class="rtl-en">Stellantis (Peugeot + Citroën)</span> فسيتم تسجيل الزيارة على نفس الفرع ولكن تُحتسب للبراندين <span class="rtl-en">Peugeot</span> و<span class="rtl-en">Citroën</span>. كذلك تم تفعيل منطق <span class="rtl-en">Shared Branch</span> لبراندي <span class="rtl-en">Changan</span> و<span class="rtl-en">Deepal</span> بحيث إذا سُجلت الزيارة على أحدهما تُحتسب للآخر داخل لوحة التحكم. كما تم دعم تهجئات مختلفة لاسم <span class="rtl-en">Peugeot</span> مثل <span class="rtl-en">Peugedt / Peugot</span> حتى تظهر الأعداد بشكل صحيح في لوحة التحكم.</div>
           <input type="hidden" id="editingVisitId">
           <div class="grid-3">
             <div class="field"><label data-i18n="branch">الفرع</label><select id="visitBranch"></select></div>
@@ -399,6 +400,11 @@
       currentUser:null, currentUserProfile:null, previewData:'', currentLang:'ar'
     };
 
+    const APP_VERSION = 'v1.5.9.10';
+    const SHARED_BRAND_GROUPS = [
+      { id:'changan_deepal', brands:['changan','deepal'] }
+    ];
+
     let unsub = { branches:null, technicians:null, visits:null, checklists:null, brands:null, users:null };
     const $ = id => document.getElementById(id);
 
@@ -524,7 +530,16 @@
     }
     function renderBrandsDatalist(){ $('brandsDatalist').innerHTML = state.brands.map(b => `<option value="${esc(b.brand || b.nameEn || b.nameAr || b.key || '')}"></option>`).join(''); }
 
-    function renderLatestChecklistTable(){ $('latestChecklistBody').innerHTML = state.checklists.slice(0,10).map(r => `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.branchManager)}</td></tr>`).join('') || `<tr><td colspan="5">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`; }
+    function renderLatestChecklistTable(){
+      $('latestChecklistBody').innerHTML = state.checklists.slice(0,10).map(r => {
+        const branchMeta = resolveBranchMeta(r.branchId);
+        const technicianVisitDate = r.visitDate || r.technicianVisitDate || '';
+        const plannedDate = r.plannedVisitDate || r.requestedPlanDate || r.linkedVisitDate || '';
+        const city = r.city || branchMeta.city || '-';
+        const location = r.locationSite || r.location || branchMeta.location || branchMeta.branchName || '-';
+        return `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(technicianVisitDate)}</td><td>${esc(plannedDate)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(city)} | ${esc(location)}</td></tr>`;
+      }).join('') || `<tr><td colspan="5">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`;
+    }
     function renderChecklistTable(){
       const q=($('checklistSearch').value||'').trim().toLowerCase();
       const rows=state.checklists.filter(r => !q || [r.brand,r.branchId,r.locationSite,r.branchManager,r.technicianName].some(v => String(v||'').toLowerCase().includes(q)));
@@ -657,21 +672,49 @@
       $('cl_visit_date').value = visit.date || '';
       updateMonthFromVisitDate();
     }
+    function toggleUpgradeDeviceCount(){
+      const show = $('cl_q29').value === 'Yes';
+      $('cl_q29_count_wrap').classList.toggle('hidden', !show);
+      if(!show) $('cl_q29_device_count').value = '';
+    }
+    function resolveBranchMeta(branchId){
+      const branch = state.branches.find(b => String(b.id) === String(branchId));
+      return {
+        city: branch?.city || '',
+        location: branch?.location || '',
+        branchName: branch?.branchName || ''
+      };
+    }
 
     function normalizeVisitBrandToken(v){ return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
     function canonicalBrandToken(v){
       const token = normalizeVisitBrandToken(v);
       if(['peugeot','peugot','peugedt','peugotksa','peugeotksa'].includes(token)) return 'peugeot';
       if(['citroen','citron','citroenksa'].includes(token)) return 'citroen';
+      if(['changan','changanauto','changansa','shangan','shanjan','chnagan','شنجان','شانجان'].includes(token)) return 'changan';
+      if(['deepal','deepl','dpal','ديبال','ديبل'].includes(token)) return 'deepal';
       if(token.includes('peugeot') || token.includes('peugot') || token.includes('peugedt')) return 'peugeot';
       if(token.includes('citroen') || token.includes('citron')) return 'citroen';
+      if(token.includes('deepal')) return 'deepal';
+      if(token.includes('changan')) return 'changan';
       if(token.includes('stellantis')) return 'stellantis';
       return token;
+    }
+    function getSharedBrandTokens(brandName, brandKey){
+      const base = canonicalBrandToken(brandKey || brandName);
+      const related = new Set(base ? [base] : []);
+      SHARED_BRAND_GROUPS.forEach(group => {
+        const members = (group.brands || []).map(canonicalBrandToken).filter(Boolean);
+        if(base && members.includes(base)) members.forEach(x => related.add(x));
+      });
+      return related;
     }
     function getCanonicalBrandDisplay(v){
       const token = canonicalBrandToken(v);
       if(token === 'peugeot') return 'Peugeot';
       if(token === 'citroen') return 'Citroën';
+      if(token === 'changan') return 'Changan';
+      if(token === 'deepal') return 'Deepal';
       return v || '';
     }
     function isStellantisCompoundBranch(branch){
@@ -693,10 +736,10 @@
     function shouldCountVisitForBrand(visit, brandName, brandKey){
       const visitBrand = canonicalBrandToken(visit?.brand);
       const visitBrandKey = canonicalBrandToken(visit?.brandKey);
-      const targetName = canonicalBrandToken(brandName);
-      const targetKey = canonicalBrandToken(brandKey);
-      if((targetName && visitBrand === targetName) || (targetKey && visitBrandKey === targetKey)) return true;
-      if(isLegacyStellantisVisit(visit) && ['peugeot','citroen'].includes(targetName || targetKey)) return true;
+      const relatedTargets = getSharedBrandTokens(brandName, brandKey);
+      if((visitBrand && relatedTargets.has(visitBrand)) || (visitBrandKey && relatedTargets.has(visitBrandKey))) return true;
+      const primaryTarget = canonicalBrandToken(brandKey || brandName);
+      if(isLegacyStellantisVisit(visit) && ['peugeot','citroen'].includes(primaryTarget)) return true;
       return false;
     }
     function fillVisitFromBranch(){ const b = state.branches.find(x=>x.id === $('visitBranch').value); if(!b) return; $('visitBrand').value=getVisitBrandDisplay(b); $('visitBranchId').value=b.id||''; $('visitLocation').value=b.location||b.city||b.branchName||''; }
@@ -706,9 +749,11 @@
 
     function clearChecklistForm(){
       $('editingChecklistId').value='';
-      ['cl_technician_id','cl_technician_email','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_branch_manager','cl_visit_date','cl_month','cl_users_count','cl_q20','cl_q28'].forEach(id=>$(id).value='');
+      ['cl_technician_id','cl_technician_email','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_branch_manager','cl_visit_date','cl_month','cl_users_count','cl_q20','cl_q28','cl_q29_device_count'].forEach(id=>$(id).value='');
       ['cl_technician','cl_visit_ref','cl_visit_scheduled','cl_calendar_booked','cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id=>$(id).value='');
+      $('cl_q29_count_wrap').classList.add('hidden');
       document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=false);
+      $('saveChecklistBtn').disabled = false;
       $('deleteChecklistBtn').classList.add('hidden'); setMessage('checklistMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('checklistError'); populateVisitsForTechnician();
     }
     function clearBrandForm(){ $('editingBrandId').value=''; ['brandNameAr','brandNameEn','brandKey','brandLogoUrl','brandNotes'].forEach(id=>$(id).value=''); $('brandLogoFile').value=''; setPreview(''); $('deleteBrandBtn').classList.add('hidden'); setMessage('brandMessage', state.currentLang==='ar'?'يمكنك إضافة براند جديد مع صورته أو تعديل براند موجود.':'You can add or edit a brand.'); setAlert('brandsError'); }
@@ -726,19 +771,36 @@
     }
 
     async function saveChecklist(){
+      const saveBtn = $('saveChecklistBtn');
+      if(saveBtn.disabled) return;
       try{
+        saveBtn.disabled = true;
         const techDoc = state.technicians.find(t => t.id === $('cl_technician').value) || null;
         const linkedVisit = state.visits.find(v => v.id === $('cl_visit_ref').value) || null;
+        const branchId = $('cl_branch_id').value.trim() || linkedVisit?.branchId || '';
+        const branchMeta = resolveBranchMeta(branchId);
+        const upgradeAnswer = $('cl_q29').value;
+        const upgradeDeviceCount = $('cl_q29_device_count').value ? Number($('cl_q29_device_count').value) : null;
+        if(upgradeAnswer === 'Yes' && (!upgradeDeviceCount || upgradeDeviceCount < 1)) throw new Error(state.currentLang==='ar'?'إذا كانت الإجابة نعم في السؤال 29، أدخل عدد الأجهزة.':'If question 29 is Yes, enter the number of devices.');
+
         const payload = {
           technicianId: techDoc?.authUid || techDoc?.id || '',
           technicianDocId: techDoc?.id || '',
           technicianName: techDoc?.name || '',
           technicianEmail: techDoc?.email || '',
           linkedVisitId: linkedVisit?.id || '',
+          linkedVisitDate: linkedVisit?.date || '',
+          plannedVisitDate: linkedVisit?.date || '',
+          requestedPlanDate: linkedVisit?.date || '',
+          technicianVisitDate: $('cl_visit_date').value,
+          checklistSavedDate: new Date().toISOString().slice(0,10),
+          checklistSavedAt: Timestamp.now(),
           brand: $('cl_brand').value.trim(),
           brandKey: $('cl_brandKey').value.trim() || makeBrandKey(),
-          branchId: $('cl_branch_id').value.trim(),
-          locationSite: $('cl_location').value.trim(),
+          branchId,
+          city: branchMeta.city,
+          location: branchMeta.location,
+          locationSite: $('cl_location').value.trim() || branchMeta.location || branchMeta.branchName || '',
           visitScheduledWithBranchManager: $('cl_visit_scheduled').value,
           branchManager: $('cl_branch_manager').value.trim(),
           visitDate: $('cl_visit_date').value,
@@ -748,23 +810,70 @@
           q10_networkCabinetsCondition: $('cl_q10').value, q11_lowCurrentInfrastructure: $('cl_q11').value, q12_uploadSpeed: $('cl_q12').value, q13_downloadSpeed: $('cl_q13').value, q14_serverRoomTemperature: $('cl_q14').value, q15_upsStatus: $('cl_q15').value,
           q16_pcCondition: $('cl_q16').value, q17_printersCondition: $('cl_q17').value, q18_unifiedCommunication: $('cl_q18').value, q19_unusedDamagedAssets: $('cl_q19').value, q20_assetReport: $('cl_q20').value.trim(),
           q22_osUpToDate: $('cl_q22').value, q23_cleanup: $('cl_q23').value, q24_oneDriveBackup: $('cl_q24').value, q25_customerFacingPortals: $('cl_q25').value, q26_erpBusinessApps: $('cl_q26').value,
-          q27_trainingRequirement: [...document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]:checked')].map(cb=>cb.value), q28_serviceReportSummary: $('cl_q28').value.trim(), q29_upgradeWindows10To11: $('cl_q29').value,
+          q27_trainingRequirement: [...document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]:checked')].map(cb=>cb.value), q28_serviceReportSummary: $('cl_q28').value.trim(), q29_upgradeWindows10To11: upgradeAnswer,
+          q29_upgradeWindows10To11DeviceCount: upgradeAnswer === 'Yes' ? upgradeDeviceCount : null,
           updatedAt: Timestamp.now()
         };
         if(!payload.technicianId) throw new Error(state.currentLang==='ar'?'اختر الفني أولاً.':'Choose technician first.');
         if(!payload.brand || !payload.branchId || !payload.locationSite || !payload.visitDate) throw new Error(state.currentLang==='ar'?'أكمل الحقول الأساسية المطلوبة.':'Complete required fields.');
-        const editId = $('editingChecklistId').value.trim();
-        if(editId) await setDoc(doc(db,'branch_checklists',editId), payload, {merge:true}); else await addDoc(collection(db,'branch_checklists'), { ...payload, createdAt: Timestamp.now() });
+
+        let targetId = $('editingChecklistId').value.trim();
+        if(!targetId && payload.linkedVisitId){
+          const existingByVisit = state.checklists.find(r => String(r.linkedVisitId || '') === String(payload.linkedVisitId));
+          if(existingByVisit?.id) targetId = existingByVisit.id;
+        }
+        if(!targetId){
+          const existingByNaturalKey = state.checklists.find(r =>
+            String(r.technicianDocId || '') === String(payload.technicianDocId || '') &&
+            String(r.branchId || '') === String(payload.branchId || '') &&
+            String(r.visitDate || '') === String(payload.visitDate || '')
+          );
+          if(existingByNaturalKey?.id) targetId = existingByNaturalKey.id;
+        }
+
+        if(targetId) await setDoc(doc(db,'branch_checklists',targetId), payload, {merge:true});
+        else await addDoc(collection(db,'branch_checklists'), { ...payload, createdAt: Timestamp.now() });
+
         if(payload.linkedVisitId){
           await setDoc(doc(db,'siteVisits', payload.linkedVisitId), { status:'completed', checklistCompleted:true, checklistCompletedAt: Timestamp.now(), updatedAt: Timestamp.now() }, {merge:true});
         }
-        setMessage('checklistMessage', state.currentLang==='ar'?'تم حفظ Check-List وتحديث حالة الزيارة إلى مكتمل.':'Check-List saved and visit status updated to completed.');
+        setMessage('checklistMessage', targetId ? (state.currentLang==='ar'?'تم تحديث Check-List بنجاح بدون تكرار.':'Check-List updated successfully without duplication.') : (state.currentLang==='ar'?'تم حفظ Check-List وتحديث حالة الزيارة إلى مكتمل.':'Check-List saved and visit status updated to completed.'));
         setAlert('checklistError');
         clearChecklistForm();
-      } catch(err){ setAlert('checklistError', err.message || String(err)); }
+      } catch(err){
+        setAlert('checklistError', err.message || String(err));
+      } finally {
+        saveBtn.disabled = false;
+      }
     }
     async function deleteChecklistById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف السجل؟':'Delete this record?')) return; await deleteDoc(doc(db,'branch_checklists',id)); clearChecklistForm(); } catch(err){ setAlert('checklistError', err.message || String(err)); } }
-    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.visitDate||''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
+    window.openChecklistForEdit = function(id){
+      const x = state.checklists.find(r=>r.id===id); if(!x) return;
+      $('editingChecklistId').value=x.id;
+      $('cl_technician').value=x.technicianDocId || x.technicianId || '';
+      populateVisitsForTechnician();
+      $('cl_technician_id').value=x.technicianId||'';
+      $('cl_technician_email').value=x.technicianEmail||'';
+      $('cl_visit_ref').value=x.linkedVisitId||'';
+      $('cl_brand').value=x.brand||'';
+      $('cl_brandKey').value=x.brandKey||'';
+      $('cl_branch_id').value=x.branchId||'';
+      $('cl_location').value=x.locationSite||x.location||'';
+      $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||'';
+      $('cl_branch_manager').value=x.branchManager||'';
+      $('cl_visit_date').value=x.technicianVisitDate || x.visitDate || '';
+      $('cl_month').value=x.month||'';
+      if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||'';
+      $('cl_users_count').value=x.numberOfUsers ?? '';
+      ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || '');
+      $('cl_q29_device_count').value = x.q29_upgradeWindows10To11DeviceCount ?? '';
+      toggleUpgradeDeviceCount();
+      $('cl_q20').value=x.q20_assetReport||'';
+      $('cl_q28').value=x.q28_serviceReportSummary||'';
+      document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value));
+      $('deleteChecklistBtn').classList.remove('hidden');
+      activateTab('checklist');
+    };
 
     function loadSelectedTechnician(){
       const id = $('technicianSelector')?.value || '';
@@ -944,7 +1053,7 @@
       $('cl_technician').addEventListener('change', populateVisitsForTechnician);
       $('cl_visit_ref').addEventListener('change', ()=> fillChecklistFromVisit(state.visits.find(v=>v.id === $('cl_visit_ref').value)));
       $('cl_branch_id').addEventListener('blur', autoFillFromBranchId);
-      $('cl_visit_date').addEventListener('change', updateMonthFromVisitDate);
+      $('cl_visit_date').addEventListener('change', updateMonthFromVisitDate); $('cl_q29').addEventListener('change', toggleUpgradeDeviceCount);
       $('saveChecklistBtn').addEventListener('click', saveChecklist);
       $('clearChecklistBtn').addEventListener('click', clearChecklistForm);
       $('deleteChecklistBtn').addEventListener('click', ()=>deleteChecklistById($('editingChecklistId').value.trim()));
@@ -984,7 +1093,7 @@
       }
     });
 
-    attachListeners(); applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); renderLatestBrands(); renderDashboardBrandBoxes();
+    attachListeners(); const versionChip = document.querySelector('header .chip'); if(versionChip) versionChip.textContent = APP_VERSION; applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); renderLatestBrands(); renderDashboardBrandBoxes(); toggleUpgradeDeviceCount();
   </script>
 </body>
 </html>
