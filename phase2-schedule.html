@@ -441,11 +441,11 @@
             <h3>بيانات المستخدم</h3>
             <div class="permissions-form-grid">
               <div class="field"><label for="userUid">UID</label><input id="userUid" type="text" placeholder="أدخل UID"></div>
+              <div class="field"><label for="userName">Name</label><input id="userName" type="text" placeholder="أدخل الاسم"></div>
               <div class="field"><label for="userEmail">Email</label><input id="userEmail" type="email" placeholder="أدخل البريد الإلكتروني"></div>
               <div class="field"><label for="userRole">Role</label><select id="userRole"><option value="admin">Admin</option><option value="supervisor">Supervisor</option><option value="technician">Technician</option><option value="user">User</option></select></div>
               <div class="field"><label>Active</label><div class="switch-box-inline"><span id="userActiveLabel">نشط</span><label class="switch"><input type="checkbox" id="userActiveSwitch" checked><span class="slider"></span></label></div></div>
               <div class="field"><label for="userTechnicianId">Technician ID / Code</label><input id="userTechnicianId" type="text" placeholder="أدخل رقم أو كود الفني"></div>
-              <div class="field"><label for="userName">User Name (اختياري)</label><input id="userName" type="text" placeholder="اسم المستخدم"></div>
             </div>
 
             <div class="permissions-role-banner">
@@ -492,6 +492,7 @@
               <thead>
                 <tr>
                   <th>UID</th>
+                  <th>الاسم</th>
                   <th>Email</th>
                   <th>Role</th>
                   <th>Active</th>
@@ -1409,8 +1410,8 @@
     async function saveTechnician(){ try{ const docId=$('technicianDocId').value.trim(); if(!docId) throw new Error('Document ID / UID required'); const assignedBranch = state.branches.find(b => b.id === ($('techAssignBranch').value || '')) || null; const payload = { technicianCode:$('technicianCode').value.trim(), name:$('technicianNameInput').value.trim(), email:$('technicianEmail').value.trim(), authUid:$('technicianAuthUid').value.trim(), region:$('techAssignRegion').value.trim(), city:$('techAssignCity').value.trim(), brand:$('techAssignBrand').value.trim(), assignedBranchId:$('techAssignBranch').value || '', assignedBranchName: assignedBranch?.branchName || '', status:$('technicianStatus').value, updatedAt: Timestamp.now() }; await setDoc(doc(db,'technicians',docId), payload, {merge:true}); setMessage('technicianMessage', state.currentLang==='ar'?'تم حفظ الفني مع نطاق الزيارة.':'Technician saved with visit scope.'); setAlert('technicianError'); clearTechnicianForm(); } catch(err){ setAlert('technicianError', err.message || String(err)); } }
     async function saveUser(){ try{ const uid=$('userUid').value.trim(); if(!uid) throw new Error('UID required'); const role = $('userRole').value; const pages = collectSelectedPermissionPages(); if(!pages.length) throw new Error(state.currentLang === 'ar' ? 'اختر صفحة واحدة على الأقل.' : 'Select at least one page.'); if(role === 'technician' && !$('userTechnicianId').value.trim()) throw new Error(state.currentLang === 'ar' ? 'أدخل Technician ID عند اختيار دور الفني.' : 'Enter Technician ID for technician role.'); const payload = { email:$('userEmail').value.trim(), role, active:$('userActiveSwitch').checked, technicianId:$('userTechnicianId').value.trim(), name:$('userName')?.value.trim() || '', pages, updatedAt: Timestamp.now() }; await setDoc(doc(db,'app_users',uid), payload, {merge:true}); setMessage('permissionsMessage', state.currentLang==='ar' ? 'تم حفظ بيانات المستخدم والصلاحيات بنجاح.' : 'User data and permissions saved successfully.'); setAlert('permissionsError'); clearUserForm(); } catch(err){ setAlert('permissionsError', err.message || String(err)); } }
 
-    function renderUsersTable(){ $('usersTableBody').innerHTML = state.users.map(u=>`<tr class="clickable" onclick="window.openUserForEdit('${u.id}')"><td>${esc(u.id)}</td><td>${esc(u.email)}</td><td>${esc(u.role)}</td><td>${String(!!u.active)}</td><td>${esc(u.technicianId)}</td><td>${Array.isArray(u.pages) ? u.pages.length : 0}</td></tr>`).join('') || `<tr><td colspan="6">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`; }
-    window.openUserForEdit = function(id){ const u=state.users.find(x=>x.id===id); if(!u) return; $('userUid').value=u.id||''; $('userEmail').value=u.email||''; $('userRole').value=u.role||'user'; $('userTechnicianId').value=u.technicianId||''; if($('userName')) $('userName').value=u.name||''; $('userActiveSwitch').checked=!!u.active; updateUserActiveLabel(); const config = permissionRoleDefaults[u.role] || permissionRoleDefaults.user; $('permissionRoleTitle').textContent = config.title; $('permissionRoleDescription').textContent = config.description; applySelectedPagesToUI(Array.isArray(u.pages) && u.pages.length ? u.pages : config.pages); activateTab('permissions', true); };
+    function renderUsersTable(){ $('usersTableBody').innerHTML = state.users.map(u=>`<tr class="clickable" onclick="window.openUserForEdit('${u.id}')"><td>${esc(u.id)}</td><td>${esc(u.name || '-')}</td><td>${esc(u.email)}</td><td>${esc(u.role)}</td><td>${String(!!u.active)}</td><td>${esc(u.technicianId)}</td><td>${Array.isArray(u.pages) ? u.pages.length : 0}</td></tr>`).join('') || `<tr><td colspan="7">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`; }
+    window.openUserForEdit = function(id){ const u=state.users.find(x=>x.id===id); if(!u) return; $('userUid').value=u.id||''; $('userName').value=u.name||''; $('userEmail').value=u.email||''; $('userRole').value=u.role||'user'; $('userTechnicianId').value=u.technicianId||''; $('userActiveSwitch').checked=!!u.active; updateUserActiveLabel(); const config = permissionRoleDefaults[u.role] || permissionRoleDefaults.user; $('permissionRoleTitle').textContent = config.title; $('permissionRoleDescription').textContent = config.description; applySelectedPagesToUI(Array.isArray(u.pages) && u.pages.length ? u.pages : config.pages); activateTab('permissions', true); };
 
     function runReport(){
       setAlert('reportsError');
