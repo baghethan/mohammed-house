@@ -40,7 +40,32 @@
     .switcher{display:flex;gap:8px;align-items:center}
     .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef5ff;color:#295fa5;font-size:12px;font-weight:700}
     @media (max-width:1200px){.grid-2,.grid-3,.grid-4,.stats,.brand-grid{grid-template-columns:1fr}}
-  </style>
+  
+  /* ===== Permissions Integrated UI ===== */
+  .permissions-wrap{display:grid;gap:16px}
+  .permissions-hero{background:linear-gradient(135deg,var(--primary),#1a6aa8);color:#fff;padding:18px 20px;border-radius:18px;box-shadow:var(--shadow)}
+  .permissions-hero h3{margin:0 0 8px;font-size:22px;color:#fff;background:none;padding:0}
+  .permissions-hero p{margin:0;line-height:1.8;opacity:.96}
+  .permissions-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .permissions-role-banner{margin-top:16px;border:1px dashed #bfd4e8;background:#f5faff;border-radius:14px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .permissions-role-banner strong{color:var(--primary-2);font-size:16px}
+  .permissions-role-banner small{display:block;color:var(--muted);margin-top:4px;line-height:1.7}
+  .permissions-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .permissions-toolbar .toolbar-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .permissions-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .permission-card{border:1px solid var(--border);border-radius:16px;padding:16px;background:#fff;transition:.2s ease}
+  .permission-card:hover{border-color:var(--primary);box-shadow:0 8px 18px rgba(15,76,129,.06)}
+  .permission-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+  .permission-head h4{margin:0;font-size:16px;color:var(--text)}
+  .permission-head p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.6}
+  .permission-line{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:14px}
+  .permission-line input[type="checkbox"]{width:18px;height:18px;accent-color:var(--primary);cursor:pointer}
+  .switch-box-inline{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:#fbfcfe;min-height:44px}
+  .switch-box-inline span{font-size:14px;color:var(--muted)}
+  .permissions-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  @media (max-width:768px){.permissions-form-grid,.permissions-grid{grid-template-columns:1fr}.permissions-role-banner,.permissions-toolbar,.permissions-footer{flex-direction:column;align-items:stretch}}
+
+</style>
 </head>
 <body>
   <div class="overlay" id="loginOverlay">
@@ -402,24 +427,83 @@
     </section>
 
     <section id="permissions" class="panel">
-      <div class="grid-2">
-        <div class="card">
-          <h3 data-i18n="permissionsTitle">إدارة الصلاحيات (app_users)</h3>
-          <div class="grid-3">
-            <div class="field"><label>UID</label><input id="userUid"></div>
-            <div class="field"><label>Email</label><input id="userEmail"></div>
-            <div class="field"><label>Role</label><select id="userRole"><option value="admin">admin</option><option value="technician">technician</option><option value="user">user</option></select></div>
-            <div class="field"><label>Active</label><select id="userActive"><option value="true">true</option><option value="false">false</option></select></div>
-            <div class="field"><label>technicianId / code</label><input id="userTechnicianId"></div>
-          </div>
-          <div class="actions">
-            <button class="btn green" id="saveUserBtn" data-i18n="savePermissions">حفظ الصلاحيات</button>
-            <button class="btn" id="clearUserBtn" data-i18n="clearForm">تنظيف النموذج</button>
-          </div>
-          <div class="note" id="permissionsMessage">هذا التبويب يحتاج Admin حسب قواعدك الحالية.</div>
-          <div id="permissionsError" class="alert error hidden"></div>
+      <div class="permissions-wrap">
+        <div class="permissions-hero">
+          <h3>إدارة الصلاحيات</h3>
+          <p>
+            داخل صفحة <strong>app_users</strong> يتم عرض بيانات المستخدم الأساسية، ثم تحديد
+            التبويبات والصفحات التي يمكن للمستخدم الوصول إليها أو استخدامها بناءً على <strong>Role</strong> المختار.
+          </p>
         </div>
-        <div class="card"><h3 data-i18n="usersCurrent">المستخدمون الحاليون</h3><div class="table-wrap"><table><thead><tr><th>UID</th><th>Email</th><th>Role</th><th>Active</th><th>technicianId</th></tr></thead><tbody id="usersTableBody"></tbody></table></div></div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h3>بيانات المستخدم</h3>
+            <div class="permissions-form-grid">
+              <div class="field"><label for="userUid">UID</label><input id="userUid" type="text" placeholder="أدخل UID"></div>
+              <div class="field"><label for="userName">Name</label><input id="userName" type="text" placeholder="أدخل الاسم"></div>
+              <div class="field"><label for="userEmail">Email</label><input id="userEmail" type="email" placeholder="أدخل البريد الإلكتروني"></div>
+              <div class="field"><label for="userRole">Role</label><select id="userRole"><option value="admin">Admin</option><option value="supervisor">Supervisor</option><option value="technician">Technician</option><option value="user">User</option></select></div>
+              <div class="field"><label>Active</label><div class="switch-box-inline"><span id="userActiveLabel">نشط</span><label class="switch"><input type="checkbox" id="userActiveSwitch" checked><span class="slider"></span></label></div></div>
+              <div class="field"><label for="userTechnicianId">Technician ID / Code</label><input id="userTechnicianId" type="text" placeholder="أدخل رقم أو كود الفني"></div>
+            </div>
+
+            <div class="permissions-role-banner">
+              <div>
+                <strong id="permissionRoleTitle">الدور الحالي: User</strong>
+                <small id="permissionRoleDescription">سيتم تحميل الصفحات الافتراضية حسب الدور، ويمكن التعديل يدويًا عند الحاجة.</small>
+              </div>
+              <div class="toolbar-actions">
+                <button class="btn" id="applyUserRoleBtn" type="button">تحميل صفحات الدور</button>
+                <button class="btn warning" id="resetUserRoleBtn" type="button">إعادة تحميل صلاحيات الدور</button>
+              </div>
+            </div>
+
+            <div class="note" id="permissionsMessage">هذا التبويب يحتاج Admin حسب قواعدك الحالية.</div>
+            <div id="permissionsError" class="alert error hidden"></div>
+          </div>
+
+          <div class="card">
+            <h3>التبويبات المسموح بها</h3>
+            <div class="permissions-toolbar">
+              <div class="toolbar-actions">
+                <button class="btn" id="selectAllPermissionPagesBtn" type="button">تحديد كل الصفحات</button>
+                <button class="btn" id="clearPermissionPagesBtn" type="button">إلغاء كل الصفحات</button>
+              </div>
+              <div class="note" style="margin:0;flex:1">عند تغيير الـ Role يمكنك تحميل الصفحات الافتراضية له ثم التعديل يدويًا.</div>
+            </div>
+
+            <div class="permissions-grid" id="permissionPagesGrid" style="margin-top:14px"></div>
+
+            <div class="permissions-footer" style="margin-top:18px">
+              <div class="note" style="margin:0;flex:1">بعد الحفظ سيتم تطبيق نفس الصلاحيات على التبويبات والانتقال الداخلي داخل التطبيق.</div>
+              <div class="toolbar-actions">
+                <button class="btn green" id="saveUserBtn" type="button">حفظ البيانات والصلاحيات</button>
+                <button class="btn" id="clearUserBtn" type="button">تنظيف النموذج</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>المستخدمون الحاليون</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>UID</th>
+                  <th>الاسم</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Active</th>
+                  <th>technicianId</th>
+                  <th>عدد الصفحات</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -447,6 +531,42 @@
     const state = {
       branches:[], technicians:[], visits:[], checklists:[], brands:[], users:[], windowsUpgrades:[],
       currentUser:null, currentUserProfile:null, previewData:'', currentLang:'ar'
+    };
+
+
+    const permissionPages = [
+      { key: 'dashboard', name: 'لوحة التحكم', description: 'الصفحة الرئيسية ومؤشرات النظام' },
+      { key: 'checklist', name: 'Check-List', description: 'قوائم الفحص والمهام الميدانية' },
+      { key: 'brands', name: 'البراندات', description: 'إدارة البراندات والشعارات' },
+      { key: 'upgradeWindows', name: 'Upgrade Windows', description: 'ترقية ومتابعة أجهزة ويندوز' },
+      { key: 'reports', name: 'التقارير', description: 'التقارير والمتابعة' },
+      { key: 'visit', name: 'إدخال زيارة', description: 'تسجيل وإدارة الزيارات' },
+      { key: 'branches', name: 'إدارة الفروع', description: 'إدارة الفروع والمواقع' },
+      { key: 'technicians', name: 'إدارة الفنيين', description: 'إدارة بيانات الفنيين ونطاقاتهم' },
+      { key: 'permissions', name: 'الصلاحيات', description: 'إدارة الوصول والصلاحيات' }
+    ];
+
+    const permissionRoleDefaults = {
+      admin: {
+        title: 'الدور الحالي: Admin',
+        description: 'يمتلك هذا الدور صلاحية مشاهدة واستخدام جميع الصفحات في النظام.',
+        pages: permissionPages.map(p => p.key)
+      },
+      supervisor: {
+        title: 'الدور الحالي: Supervisor',
+        description: 'يمتلك هذا الدور صلاحيات إشرافية على الصفحات التشغيلية والتقارير مع استثناء بعض صفحات الإدارة الحساسة.',
+        pages: ['dashboard', 'checklist', 'upgradeWindows', 'reports', 'visit', 'branches', 'technicians']
+      },
+      technician: {
+        title: 'الدور الحالي: Technician',
+        description: 'سيتم تفعيل الصفحات المخصصة للفني ويمكن تعديلها يدويًا إذا لزم الأمر.',
+        pages: ['dashboard', 'checklist', 'upgradeWindows', 'visit']
+      },
+      user: {
+        title: 'الدور الحالي: User',
+        description: 'صلاحيات محدودة للاطلاع والتنفيذ الأساسي فقط.',
+        pages: ['dashboard', 'reports']
+      }
     };
 
     const APP_VERSION = 'v1.5.9.11';
@@ -520,7 +640,142 @@
       return null;
     }
 
-    function activateTab(tabId){
+    function updateUserActiveLabel(){
+      const activeSwitch = $('userActiveSwitch');
+      const label = $('userActiveLabel');
+      if(!activeSwitch || !label) return;
+      label.textContent = activeSwitch.checked ? 'نشط' : 'غير نشط';
+    }
+
+    function getDefaultPagesForRole(role){
+      return [...(permissionRoleDefaults[role]?.pages || [])];
+    }
+
+    function renderPermissionPages(selectedPages = []){
+      const grid = $('permissionPagesGrid');
+      if(!grid) return;
+      const selected = new Set(selectedPages || []);
+      grid.innerHTML = permissionPages.map(page => `
+        <div class="permission-card">
+          <div class="permission-head">
+            <div>
+              <h4>${esc(page.name)}</h4>
+              <p>${esc(page.description)}</p>
+            </div>
+          </div>
+          <label class="permission-line">
+            <input type="checkbox" class="permission-page-checkbox" data-page="${esc(page.key)}" ${selected.has(page.key) ? 'checked' : ''}>
+            <span>مشاهدة / استخدام الصفحة</span>
+          </label>
+        </div>
+      `).join('');
+    }
+
+    function collectSelectedPermissionPages(){
+      return [...document.querySelectorAll('.permission-page-checkbox:checked')].map(el => el.dataset.page);
+    }
+
+    function applySelectedPagesToUI(pages = []){
+      renderPermissionPages(pages);
+    }
+
+    function applyRoleDefaultsToPermissionForm(){
+      const role = $('userRole')?.value || 'user';
+      const config = permissionRoleDefaults[role] || permissionRoleDefaults.user;
+      if($('permissionRoleTitle')) $('permissionRoleTitle').textContent = config.title;
+      if($('permissionRoleDescription')) $('permissionRoleDescription').textContent = config.description;
+      applySelectedPagesToUI(config.pages);
+    }
+
+    function applyPagePermissions(allowedPages = []){
+      const allowed = new Set((allowedPages || []).filter(Boolean));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        const tab = btn.dataset.tab;
+        btn.classList.toggle('hidden', !allowed.has(tab));
+      });
+      document.querySelectorAll('.panel').forEach(panel => {
+        panel.classList.toggle('hidden', !allowed.has(panel.id));
+        if(!allowed.has(panel.id)) panel.classList.remove('active');
+      });
+      const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
+      if(!activeTab || !allowed.has(activeTab)){
+        const firstAllowed = permissionPages.find(p => allowed.has(p.key));
+        if(firstAllowed) activateTab(firstAllowed.key, true);
+      }
+    }
+
+    function getCurrentTechnicianIdentity(){
+      const profile = state.currentUserProfile || {};
+      const user = state.currentUser || {};
+      const normalize = v => String(v || '').trim().toLowerCase();
+      const keys = new Set([
+        normalize(profile.technicianId),
+        normalize(user.uid),
+        normalize(user.email)
+      ].filter(Boolean));
+
+      const matchedTech = state.technicians.find(t => [
+        normalize(t.id),
+        normalize(t.technicianCode),
+        normalize(t.authUid),
+        normalize(t.email)
+      ].some(v => keys.has(v)));
+
+      [matchedTech?.id, matchedTech?.technicianCode, matchedTech?.authUid, matchedTech?.email].forEach(v => {
+        const normalized = normalize(v);
+        if(normalized) keys.add(normalized);
+      });
+
+      return {
+        role: profile.role || 'user',
+        keys,
+        matchedTechId: matchedTech?.id || ''
+      };
+    }
+
+    function isChecklistVisibleForCurrentUser(record){
+      const identity = getCurrentTechnicianIdentity();
+      if(identity.role === 'admin' || identity.role === 'supervisor') return true;
+      if(identity.role !== 'technician') return true;
+      const recordKeys = [
+        String(record?.technicianDocId || '').trim().toLowerCase(),
+        String(record?.technicianId || '').trim().toLowerCase(),
+        String(record?.technicianEmail || '').trim().toLowerCase()
+      ].filter(Boolean);
+      return recordKeys.some(k => identity.keys.has(k));
+    }
+
+    function canDeleteChecklistForCurrentUser(){
+      const role = state.currentUserProfile?.role || 'user';
+      return role === 'admin' || role === 'supervisor';
+    }
+
+    function lockChecklistTechnicianForCurrentUser(){
+      const technicianSelect = $('cl_technician');
+      if(!technicianSelect) return;
+      const identity = getCurrentTechnicianIdentity();
+      if(identity.role !== 'technician'){
+        technicianSelect.disabled = false;
+        return;
+      }
+      if(identity.matchedTechId){
+        technicianSelect.value = identity.matchedTechId;
+      }
+      technicianSelect.disabled = true;
+      populateVisitsForTechnician();
+    }
+
+    function getEffectivePagesForProfile(profile){
+      if(Array.isArray(profile?.pages) && profile.pages.length) return profile.pages;
+      return getDefaultPagesForRole(profile?.role || 'user');
+    }
+
+    function activateTab(tabId, force = false){
+      const allowed = force ? null : getEffectivePagesForProfile(state.currentUserProfile);
+      if(!force && Array.isArray(allowed) && allowed.length && !allowed.includes(tabId)){
+        alert(state.currentLang === 'ar' ? 'ليس لديك صلاحية الوصول لهذه الصفحة.' : 'You do not have permission to access this page.');
+        return;
+      }
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab === tabId));
       document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id === tabId));
     }
@@ -580,7 +835,8 @@
     function renderBrandsDatalist(){ $('brandsDatalist').innerHTML = state.brands.map(b => `<option value="${esc(b.brand || b.nameEn || b.nameAr || b.key || '')}"></option>`).join(''); }
 
     function renderLatestChecklistTable(){
-      $('latestChecklistBody').innerHTML = state.checklists.slice(0,10).map(r => {
+      const rows = state.checklists.filter(r => isChecklistVisibleForCurrentUser(r)).slice(0,10);
+      $('latestChecklistBody').innerHTML = rows.map(r => {
         const branchMeta = resolveBranchMeta(r.branchId);
         const technicianVisitDate = r.technicianVisitDate || r.visitDate || '';
         const checklistSavedDate = r.checklistSavedDate || '';
@@ -592,7 +848,7 @@
     }
     function renderChecklistTable(){
       const q=($('checklistSearch').value||'').trim().toLowerCase();
-      const rows=state.checklists.filter(r => !q || [r.brand,r.branchId,r.locationSite,r.branchManager,r.technicianName].some(v => String(v||'').toLowerCase().includes(q)));
+      const rows=state.checklists.filter(r => isChecklistVisibleForCurrentUser(r)).filter(r => !q || [r.brand,r.branchId,r.locationSite,r.branchManager,r.technicianName].some(v => String(v||'').toLowerCase().includes(q)));
       $('checklistTableBody').innerHTML = rows.map(r => `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.branchManager)}</td></tr>`).join('') || `<tr><td colspan="6">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`;
       renderLatestChecklistTable();
     }
@@ -613,6 +869,7 @@
       setOptions('cl_technician', techOptions, state.currentLang==='ar'?'اختر الفني':'Select technician');
       setOptions('visitTechnician', techOptions, state.currentLang==='ar'?'اختر الفني':'Select technician');
       setOptions('technicianSelector', techOptions, state.currentLang==='ar'?'اختر فني للتعديل':'Select technician to edit');
+      lockChecklistTechnicianForCurrentUser();
     }
 
     function normalizeMatchValue(v){ return String(v || '').trim().toLowerCase(); }
@@ -955,7 +1212,7 @@
     function clearVisitForm(){ $('editingVisitId').value=''; ['visitDate','visitBrand','visitBranchId','visitLocation','visitNotes'].forEach(id=>$(id).value=''); ['visitBranch','visitTechnician','visitStatus'].forEach((id,i)=>$(id).value = i===2 ? 'planned' : ''); renderBranchSelectors(); $('deleteVisitBtn').classList.add('hidden'); setMessage('visitMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('visitError'); }
     function clearBranchForm(){ ['branchId','branchName','branchBrand','branchType','branchRegion','branchCity','branchLocation','branchGps','branchContactShowroom','branchContactService','branchContactSpareParts','branchFunction'].forEach(id=>$(id).value=''); setMessage('branchMessage', state.currentLang==='ar'?'يمكنك البحث، رفع ملف Excel، تنزيل نسخة من البيانات الحالية أو حفظ فرع بشكل يدوي.':'You can filter, import Excel, export current data, or save a branch manually.'); setAlert('branchError'); }
     function clearTechnicianForm(){ ['technicianDocId','technicianCode','technicianNameInput','technicianEmail','technicianAuthUid'].forEach(id=>$(id).value=''); ['techAssignRegion','techAssignCity','techAssignBrand','techAssignBranch'].forEach(id=>$(id).value=''); if($('technicianSelector')) $('technicianSelector').value=''; $('technicianStatus').value='active'; populateTechnicianAssignmentOptions({region:'', city:'', brand:'', branchId:''}); setMessage('technicianMessage', state.currentLang==='ar'?'اختر الفني أولاً، ثم حدّد له Region / City / Brand / Branch Name واحفظ التعديل.':'Choose a technician first, then set Region / City / Brand / Branch Name and save.'); setAlert('technicianError'); }
-    function clearUserForm(){ ['userUid','userEmail','userTechnicianId'].forEach(id=>$(id).value=''); $('userRole').value='user'; $('userActive').value='true'; setMessage('permissionsMessage', state.currentLang==='ar'?'هذا التبويب يحتاج Admin حسب قواعدك الحالية.':'This tab requires admin according to your rules.'); setAlert('permissionsError'); }
+    function clearUserForm(){ ['userUid','userEmail','userTechnicianId','userName'].forEach(id => { if($(id)) $(id).value=''; }); if($('userRole')) $('userRole').value='user'; if($('userActiveSwitch')) $('userActiveSwitch').checked = true; updateUserActiveLabel(); applyRoleDefaultsToPermissionForm(); setMessage('permissionsMessage', state.currentLang==='ar' ? 'هذا التبويب يحتاج Admin حسب قواعدك الحالية.' : 'This tab requires admin according to your rules.'); setAlert('permissionsError'); }
 
     async function loginWithEmail(){
       const email=$('loginEmail').value.trim(), password=$('loginPassword').value;
@@ -1003,8 +1260,8 @@
       } catch(err){ setAlert('checklistError', err.message || String(err)); }
       finally { saveBtn.disabled = false; }
     }
-    async function deleteChecklistById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف السجل؟':'Delete this record?')) return; await deleteDoc(doc(db,'branch_checklists',id)); clearChecklistForm(); } catch(err){ setAlert('checklistError', err.message || String(err)); } }
-    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||x.location||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.technicianVisitDate || x.visitDate || ''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q29_device_count').value = x.q29_upgradeWindows10To11DeviceCount ?? ''; toggleUpgradeDeviceCount(); renderChecklistEmployeeIdInputs(x.q29_upgradeWindows10To11EmployeeIds || []); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
+    async function deleteChecklistById(id){ try{ if(!id) return; if(!canDeleteChecklistForCurrentUser()){ throw new Error(state.currentLang==='ar' ? 'غير مسموح لك بحذف هذا السجل.' : 'You are not allowed to delete this record.'); } if(!confirm(state.currentLang==='ar'?'هل تريد حذف السجل؟':'Delete this record?')) return; await deleteDoc(doc(db,'branch_checklists',id)); clearChecklistForm(); } catch(err){ setAlert('checklistError', err.message || String(err)); } }
+    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; if(!isChecklistVisibleForCurrentUser(x)){ alert(state.currentLang==='ar' ? 'ليس لديك صلاحية لعرض هذا السجل.' : 'You do not have permission to view this record.'); return; } $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||x.location||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.technicianVisitDate || x.visitDate || ''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q29_device_count').value = x.q29_upgradeWindows10To11DeviceCount ?? ''; toggleUpgradeDeviceCount(); renderChecklistEmployeeIdInputs(x.q29_upgradeWindows10To11EmployeeIds || []); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); if(canDeleteChecklistForCurrentUser()) $('deleteChecklistBtn').classList.remove('hidden'); else $('deleteChecklistBtn').classList.add('hidden'); activateTab('checklist'); };
 
     function loadSelectedTechnician(){
       const id = $('technicianSelector')?.value || '';
@@ -1151,10 +1408,10 @@
     }
 
     async function saveTechnician(){ try{ const docId=$('technicianDocId').value.trim(); if(!docId) throw new Error('Document ID / UID required'); const assignedBranch = state.branches.find(b => b.id === ($('techAssignBranch').value || '')) || null; const payload = { technicianCode:$('technicianCode').value.trim(), name:$('technicianNameInput').value.trim(), email:$('technicianEmail').value.trim(), authUid:$('technicianAuthUid').value.trim(), region:$('techAssignRegion').value.trim(), city:$('techAssignCity').value.trim(), brand:$('techAssignBrand').value.trim(), assignedBranchId:$('techAssignBranch').value || '', assignedBranchName: assignedBranch?.branchName || '', status:$('technicianStatus').value, updatedAt: Timestamp.now() }; await setDoc(doc(db,'technicians',docId), payload, {merge:true}); setMessage('technicianMessage', state.currentLang==='ar'?'تم حفظ الفني مع نطاق الزيارة.':'Technician saved with visit scope.'); setAlert('technicianError'); clearTechnicianForm(); } catch(err){ setAlert('technicianError', err.message || String(err)); } }
-    async function saveUser(){ try{ const uid=$('userUid').value.trim(); if(!uid) throw new Error('UID required'); const payload = { email:$('userEmail').value.trim(), role:$('userRole').value, active:$('userActive').value==='true', technicianId:$('userTechnicianId').value.trim(), updatedAt: Timestamp.now() }; await setDoc(doc(db,'app_users',uid), payload, {merge:true}); setMessage('permissionsMessage', state.currentLang==='ar'?'تم حفظ المستخدم.':'User saved.'); setAlert('permissionsError'); clearUserForm(); } catch(err){ setAlert('permissionsError', err.message || String(err)); } }
+    async function saveUser(){ try{ const uid=$('userUid').value.trim(); if(!uid) throw new Error('UID required'); const role = $('userRole').value; const pages = collectSelectedPermissionPages(); if(!pages.length) throw new Error(state.currentLang === 'ar' ? 'اختر صفحة واحدة على الأقل.' : 'Select at least one page.'); if(role === 'technician' && !$('userTechnicianId').value.trim()) throw new Error(state.currentLang === 'ar' ? 'أدخل Technician ID عند اختيار دور الفني.' : 'Enter Technician ID for technician role.'); const payload = { email:$('userEmail').value.trim(), role, active:$('userActiveSwitch').checked, technicianId:$('userTechnicianId').value.trim(), name:$('userName')?.value.trim() || '', pages, updatedAt: Timestamp.now() }; await setDoc(doc(db,'app_users',uid), payload, {merge:true}); setMessage('permissionsMessage', state.currentLang==='ar' ? 'تم حفظ بيانات المستخدم والصلاحيات بنجاح.' : 'User data and permissions saved successfully.'); setAlert('permissionsError'); clearUserForm(); } catch(err){ setAlert('permissionsError', err.message || String(err)); } }
 
-    function renderUsersTable(){ $('usersTableBody').innerHTML = state.users.map(u=>`<tr class="clickable" onclick="window.openUserForEdit('${u.id}')"><td>${esc(u.id)}</td><td>${esc(u.email)}</td><td>${esc(u.role)}</td><td>${String(!!u.active)}</td><td>${esc(u.technicianId)}</td></tr>`).join('') || `<tr><td colspan="5">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`; }
-    window.openUserForEdit = function(id){ const u=state.users.find(x=>x.id===id); if(!u) return; $('userUid').value=u.id||''; $('userEmail').value=u.email||''; $('userRole').value=u.role||'user'; $('userActive').value=String(!!u.active); $('userTechnicianId').value=u.technicianId||''; activateTab('permissions'); };
+    function renderUsersTable(){ $('usersTableBody').innerHTML = state.users.map(u=>`<tr class="clickable" onclick="window.openUserForEdit('${u.id}')"><td>${esc(u.id)}</td><td>${esc(u.name || '-')}</td><td>${esc(u.email)}</td><td>${esc(u.role)}</td><td>${String(!!u.active)}</td><td>${esc(u.technicianId)}</td><td>${Array.isArray(u.pages) ? u.pages.length : 0}</td></tr>`).join('') || `<tr><td colspan="7">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`; }
+    window.openUserForEdit = function(id){ const u=state.users.find(x=>x.id===id); if(!u) return; $('userUid').value=u.id||''; $('userName').value=u.name||''; $('userEmail').value=u.email||''; $('userRole').value=u.role||'user'; $('userTechnicianId').value=u.technicianId||''; $('userActiveSwitch').checked=!!u.active; updateUserActiveLabel(); const config = permissionRoleDefaults[u.role] || permissionRoleDefaults.user; $('permissionRoleTitle').textContent = config.title; $('permissionRoleDescription').textContent = config.description; applySelectedPagesToUI(Array.isArray(u.pages) && u.pages.length ? u.pages : config.pages); activateTab('permissions', true); };
 
     function runReport(){
       setAlert('reportsError');
@@ -1198,7 +1455,7 @@
       $('visitBranch').addEventListener('change', fillVisitFromBranch); $('saveVisitBtn').addEventListener('click', saveVisit); $('clearVisitBtn').addEventListener('click', clearVisitForm); $('deleteVisitBtn').addEventListener('click', ()=>deleteVisitById($('editingVisitId').value.trim()));
       $('saveBranchBtn').addEventListener('click', saveBranch); $('clearBranchBtn').addEventListener('click', clearBranchForm); $('branchSearch')?.addEventListener('input', renderBranchesList); $('importBranchesBtn')?.addEventListener('click', importBranchesFromExcel); $('exportBranchesBtn')?.addEventListener('click', exportBranchesToExcel);
       $('technicianSelector')?.addEventListener('change', loadSelectedTechnician); $('loadTechnicianBtn')?.addEventListener('click', loadSelectedTechnician); $('techAssignRegion')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value })); $('techAssignCity')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value, city: $('techAssignCity').value })); $('techAssignBrand')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value, city: $('techAssignCity').value, brand: $('techAssignBrand').value })); $('techAssignBranch')?.addEventListener('change', syncTechnicianAssignmentFromBranch); $('saveTechnicianBtn').addEventListener('click', saveTechnician); $('clearTechnicianBtn').addEventListener('click', clearTechnicianForm);
-      $('saveUserBtn').addEventListener('click', saveUser); $('clearUserBtn').addEventListener('click', clearUserForm);
+      $('userRole')?.addEventListener('change', applyRoleDefaultsToPermissionForm); $('userActiveSwitch')?.addEventListener('change', updateUserActiveLabel); $('applyUserRoleBtn')?.addEventListener('click', applyRoleDefaultsToPermissionForm); $('resetUserRoleBtn')?.addEventListener('click', applyRoleDefaultsToPermissionForm); $('selectAllPermissionPagesBtn')?.addEventListener('click', () => { applySelectedPagesToUI(permissionPages.map(p => p.key)); }); $('clearPermissionPagesBtn')?.addEventListener('click', () => { applySelectedPagesToUI([]); }); $('saveUserBtn').addEventListener('click', saveUser); $('clearUserBtn').addEventListener('click', clearUserForm);
       $('runReportBtn').addEventListener('click', runReport);
     }
 
@@ -1216,17 +1473,47 @@
         let profile = null;
         try { profile = await resolveCurrentUserProfile(user); } catch(err){ $('loginMessage').textContent = 'app_users lookup error: ' + err.message; }
         state.currentUserProfile = profile;
-        $('currentUserChip').classList.remove('hidden'); $('currentUserChip').textContent = `${profile?.name || user.email} | ${profile?.role || 'user'}`; $('logoutBtn').classList.remove('hidden'); $('loginOverlay').classList.add('hidden'); $('appRoot').classList.remove('hidden');
-        if(!profile){ setAlert('dashboardError', state.currentLang==='ar' ? 'تنبيه: لم يتم العثور على app_users/{UID}. قد تعمل بعض التبويبات للقراءة فقط أو تفشل حسب القواعد.' : 'Warning: app_users/{UID} was not found. Some tabs may fail according to rules.'); }
-        listenBranches(); listenTechnicians(); listenVisits(); listenChecklists(); listenBrands(); listenUsers(); listenWindowsUpgrades();
+
+        if(profile && profile.active === false){
+          alert(state.currentLang === 'ar' ? 'الحساب غير نشط.' : 'This account is inactive.');
+          await signOut(auth);
+          return;
+        }
+
+        const allowedPages = getEffectivePagesForProfile(profile);
+        applyPagePermissions(allowedPages);
+
+        $('currentUserChip').classList.remove('hidden');
+        $('currentUserChip').textContent = `${profile?.name || user.email} | ${profile?.role || 'user'}`;
+        $('logoutBtn').classList.remove('hidden');
+        $('loginOverlay').classList.add('hidden');
+        $('appRoot').classList.remove('hidden');
+
+        if(!profile){
+          setAlert('dashboardError', state.currentLang==='ar' ? 'تنبيه: لم يتم العثور على app_users/{UID}. قد تعمل بعض التبويبات للقراءة فقط أو تفشل حسب القواعد.' : 'Warning: app_users/{UID} was not found. Some tabs may fail according to rules.');
+        }
+
+        listenBranches();
+        listenTechnicians();
+        listenVisits();
+        listenChecklists();
+        listenBrands();
+        listenUsers();
+        listenWindowsUpgrades();
       } else {
-        clearAllListeners(); state.currentUser=null; state.currentUserProfile=null; state.branches=[]; state.technicians=[]; state.visits=[]; state.checklists=[]; state.brands=[]; state.users=[]; state.windowsUpgrades=[];
-        $('currentUserChip').classList.add('hidden'); $('logoutBtn').classList.add('hidden'); $('loginOverlay').classList.remove('hidden'); $('appRoot').classList.add('hidden'); $('loginMessage').textContent = 'ادخل بحساب موجود في Firebase Authentication و app_users.';
+        clearAllListeners();
+        state.currentUser=null; state.currentUserProfile=null; state.branches=[]; state.technicians=[]; state.visits=[]; state.checklists=[]; state.brands=[]; state.users=[]; state.windowsUpgrades=[];
+        $('currentUserChip').classList.add('hidden');
+        $('logoutBtn').classList.add('hidden');
+        $('loginOverlay').classList.remove('hidden');
+        $('appRoot').classList.add('hidden');
+        $('loginMessage').textContent = 'ادخل بحساب موجود في Firebase Authentication و app_users.';
+        document.querySelectorAll('.tab-btn, .panel').forEach(el => el.classList.remove('hidden'));
+        if($('cl_technician')) $('cl_technician').disabled = false;
         renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); renderUpgradeWindowsTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); clearUpgradeWindowsForm();
       }
     });
-
-    attachListeners(); const versionChip = document.querySelector('header .chip'); if(versionChip) versionChip.textContent = APP_VERSION; applyLanguage('ar'); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); renderUpgradeWindowsTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); clearUpgradeWindowsForm(); renderLatestBrands(); renderDashboardBrandBoxes(); toggleUpgradeDeviceCount();
+    attachListeners(); const versionChip = document.querySelector('header .chip'); if(versionChip) versionChip.textContent = APP_VERSION; applyLanguage('ar'); updateUserActiveLabel(); applyRoleDefaultsToPermissionForm(); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); renderUpgradeWindowsTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); clearUpgradeWindowsForm(); renderLatestBrands(); renderDashboardBrandBoxes(); toggleUpgradeDeviceCount();
   </script>
 </body>
 </html>
