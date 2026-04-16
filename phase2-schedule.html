@@ -703,6 +703,62 @@
       }
     }
 
+    function getCurrentTechnicianIdentity(){
+      const profile = state.currentUserProfile || {};
+      const user = state.currentUser || {};
+      const normalize = v => String(v || '').trim().toLowerCase();
+      const keys = new Set([
+        normalize(profile.technicianId),
+        normalize(user.uid),
+        normalize(user.email)
+      ].filter(Boolean));
+
+      const matchedTech = state.technicians.find(t => [
+        normalize(t.id),
+        normalize(t.technicianCode),
+        normalize(t.authUid),
+        normalize(t.email)
+      ].some(v => keys.has(v)));
+
+      [matchedTech?.id, matchedTech?.technicianCode, matchedTech?.authUid, matchedTech?.email].forEach(v => {
+        const normalized = normalize(v);
+        if(normalized) keys.add(normalized);
+      });
+
+      return {
+        role: profile.role || 'user',
+        keys,
+        matchedTechId: matchedTech?.id || ''
+      };
+    }
+
+    function isChecklistVisibleForCurrentUser(record){
+      const identity = getCurrentTechnicianIdentity();
+      if(identity.role === 'admin' || identity.role === 'supervisor') return true;
+      if(identity.role !== 'technician') return true;
+      const recordKeys = [
+        String(record?.technicianDocId || '').trim().toLowerCase(),
+        String(record?.technicianId || '').trim().toLowerCase(),
+        String(record?.technicianEmail || '').trim().toLowerCase()
+      ].filter(Boolean);
+      return recordKeys.some(k => identity.keys.has(k));
+    }
+
+    function lockChecklistTechnicianForCurrentUser(){
+      const technicianSelect = $('cl_technician');
+      if(!technicianSelect) return;
+      const identity = getCurrentTechnicianIdentity();
+      if(identity.role !== 'technician'){
+        technicianSelect.disabled = false;
+        return;
+      }
+      if(identity.matchedTechId){
+        technicianSelect.value = identity.matchedTechId;
+      }
+      technicianSelect.disabled = true;
+      populateVisitsForTechnician();
+    }
+
     function getEffectivePagesForProfile(profile){
       if(Array.isArray(profile?.pages) && profile.pages.length) return profile.pages;
       return getDefaultPagesForRole(profile?.role || 'user');
@@ -773,7 +829,8 @@
     function renderBrandsDatalist(){ $('brandsDatalist').innerHTML = state.brands.map(b => `<option value="${esc(b.brand || b.nameEn || b.nameAr || b.key || '')}"></option>`).join(''); }
 
     function renderLatestChecklistTable(){
-      $('latestChecklistBody').innerHTML = state.checklists.slice(0,10).map(r => {
+      const rows = state.checklists.filter(r => isChecklistVisibleForCurrentUser(r)).slice(0,10);
+      $('latestChecklistBody').innerHTML = rows.map(r => {
         const branchMeta = resolveBranchMeta(r.branchId);
         const technicianVisitDate = r.technicianVisitDate || r.visitDate || '';
         const checklistSavedDate = r.checklistSavedDate || '';
@@ -785,7 +842,7 @@
     }
     function renderChecklistTable(){
       const q=($('checklistSearch').value||'').trim().toLowerCase();
-      const rows=state.checklists.filter(r => !q || [r.brand,r.branchId,r.locationSite,r.branchManager,r.technicianName].some(v => String(v||'').toLowerCase().includes(q)));
+      const rows=state.checklists.filter(r => isChecklistVisibleForCurrentUser(r)).filter(r => !q || [r.brand,r.branchId,r.locationSite,r.branchManager,r.technicianName].some(v => String(v||'').toLowerCase().includes(q)));
       $('checklistTableBody').innerHTML = rows.map(r => `<tr class="clickable" onclick="window.openChecklistForEdit('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.branchManager)}</td></tr>`).join('') || `<tr><td colspan="6">${state.currentLang==='ar'?'لا توجد سجلات.':'No records.'}</td></tr>`;
       renderLatestChecklistTable();
     }
@@ -806,6 +863,7 @@
       setOptions('cl_technician', techOptions, state.currentLang==='ar'?'اختر الفني':'Select technician');
       setOptions('visitTechnician', techOptions, state.currentLang==='ar'?'اختر الفني':'Select technician');
       setOptions('technicianSelector', techOptions, state.currentLang==='ar'?'اختر فني للتعديل':'Select technician to edit');
+      lockChecklistTechnicianForCurrentUser();
     }
 
     function normalizeMatchValue(v){ return String(v || '').trim().toLowerCase(); }
@@ -1197,7 +1255,7 @@
       finally { saveBtn.disabled = false; }
     }
     async function deleteChecklistById(id){ try{ if(!id) return; if(!confirm(state.currentLang==='ar'?'هل تريد حذف السجل؟':'Delete this record?')) return; await deleteDoc(doc(db,'branch_checklists',id)); clearChecklistForm(); } catch(err){ setAlert('checklistError', err.message || String(err)); } }
-    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||x.location||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.technicianVisitDate || x.visitDate || ''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q29_device_count').value = x.q29_upgradeWindows10To11DeviceCount ?? ''; toggleUpgradeDeviceCount(); renderChecklistEmployeeIdInputs(x.q29_upgradeWindows10To11EmployeeIds || []); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
+    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; if(!isChecklistVisibleForCurrentUser(x)){ alert(state.currentLang==='ar' ? 'ليس لديك صلاحية لعرض هذا السجل.' : 'You do not have permission to view this record.'); return; } $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||x.location||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.technicianVisitDate || x.visitDate || ''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q29_device_count').value = x.q29_upgradeWindows10To11DeviceCount ?? ''; toggleUpgradeDeviceCount(); renderChecklistEmployeeIdInputs(x.q29_upgradeWindows10To11EmployeeIds || []); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); $('deleteChecklistBtn').classList.remove('hidden'); activateTab('checklist'); };
 
     function loadSelectedTechnician(){
       const id = $('technicianSelector')?.value || '';
@@ -1445,6 +1503,7 @@
         $('appRoot').classList.add('hidden');
         $('loginMessage').textContent = 'ادخل بحساب موجود في Firebase Authentication و app_users.';
         document.querySelectorAll('.tab-btn, .panel').forEach(el => el.classList.remove('hidden'));
+        if($('cl_technician')) $('cl_technician').disabled = false;
         renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); renderUpgradeWindowsTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); clearUpgradeWindowsForm();
       }
     });
