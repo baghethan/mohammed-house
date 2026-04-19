@@ -2,185 +2,579 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dynamic Check‑List (Firebase)</title>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Legacy Check-List Migration Tool</title>
   <style>
-    body{font-family:Segoe UI,Tahoma,Arial,sans-serif;background:#edf3f8;margin:0;color:#163247}
-    header{background:#0d4b73;color:#fff;padding:14px 18px}
-    .container{max-width:1100px;margin:16px auto;padding:0 14px}
-    .card{background:#fff;border:1px solid #d7e0ea;border-radius:16px;padding:16px;margin-bottom:16px}
-    h3{margin:0 0 12px}
-    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-    .field{display:grid;gap:6px}
-    label{font-weight:700}
-    input,select,textarea{padding:10px;border:1px solid #d7e0ea;border-radius:10px;font:inherit}
-    textarea{min-height:90px}
-    .btn{padding:10px 14px;border-radius:999px;border:1px solid #0d4b73;background:#0d4b73;color:#fff;cursor:pointer}
-    .btn.secondary{background:#fff;color:#0d4b73}
-    .btn.danger{background:#d64545;border-color:#d64545}
-    .row{display:flex;gap:8px;flex-wrap:wrap}
-    .hidden{display:none}
-    .item{border:1px dashed #bfd7e8;border-radius:12px;padding:10px;margin-bottom:10px}
-    .badge{background:#eef5ff;color:#295fa5;border-radius:999px;padding:4px 8px;font-size:12px}
-    ol{list-style:none;padding:0;margin:0;counter-reset:ck}
-    li{position:relative;padding-inline-start:36px;margin-bottom:12px}
-    li::before{counter-increment:ck;content:counter(ck) " -";position:absolute;inset-inline-start:0;top:2px;font-weight:800;color:#0d4b73}
+    :root{
+      --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
+      --border:#d7e0ea; --text:#163247; --muted:#6e8192; --bg:#edf3f8; --card:#fff;
+      --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg)}
+    .hidden{display:none!important}.rtl-en{display:inline-block;direction:ltr;unicode-bidi:embed}
+    header{background:var(--primary);color:#fff;padding:14px 18px;box-shadow:var(--shadow);position:sticky;top:0;z-index:50}
+    .header-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .title{font-size:24px;font-weight:800}
+    .chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:8px 12px;border-radius:999px}
+    .container{max-width:1500px;margin:18px auto;padding:0 14px 28px}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+    .card,.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .card{padding:16px;overflow:hidden}
+    .card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
+    .field{display:grid;gap:8px}.field label{font-size:14px;font-weight:700}
+    .field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:inherit;background:#fbfcfe}
+    .field textarea{min-height:96px;resize:vertical}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .note{background:#f6fbff;border:1px dashed #bfd7e8;color:#33546b;border-radius:12px;padding:10px 12px;margin-top:12px;line-height:1.7}
+    .alert{padding:10px 12px;border-radius:12px;margin-top:10px}.alert.error{background:#ffecec;border:1px solid #f3b0b0;color:#8a1f1f}.alert.ok{background:#eaf9f0;border:1px solid #bce3c9;color:#20643b}.alert.warn{background:#fff7e8;border:1px solid #f1d28d;color:#8a5b00}
+    .btn{border:1px solid var(--border);border-radius:999px;padding:10px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer}
+    .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}.btn.green{background:var(--green);border-color:var(--green);color:#fff}.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}.btn.warning{background:var(--warning);border-color:var(--warning);color:#fff}.btn.small{padding:7px 11px;font-size:12px}
+    .item{background:#fcfdff;border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:10px}.item strong{display:block;color:var(--primary);margin-bottom:6px}.item small{display:block;color:var(--muted);line-height:1.55}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
+    .stat{padding:14px}.stat .label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}.stat .value{font-size:28px;font-weight:800;color:var(--primary)}
+    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px;background:#fff}
+    table{width:100%;border-collapse:collapse} th,td{padding:12px 10px;border-bottom:1px solid #edf2f7;text-align:right;white-space:nowrap;font-size:13px;vertical-align:top} th{background:#f8fbff;color:var(--primary)}
+    .overlay{position:fixed;inset:0;background:rgba(13,75,115,.18);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}
+    .login-card{width:min(760px,96vw);background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 20px 50px rgba(0,0,0,.15);overflow:hidden}
+    .login-head{background:var(--primary);color:#fff;padding:16px 20px;font-size:18px;font-weight:800}
+    .login-body{padding:18px}
+    .switch-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
+    .switch-item{display:flex;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fbfcfe}
+    .mono{font-family:Consolas, Monaco, monospace}
+    pre{white-space:pre-wrap;word-break:break-word;background:#0f1a22;color:#d7e7f3;border-radius:16px;padding:14px;max-height:380px;overflow:auto}
+    @media (max-width:1200px){.grid-2,.grid-3,.grid-4,.stats{grid-template-columns:1fr}}
   </style>
 </head>
-
 <body>
-<header>
-  <strong>Dynamic Check‑List (مرتبط بالفنيين والزيارة)</strong>
-</header>
-
-<div class="container">
-
-  <!-- ===== ADMIN BUILDER (Admin فقط) ===== -->
-  <div class="card" id="adminBox">
-    <h3>إدارة بنود Check‑List (Admin)</h3>
-
-    <div class="grid">
-      <div class="field">
-        <label>اسم البند</label>
-        <input id="f_label" placeholder="مثال: Network Cabinets Condition">
+  <div class="overlay" id="loginOverlay">
+    <div class="login-card">
+      <div class="login-head">تسجيل الدخول / Sign In</div>
+      <div class="login-body">
+        <div class="note">هذه الأداة تنقل بيانات <span class="rtl-en">branch_checklists</span> القديمة (الأسئلة الثابتة <span class="rtl-en">q10..q29</span>) إلى الصيغة الجديدة الديناميكية <span class="rtl-en">dynamicAnswers</span> و <span class="rtl-en">dynamicFieldsSnapshot</span>.</div>
+        <div class="grid-3" style="margin-top:14px">
+          <div class="field">
+            <label>البريد الإلكتروني / Email</label>
+            <input id="loginEmail" type="email" placeholder="name@company.com">
+          </div>
+          <div class="field">
+            <label>كلمة المرور / Password</label>
+            <input id="loginPassword" type="password" placeholder="Password">
+          </div>
+          <div class="field">
+            <label> </label>
+            <button class="btn primary" id="loginBtn" type="button">دخول / Login</button>
+          </div>
+        </div>
+        <div class="note" id="loginMessage">سجّل الدخول بحساب Admin أو حساب يملك صلاحية القراءة/الكتابة على <span class="rtl-en">checklist_fields</span> و <span class="rtl-en">branch_checklists</span>.</div>
       </div>
-
-      <div class="field">
-        <label>نوع البند</label>
-        <select id="f_type">
-          <option value="checkbox">Checkbox</option>
-          <option value="select">Select</option>
-          <option value="date">Date</option>
-          <option value="text">Text</option>
-          <option value="textarea">Textarea</option>
-          <option value="number">Number</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label>خيارات (في حال Select – مفصولة بفاصلة)</label>
-        <input id="f_options" placeholder="Yes,No,Other">
-      </div>
-
-      <div class="field">
-        <label>ترتيب</label>
-        <input id="f_order" type="number" value="1">
-      </div>
-    </div>
-
-    <div class="row" style="margin-top:10px">
-      <button class="btn" onclick="addField()">+ إضافة بند</button>
-    </div>
-
-    <div id="adminList" style="margin-top:12px"></div>
-  </div>
-
-  <!-- ===== CHECKLIST FORM ===== -->
-  <div class="card">
-    <h3>نموذج Check‑List</h3>
-    <ol id="checklistForm"></ol>
-
-    <div class="row" style="margin-top:12px">
-      <button class="btn" onclick="saveChecklist()">حفظ Check‑List</button>
     </div>
   </div>
 
-</div>
+  <header>
+    <div class="header-row">
+      <div class="title">Legacy Check‑List Migration Tool</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span class="chip">v1.0</span>
+        <span class="chip hidden" id="currentUserChip"></span>
+        <button class="btn danger hidden" id="logoutBtn" type="button">خروج / Logout</button>
+      </div>
+    </div>
+  </header>
 
-<!-- ===== Firebase ===== -->
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getFirestore, collection, addDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+  <main class="container hidden" id="appRoot">
+    <div id="globalError" class="alert error hidden"></div>
 
-/* 🔴 ضع إعدادات Firebase الخاصة بك */
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID"
-};
+    <div class="grid-2">
+      <div class="card">
+        <h3>إعدادات النقل</h3>
+        <div class="note">الأداة ستقرأ البنود الحالية من <span class="rtl-en">checklist_fields</span>. إذا كانت بعض البنود القديمة غير موجودة، يمكنها إنشاء البنود المفقودة تلقائيًا قبل النقل.</div>
+        <div class="switch-row">
+          <label class="switch-item"><input type="checkbox" id="optCreateMissing" checked> <span>إنشاء البنود المفقودة في <span class="rtl-en">checklist_fields</span></span></label>
+          <label class="switch-item"><input type="checkbox" id="optSkipMigrated" checked> <span>تخطي السجلات التي تحتوي أصلًا على <span class="rtl-en">dynamicAnswers</span></span></label>
+          <label class="switch-item"><input type="checkbox" id="optOverwriteDynamic"> <span>الكتابة فوق <span class="rtl-en">dynamicAnswers</span> الحالية</span></label>
+          <label class="switch-item"><input type="checkbox" id="optDeleteLegacy"> <span>حذف الحقول القديمة <span class="rtl-en">q10..q29</span> بعد نجاح النقل</span></label>
+        </div>
+        <div class="actions">
+          <button class="btn" id="analyzeBtn" type="button">تحليل البيانات</button>
+          <button class="btn warning" id="createFieldsBtn" type="button">إنشاء البنود المفقودة فقط</button>
+          <button class="btn green" id="migrateBtn" type="button">تنفيذ Migration</button>
+        </div>
+        <div id="runMessage" class="note">جاهز للتحليل.</div>
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+        <div class="stats">
+          <div class="stat"><span class="label">إجمالي السجلات</span><div class="value" id="statTotal">0</div></div>
+          <div class="stat"><span class="label">سجلات قديمة قابلة للنقل</span><div class="value" id="statLegacy">0</div></div>
+          <div class="stat"><span class="label">سجلات لديها Dynamic بالفعل</span><div class="value" id="statDynamic">0</div></div>
+          <div class="stat"><span class="label">البنود المفقودة</span><div class="value" id="statMissing">0</div></div>
+        </div>
+      </div>
 
-/* ===== Admin Flag (غيّره حسب صلاحيتك) ===== */
-const IS_ADMIN = true;
+      <div class="card">
+        <h3>ملخص البنية القديمة</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>الحقل القديم</th>
+                <th>الملصق الجديد</th>
+                <th>القسم</th>
+                <th>النوع</th>
+              </tr>
+            </thead>
+            <tbody id="legacyMapBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
-/* ===== Render Fields ===== */
-const q = query(collection(db,'checklist_fields'), orderBy('order'));
-onSnapshot(q, snap => {
-  renderAdminList(snap);
-  renderChecklist(snap);
-});
+    <div class="grid-2" style="margin-top:16px">
+      <div class="card">
+        <h3>نتيجة التحليل</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Document ID</th>
+                <th>الفني</th>
+                <th>Visit Date</th>
+                <th>Legacy</th>
+                <th>Dynamic</th>
+                <th>المفقود</th>
+              </tr>
+            </thead>
+            <tbody id="analysisBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>سجل التنفيذ</h3>
+        <pre id="logBox"></pre>
+      </div>
+    </div>
+  </main>
 
-function renderChecklist(snap){
-  const ol = document.getElementById('checklistForm');
-  ol.innerHTML = '';
-  snap.docs.forEach(d=>{
-    const f = d.data();
-    if(f.active === false) return;
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserSessionPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, collection, doc, setDoc, addDoc, query, getDocs, getDoc, Timestamp, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const li = document.createElement('li');
-    li.innerHTML = renderField(f, d.id);
-    ol.appendChild(li);
-  });
-}
+    const firebaseConfig = {
+      apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
+      authDomain:'baghethan-ba325.firebaseapp.com',
+      projectId:'baghethan-ba325',
+      storageBucket:'baghethan-ba325.firebasestorage.app',
+      messagingSenderId:'944819735112',
+      appId:'1:944819735112:web:07315600da39377320667d'
+    };
 
-function renderField(f,id){
-  if(f.type==='checkbox') return `<div class="field"><label>${f.label}</label><input type="checkbox" data-id="${id}"></div>`;
-  if(f.type==='date') return `<div class="field"><label>${f.label}</label><input type="date" data-id="${id}"></div>`;
-  if(f.type==='number') return `<div class="field"><label>${f.label}</label><input type="number" data-id="${id}"></div>`;
-  if(f.type==='textarea') return `<div class="field"><label>${f.label}</label><textarea data-id="${id}"></textarea></div>`;
-  if(f.type==='select'){
-    const opts=(f.options||[]).map(o=>`<option>${o}</option>`).join('');
-    return `<div class="field"><label>${f.label}</label><select data-id="${id}">${opts}</select></div>`;
-  }
-  return `<div class="field"><label>${f.label}</label><input type="text" data-id="${id}"></div>`;
-}
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const $ = id => document.getElementById(id);
 
-/* ===== Admin ===== */
-function renderAdminList(snap){
-  const box = document.getElementById('adminList');
-  box.innerHTML='';
-  if(!IS_ADMIN){ document.getElementById('adminBox').classList.add('hidden'); return; }
+    const state = {
+      user: null,
+      profile: null,
+      fields: [],
+      docs: [],
+      analysisRows: []
+    };
 
-  snap.docs.forEach(d=>{
-    const f=d.data();
-    const div=document.createElement('div');
-    div.className='item';
-    div.innerHTML=`<strong>${f.label}</strong> <span class="badge">${f.type}</span>
-      <button class="btn danger" style="float:left" onclick="removeField('${d.id}')">حذف</button>`;
-    box.appendChild(div);
-  });
-}
+    const LEGACY_DEFS = [
+      { oldKey:'q10_networkCabinetsCondition', label:'Network Cabinets Condition', section:'Network Infrastructure Assessment', fieldType:'choice', renderMode:'select', options:['In Shape','Requires Arrangement'], order:10 },
+      { oldKey:'q11_lowCurrentInfrastructure', label:'Low Current Infrastructure Condition', section:'Network Infrastructure Assessment', fieldType:'choice', renderMode:'select', options:['In Shape','Requires Arrangement'], order:11 },
+      { oldKey:'q12_uploadSpeed', label:'Upload 4-6 Mbps', section:'Network Infrastructure Assessment', fieldType:'choice', renderMode:'select', options:['Above the Range','Within the Range','Below the Range'], order:12 },
+      { oldKey:'q13_downloadSpeed', label:'Download 6-9 Mbps', section:'Network Infrastructure Assessment', fieldType:'choice', renderMode:'select', options:['Above the Range','Within the Range','Below the Range'], order:13 },
+      { oldKey:'q14_serverRoomTemperature', label:'Server Room Temperature', section:'Network Infrastructure Assessment', fieldType:'choice', renderMode:'select', options:['Above the Range','Within the Range','Below the Range'], order:14 },
+      { oldKey:'q15_upsStatus', label:'UPS Status', section:'Network Infrastructure Assessment', fieldType:'choice', renderMode:'select', options:['Fully Functioning','Requires Service'], order:15 },
+      { oldKey:'q16_pcCondition', label:'PCs Condition', section:'Hardware & Peripherals Assessment', fieldType:'choice', renderMode:'select', options:['Fully Functioning','Requires Service'], order:16 },
+      { oldKey:'q17_printersCondition', label:'Printers Condition', section:'Hardware & Peripherals Assessment', fieldType:'choice', renderMode:'select', options:['Fully Functioning','Requires Service'], order:17 },
+      { oldKey:'q18_unifiedCommunication', label:'Unified Communication', section:'Hardware & Peripherals Assessment', fieldType:'choice', renderMode:'select', options:['Fully Functioning','Requires Service'], order:18 },
+      { oldKey:'q19_unusedDamagedAssets', label:'Unused or Damaged IT Assets', section:'Hardware & Peripherals Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No'], order:19 },
+      { oldKey:'q20_assetReport', label:'Report Unused/Damaged IT Asset', section:'Hardware & Peripherals Assessment', fieldType:'textarea', renderMode:'', options:[], order:20 },
+      { oldKey:'q22_osUpToDate', label:'Operating System Up to Date', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No'], order:22 },
+      { oldKey:'q23_cleanup', label:'Cleanup and Remove Unwanted Apps', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No','Partially'], order:23 },
+      { oldKey:'q24_oneDriveBackup', label:'OneDrive Backup', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No','Partially'], order:24 },
+      { oldKey:'q25_customerFacingPortals', label:'Customer Facing Portals', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No','Partially'], order:25 },
+      { oldKey:'q26_erpBusinessApps', label:'ERP & Business Applications', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No','Requires Maintenance'], order:26 },
+      { oldKey:'q27_trainingRequirement', label:'Training Requirement', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'checkboxes', options:['Customer Facing Portals','ERP Functions','Business Solutions','Service Desk & End User Support','IT Soft Skills','No Requirement for IT Training','Other'], order:27 },
+      { oldKey:'q28_serviceReportSummary', label:'Service Report Summary', section:'Software & Systems Assessment', fieldType:'textarea', renderMode:'', options:[], order:28 },
+      { oldKey:'q29_upgradeWindows10To11', label:'Upgrade Windows 10 to 11', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No','Other'], order:29 },
+      { oldKey:'q29_upgradeWindows10To11DeviceCount', label:'Number of devices (Q29A)', section:'Software & Systems Assessment', fieldType:'number', renderMode:'', options:[], order:30 },
+      { oldKey:'q29_upgradeWindows10To11EmployeeIds', label:'Employee IDs for devices (Q29B)', section:'Software & Systems Assessment', fieldType:'textarea', renderMode:'', options:[], order:31 },
+    ];
 
-window.addField = async function(){
-  const label=f_label.value.trim();
-  if(!label) return alert('أدخل اسم البند');
-  const type=f_type.value;
-  const options=f_options.value?f_options.value.split(',').map(x=>x.trim()):[];
-  const order=Number(f_order.value||1);
+    function esc(v){
+      return String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
 
-  await addDoc(collection(db,'checklist_fields'),{
-    label,type,options,order,active:true,createdAt:Timestamp.now()
-  });
+    function norm(v){
+      return String(v || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+        .toLowerCase().replace(/[^a-z0-9]+/g,'');
+    }
 
-  f_label.value=''; f_options.value='';
-}
+    function logLine(msg){
+      const box = $('logBox');
+      const ts = new Date().toLocaleString('en-CA');
+      box.textContent += `[${ts}] ${msg}\n`;
+      box.scrollTop = box.scrollHeight;
+    }
 
-window.removeField = async function(id){
-  if(confirm('حذف البند؟')) await deleteDoc(doc(db,'checklist_fields',id));
-}
+    function setGlobalError(msg=''){
+      const el = $('globalError');
+      if(!msg){ el.classList.add('hidden'); el.textContent=''; return; }
+      el.classList.remove('hidden'); el.textContent = msg;
+    }
 
-/* ===== Save Checklist ===== */
-window.saveChecklist = function(){
-  const data={};
-  document.querySelectorAll('#checklistForm [data-id]').forEach(el=>{
-    data[el.dataset.id]= el.type==='checkbox'?el.checked:el.value;
-  });
-  console.log('Checklist Saved:',data);
-  alert('تم حفظ Check‑List (انظر Console)');
-}
-</script>
+    function setLoginMessage(msg='', kind='info'){
+      const el = $('loginMessage');
+      el.textContent = msg;
+      el.style.color = kind === 'error' ? '#8a1f1f' : '';
+    }
+
+    function setRunMessage(msg='', kind='info'){
+      const el = $('runMessage');
+      el.textContent = msg;
+      el.className = kind === 'warn' ? 'alert warn' : kind === 'error' ? 'alert error' : 'note';
+    }
+
+    function toggleUi(isLoggedIn){
+      $('loginOverlay').classList.toggle('hidden', isLoggedIn);
+      $('appRoot').classList.toggle('hidden', !isLoggedIn);
+      $('logoutBtn').classList.toggle('hidden', !isLoggedIn);
+      $('currentUserChip').classList.toggle('hidden', !isLoggedIn);
+    }
+
+    function renderLegacyMap(){
+      $('legacyMapBody').innerHTML = LEGACY_DEFS.map(def => `
+        <tr>
+          <td class="mono">${esc(def.oldKey)}</td>
+          <td>${esc(def.label)}</td>
+          <td>${esc(def.section)}</td>
+          <td>${esc(def.fieldType)} ${def.renderMode ? ' / ' + esc(def.renderMode) : ''}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadProfile(uid){
+      const snap = await getDoc(doc(db, 'app_users', uid));
+      return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+    }
+
+    async function login(){
+      const email = $('loginEmail').value.trim();
+      const password = $('loginPassword').value;
+      if(!email || !password){ setLoginMessage('أدخل البريد الإلكتروني وكلمة المرور.', 'error'); return; }
+      try{
+        $('loginBtn').disabled = true;
+        setLoginMessage('جاري تسجيل الدخول...', 'info');
+        await setPersistence(auth, browserSessionPersistence);
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch(err){
+        setLoginMessage((err.code || 'error') + ' | ' + (err.message || ''), 'error');
+      } finally {
+        $('loginBtn').disabled = false;
+      }
+    }
+
+    function hasLegacyData(data){
+      return LEGACY_DEFS.some(def => {
+        const v = data?.[def.oldKey];
+        if(Array.isArray(v)) return v.length > 0;
+        return !(v === undefined || v === null || v === '');
+      });
+    }
+
+    function fieldLookup(fields){
+      const map = new Map();
+      fields.forEach(f => map.set(norm(f.label), f));
+      return map;
+    }
+
+    async function fetchFields(){
+      const snap = await getDocs(query(collection(db,'checklist_fields')));
+      const rows = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+      rows.sort((a,b) => {
+        const sa = String(a.section || '');
+        const sb = String(b.section || '');
+        if(sa !== sb) return sa.localeCompare(sb);
+        return Number(a.order || 0) - Number(b.order || 0);
+      });
+      state.fields = rows;
+      return rows;
+    }
+
+    async function fetchDocs(){
+      const snap = await getDocs(query(collection(db,'branch_checklists')));
+      state.docs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+      return state.docs;
+    }
+
+    async function createMissingFields(){
+      const current = state.fields.length ? state.fields : await fetchFields();
+      const lookup = fieldLookup(current);
+      let created = 0;
+      for(const def of LEGACY_DEFS){
+        if(lookup.has(norm(def.label))) continue;
+        const payload = {
+          label: def.label,
+          fieldType: def.fieldType,
+          renderMode: def.renderMode || '',
+          options: def.options.map(opt => ({ label: opt, value: String(opt).trim().toLowerCase().replace(/\s+/g,'_') })),
+          order: def.order,
+          section: def.section,
+          required: false,
+          active: true,
+          createdByMigration: true,
+          updatedAt: Timestamp.now(),
+          createdAt: Timestamp.now()
+        };
+        const ref = await addDoc(collection(db,'checklist_fields'), payload);
+        current.push({ id: ref.id, ...payload });
+        lookup.set(norm(def.label), { id: ref.id, ...payload });
+        created += 1;
+        logLine(`تم إنشاء بند مفقود: ${def.label} -> ${ref.id}`);
+      }
+      current.sort((a,b) => {
+        const sa = String(a.section || '');
+        const sb = String(b.section || '');
+        if(sa !== sb) return sa.localeCompare(sb);
+        return Number(a.order || 0) - Number(b.order || 0);
+      });
+      state.fields = current;
+      return created;
+    }
+
+    function convertValue(field, legacyValue){
+      if(field.fieldType === 'number'){
+        if(legacyValue === '' || legacyValue == null) return '';
+        const n = Number(legacyValue);
+        return Number.isFinite(n) ? n : '';
+      }
+      if(field.fieldType === 'boolean'){
+        if(typeof legacyValue === 'boolean') return legacyValue;
+        const v = String(legacyValue || '').toLowerCase();
+        return ['yes','true','صح','1'].includes(v);
+      }
+      if(Array.isArray(legacyValue)){
+        if(field.renderMode === 'checkboxes') return legacyValue;
+        return legacyValue.join('\n');
+      }
+      return legacyValue;
+    }
+
+    function buildAnalysisRows(fields, docs){
+      const lookup = fieldLookup(fields);
+      return docs.map(row => {
+        const missing = [];
+        LEGACY_DEFS.forEach(def => {
+          const v = row?.[def.oldKey];
+          const hasValue = Array.isArray(v) ? v.length > 0 : !(v === undefined || v === null || v === '');
+          if(hasValue && !lookup.has(norm(def.label))) missing.push(def.label);
+        });
+        return {
+          id: row.id,
+          technician: row.technicianName || row.technicianId || '-',
+          visitDate: row.visitDate || row.technicianVisitDate || '-',
+          hasLegacy: hasLegacyData(row),
+          hasDynamic: !!(row.dynamicAnswers && Object.keys(row.dynamicAnswers).length),
+          missing
+        };
+      });
+    }
+
+    function renderAnalysis(rows){
+      $('analysisBody').innerHTML = rows.map(r => `
+        <tr>
+          <td class="mono">${esc(r.id)}</td>
+          <td>${esc(r.technician)}</td>
+          <td>${esc(r.visitDate)}</td>
+          <td>${r.hasLegacy ? '<span class="badge">Yes</span>' : 'No'}</td>
+          <td>${r.hasDynamic ? '<span class="badge">Yes</span>' : 'No'}</td>
+          <td>${r.missing.length ? esc(r.missing.join(' | ')) : '—'}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="6">لا توجد بيانات.</td></tr>';
+      $('statTotal').textContent = rows.length;
+      $('statLegacy').textContent = rows.filter(r => r.hasLegacy).length;
+      $('statDynamic').textContent = rows.filter(r => r.hasDynamic).length;
+      $('statMissing').textContent = [...new Set(rows.flatMap(r => r.missing))].length;
+    }
+
+    async function analyze(){
+      try{
+        setGlobalError('');
+        setRunMessage('جاري تحليل البيانات...', 'info');
+        $('logBox').textContent = '';
+        const fields = await fetchFields();
+        const docs = await fetchDocs();
+        const rows = buildAnalysisRows(fields, docs);
+        state.analysisRows = rows;
+        renderAnalysis(rows);
+        const uniqueMissing = [...new Set(rows.flatMap(r => r.missing))];
+        if(uniqueMissing.length){
+          setRunMessage(`التحليل انتهى. يوجد ${uniqueMissing.length} بند مفقود في checklist_fields.`, 'warn');
+          logLine('البنود المفقودة: ' + uniqueMissing.join(' | '));
+        } else {
+          setRunMessage('التحليل انتهى. لا توجد بنود مفقودة.', 'info');
+        }
+        logLine(`إجمالي السجلات: ${docs.length}`);
+        logLine(`سجلات legacy: ${rows.filter(r=>r.hasLegacy).length}`);
+        logLine(`سجلات dynamic: ${rows.filter(r=>r.hasDynamic).length}`);
+      } catch(err){
+        setRunMessage(err.message || String(err), 'error');
+        setGlobalError(err.message || String(err));
+      }
+    }
+
+    async function migrate(){
+      try{
+        setGlobalError('');
+        setRunMessage('بدء تنفيذ Migration...', 'info');
+        $('migrateBtn').disabled = true;
+        const createMissing = $('optCreateMissing').checked;
+        const skipMigrated = $('optSkipMigrated').checked;
+        const overwriteDynamic = $('optOverwriteDynamic').checked;
+        const deleteLegacy = $('optDeleteLegacy').checked;
+
+        let fields = await fetchFields();
+        if(createMissing){
+          const created = await createMissingFields();
+          logLine(`تم إنشاء ${created} بند/بنود مفقودة.`);
+          fields = await fetchFields();
+        }
+
+        const lookup = fieldLookup(fields);
+        const docs = await fetchDocs();
+        let migrated = 0, skipped = 0, errors = 0;
+
+        for(const row of docs){
+          try{
+            const alreadyDynamic = !!(row.dynamicAnswers && Object.keys(row.dynamicAnswers).length);
+            const legacy = hasLegacyData(row);
+            if(skipMigrated && alreadyDynamic){
+              skipped += 1;
+              logLine(`تخطي ${row.id}: لديه dynamicAnswers بالفعل.`);
+              continue;
+            }
+            if(!legacy && !alreadyDynamic){
+              skipped += 1;
+              logLine(`تخطي ${row.id}: لا يحتوي حقول legacy ولا dynamic.`);
+              continue;
+            }
+
+            const answers = overwriteDynamic ? {} : { ...(row.dynamicAnswers || {}) };
+            const missing = [];
+            for(const def of LEGACY_DEFS){
+              const value = row?.[def.oldKey];
+              const hasValue = Array.isArray(value) ? value.length > 0 : !(value === undefined || value === null || value === '');
+              if(!hasValue) continue;
+              const field = lookup.get(norm(def.label));
+              if(!field){
+                missing.push(def.label);
+                continue;
+              }
+              answers[field.id] = convertValue(field, value);
+            }
+
+            const update = {
+              dynamicAnswers: answers,
+              dynamicFieldsSnapshot: fields.filter(f => f.active !== false).map(f => ({
+                id:f.id, label:f.label, fieldType:f.fieldType, renderMode:f.renderMode || '', options:f.options || [], section:f.section || 'General', order:f.order ?? 1
+              })),
+              migratedFromLegacy: true,
+              migrationVersion: 'legacy-checklist-to-dynamic-v1',
+              migrationMissingMappings: missing,
+              migratedAt: Timestamp.now(),
+              updatedAt: Timestamp.now()
+            };
+            if(deleteLegacy){
+              LEGACY_DEFS.forEach(def => { update[def.oldKey] = deleteField(); });
+            }
+            await setDoc(doc(db,'branch_checklists', row.id), update, { merge:true });
+            migrated += 1;
+            logLine(`تم نقل ${row.id}${missing.length ? ' | مفقود: ' + missing.join(', ') : ''}`);
+          } catch(err){
+            errors += 1;
+            logLine(`خطأ في ${row.id}: ${err.message || String(err)}`);
+          }
+        }
+
+        setRunMessage(`انتهى النقل. Migrated=${migrated} | Skipped=${skipped} | Errors=${errors}`, errors ? 'warn' : 'info');
+        await analyze();
+      } catch(err){
+        setRunMessage(err.message || String(err), 'error');
+        setGlobalError(err.message || String(err));
+      } finally {
+        $('migrateBtn').disabled = false;
+      }
+    }
+
+    function renderUserChip(){
+      const role = state.profile?.role || 'unknown';
+      $('currentUserChip').textContent = `${state.profile?.name || state.user?.email || ''} | ${role}`;
+    }
+
+    $('loginBtn').addEventListener('click', login);
+    $('logoutBtn').addEventListener('click', async () => { await signOut(auth); });
+    $('analyzeBtn').addEventListener('click', analyze);
+    $('createFieldsBtn').addEventListener('click', async () => {
+      try{
+        $('createFieldsBtn').disabled = true;
+        const created = await createMissingFields();
+        setRunMessage(`تم إنشاء ${created} بند/بنود مفقودة.`, created ? 'info' : 'warn');
+        await analyze();
+      } catch(err){
+        setRunMessage(err.message || String(err), 'error');
+      } finally {
+        $('createFieldsBtn').disabled = false;
+      }
+    });
+    $('migrateBtn').addEventListener('click', migrate);
+
+    renderLegacyMap();
+    $('logBox').textContent = '';
+
+    onAuthStateChanged(auth, async user => {
+      if(user){
+        state.user = user;
+        try{
+          state.profile = await loadProfile(user.uid);
+          renderUserChip();
+          toggleUi(true);
+          setLoginMessage('تم تسجيل الدخول بنجاح.');
+          if(state.profile?.role && state.profile.role !== 'admin'){
+            setRunMessage('تنبيه: الحساب ليس Admin. قد تفشل القراءة/الكتابة حسب Firestore Rules.', 'warn');
+          }
+          await analyze();
+        } catch(err){
+          toggleUi(true);
+          setGlobalError(err.message || String(err));
+        }
+      } else {
+        state.user = null;
+        state.profile = null;
+        state.fields = [];
+        state.docs = [];
+        state.analysisRows = [];
+        $('currentUserChip').textContent = '';
+        $('analysisBody').innerHTML = '';
+        $('statTotal').textContent = '0';
+        $('statLegacy').textContent = '0';
+        $('statDynamic').textContent = '0';
+        $('statMissing').textContent = '0';
+        $('logBox').textContent = '';
+        toggleUi(false);
+      }
+    });
+  </script>
 </body>
 </html>
