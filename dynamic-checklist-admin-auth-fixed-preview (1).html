@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dynamic Check-List Admin</title>
+  <style>
+    :root{
+      --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
+      --border:#d7e0ea; --text:#163247; --muted:#6e8192; --bg:#edf3f8; --card:#fff;
+      --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg)}
+    .hidden{display:none!important}.rtl-en{display:inline-block;direction:ltr;unicode-bidi:embed}
+    header{background:var(--primary);color:#fff;padding:14px 18px;box-shadow:var(--shadow);position:sticky;top:0;z-index:50}
+    .header-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .title{font-size:24px;font-weight:800}
+    .chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:8px 12px;border-radius:999px}
+    .container{max-width:1500px;margin:18px auto;padding:0 14px 28px}
+    .grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+    .card,.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .card{padding:16px;overflow:hidden}
+    .card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
+    .field{display:grid;gap:8px}.field label{font-size:14px;font-weight:700}
+    .field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:inherit;background:#fbfcfe}
+    .field textarea{min-height:96px;resize:vertical}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .note{background:#f6fbff;border:1px dashed #bfd7e8;color:#33546b;border-radius:12px;padding:10px 12px;margin-top:12px;line-height:1.7}
+    .alert{padding:10px 12px;border-radius:12px;margin-top:10px}.alert.error{background:#ffecec;border:1px solid #f3b0b0;color:#8a1f1f}.alert.ok{background:#eaf9f0;border:1px solid #bce3c9;color:#20643b}
+    .btn{border:1px solid var(--border);border-radius:999px;padding:10px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer}
+    .btn.green{background:var(--green);border-color:var(--green);color:#fff}.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}.btn.warning{background:var(--warning);border-color:var(--warning);color:#fff}.btn.small{padding:7px 11px;font-size:12px}
+    .item{background:#fcfdff;border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:10px}.item strong{display:block;color:var(--primary);margin-bottom:6px}.item small{display:block;color:var(--muted);line-height:1.55}
+    .section-title{margin:18px 0 10px;font-weight:800;color:var(--primary);font-size:16px;border-inline-start:4px solid var(--primary);padding-inline-start:10px}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef5ff;color:#295fa5;font-size:12px;font-weight:700}
+    .builder-option-item{border:1px dashed var(--border);border-radius:12px;padding:10px;background:#fbfcfe}
+    .builder-option-item strong{display:block;color:var(--primary);margin-bottom:6px}
+    .choice-group-dynamic{display:flex;gap:12px;flex-wrap:wrap}
+    .choice-option{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff}
+    .admin-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .admin-row .badges{display:flex;gap:8px;flex-wrap:wrap}
+    .dynamic-checklist-wrap{display:grid;gap:16px}
+    .dynamic-section-block{margin-top:8px}
+    .dynamic-checklist-list{list-style:none;padding:0;margin:0;counter-reset:ck}
+    .dynamic-checklist-list>li{position:relative;padding-inline-start:38px;margin-bottom:14px}
+    .dynamic-checklist-list>li::before{counter-increment:ck;content:counter(ck) " -";position:absolute;inset-inline-start:0;top:6px;font-weight:800;color:var(--primary)}
+    .submission-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+    .submission-row .meta{flex:1}
+    .preview-box{border:1px dashed #bfd7e8;border-radius:14px;padding:12px;background:#fcfeff}
+    .preview-section{margin-top:14px}
+    .preview-section h4{margin:0 0 8px;color:var(--primary)}
+    .preview-item{padding:8px 10px;border:1px solid #eef3f7;border-radius:10px;background:#fff;margin-bottom:8px}
+    .preview-item strong{display:block;color:var(--primary);margin-bottom:4px}
+    .user-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .overlay{position:fixed;inset:0;background:rgba(13,75,115,.18);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}
+    .login-card{width:min(720px,96vw);background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 20px 50px rgba(0,0,0,.15);overflow:hidden}
+    .login-head{background:var(--primary);color:#fff;padding:16px 20px;font-size:18px;font-weight:800}
+    .login-body{padding:18px}
+    @media (max-width:1200px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="overlay" id="loginOverlay">
+    <div class="login-card">
+      <div class="login-head">تسجيل الدخول / Sign In</div>
+      <div class="login-body">
+        <div class="note">سجّل الدخول بالبريد الإلكتروني وكلمة المرور أولًا. إذا كانت قواعد Firestore تعتمد على <span class="rtl-en">app_users/{uid}</span> فتأكد أن مستند المستخدم موجود ومفعل.</div>
+        <div class="grid-3" style="margin-top:14px">
+          <div class="field">
+            <label>البريد الإلكتروني / Email</label>
+            <input id="loginEmail" type="email" placeholder="name@company.com">
+          </div>
+          <div class="field">
+            <label>كلمة المرور / Password</label>
+            <input id="loginPassword" type="password" placeholder="Password">
+          </div>
+          <div class="field">
+            <label> </label>
+            <button class="btn green" id="loginBtn" type="button">دخول / Login</button>
+          </div>
+        </div>
+        <div class="note" id="loginMessage">أدخل بيانات الدخول ثم اضغط Login.</div>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <div class="header-row">
+      <div class="title">Dynamic Check‑List (Admin)</div>
+      <div class="user-row">
+        <div class="chip">v1.1</div>
+        <span class="chip hidden" id="currentUserChip"></span>
+        <button class="btn danger hidden" id="logoutBtn" type="button">خروج / Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container hidden" id="appRoot">
+    <div id="globalMessage" class="alert error hidden"></div>
+    <div class="grid-2">
+      <div class="card hidden" id="adminBox">
+        <h3>إدارة بنود Check‑List (Admin)</h3>
+        <input type="hidden" id="builderEditingId">
+
+        <div class="grid-4">
+          <div class="field">
+            <label>اسم البند</label>
+            <input id="builderLabel" placeholder="مثال: Training Requirement">
+          </div>
+          <div class="field">
+            <label>نوع السؤال</label>
+            <select id="builderFieldType">
+              <option value="text">Text</option>
+              <option value="textarea">Textarea</option>
+              <option value="number">Number</option>
+              <option value="date">Date</option>
+              <option value="boolean">صح / خطأ</option>
+              <option value="choice">سؤال خيارات</option>
+            </select>
+          </div>
+          <div class="field hidden" id="builderRenderModeWrap">
+            <label>طريقة عرض الخيارات</label>
+            <select id="builderRenderMode">
+              <option value="select">Select</option>
+              <option value="radios">Radio Buttons</option>
+              <option value="checkboxes">Checkboxes</option>
+            </select>
+          </div>
+          <div class="field hidden" id="builderOptionCountWrap">
+            <label>عدد الخيارات</label>
+            <input id="builderOptionCount" type="number" min="1" value="2">
+          </div>
+          <div class="field">
+            <label>ترتيب البند</label>
+            <input id="builderOrder" type="number" min="1" value="1">
+          </div>
+          <div class="field">
+            <label>القسم</label>
+            <input id="builderSection" placeholder="مثال: Software & Systems">
+          </div>
+          <div class="field">
+            <label>إجباري؟</label>
+            <select id="builderRequired">
+              <option value="true">نعم</option>
+              <option value="false">لا</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>نشط؟</label>
+            <select id="builderActive">
+              <option value="true">نعم</option>
+              <option value="false">لا</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="builderOptionsBox" class="grid-3 hidden" style="margin-top:12px"></div>
+
+        <div class="actions">
+          <button class="btn green" id="saveFieldBtn" type="button">حفظ البند</button>
+          <button class="btn" id="resetFieldBtn" type="button">تنظيف</button>
+        </div>
+
+        <div class="note" id="builderMessage">إذا اخترت <strong>سؤال خيارات</strong> وحددت العدد 7، سيظهر لك 7 حقول لإدخال أسماء الخيارات.</div>
+        <div id="adminList" style="margin-top:16px"></div>
+      </div>
+
+      <div class="card">
+        <h3>نموذج Check‑List</h3>
+        <div class="note">المعاينة تحدث مباشرة قبل التخزين. يمكنك حفظ النموذج كمسودة محلية أولًا أو حفظه نهائيًا في Firebase.</div>
+        <div id="dynamicChecklistSections" class="dynamic-checklist-wrap" style="margin-top:14px"></div>
+        <div class="note" id="previewHint" style="margin-top:10px">بعد حفظ البند من الجهة اليمنى ستظهر معاينته هنا مباشرة حتى تتأكد أنه صحيح.</div>
+
+        <div class="actions">
+          <button class="btn warning" id="saveDraftBtn" type="button">حفظ كمسودة</button>
+          <button class="btn green" id="saveChecklistBtn" type="button">حفظ نهائي</button>
+          <button class="btn" id="clearChecklistBtn" type="button">تنظيف النموذج</button>
+        </div>
+        <div class="note" id="checklistMessage">جاهز للحفظ.</div>
+
+        <div class="section-title">معاينة قبل التخزين</div>
+        <div id="previewBox" class="preview-box"></div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px">
+      <div class="card">
+        <h3>السجلات غير المحفوظة (مسودات)</h3>
+        <div id="draftsList"></div>
+      </div>
+      <div class="card">
+        <h3>السجلات المحفوظة</h3>
+        <div id="savedList"></div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserSessionPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, collection, addDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
+      authDomain:'baghethan-ba325.firebaseapp.com',
+      projectId:'baghethan-ba325',
+      storageBucket:'baghethan-ba325.firebasestorage.app',
+      messagingSenderId:'944819735112',
+      appId:'1:944819735112:web:07315600da39377320667d'
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const state = {
+      fields: [],
+      submissions: [],
+      editingSavedId: '',
+      editingDraftId: '',
+      currentUser: null,
+      currentUserProfile: null
+    };
+
+    let unsubFields = null;
+    let unsubSubs = null;
+
+    const $ = id => document.getElementById(id);
+
+function esc(v){
+      return String(v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function showGlobalError(msg=''){
+      const el = $('globalMessage');
+      if(!msg){ el.classList.add('hidden'); el.textContent=''; return; }
+      el.classList.remove('hidden');
+      el.textContent = msg;
+    }
+
+    function showChecklistMessage(msg='جاهز للحفظ.', kind='ok'){
+      const el = $('checklistMessage');
+      el.textContent = msg;
+      el.style.color = kind === 'error' ? '#8a1f1f' : '';
+    }
+
+    function permissionFriendly(err){
+      const msg = err?.message || String(err || '');
+      if(msg.includes('permission-denied') || msg.includes('Missing or insufficient permissions')){
+        return 'يوجد خطأ صلاحيات في Firebase (permission-denied). تأكد من Firestore Rules ومن وجود app_users/{uid} للمستخدم.';
+      }
+      return msg;
+    }
+
+    function setLoginMessage(msg='', kind='info'){
+      const el = $('loginMessage');
+      if(!el) return;
+      el.textContent = msg;
+      el.style.color = kind === 'error' ? '#8a1f1f' : '';
+    }
+
+    function toggleAuthUi(isLoggedIn){
+      $('loginOverlay').classList.toggle('hidden', isLoggedIn);
+      $('appRoot').classList.toggle('hidden', !isLoggedIn);
+      $('logoutBtn').classList.toggle('hidden', !isLoggedIn);
+      $('currentUserChip').classList.toggle('hidden', !isLoggedIn);
+    }
+
+    function stopListeners(){
+      if(unsubFields){ unsubFields(); unsubFields = null; }
+      if(unsubSubs){ unsubSubs(); unsubSubs = null; }
+    }
+
+    async function loadProfile(uid){
+      const snap = await getDoc(doc(db, 'app_users', uid));
+      if(!snap.exists()) throw new Error('لا يوجد مستند app_users/{uid} لهذا المستخدم.');
+      const profile = snap.data();
+      if(profile.active === false) throw new Error('الحساب غير نشط.');
+      return { id: snap.id, ...profile };
+    }
+
+    function applyRoleUi(){
+      const role = state.currentUserProfile?.role || 'user';
+      $('adminBox').classList.toggle('hidden', role !== 'admin');
+      $('currentUserChip').textContent = `${state.currentUserProfile?.name || state.currentUser?.email || ''} | ${role}`;
+    }
+
+    async function loginWithEmail(){
+      const email = $('loginEmail').value.trim();
+      const password = $('loginPassword').value;
+      if(!email || !password){
+        setLoginMessage('أدخل البريد الإلكتروني وكلمة المرور.', 'error');
+        return;
+      }
+      try{
+        $('loginBtn').disabled = true;
+        setLoginMessage('جاري تسجيل الدخول...', 'info');
+        await setPersistence(auth, browserSessionPersistence);
+        await signInWithEmailAndPassword(auth, email, password);
+      }catch(err){
+        setLoginMessage(permissionFriendly(err), 'error');
+      }finally{
+        $('loginBtn').disabled = false;
+      }
+    }
+
+    async function startAppForUser(user){
+      state.currentUser = user;
+      try{
+        let profile = null;
+        try { profile = await loadProfile(user.uid); } catch(err){ showGlobalError(permissionFriendly(err)); }
+        state.currentUserProfile = profile;
+        applyRoleUi();
+        toggleAuthUi(true);
+        renderDrafts();
+        resetBuilder();
+        listenChecklistFields();
+        listenSubmissions();
+      } catch(err){
+        showGlobalError(permissionFriendly(err));
+      }
+    }
+
+    async function logoutNow(){
+      try{ await signOut(auth); } catch(err){ showGlobalError(permissionFriendly(err)); }
+    }
+
+    function slugify(text){
+      return String(text || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/[^\w\-]+/g, '');
+    }
+
+    function syncBuilderUi(){
+      const isChoice = $('builderFieldType').value === 'choice';
+      $('builderRenderModeWrap').classList.toggle('hidden', !isChoice);
+      $('builderOptionCountWrap').classList.toggle('hidden', !isChoice);
+      $('builderOptionsBox').classList.toggle('hidden', !isChoice);
+      if(isChoice){
+        renderBuilderOptionInputs(Number($('builderOptionCount').value || 2));
+      } else {
+        $('builderOptionsBox').innerHTML = '';
+      }
+    }
+
+    function renderBuilderOptionInputs(count = 2, seed = []){
+      const box = $('builderOptionsBox');
+      const safeCount = Math.max(1, Number(count || 1));
+      box.innerHTML = '';
+      for(let i=0; i<safeCount; i++){
+        const div = document.createElement('div');
+        div.className = 'builder-option-item';
+        div.innerHTML = `
+          <strong>الخيار ${i+1}</strong>
+          <div class="field">
+            <label>اسم الخيار</label>
+            <input class="builder-option-input" value="${esc(seed[i]?.label || '')}" placeholder="اكتب اسم الخيار ${i+1}">
+          </div>
+        `;
+        box.appendChild(div);
+      }
+    }
+
+    function collectBuilderOptions(){
+      return [...document.querySelectorAll('.builder-option-input')].map((input, index) => {
+        const label = (input.value || '').trim() || `Option ${index+1}`;
+        return { label, value: slugify(label) || `option_${index+1}` };
+      });
+    }
+
+    function resetBuilder(){
+      $('builderEditingId').value = '';
+      $('builderLabel').value = '';
+      $('builderFieldType').value = 'text';
+      $('builderRenderMode').value = 'select';
+      $('builderOptionCount').value = 2;
+      $('builderOrder').value = 1;
+      $('builderSection').value = '';
+      $('builderRequired').value = 'true';
+      $('builderActive').value = 'true';
+      $('builderMessage').textContent = 'إذا اخترت سؤال خيارات وحددت العدد 7، سيظهر لك 7 حقول لإدخال أسماء الخيارات.';
+      syncBuilderUi();
+    }
+
+    async function saveField(){
+      try{
+        const label = $('builderLabel').value.trim();
+        if(!label) throw new Error('أدخل اسم البند');
+        const fieldType = $('builderFieldType').value;
+        const renderMode = fieldType === 'choice' ? $('builderRenderMode').value : '';
+        const order = Number($('builderOrder').value || 1);
+        const section = $('builderSection').value.trim() || 'General';
+        const required = $('builderRequired').value === 'true';
+        const active = $('builderActive').value === 'true';
+        let options = [];
+        if(fieldType === 'choice'){
+          options = collectBuilderOptions();
+          if(!options.length) throw new Error('أدخل خيارًا واحدًا على الأقل');
+        }
+        const payload = { label, fieldType, renderMode, options, order, section, required, active, updatedAt: Timestamp.now() };
+        const editingId = $('builderEditingId').value.trim();
+        let savedId = editingId;
+        if(editingId){
+          await setDoc(doc(db, 'checklist_fields', editingId), payload, { merge:true });
+        } else {
+          const ref = await addDoc(collection(db, 'checklist_fields'), { ...payload, createdAt: Timestamp.now() });
+          savedId = ref.id;
+        }
+        const localField = { id: savedId, ...payload };
+        const idx = state.fields.findIndex(x => x.id === savedId);
+        if(idx >= 0) state.fields[idx] = localField;
+        else state.fields.push(localField);
+        state.fields.sort((a,b) => {
+          const sa = String(a.section || '');
+          const sb = String(b.section || '');
+          if(sa !== sb) return sa.localeCompare(sb);
+          return Number(a.order || 0) - Number(b.order || 0);
+        });
+        renderAdminList();
+        renderChecklistForm({});
+        renderPreview();
+        $('builderMessage').textContent = 'تم حفظ البند وظهرت معاينته في نموذج Check‑List بالجهة اليسرى.';
+        showChecklistMessage('تم تحديث نموذج Check‑List بالمعاينة الجديدة. إذا كانت مناسبة اضغط حفظ نهائي.', 'ok');
+        $('dynamicChecklistSections')?.scrollIntoView({behavior:'smooth', block:'start'});
+        resetBuilder();
+      } catch(err){
+        $('builderMessage').textContent = permissionFriendly(err);
+      }
+    }
+
+    window.removeField = async function(id){
+      try{
+        if(!confirm('هل تريد حذف هذا البند؟')) return;
+        await deleteDoc(doc(db, 'checklist_fields', id));
+      } catch(err){
+        $('builderMessage').textContent = permissionFriendly(err);
+      }
+    };
+
+    window.editField = function(id){
+      const field = state.fields.find(x => x.id === id);
+      if(!field) return;
+      $('builderEditingId').value = field.id || '';
+      $('builderLabel').value = field.label || '';
+      $('builderFieldType').value = field.fieldType || 'text';
+      $('builderRenderMode').value = field.renderMode || 'select';
+      $('builderOptionCount').value = Array.isArray(field.options) && field.options.length ? field.options.length : 2;
+      $('builderOrder').value = field.order ?? 1;
+      $('builderSection').value = field.section || '';
+      $('builderRequired').value = String(!!field.required);
+      $('builderActive').value = String(field.active !== false);
+      syncBuilderUi();
+      if(field.fieldType === 'choice') renderBuilderOptionInputs(Number($('builderOptionCount').value || 2), field.options || []);
+      $('builderMessage').textContent = 'تم تحميل البند للتعديل';
+    };
+
+    function renderAdminList(){
+      $('adminList').innerHTML = state.fields.map(f => `
+        <div class="item">
+          <div class="admin-row">
+            <div>
+              <strong>${esc(f.label)}</strong>
+              <small>القسم: ${esc(f.section || 'General')} | الترتيب: ${esc(f.order)}</small>
+            </div>
+            <div class="badges">
+              <span class="badge">${esc(f.fieldType)}</span>
+              ${f.renderMode ? `<span class="badge">${esc(f.renderMode)}</span>` : ''}
+              <span class="badge">${f.required ? 'required' : 'optional'}</span>
+              <span class="badge">${f.active === false ? 'inactive' : 'active'}</span>
+            </div>
+            <div class="actions" style="margin:0">
+              <button class="btn small" type="button" onclick="editField('${f.id}')">تعديل</button>
+              <button class="btn small danger" type="button" onclick="removeField('${f.id}')">حذف</button>
+            </div>
+          </div>
+        </div>
+      `).join('') || `<div class="note">لا توجد بنود بعد.</div>`;
+    }
+
+    function renderDynamicField(field, value){
+      const inputId = `field_${field.id}`;
+      if(field.fieldType === 'boolean'){
+        return `<div class="field"><label>${esc(field.label)}</label><label class="choice-option"><input type="checkbox" id="${inputId}" data-field-id="${esc(field.id)}" ${value ? 'checked' : ''}><span>صح</span></label></div>`;
+      }
+      if(field.fieldType === 'date'){
+        return `<div class="field"><label>${esc(field.label)}</label><input type="date" id="${inputId}" data-field-id="${esc(field.id)}" value="${esc(value || '')}"></div>`;
+      }
+      if(field.fieldType === 'number'){
+        return `<div class="field"><label>${esc(field.label)}</label><input type="number" id="${inputId}" data-field-id="${esc(field.id)}" value="${esc(value || '')}"></div>`;
+      }
+      if(field.fieldType === 'textarea'){
+        return `<div class="field"><label>${esc(field.label)}</label><textarea id="${inputId}" data-field-id="${esc(field.id)}">${esc(value || '')}</textarea></div>`;
+      }
+      if(field.fieldType === 'choice'){
+        const options = Array.isArray(field.options) ? field.options : [];
+        if(field.renderMode === 'select'){
+          return `<div class="field"><label>${esc(field.label)}</label><select id="${inputId}" data-field-id="${esc(field.id)}"><option value="">اختر</option>${options.map(opt => `<option value="${esc(opt.value)}" ${String(value || '') === String(opt.value) ? 'selected' : ''}>${esc(opt.label)}</option>`).join('')}</select></div>`;
+        }
+        if(field.renderMode === 'radios'){
+          return `<div class="field"><label>${esc(field.label)}</label><div class="choice-group-dynamic">${options.map(opt => `<label class="choice-option"><input type="radio" name="${inputId}" value="${esc(opt.value)}" data-radio-group-id="${esc(field.id)}" ${String(value || '') === String(opt.value) ? 'checked' : ''}><span>${esc(opt.label)}</span></label>`).join('')}</div></div>`;
+        }
+        if(field.renderMode === 'checkboxes'){
+          const values = Array.isArray(value) ? value : [];
+          return `<div class="field"><label>${esc(field.label)}</label><div class="choice-group-dynamic">${options.map(opt => `<label class="choice-option"><input type="checkbox" value="${esc(opt.value)}" data-checkbox-group-id="${esc(field.id)}" ${values.includes(opt.value) ? 'checked' : ''}><span>${esc(opt.label)}</span></label>`).join('')}</div></div>`;
+        }
+      }
+      return `<div class="field"><label>${esc(field.label)}</label><input type="text" id="${inputId}" data-field-id="${esc(field.id)}" value="${esc(value || '')}"></div>`;
+    }
+
+    function renderChecklistForm(values = {}){
+      const container = $('dynamicChecklistSections');
+      container.innerHTML = '';
+      const grouped = {};
+      state.fields.filter(f => f.active !== false).forEach(field => {
+        const section = field.section || 'General';
+        grouped[section] = grouped[section] || [];
+        grouped[section].push(field);
+      });
+      Object.entries(grouped).forEach(([section, fields]) => {
+        const block = document.createElement('div');
+        block.className = 'dynamic-section-block';
+        block.innerHTML = `<div class="section-title">${esc(section)}</div><ol class="dynamic-checklist-list"></ol>`;
+        const list = block.querySelector('ol');
+        fields.forEach(field => {
+          const li = document.createElement('li');
+          li.innerHTML = renderDynamicField(field, values[field.id]);
+          list.appendChild(li);
+        });
+        container.appendChild(block);
+      });
+      if(!Object.keys(grouped).length){
+        container.innerHTML = `<div class="note">لا توجد بنود ديناميكية حتى الآن.</div>`;
+      }
+      bindPreviewEvents();
+      renderPreview();
+    }
+
+    function collectChecklistAnswers(){
+      const answers = {};
+      state.fields.filter(f => f.active !== false).forEach(field => {
+        const inputId = `field_${field.id}`;
+        if(field.fieldType === 'boolean'){
+          answers[field.id] = !!$(inputId)?.checked;
+          return;
+        }
+        if(field.fieldType === 'choice' && field.renderMode === 'radios'){
+          answers[field.id] = document.querySelector(`input[name="${inputId}"]:checked`)?.value || '';
+          return;
+        }
+        if(field.fieldType === 'choice' && field.renderMode === 'checkboxes'){
+          answers[field.id] = [...document.querySelectorAll(`[data-checkbox-group-id="${field.id}"]:checked`)].map(el => el.value);
+          return;
+        }
+        answers[field.id] = $(inputId)?.value || '';
+      });
+      return answers;
+    }
+
+    function renderPreview(){
+      const answers = collectChecklistAnswers();
+      const box = $('previewBox');
+      const grouped = {};
+      state.fields.filter(f => f.active !== false).forEach(field => {
+        const section = field.section || 'General';
+        grouped[section] = grouped[section] || [];
+        grouped[section].push(field);
+      });
+      let html = '';
+      Object.entries(grouped).forEach(([section, fields]) => {
+        html += `<div class="preview-section"><h4>${esc(section)}</h4>`;
+        fields.forEach(field => {
+          let value = answers[field.id];
+          if(field.fieldType === 'boolean') value = value ? 'صح' : 'غير محدد';
+          else if(Array.isArray(value)) value = value.join('، ');
+          else value = String(value || '');
+          html += `<div class="preview-item"><strong>${esc(field.label)}</strong><div>${esc(value || '—')}</div></div>`;
+        });
+        html += `</div>`;
+      });
+      box.innerHTML = html || '<div class="note">لا توجد بيانات للمعاينة بعد.</div>';
+    }
+
+    function bindPreviewEvents(){
+      document.querySelectorAll('#dynamicChecklistSections input, #dynamicChecklistSections select, #dynamicChecklistSections textarea').forEach(el => {
+        el.removeEventListener('input', renderPreview);
+        el.removeEventListener('change', renderPreview);
+        el.addEventListener('input', renderPreview);
+        el.addEventListener('change', renderPreview);
+      });
+    }
+
+    function getDrafts(){
+      try{return JSON.parse(localStorage.getItem('dynamic_checklist_drafts') || '[]');}
+      catch{return [];}
+    }
+    function saveDrafts(drafts){
+      localStorage.setItem('dynamic_checklist_drafts', JSON.stringify(drafts));
+    }
+
+    function renderDrafts(){
+      const drafts = getDrafts();
+      $('draftsList').innerHTML = drafts.map(d => `
+        <div class="item">
+          <div class="submission-row">
+            <div class="meta">
+              <strong>${esc(d.title || 'مسودة بدون عنوان')}</strong>
+              <small>آخر تحديث: ${esc(d.updatedAt || '')}</small>
+              <small>عدد البنود: ${Object.keys(d.answers || {}).length}</small>
+            </div>
+            <div class="actions" style="margin:0">
+              <button class="btn small" type="button" onclick="window.loadDraft('${d.id}')">تعديل</button>
+              <button class="btn small danger" type="button" onclick="window.deleteDraft('${d.id}')">حذف</button>
+            </div>
+          </div>
+        </div>
+      `).join('') || '<div class="note">لا توجد مسودات غير محفوظة.</div>';
+    }
+
+    window.loadDraft = function(id){
+      const draft = getDrafts().find(x => x.id === id);
+      if(!draft) return;
+      state.editingDraftId = id;
+      state.editingSavedId = '';
+      renderChecklistForm(draft.answers || {});
+      showChecklistMessage('تم تحميل المسودة للتعديل.');
+    };
+
+    window.deleteDraft = function(id){
+      const drafts = getDrafts().filter(x => x.id !== id);
+      saveDrafts(drafts);
+      renderDrafts();
+      if(state.editingDraftId === id) state.editingDraftId = '';
+    };
+
+    function saveCurrentAsDraft(){
+      const drafts = getDrafts();
+      const now = new Date().toLocaleString('en-CA');
+      const data = {
+        id: state.editingDraftId || `draft_${Date.now()}`,
+        title: $('builderLabel')?.value?.trim() || 'مسودة Check‑List',
+        answers: collectChecklistAnswers(),
+        updatedAt: now
+      };
+      const idx = drafts.findIndex(x => x.id === data.id);
+      if(idx >= 0) drafts[idx] = data; else drafts.unshift(data);
+      saveDrafts(drafts);
+      state.editingDraftId = data.id;
+      renderDrafts();
+      showChecklistMessage('تم حفظ النموذج كمسودة محلية.');
+    }
+
+    async function saveChecklist(){
+      try{
+        const payload = {
+          dynamicAnswers: collectChecklistAnswers(),
+          dynamicFieldsSnapshot: state.fields.filter(f => f.active !== false).map(f => ({
+            id:f.id, label:f.label, fieldType:f.fieldType, renderMode:f.renderMode || '', options:f.options || [], section:f.section || 'General', order:f.order ?? 1
+          })),
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        };
+        if(state.editingSavedId){
+          await setDoc(doc(db, 'checklist_submissions', state.editingSavedId), payload, { merge:true });
+        } else {
+          await addDoc(collection(db, 'checklist_submissions'), payload);
+        }
+        if(state.editingDraftId){
+          window.deleteDraft(state.editingDraftId);
+          state.editingDraftId = '';
+        }
+        state.editingSavedId = '';
+        showChecklistMessage('تم حفظ Check‑List بنجاح.');
+        resetChecklistForm();
+      } catch(err){
+        showChecklistMessage(permissionFriendly(err), 'error');
+      }
+    }
+
+    function resetChecklistForm(){
+      state.editingSavedId = '';
+      state.editingDraftId = '';
+      renderChecklistForm({});
+      showChecklistMessage('جاهز للحفظ.');
+    }
+
+    function renderSaved(){
+      $('savedList').innerHTML = state.submissions.map(s => `
+        <div class="item">
+          <div class="submission-row">
+            <div class="meta">
+              <strong>سجل محفوظ</strong>
+              <small>ID: ${esc(s.id)}</small>
+              <small>عدد البنود: ${Object.keys(s.dynamicAnswers || {}).length}</small>
+            </div>
+            <div class="actions" style="margin:0">
+              <button class="btn small" type="button" onclick="window.loadSaved('${s.id}')">تعديل</button>
+            </div>
+          </div>
+        </div>
+      `).join('') || '<div class="note">لا توجد سجلات محفوظة.</div>';
+    }
+
+    window.loadSaved = function(id){
+      const row = state.submissions.find(x => x.id === id);
+      if(!row) return;
+      state.editingSavedId = id;
+      state.editingDraftId = '';
+      renderChecklistForm(row.dynamicAnswers || {});
+      showChecklistMessage('تم تحميل السجل المحفوظ للتعديل.');
+    };
+
+    function listenChecklistFields(){
+      if(unsubFields){ unsubFields(); }
+      unsubFields = onSnapshot(query(collection(db, 'checklist_fields'), orderBy('section'), orderBy('order')),
+        snap => {
+          showGlobalError('');
+          state.fields = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+          renderAdminList();
+          if(!state.editingSavedId && !state.editingDraftId) renderChecklistForm({});
+          else renderPreview();
+        },
+        err => {
+          showGlobalError(permissionFriendly(err));
+        }
+      );
+    }
+
+    function listenSubmissions(){
+      if(unsubSubs){ unsubSubs(); }
+      unsubSubs = onSnapshot(query(collection(db, 'checklist_submissions'), orderBy('createdAt', 'desc')),
+        snap => {
+          showGlobalError('');
+          state.submissions = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+          renderSaved();
+        },
+        err => {
+          showGlobalError(permissionFriendly(err));
+        }
+      );
+    }
+
+    $('loginBtn').addEventListener('click', loginWithEmail);
+    $('logoutBtn').addEventListener('click', logoutNow);
+    $('builderFieldType').addEventListener('change', syncBuilderUi);
+    $('builderOptionCount').addEventListener('input', () => {
+      if($('builderFieldType').value === 'choice') renderBuilderOptionInputs(Number($('builderOptionCount').value || 1));
+    });
+    $('saveFieldBtn').addEventListener('click', saveField);
+    $('resetFieldBtn').addEventListener('click', resetBuilder);
+    $('saveDraftBtn').addEventListener('click', saveCurrentAsDraft);
+    $('saveChecklistBtn').addEventListener('click', saveChecklist);
+    $('clearChecklistBtn').addEventListener('click', resetChecklistForm);
+
+    resetBuilder();
+    renderDrafts();
+    toggleAuthUi(false);
+
+    onAuthStateChanged(auth, async user => {
+      if(user){
+        setLoginMessage('تم تسجيل الدخول بنجاح.');
+        await startAppForUser(user);
+      } else {
+        stopListeners();
+        state.currentUser = null;
+        state.currentUserProfile = null;
+        state.fields = [];
+        state.submissions = [];
+        $('dynamicChecklistSections').innerHTML = '';
+        $('savedList').innerHTML = '';
+        $('adminList').innerHTML = '';
+        $('currentUserChip').textContent = '';
+        toggleAuthUi(false);
+      }
+    });
+  </script>
+</body>
+</html>
