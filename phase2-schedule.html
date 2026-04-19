@@ -66,13 +66,13 @@
   @media (max-width:768px){.permissions-form-grid,.permissions-grid{grid-template-columns:1fr}.permissions-role-banner,.permissions-toolbar,.permissions-footer{flex-direction:column;align-items:stretch}}
 
 
-    .dynamic-checklist-wrap{display:grid;gap:16px}
-    .dynamic-section-block{margin-top:8px}
-    .dynamic-checklist-list{list-style:none;padding:0;margin:0;counter-reset:ck}
-    .dynamic-checklist-list>li{position:relative;padding-inline-start:38px;margin-bottom:14px}
-    .dynamic-checklist-list>li::before{counter-increment:ck;content:counter(ck) " -";position:absolute;inset-inline-start:0;top:6px;font-weight:800;color:var(--primary)}
-    .choice-group-dynamic{display:flex;gap:12px;flex-wrap:wrap}
-    .choice-option{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff}
+.dynamic-checklist-wrap{display:grid;gap:16px}
+.dynamic-section-block{margin-top:8px}
+.dynamic-checklist-list{list-style:none;padding:0;margin:0;counter-reset:ck}
+.dynamic-checklist-list>li{position:relative;padding-inline-start:38px;margin-bottom:14px}
+.dynamic-checklist-list>li::before{counter-increment:ck;content:counter(ck) " -";position:absolute;inset-inline-start:0;top:6px;font-weight:800;color:var(--primary)}
+.choice-group-dynamic{display:flex;gap:12px;flex-wrap:wrap}
+.choice-option{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff}
 
 </style>
 </head>
@@ -206,7 +206,7 @@
       </div>
     </section>
 
-<section id="brands" class="panel">
+    <section id="brands" class="panel"><section id="brands" class="panel">
       <div class="grid-2">
         <div class="card">
           <h3 data-i18n="brandFormTitle">إضافة / تعديل براند</h3>
@@ -551,7 +551,7 @@
       }
     };
 
-    const APP_VERSION = 'v1.6.8';
+    const APP_VERSION = 'v1.6.9';
     const SHARED_BRAND_GROUPS = [
       { id:'changan_deepal', brands:['changan','deepal'] }
     ];
@@ -1046,33 +1046,19 @@
       updateMonthFromVisitDate();
     }
     function toggleUpgradeDeviceCount(){
-      const show = $('cl_q29').value === 'Yes';
-      $('cl_q29_count_wrap').classList.toggle('hidden', !show);
-      if(!show) $('cl_q29_device_count').value = '';
+      const q29 = $('cl_q29');
+      const wrap = $('cl_q29_count_wrap');
+      const countInput = $('cl_q29_device_count');
+      if(!q29 || !wrap || !countInput) return;
+      const show = q29.value === 'Yes';
+      wrap.classList.toggle('hidden', !show);
+      if(!show) countInput.value = '';
     }
     function getChecklistEmployeeIdValues(){
-      return [...document.querySelectorAll('.cl-q29-employee-id')].map(x => (x.value || '').trim()).filter(Boolean);
+      return [];
     }
     function renderChecklistEmployeeIdInputs(values){
-      const q29 = $('cl_q29').value;
-      const count = Number($('cl_q29_device_count').value || 0);
-      const box = $('cl_q29_employee_ids_box');
-      const list = $('cl_q29_employee_ids_list');
-      if(!box || !list){ return; }
-      if(q29 !== 'Yes' || count <= 0){
-        box.classList.add('hidden');
-        list.innerHTML = '';
-        return;
-      }
-      const previous = Array.isArray(values) ? values : getChecklistEmployeeIdValues();
-      box.classList.remove('hidden');
-      list.innerHTML = '';
-      for(let i = 0; i < count; i++){
-        const field = document.createElement('div');
-        field.className = 'field';
-        field.innerHTML = `<label>رقم الموظف للجهاز ${i+1}</label><input class="cl-q29-employee-id" placeholder="Employee ID ${i+1}" value="${esc(previous[i] || '')}">`;
-        list.appendChild(field);
-      }
+      return;
     }
     function normalizeUpgradeWindowsHeader(key){ return String(key || '').toLowerCase().replace(/[\s_\-\/]+/g,''); }
     function normalizeUpgradeWindowsRow(row){
@@ -1269,7 +1255,10 @@
       ['cl_technician','cl_visit_ref','cl_visit_scheduled','cl_calendar_booked'].forEach(id=>{ if($(id)) $(id).value=''; });
       resetDynamicChecklistAnswers();
       $('saveChecklistBtn').disabled = false;
-      $('deleteChecklistBtn').classList.add('hidden'); setMessage('checklistMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('checklistError'); populateVisitsForTechnician();
+      $('deleteChecklistBtn').classList.add('hidden');
+      setMessage('checklistMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.');
+      setAlert('checklistError');
+      populateVisitsForTechnician();
     }
     function clearBrandForm(){ $('editingBrandId').value=''; ['brandNameAr','brandNameEn','brandKey','brandLogoUrl','brandNotes'].forEach(id=>$(id).value=''); $('brandLogoFile').value=''; setPreview(''); $('deleteBrandBtn').classList.add('hidden'); setMessage('brandMessage', state.currentLang==='ar'?'يمكنك إضافة براند جديد مع صورته أو تعديل براند موجود.':'You can add or edit a brand.'); setAlert('brandsError'); }
     function clearVisitForm(){ $('editingVisitId').value=''; ['visitDate','visitBrand','visitBranchId','visitLocation','visitNotes'].forEach(id=>$(id).value=''); ['visitBranch','visitTechnician','visitStatus'].forEach((id,i)=>$(id).value = i===2 ? 'planned' : ''); renderBranchSelectors(); $('deleteVisitBtn').classList.add('hidden'); setMessage('visitMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('visitError'); }
@@ -1307,8 +1296,14 @@
         if(!payload.technicianId) throw new Error(state.currentLang==='ar'?'اختر الفني أولاً.':'Choose technician first.');
         if(!payload.brand || !payload.branchId || !payload.locationSite || !payload.visitDate) throw new Error(state.currentLang==='ar'?'أكمل الحقول الأساسية المطلوبة.':'Complete required basic fields.');
         let targetId = $('editingChecklistId').value.trim();
-        if(!targetId && payload.linkedVisitId){ const existingByVisit = state.checklists.find(r => String(r.linkedVisitId || '') === String(payload.linkedVisitId)); if(existingByVisit?.id) targetId = existingByVisit.id; }
-        if(!targetId){ const existingByNaturalKey = state.checklists.find(r => String(r.technicianDocId || '') === String(payload.technicianDocId || '') && String(r.branchId || '') === String(payload.branchId || '') && String(r.visitDate || '') === String(payload.visitDate || '')); if(existingByNaturalKey?.id) targetId = existingByNaturalKey.id; }
+        if(!targetId && payload.linkedVisitId){
+          const existingByVisit = state.checklists.find(r => String(r.linkedVisitId || '') === String(payload.linkedVisitId));
+          if(existingByVisit?.id) targetId = existingByVisit.id;
+        }
+        if(!targetId){
+          const existingByNaturalKey = state.checklists.find(r => String(r.technicianDocId || '') === String(payload.technicianDocId || '') && String(r.branchId || '') === String(payload.branchId || '') && String(r.visitDate || '') === String(payload.visitDate || ''));
+          if(existingByNaturalKey?.id) targetId = existingByNaturalKey.id;
+        }
         if(targetId) await setDoc(doc(db,'branch_checklists',targetId), payload, {merge:true});
         else { const ref = await addDoc(collection(db,'branch_checklists'), { ...payload, createdAt: Timestamp.now() }); targetId = ref.id; }
         if(payload.linkedVisitId){ await setDoc(doc(db,'siteVisits', payload.linkedVisitId), { status:'completed', checklistCompleted:true, checklistCompletedAt: Timestamp.now(), updatedAt: Timestamp.now() }, {merge:true}); }
@@ -1323,7 +1318,33 @@
     }
 
     async function deleteChecklistById(id){ try{ if(!id) return; if(!canDeleteChecklistForCurrentUser()){ throw new Error(state.currentLang==='ar' ? 'غير مسموح لك بحذف هذا السجل.' : 'You are not allowed to delete this record.'); } if(!confirm(state.currentLang==='ar'?'هل تريد حذف السجل؟':'Delete this record?')) return; await deleteDoc(doc(db,'branch_checklists',id)); clearChecklistForm(); } catch(err){ setAlert('checklistError', err.message || String(err)); } }
-    window.openChecklistForEdit = function(id){ const x = state.checklists.find(r=>r.id===id); if(!x) return; if(!isChecklistVisibleForCurrentUser(x)){ alert(state.currentLang==='ar' ? 'ليس لديك صلاحية لعرض هذا السجل.' : 'You do not have permission to view this record.'); return; } $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||x.location||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.technicianVisitDate || x.visitDate || ''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; ['cl_q10','cl_q11','cl_q12','cl_q13','cl_q14','cl_q15','cl_q16','cl_q17','cl_q18','cl_q19','cl_q22','cl_q23','cl_q24','cl_q25','cl_q26','cl_q29'].forEach(id2=>$(id2).value = x[{cl_q10:'q10_networkCabinetsCondition',cl_q11:'q11_lowCurrentInfrastructure',cl_q12:'q12_uploadSpeed',cl_q13:'q13_downloadSpeed',cl_q14:'q14_serverRoomTemperature',cl_q15:'q15_upsStatus',cl_q16:'q16_pcCondition',cl_q17:'q17_printersCondition',cl_q18:'q18_unifiedCommunication',cl_q19:'q19_unusedDamagedAssets',cl_q22:'q22_osUpToDate',cl_q23:'q23_cleanup',cl_q24:'q24_oneDriveBackup',cl_q25:'q25_customerFacingPortals',cl_q26:'q26_erpBusinessApps',cl_q29:'q29_upgradeWindows10To11'}[id2]] || ''); $('cl_q29_device_count').value = x.q29_upgradeWindows10To11DeviceCount ?? ''; toggleUpgradeDeviceCount(); renderChecklistEmployeeIdInputs(x.q29_upgradeWindows10To11EmployeeIds || []); $('cl_q20').value=x.q20_assetReport||''; $('cl_q28').value=x.q28_serviceReportSummary||''; document.querySelectorAll('#trainingRequirementsGroup input[type="checkbox"]').forEach(cb=>cb.checked=(x.q27_trainingRequirement||[]).includes(cb.value)); if(canDeleteChecklistForCurrentUser()) $('deleteChecklistBtn').classList.remove('hidden'); else $('deleteChecklistBtn').classList.add('hidden'); activateTab('checklist'); };
+    window.openChecklistForEdit = function(id){
+      const x = state.checklists.find(r=>r.id===id); if(!x) return;
+      if(!isChecklistVisibleForCurrentUser(x)){
+        alert(state.currentLang==='ar' ? 'ليس لديك صلاحية لعرض هذا السجل.' : 'You do not have permission to view this record.');
+        return;
+      }
+      $('editingChecklistId').value = x.id;
+      $('cl_technician').value = x.technicianDocId || x.technicianId || '';
+      populateVisitsForTechnician();
+      $('cl_technician_id').value = x.technicianId || '';
+      $('cl_technician_email').value = x.technicianEmail || '';
+      $('cl_visit_ref').value = x.linkedVisitId || '';
+      $('cl_brand').value = x.brand || '';
+      $('cl_brandKey').value = x.brandKey || '';
+      $('cl_branch_id').value = x.branchId || '';
+      $('cl_location').value = x.locationSite || x.location || '';
+      $('cl_visit_scheduled').value = x.visitScheduledWithBranchManager || '';
+      $('cl_branch_manager').value = x.branchManager || '';
+      $('cl_visit_date').value = x.technicianVisitDate || x.visitDate || '';
+      $('cl_month').value = x.month || '';
+      if($('cl_calendar_booked')) $('cl_calendar_booked').value = x.calendarBooked || '';
+      $('cl_users_count').value = x.numberOfUsers ?? '';
+      renderDynamicChecklistForm(x.dynamicAnswers || {});
+      if(canDeleteChecklistForCurrentUser()) $('deleteChecklistBtn').classList.remove('hidden');
+      else $('deleteChecklistBtn').classList.add('hidden');
+      activateTab('checklist');
+    };
 
     function loadSelectedTechnician(){
       const id = $('technicianSelector')?.value || '';
@@ -1525,7 +1546,6 @@
     function listenTechnicians(){ if(unsub.technicians) unsub.technicians(); unsub.technicians = onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap=>{ state.technicians = snap.docs.map(d=>({id:d.id, ...d.data()})); renderTechniciansList(); renderTechnicianSelectors(); renderBranchSelectors(); renderLatestBrands(); renderStats(); populateVisitsForTechnician(); }, err=>setAlert('technicianError', 'technicians: ' + err.message)); }
     function listenVisits(){ if(unsub.visits) unsub.visits(); unsub.visits = onSnapshot(query(collection(db,'siteVisits'), orderBy('date','desc')), snap=>{ state.visits = snap.docs.map(d=>({id:d.id, ...d.data()})); renderVisitsTable(); populateVisitsForTechnician(); renderLatestBrands(); renderDashboardBrandBoxes(); renderStats(); }, err=>setAlert('visitError', 'siteVisits: ' + err.message)); }
     function listenChecklistFields(){ if(unsub.checklistFields) unsub.checklistFields(); unsub.checklistFields = onSnapshot(query(collection(db,'checklist_fields'), orderBy('section'), orderBy('order')), snap=>{ state.checklistFields = snap.docs.map(d=>({id:d.id, ...d.data()})); renderDynamicChecklistForm({}); }, err=>{ setAlert('checklistError', 'checklist_fields: ' + err.message); }); }
-
     function listenChecklists(){ if(unsub.checklists) unsub.checklists(); unsub.checklists = onSnapshot(query(collection(db,'branch_checklists'), orderBy('visitDate','desc')), snap=>{ state.checklists = snap.docs.map(d=>({id:d.id, ...d.data()})); renderChecklistTable(); renderLatestChecklistTable(); renderStats(); }, err=>{ setAlert('checklistError', 'branch_checklists: ' + err.message); setAlert('dashboardError', 'branch_checklists: ' + err.message); }); }
     function listenBrands(){ if(unsub.brands) unsub.brands(); unsub.brands = onSnapshot(query(collection(db,'brand_assets'), orderBy('nameAr')), snap=>{ state.brands = snap.docs.map(d=>({id:d.id, ...d.data()})); renderBrands(); renderDashboardBrandBoxes(); renderStats(); }, err=>{ setAlert('brandsError', 'brand_assets: ' + err.message); setAlert('dashboardError', 'brand_assets: ' + err.message); }); }
     function listenUsers(){ if(unsub.users) unsub.users(); unsub.users = onSnapshot(query(collection(db,'app_users')), snap=>{ state.users = snap.docs.map(d=>({id:d.id, ...d.data()})); renderUsersTable(); }, err=>setAlert('permissionsError', 'app_users: ' + err.message)); }
@@ -1578,7 +1598,7 @@
         renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); renderUpgradeWindowsTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); clearUpgradeWindowsForm(); renderDynamicChecklistForm({});
       }
     });
-    attachListeners(); const versionChip = document.querySelector('header .chip'); if(versionChip) versionChip.textContent = APP_VERSION; applyLanguage('ar'); updateUserActiveLabel(); applyRoleDefaultsToPermissionForm(); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); renderUpgradeWindowsTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); clearUpgradeWindowsForm(); renderDynamicChecklistForm({}); renderLatestBrands(); renderDashboardBrandBoxes(); toggleUpgradeDeviceCount();
+    attachListeners(); const versionChip = document.querySelector('header .chip'); if(versionChip) versionChip.textContent = APP_VERSION; applyLanguage('ar'); updateUserActiveLabel(); applyRoleDefaultsToPermissionForm(); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); renderUpgradeWindowsTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); clearUpgradeWindowsForm(); renderDynamicChecklistForm({}); renderLatestBrands(); renderDashboardBrandBoxes();
   </script>
 </body>
 </html>
