@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dynamic Check-List Admin Advanced v2.1</title>
+  <title>Dynamic Check-List Admin Advanced v2.1.1</title>
   <style>
     :root{--primary:#0d4b73;--green:#2f9e66;--danger:#d64545;--warning:#c47f00;--border:#d7e0ea;--text:#163247;--muted:#6e8192;--bg:#edf3f8;--card:#fff;--shadow:0 10px 30px rgba(18,48,74,.08);--radius:16px}
     *{box-sizing:border-box} body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg)}
@@ -46,8 +46,8 @@
 
   <header>
     <div class="header-row">
-      <div class="title">Dynamic Check‑List (Admin) — v2.1</div>
-      <div class="user-row"><span class="chip">v2.1</span><span class="chip hidden" id="currentUserChip"></span><button class="btn danger hidden" id="logoutBtn" type="button">خروج / Logout</button></div>
+      <div class="title">Dynamic Check‑List (Admin) — v2.1.1</div>
+      <div class="user-row"><span class="chip">v2.1.1</span><span class="chip hidden" id="currentUserChip"></span><button class="btn danger hidden" id="logoutBtn" type="button">خروج / Logout</button></div>
     </div>
   </header>
 
@@ -233,12 +233,34 @@
     function collectAnswers(seed={}){
       const answers = { ...seed };
       state.fields.filter(f=>f.active!==false).sort(bySectionOrder).forEach(field => {
-        if(field.repeat?.enabled){ answers[field.id] = [...document.querySelectorAll(`[data-repeat-field-id="${field.id}"]`)].map(el=>(el.value||'').trim()).filter(Boolean); return; }
+        if(field.repeat?.enabled){
+          const nodes = [...document.querySelectorAll(`[data-repeat-field-id="${field.id}"]`)];
+          if(nodes.length) answers[field.id] = nodes.map(el=>(el.value||'').trim()).filter(Boolean);
+          else if(!(field.id in answers)) answers[field.id] = [];
+          return;
+        }
         const inputId = `preview_${field.id}`;
-        if(field.fieldType==='boolean'){ answers[field.id] = !!$(inputId)?.checked; return; }
-        if(field.fieldType==='choice' && field.renderMode==='radios'){ answers[field.id] = document.querySelector(`input[name="${inputId}"]:checked`)?.value || ''; return; }
-        if(field.fieldType==='choice' && field.renderMode==='checkboxes'){ answers[field.id] = [...document.querySelectorAll(`[data-checkbox-group-id="${field.id}"]:checked`)].map(el=>el.value); return; }
-        answers[field.id] = $(inputId)?.value || '';
+        if(field.fieldType==='boolean'){
+          const el = $(inputId);
+          if(el) answers[field.id] = !!el.checked;
+          else if(!(field.id in answers)) answers[field.id] = false;
+          return;
+        }
+        if(field.fieldType==='choice' && field.renderMode==='radios'){
+          const checked = document.querySelector(`input[name="${inputId}"]:checked`);
+          if(checked) answers[field.id] = checked.value;
+          else if(!(field.id in answers)) answers[field.id] = '';
+          return;
+        }
+        if(field.fieldType==='choice' && field.renderMode==='checkboxes'){
+          const checked = [...document.querySelectorAll(`[data-checkbox-group-id="${field.id}"]:checked`)];
+          if(checked.length) answers[field.id] = checked.map(el=>el.value);
+          else if(!(field.id in answers)) answers[field.id] = [];
+          return;
+        }
+        const el = $(inputId);
+        if(el) answers[field.id] = el.value || '';
+        else if(!(field.id in answers)) answers[field.id] = '';
       });
       return answers;
     }
@@ -259,8 +281,9 @@
     }
     function bindPreview(){ document.querySelectorAll('#dynamicChecklistSections input, #dynamicChecklistSections select, #dynamicChecklistSections textarea').forEach(el=>{ el.oninput=()=>renderPreview(collectAnswers()); el.onchange=()=>renderPreview(collectAnswers()); }); }
     function renderPreview(values={}){
-      const container = $('dynamicChecklistSections'); container.innerHTML='';
-      const answers = { ...values, ...collectAnswers(values) };
+      const container = $('dynamicChecklistSections');
+      const answers = Object.keys(values || {}).length ? collectAnswers(values) : collectAnswers();
+      container.innerHTML='';
       const grouped = {};
       state.fields.filter(f=>f.active!==false).sort(bySectionOrder).forEach(field=>{ if(!shouldShow(field, answers)) return; const section=field.section||'General'; (grouped[section] ||= []).push(field); });
       Object.entries(grouped).forEach(([section, fields])=>{
