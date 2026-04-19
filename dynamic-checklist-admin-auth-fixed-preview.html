@@ -719,21 +719,35 @@ function esc(v){
     };
 
     function listenChecklistFields(){
-      if(unsubFields){ unsubFields(); }
-      unsubFields = onSnapshot(query(collection(db, 'checklist_fields'), orderBy('section'), orderBy('order')),
-        snap => {
-          showGlobalError('');
-          state.fields = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-          renderAdminList();
-          if(!state.editingSavedId && !state.editingDraftId) renderChecklistForm({});
-          else renderPreview();
-        },
-        err => {
-          showGlobalError(permissionFriendly(err));
-        }
-      );
-    }
+  if (unsubFields) unsubFields();
 
+  unsubFields = onSnapshot(
+    collection(db, 'checklist_fields'),
+    snap => {
+      showGlobalError('');
+
+      state.fields = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const sa = String(a.section || '');
+          const sb = String(b.section || '');
+          if (sa !== sb) return sa.localeCompare(sb);
+          return Number(a.order || 0) - Number(b.order || 0);
+        });
+
+      renderAdminList();
+
+      if (!state.editingSavedId && !state.editingDraftId) {
+        renderChecklistForm({});
+      } else {
+        renderPreview();
+      }
+    },
+    err => {
+      showGlobalError(permissionFriendly(err));
+    }
+  );
+}
     function listenSubmissions(){
       if(unsubSubs){ unsubSubs(); }
       unsubSubs = onSnapshot(query(collection(db, 'checklist_submissions'), orderBy('createdAt', 'desc')),
