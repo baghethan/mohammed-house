@@ -53,6 +53,7 @@
     .preview-section h4{margin:0 0 8px;color:var(--primary)}
     .preview-item{padding:8px 10px;border:1px solid #eef3f7;border-radius:10px;background:#fff;margin-bottom:8px}
     .preview-item strong{display:block;color:var(--primary);margin-bottom:4px}
+    
     .user-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .overlay{position:fixed;inset:0;background:rgba(13,75,115,.18);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}
     .login-card{width:min(720px,96vw);background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 20px 50px rgba(0,0,0,.15);overflow:hidden}
@@ -66,7 +67,7 @@
     <div class="login-card">
       <div class="login-head">تسجيل الدخول / Sign In</div>
       <div class="login-body">
-        <div class="note">سجّل الدخول بالبريد الإلكتروني وكلمة المرور أولًا. إذا كانت قواعد Firestore تعتمد على <span class="rtl-en">app_users/{uid}</span> فتأكد أن مستند المستخدم موجود ومفعل.</div>
+        <div class="note">إذا كنت داخل تبويب النظام الرئيسي وتم تسجيل الدخول بنفس الدومين، فمن المفترض أن يتم التعرف على الجلسة تلقائيًا باستخدام <span class="rtl-en">LOCAL persistence</span>. إذا لم يحدث ذلك يمكنك تسجيل الدخول هنا مرة واحدة فقط.</div>
         <div class="grid-3" style="margin-top:14px">
           <div class="field">
             <label>البريد الإلكتروني / Email</label>
@@ -81,7 +82,7 @@
             <button class="btn green" id="loginBtn" type="button">دخول / Login</button>
           </div>
         </div>
-        <div class="note" id="loginMessage">أدخل بيانات الدخول ثم اضغط Login.</div>
+        <div class="note" id="loginMessage">جاري فحص حالة الدخول...</div>
       </div>
     </div>
   </div>
@@ -90,7 +91,7 @@
     <div class="header-row">
       <div class="title">Dynamic Check‑List (Admin)</div>
       <div class="user-row">
-        <div class="chip">v1.1</div>
+        <div class="chip">v1.2</div>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn" type="button">خروج / Logout</button>
       </div>
@@ -171,7 +172,7 @@
         <h3>نموذج Check‑List</h3>
         <div class="note">المعاينة تحدث مباشرة قبل التخزين. يمكنك حفظ النموذج كمسودة محلية أولًا أو حفظه نهائيًا في Firebase.</div>
         <div id="dynamicChecklistSections" class="dynamic-checklist-wrap" style="margin-top:14px"></div>
-        <div class="note" id="previewHint" style="margin-top:10px">بعد حفظ البند من الجهة اليمنى ستظهر معاينته هنا مباشرة حتى تتأكد أنه صحيح.</div>
+        <div class="note" id="previewHint" style="margin-top:10px">بعد حفظ البند ستظهر معاينته هنا مباشرة.</div>
 
         <div class="actions">
           <button class="btn warning" id="saveDraftBtn" type="button">حفظ كمسودة</button>
@@ -199,8 +200,8 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserSessionPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, collection, addDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, Timestamp, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
@@ -213,6 +214,7 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    setPersistence(auth, browserLocalPersistence).catch(()=>{});
     const db = getFirestore(app);
 
     const state = {
@@ -302,7 +304,7 @@ function esc(v){
       try{
         $('loginBtn').disabled = true;
         setLoginMessage('جاري تسجيل الدخول...', 'info');
-        await setPersistence(auth, browserSessionPersistence);
+        await setPersistence(auth, browserLocalPersistence);
         await signInWithEmailAndPassword(auth, email, password);
       }catch(err){
         setLoginMessage(permissionFriendly(err), 'error');
@@ -417,14 +419,8 @@ function esc(v){
         }
         const localField = { id: savedId, ...payload };
         const idx = state.fields.findIndex(x => x.id === savedId);
-        if(idx >= 0) state.fields[idx] = localField;
-        else state.fields.push(localField);
-        state.fields.sort((a,b) => {
-          const sa = String(a.section || '');
-          const sb = String(b.section || '');
-          if(sa !== sb) return sa.localeCompare(sb);
-          return Number(a.order || 0) - Number(b.order || 0);
-        });
+        if(idx >= 0) state.fields[idx] = localField; else state.fields.push(localField);
+        state.fields.sort((a,b)=>{ const sa=String(a.section||''); const sb=String(b.section||''); if(sa!==sb) return sa.localeCompare(sb); return Number(a.order||0)-Number(b.order||0); });
         renderAdminList();
         renderChecklistForm({});
         renderPreview();
@@ -719,41 +715,27 @@ function esc(v){
     };
 
     function listenChecklistFields(){
-  if (unsubFields) unsubFields();
-
-  unsubFields = onSnapshot(
-    collection(db, 'checklist_fields'),
-    snap => {
-      showGlobalError('');
-
-      state.fields = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => {
-          const sa = String(a.section || '');
-          const sb = String(b.section || '');
-          if (sa !== sb) return sa.localeCompare(sb);
-          return Number(a.order || 0) - Number(b.order || 0);
-        });
-
-      renderAdminList();
-
-      if (!state.editingSavedId && !state.editingDraftId) {
-        renderChecklistForm({});
-      } else {
-        renderPreview();
-      }
-    },
-    err => {
-      showGlobalError(permissionFriendly(err));
-    }
-  );
-}
-    function listenSubmissions(){
-      if(unsubSubs){ unsubSubs(); }
-      unsubSubs = onSnapshot(query(collection(db, 'checklist_submissions'), orderBy('createdAt', 'desc')),
+      if(unsubFields){ unsubFields(); }
+      unsubFields = onSnapshot(collection(db, 'checklist_fields'),
         snap => {
           showGlobalError('');
-          state.submissions = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+          state.fields = snap.docs.map(d => ({ id:d.id, ...d.data() })).sort((a,b)=>{ const sa=String(a.section||''); const sb=String(b.section||''); if(sa!==sb) return sa.localeCompare(sb); return Number(a.order||0)-Number(b.order||0); });
+          renderAdminList();
+          if(!state.editingSavedId && !state.editingDraftId) renderChecklistForm({});
+          else renderPreview();
+        },
+        err => {
+          showGlobalError(permissionFriendly(err));
+        }
+      );
+    }
+
+    function listenSubmissions(){
+      if(unsubSubs){ unsubSubs(); }
+      unsubSubs = onSnapshot(collection(db, 'checklist_submissions'),
+        snap => {
+          showGlobalError('');
+          state.submissions = snap.docs.map(d => ({ id:d.id, ...d.data() })).sort((a,b)=> String(b.createdAt?.seconds||0).localeCompare(String(a.createdAt?.seconds||0)));
           renderSaved();
         },
         err => {
@@ -780,7 +762,7 @@ function esc(v){
 
     onAuthStateChanged(auth, async user => {
       if(user){
-        setLoginMessage('تم تسجيل الدخول بنجاح.');
+        setLoginMessage('تم العثور على جلسة دخول حالية.');
         await startAppForUser(user);
       } else {
         stopListeners();
@@ -792,6 +774,7 @@ function esc(v){
         $('savedList').innerHTML = '';
         $('adminList').innerHTML = '';
         $('currentUserChip').textContent = '';
+        setLoginMessage('لا توجد جلسة دخول مشتركة. يمكنك تسجيل الدخول هنا مرة واحدة فقط أو دمج الصفحة داخل الملف الرئيسي.', 'error');
         toggleAuthUi(false);
       }
     });
