@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dynamic Check-List Admin</title>
+  <title>Dynamic Check-List Admin - Auth Fixed</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -16,6 +16,7 @@
     header{background:var(--primary);color:#fff;padding:14px 18px;box-shadow:var(--shadow);position:sticky;top:0;z-index:50}
     .header-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
     .title{font-size:24px;font-weight:800}
+    .user-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:8px 12px;border-radius:999px}
     .container{max-width:1500px;margin:18px auto;padding:0 14px 28px}
     .grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
@@ -49,25 +50,56 @@
     .submission-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
     .submission-row .meta{flex:1}
     .preview-box{border:1px dashed #bfd7e8;border-radius:14px;padding:12px;background:#fcfeff}
-    .preview-section{margin-top:14px}
-    .preview-section h4{margin:0 0 8px;color:var(--primary)}
+    .preview-section{margin-top:14px}.preview-section h4{margin:0 0 8px;color:var(--primary)}
     .preview-item{padding:8px 10px;border:1px solid #eef3f7;border-radius:10px;background:#fff;margin-bottom:8px}
     .preview-item strong{display:block;color:var(--primary);margin-bottom:4px}
+    .overlay{position:fixed;inset:0;background:rgba(13,75,115,.18);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}
+    .login-card{width:min(720px,96vw);background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 20px 50px rgba(0,0,0,.15);overflow:hidden}
+    .login-head{background:var(--primary);color:#fff;padding:16px 20px;font-size:18px;font-weight:800}
+    .login-body{padding:18px}
     @media (max-width:1200px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
+  <div class="overlay" id="loginOverlay">
+    <div class="login-card">
+      <div class="login-head">تسجيل الدخول / Sign In</div>
+      <div class="login-body">
+        <div class="note">سجّل الدخول بالبريد الإلكتروني وكلمة المرور أولًا. إذا كانت قواعد Firestore تعتمد على <span class="rtl-en">app_users/{uid}</span> فتأكد أن مستند المستخدم موجود ومفعل.</div>
+        <div class="grid-3" style="margin-top:14px">
+          <div class="field">
+            <label>البريد الإلكتروني / Email</label>
+            <input id="loginEmail" type="email" placeholder="name@company.com">
+          </div>
+          <div class="field">
+            <label>كلمة المرور / Password</label>
+            <input id="loginPassword" type="password" placeholder="Password">
+          </div>
+          <div class="field">
+            <label> </label>
+            <button class="btn green" id="loginBtn" type="button">دخول / Login</button>
+          </div>
+        </div>
+        <div class="note" id="loginMessage">أدخل بيانات الدخول ثم اضغط Login.</div>
+      </div>
+    </div>
+  </div>
+
   <header>
     <div class="header-row">
       <div class="title">Dynamic Check‑List (Admin)</div>
-      <div class="chip">v1.0</div>
+      <div class="user-row">
+        <span class="chip">v1.1</span>
+        <span class="chip hidden" id="currentUserChip"></span>
+        <button class="btn danger hidden" id="logoutBtn" type="button">خروج / Logout</button>
+      </div>
     </div>
   </header>
 
-  <main class="container">
+  <main class="container hidden" id="appRoot">
     <div id="globalMessage" class="alert error hidden"></div>
     <div class="grid-2">
-      <div class="card">
+      <div class="card hidden" id="adminBox">
         <h3>إدارة بنود Check‑List (Admin)</h3>
         <input type="hidden" id="builderEditingId">
 
@@ -165,7 +197,27 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getFirestore, collection, addDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      onAuthStateChanged,
+      signOut,
+      setPersistence,
+      browserSessionPersistence
+    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      deleteDoc,
+      doc,
+      query,
+      orderBy,
+      onSnapshot,
+      Timestamp,
+      setDoc,
+      getDoc
+    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
@@ -177,14 +229,20 @@
     };
 
     const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const db = getFirestore(app);
 
     const state = {
       fields: [],
       submissions: [],
       editingSavedId: '',
-      editingDraftId: ''
+      editingDraftId: '',
+      currentUser: null,
+      currentUserProfile: null
     };
+
+    let unsubFields = null;
+    let unsubSubs = null;
 
     const $ = id => document.getElementById(id);
 
@@ -204,6 +262,12 @@
       el.textContent = msg;
     }
 
+    function setLoginMessage(msg='', kind='info'){
+      const el = $('loginMessage');
+      el.textContent = msg;
+      el.style.color = kind === 'error' ? '#8a1f1f' : '';
+    }
+
     function showChecklistMessage(msg='جاهز للحفظ.', kind='ok'){
       const el = $('checklistMessage');
       el.textContent = msg;
@@ -213,7 +277,7 @@
     function permissionFriendly(err){
       const msg = err?.message || String(err || '');
       if(msg.includes('permission-denied') || msg.includes('Missing or insufficient permissions')){
-        return 'يوجد خطأ صلاحيات في Firebase (permission-denied). عدّل Firestore Rules أو سجّل الدخول بحساب مسموح له.';
+        return 'يوجد خطأ صلاحيات في Firebase (permission-denied). تأكد من Firestore Rules ومن وجود app_users/{uid} للمستخدم.';
       }
       return msg;
     }
@@ -224,6 +288,51 @@
         .toLowerCase()
         .replace(/\s+/g, '_')
         .replace(/[^\w\-]+/g, '');
+    }
+
+    function toggleAuthUi(isLoggedIn){
+      $('loginOverlay').classList.toggle('hidden', isLoggedIn);
+      $('appRoot').classList.toggle('hidden', !isLoggedIn);
+      $('logoutBtn').classList.toggle('hidden', !isLoggedIn);
+      $('currentUserChip').classList.toggle('hidden', !isLoggedIn);
+    }
+
+    function stopListeners(){
+      if(unsubFields){ unsubFields(); unsubFields = null; }
+      if(unsubSubs){ unsubSubs(); unsubSubs = null; }
+    }
+
+    async function loadProfile(uid){
+      const snap = await getDoc(doc(db, 'app_users', uid));
+      if(!snap.exists()) throw new Error('لا يوجد مستند app_users/{uid} لهذا المستخدم.');
+      const profile = snap.data();
+      if(profile.active === false) throw new Error('الحساب غير نشط.');
+      return { id: snap.id, ...profile };
+    }
+
+    function applyRoleUi(){
+      const role = state.currentUserProfile?.role || 'user';
+      $('adminBox').classList.toggle('hidden', role !== 'admin');
+      $('currentUserChip').textContent = `${state.currentUserProfile?.name || state.currentUser?.email || ''} | ${role}`;
+    }
+
+    async function loginWithEmail(){
+      const email = $('loginEmail').value.trim();
+      const password = $('loginPassword').value;
+      if(!email || !password){
+        setLoginMessage('أدخل البريد الإلكتروني وكلمة المرور.', 'error');
+        return;
+      }
+      try{
+        $('loginBtn').disabled = true;
+        setLoginMessage('جاري تسجيل الدخول...', 'info');
+        await setPersistence(auth, browserSessionPersistence);
+        await signInWithEmailAndPassword(auth, email, password);
+      }catch(err){
+        setLoginMessage(permissionFriendly(err), 'error');
+      }finally{
+        $('loginBtn').disabled = false;
+      }
     }
 
     function syncBuilderUi(){
@@ -471,6 +580,7 @@
       try{return JSON.parse(localStorage.getItem('dynamic_checklist_drafts') || '[]');}
       catch{return [];}
     }
+
     function saveDrafts(drafts){
       localStorage.setItem('dynamic_checklist_drafts', JSON.stringify(drafts));
     }
@@ -515,7 +625,7 @@
       const now = new Date().toLocaleString('en-CA');
       const data = {
         id: state.editingDraftId || `draft_${Date.now()}`,
-        title: $('builderLabel')?.value?.trim() || 'مسودة Check‑List',
+        title: 'مسودة Check‑List',
         answers: collectChecklistAnswers(),
         updatedAt: now
       };
@@ -530,6 +640,8 @@
     async function saveChecklist(){
       try{
         const payload = {
+          userUid: state.currentUser?.uid || '',
+          userEmail: state.currentUser?.email || '',
           dynamicAnswers: collectChecklistAnswers(),
           dynamicFieldsSnapshot: state.fields.filter(f => f.active !== false).map(f => ({
             id:f.id, label:f.label, fieldType:f.fieldType, renderMode:f.renderMode || '', options:f.options || [], section:f.section || 'General', order:f.order ?? 1
@@ -588,7 +700,8 @@
     };
 
     function listenChecklistFields(){
-      onSnapshot(query(collection(db, 'checklist_fields'), orderBy('section'), orderBy('order')),
+      stopListeners();
+      unsubFields = onSnapshot(query(collection(db, 'checklist_fields'), orderBy('section'), orderBy('order')),
         snap => {
           showGlobalError('');
           state.fields = snap.docs.map(d => ({ id:d.id, ...d.data() }));
@@ -596,25 +709,46 @@
           if(!state.editingSavedId && !state.editingDraftId) renderChecklistForm({});
           else renderPreview();
         },
-        err => {
-          showGlobalError(permissionFriendly(err));
-        }
+        err => { showGlobalError(permissionFriendly(err)); }
       );
-    }
 
-    function listenSubmissions(){
-      onSnapshot(query(collection(db, 'checklist_submissions'), orderBy('createdAt', 'desc')),
+      unsubSubs = onSnapshot(query(collection(db, 'checklist_submissions'), orderBy('createdAt', 'desc')),
         snap => {
           showGlobalError('');
           state.submissions = snap.docs.map(d => ({ id:d.id, ...d.data() }));
           renderSaved();
         },
-        err => {
-          showGlobalError(permissionFriendly(err));
-        }
+        err => { showGlobalError(permissionFriendly(err)); }
       );
     }
 
+    async function startAppForUser(user){
+      state.currentUser = user;
+      try{
+        let profile = null;
+        try {
+          profile = await loadProfile(user.uid);
+        } catch (err) {
+          // أبقِ التطبيق يعمل لكن اعرض رسالة واضحة إذا تعذرت قراءة app_users
+          showGlobalError(permissionFriendly(err));
+        }
+        state.currentUserProfile = profile;
+        applyRoleUi();
+        toggleAuthUi(true);
+        renderDrafts();
+        resetBuilder();
+        listenChecklistFields();
+      } catch(err){
+        showGlobalError(permissionFriendly(err));
+      }
+    }
+
+    async function logoutNow(){
+      try{ await signOut(auth); } catch(err){ showGlobalError(permissionFriendly(err)); }
+    }
+
+    $('loginBtn').addEventListener('click', loginWithEmail);
+    $('logoutBtn').addEventListener('click', logoutNow);
     $('builderFieldType').addEventListener('change', syncBuilderUi);
     $('builderOptionCount').addEventListener('input', () => {
       if($('builderFieldType').value === 'choice') renderBuilderOptionInputs(Number($('builderOptionCount').value || 1));
@@ -627,8 +761,25 @@
 
     resetBuilder();
     renderDrafts();
-    listenChecklistFields();
-    listenSubmissions();
+    toggleAuthUi(false);
+
+    onAuthStateChanged(auth, async user => {
+      if(user){
+        setLoginMessage('تم تسجيل الدخول بنجاح.');
+        await startAppForUser(user);
+      } else {
+        stopListeners();
+        state.currentUser = null;
+        state.currentUserProfile = null;
+        state.fields = [];
+        state.submissions = [];
+        $('dynamicChecklistSections').innerHTML = '';
+        $('savedList').innerHTML = '';
+        $('adminList').innerHTML = '';
+        $('currentUserChip').textContent = '';
+        toggleAuthUi(false);
+      }
+    });
   </script>
 </body>
 </html>
