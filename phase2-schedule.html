@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dynamic Check-List Admin - Auth Fixed</title>
+  <title>Dynamic Check-List Admin</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -16,7 +16,6 @@
     header{background:var(--primary);color:#fff;padding:14px 18px;box-shadow:var(--shadow);position:sticky;top:0;z-index:50}
     .header-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
     .title{font-size:24px;font-weight:800}
-    .user-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:8px 12px;border-radius:999px}
     .container{max-width:1500px;margin:18px auto;padding:0 14px 28px}
     .grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
@@ -50,9 +49,12 @@
     .submission-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
     .submission-row .meta{flex:1}
     .preview-box{border:1px dashed #bfd7e8;border-radius:14px;padding:12px;background:#fcfeff}
-    .preview-section{margin-top:14px}.preview-section h4{margin:0 0 8px;color:var(--primary)}
+    .preview-section{margin-top:14px}
+    .preview-section h4{margin:0 0 8px;color:var(--primary)}
     .preview-item{padding:8px 10px;border:1px solid #eef3f7;border-radius:10px;background:#fff;margin-bottom:8px}
     .preview-item strong{display:block;color:var(--primary);margin-bottom:4px}
+
+    .user-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .overlay{position:fixed;inset:0;background:rgba(13,75,115,.18);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}
     .login-card{width:min(720px,96vw);background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 20px 50px rgba(0,0,0,.15);overflow:hidden}
     .login-head{background:var(--primary);color:#fff;padding:16px 20px;font-size:18px;font-weight:800}
@@ -89,7 +91,7 @@
     <div class="header-row">
       <div class="title">Dynamic Check‑List (Admin)</div>
       <div class="user-row">
-        <span class="chip">v1.1</span>
+        <div class="chip">v1.1</div>
         <span class="chip hidden" id="currentUserChip"></span>
         <button class="btn danger hidden" id="logoutBtn" type="button">خروج / Logout</button>
       </div>
@@ -170,6 +172,7 @@
         <h3>نموذج Check‑List</h3>
         <div class="note">المعاينة تحدث مباشرة قبل التخزين. يمكنك حفظ النموذج كمسودة محلية أولًا أو حفظه نهائيًا في Firebase.</div>
         <div id="dynamicChecklistSections" class="dynamic-checklist-wrap" style="margin-top:14px"></div>
+        <div class="note" id="previewHint" style="margin-top:10px">بعد حفظ البند من الجهة اليمنى ستظهر معاينته هنا مباشرة حتى تتأكد أنه صحيح.</div>
 
         <div class="actions">
           <button class="btn warning" id="saveDraftBtn" type="button">حفظ كمسودة</button>
@@ -197,27 +200,8 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import {
-      getAuth,
-      signInWithEmailAndPassword,
-      onAuthStateChanged,
-      signOut,
-      setPersistence,
-      browserSessionPersistence
-    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import {
-      getFirestore,
-      collection,
-      addDoc,
-      deleteDoc,
-      doc,
-      query,
-      orderBy,
-      onSnapshot,
-      Timestamp,
-      setDoc,
-      getDoc
-    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserSessionPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, collection, addDoc, deleteDoc, doc, query, orderBy, onSnapshot, Timestamp, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
@@ -262,12 +246,6 @@
       el.textContent = msg;
     }
 
-    function setLoginMessage(msg='', kind='info'){
-      const el = $('loginMessage');
-      el.textContent = msg;
-      el.style.color = kind === 'error' ? '#8a1f1f' : '';
-    }
-
     function showChecklistMessage(msg='جاهز للحفظ.', kind='ok'){
       const el = $('checklistMessage');
       el.textContent = msg;
@@ -282,12 +260,11 @@
       return msg;
     }
 
-    function slugify(text){
-      return String(text || '')
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, '_')
-        .replace(/[^\w\-]+/g, '');
+    function setLoginMessage(msg='', kind='info'){
+      const el = $('loginMessage');
+      if(!el) return;
+      el.textContent = msg;
+      el.style.color = kind === 'error' ? '#8a1f1f' : '';
     }
 
     function toggleAuthUi(isLoggedIn){
@@ -333,6 +310,36 @@
       }finally{
         $('loginBtn').disabled = false;
       }
+    }
+
+    async function startAppForUser(user){
+      state.currentUser = user;
+      try{
+        let profile = null;
+        try { profile = await loadProfile(user.uid); }
+        catch(err){ showGlobalError(permissionFriendly(err)); }
+        state.currentUserProfile = profile;
+        applyRoleUi();
+        toggleAuthUi(true);
+        renderDrafts();
+        resetBuilder();
+        listenChecklistFields();
+        listenSubmissions();
+      } catch(err){
+        showGlobalError(permissionFriendly(err));
+      }
+    }
+
+    async function logoutNow(){
+      try{ await signOut(auth); } catch(err){ showGlobalError(permissionFriendly(err)); }
+    }
+
+    function slugify(text){
+      return String(text || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/[^\w\-]+/g, '');
     }
 
     function syncBuilderUi(){
@@ -403,12 +410,31 @@
         }
         const payload = { label, fieldType, renderMode, options, order, section, required, active, updatedAt: Timestamp.now() };
         const editingId = $('builderEditingId').value.trim();
+        let savedId = editingId;
         if(editingId){
           await setDoc(doc(db, 'checklist_fields', editingId), payload, { merge:true });
         } else {
-          await addDoc(collection(db, 'checklist_fields'), { ...payload, createdAt: Timestamp.now() });
+          const ref = await addDoc(collection(db, 'checklist_fields'), { ...payload, createdAt: Timestamp.now() });
+          savedId = ref.id;
         }
-        $('builderMessage').textContent = 'تم حفظ البند بنجاح';
+
+        const localField = { id: savedId, ...payload };
+        const idx = state.fields.findIndex(x => x.id === savedId);
+        if(idx >= 0) state.fields[idx] = localField;
+        else state.fields.push(localField);
+        state.fields.sort((a,b) => {
+          const sa = String(a.section || '');
+          const sb = String(b.section || '');
+          if(sa !== sb) return sa.localeCompare(sb);
+          return Number(a.order || 0) - Number(b.order || 0);
+        });
+        renderAdminList();
+        renderChecklistForm({});
+        renderPreview();
+
+        $('builderMessage').textContent = 'تم حفظ البند وظهرت معاينته في نموذج Check‑List بالجهة اليسرى.';
+        showChecklistMessage('تم تحديث نموذج Check‑List بالمعاينة الجديدة. إذا كانت مناسبة اضغط حفظ نهائي.', 'ok');
+        $('dynamicChecklistSections')?.scrollIntoView({behavior:'smooth', block:'start'});
         resetBuilder();
       } catch(err){
         $('builderMessage').textContent = permissionFriendly(err);
@@ -580,7 +606,6 @@
       try{return JSON.parse(localStorage.getItem('dynamic_checklist_drafts') || '[]');}
       catch{return [];}
     }
-
     function saveDrafts(drafts){
       localStorage.setItem('dynamic_checklist_drafts', JSON.stringify(drafts));
     }
@@ -625,7 +650,7 @@
       const now = new Date().toLocaleString('en-CA');
       const data = {
         id: state.editingDraftId || `draft_${Date.now()}`,
-        title: 'مسودة Check‑List',
+        title: $('builderLabel')?.value?.trim() || 'مسودة Check‑List',
         answers: collectChecklistAnswers(),
         updatedAt: now
       };
@@ -640,8 +665,6 @@
     async function saveChecklist(){
       try{
         const payload = {
-          userUid: state.currentUser?.uid || '',
-          userEmail: state.currentUser?.email || '',
           dynamicAnswers: collectChecklistAnswers(),
           dynamicFieldsSnapshot: state.fields.filter(f => f.active !== false).map(f => ({
             id:f.id, label:f.label, fieldType:f.fieldType, renderMode:f.renderMode || '', options:f.options || [], section:f.section || 'General', order:f.order ?? 1
@@ -700,7 +723,7 @@
     };
 
     function listenChecklistFields(){
-      stopListeners();
+      if(unsubFields){ unsubFields(); }
       unsubFields = onSnapshot(query(collection(db, 'checklist_fields'), orderBy('section'), orderBy('order')),
         snap => {
           showGlobalError('');
@@ -709,42 +732,24 @@
           if(!state.editingSavedId && !state.editingDraftId) renderChecklistForm({});
           else renderPreview();
         },
-        err => { showGlobalError(permissionFriendly(err)); }
+        err => {
+          showGlobalError(permissionFriendly(err));
+        }
       );
+    }
 
+    function listenSubmissions(){
+      if(unsubSubs){ unsubSubs(); }
       unsubSubs = onSnapshot(query(collection(db, 'checklist_submissions'), orderBy('createdAt', 'desc')),
         snap => {
           showGlobalError('');
           state.submissions = snap.docs.map(d => ({ id:d.id, ...d.data() }));
           renderSaved();
         },
-        err => { showGlobalError(permissionFriendly(err)); }
-      );
-    }
-
-    async function startAppForUser(user){
-      state.currentUser = user;
-      try{
-        let profile = null;
-        try {
-          profile = await loadProfile(user.uid);
-        } catch (err) {
-          // أبقِ التطبيق يعمل لكن اعرض رسالة واضحة إذا تعذرت قراءة app_users
+        err => {
           showGlobalError(permissionFriendly(err));
         }
-        state.currentUserProfile = profile;
-        applyRoleUi();
-        toggleAuthUi(true);
-        renderDrafts();
-        resetBuilder();
-        listenChecklistFields();
-      } catch(err){
-        showGlobalError(permissionFriendly(err));
-      }
-    }
-
-    async function logoutNow(){
-      try{ await signOut(auth); } catch(err){ showGlobalError(permissionFriendly(err)); }
+      );
     }
 
     $('loginBtn').addEventListener('click', loginWithEmail);
