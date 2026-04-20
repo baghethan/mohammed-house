@@ -1,7 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
+<html lang="ar" dir=" charset="UTF-8"><html lang="ar" dir="rtl">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Check‑List</title>
 
@@ -52,8 +50,7 @@
     .field label{font-size:14px;font-weight:700}
 
     .field input,
-    .field select,
-    .field textarea{
+    .field select{
       width:100%;
       border:1px solid #d7e0ea;
       border-radius:12px;
@@ -61,8 +58,6 @@
       font:inherit;
       background:#fbfcfe;
     }
-
-    .field textarea{min-height:90px}
 
     .actions{
       display:flex;
@@ -81,9 +76,7 @@
       cursor:pointer;
     }
 
-    .btn.primary{background:#0d4b73;color:#fff}
     .btn.green{background:#2f9e66;border-color:#2f9e66;color:#fff}
-    .btn.danger{background:#d64545;border-color:#d64545;color:#fff}
 
     .note{
       background:#f6fbff;
@@ -98,12 +91,10 @@
       margin-top:12px;
       padding:10px 12px;
       border-radius:12px;
-    }
-
-    .alert.error{
       background:#ffecec;
       border:1px solid #f3b0b0;
       color:#8a1f1f;
+      display:none;
     }
   </style>
 </head>
@@ -119,7 +110,6 @@
       <div class="grid-4">
         <div class="field">
           <label>الفني</label>
-
           <select id="cl_technician"></select>
         </div>
 
@@ -129,22 +119,6 @@
         </div>
 
         <div class="field">
-          <label>البريد الإلكتروني للفني</label>
-          <input id="cl_technician_email" readonly>
-        </div>
-
-        <div class="field">
-          <label>معرف الفني</label>
-          <input id="cl_technician_id" readonly>
-        </div>
-      </div>
-
-      <div class="note">
-        اختر الفني ثم الزيارة المرتبطة، سيتم تعبئة باقي البيانات تلقائيًا.
-      </div>
-
-      <div class="grid-4" style="margin-top:16px">
-        <div class="field">
           <label>Brand</label>
           <input id="cl_brand">
         </div>
@@ -153,40 +127,22 @@
           <label>Branch ID</label>
           <input id="cl_branch_id">
         </div>
-
-        <div class="field">
-          <label>Location / Site</label>
-          <input id="cl_location">
-        </div>
-
-        <div class="field">
-          <label>Visit Date</label>
-          <input id="cl_visit_date" type="date">
-        </div>
       </div>
-
-      <div class="note">
-        البنود الديناميكية تظهر تلقائيًا من checklist_fields.
-      </div>
-
-      <div id="dynamicChecklistSections" style="margin-top:14px"></div>
 
       <div class="actions">
         <button class="btn green" id="saveChecklistBtn">حفظ</button>
-        <button class="btn" id="clearChecklistBtn">تنظيف</button>
       </div>
 
       <div class="note" id="checklistMessage">جاهز للحفظ.</div>
-      <div class="alert error" id="checklistError" style="display:none"></div>
+      <div class="alert" id="checklistError"></div>
 
     </div>
   </section>
 
 </main>
 
-<!-- ✅ Firestore فقط – بدون Auth -->
+<!-- ✅ Firestore فقط – بدون initializeApp -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
     getFirestore,
     collection,
@@ -194,50 +150,50 @@
     onSnapshot
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
-    authDomain: "baghethan-ba325.firebaseapp.com",
-    projectId: "baghethan-ba325"
-  };
+  // ✅ نستخدم Firebase App الموجود من Site-Visit2.html
+  const db = getFirestore();
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  const techSelect = document.getElementById("cl_technician");
+  const techSelect  = document.getElementById("cl_technician");
   const visitSelect = document.getElementById("cl_visit_ref");
 
   onSnapshot(collection(db,"technicians"), snap=>{
-    techSelect.innerHTML = `<option value="">اختر الفني</option>` +
-      snap.docs.map(d=>`<option value="${d.id}">${d.data().name||d.id}</option>`).join("");
+    techSelect.innerHTML =
+      '<option value="">اختر الفني</option>' +
+      snap.docs.map(d =>
+        `<option value="${d.id}">${d.data().name || d.id}</option>`
+      ).join("");
   });
 
   onSnapshot(collection(db,"siteVisits"), snap=>{
-    visitSelect.innerHTML = `<option value="">اختر الزيارة</option>` +
-      snap.docs.map(d=>`<option value="${d.id}">${d.data().date||""}</option>`).join("");
+    visitSelect.innerHTML =
+      '<option value="">اختر الزيارة</option>' +
+      snap.docs.map(d =>
+        `<option value="${d.id}">${d.data().date || ""}</option>`
+      ).join("");
   });
 
   document.getElementById("saveChecklistBtn").onclick = async ()=>{
     try{
       await addDoc(collection(db,"branch_checklists"),{
-        technician: techSelect.value,
-        visit: visitSelect.value,
+        technicianId: techSelect.value,
+        visitId: visitSelect.value,
         brand: document.getElementById("cl_brand").value,
         branchId: document.getElementById("cl_branch_id").value,
-        location: document.getElementById("cl_location").value,
-        visitDate: document.getElementById("cl_visit_date").value,
         createdAt: new Date()
       });
-      document.getElementById("checklistMessage").innerText="تم الحفظ بنجاح ✅";
+
+      document.getElementById("checklistMessage").innerText =
+        "تم الحفظ بنجاح ✅";
+
+      document.getElementById("checklistError").style.display="none";
     }catch(e){
       document.getElementById("checklistError").style.display="block";
       document.getElementById("checklistError").innerText=e.message;
     }
   };
-
-  document.getElementById("clearChecklistBtn").onclick = ()=>{
-    document.querySelectorAll("input,select").forEach(el=>el.value="");
-  };
 </script>
 
 </body>
 </html>
+
+<head>
