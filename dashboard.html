@@ -1,61 +1,190 @@
-<section id="reports" class="panel">
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>إدارة زيارات الفروع</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <div class="card">
-    <h3>تقارير Check‑List (Dashboard)</h3>
+  <style>
+    body {
+      font-family: Tahoma, Arial, sans-serif;
+      background: #f3f6fa;
+      margin: 0;
+      padding: 20px;
+    }
+    h2 {
+      color: #0d4b73;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.08);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    label {
+      font-weight: bold;
+      font-size: 14px;
+    }
+    input, select {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+    button {
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: none;
+      background: #2f9e66;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      text-align: right;
+      font-size: 14px;
+    }
+    th {
+      background: #f0f5fa;
+      color: #0d4b73;
+    }
+  </style>
+</head>
 
-    <div class="grid-4">
-      <div class="field">
-        <label>الفني</label>
-        <select id="reportTechnicianFilter">
-          <option value="">كل الفنيين</option>
-        </select>
-      </div>
+<body>
 
-      <div class="field">
-        <label>البراند</label>
-        <select id="reportBrandFilter">
-          <option value="">كل البراندات</option>
-        </select>
-      </div>
+<h2>إدارة زيارات الفروع</h2>
 
-      <div class="field">
-        <label>من تاريخ</label>
-        <input type="date" id="reportFromDate">
-      </div>
-
-      <div class="field">
-        <label>إلى تاريخ</label>
-        <input type="date" id="reportToDate">
-      </div>
-
-      <div class="field">
-        <label>نوع الشارت</label>
-        <select id="reportChartType">
-          <option value="bar">Bar</option>
-          <option value="stacked">Stacked</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label>هدف الإنجاز (%)</label>
-        <input type="number" id="reportTargetValue" value="80" min="0" max="100">
-      </div>
+<!-- ===== Add Visit ===== -->
+<div class="card">
+  <h3>إضافة زيارة فرع</h3>
+  <div class="grid">
+    <div>
+      <label>اسم الفرع</label>
+      <input id="visitBranch" placeholder="Branch Name">
+    </div>
+    <div>
+      <label>البراند</label>
+      <input id="visitBrand" placeholder="Brand">
+    </div>
+    <div>
+      <label>الفني</label>
+      <select id="visitTechnician">
+        <option value="">اختر الفني</option>
+        <option value="Ahmed">Ahmed</option>
+        <option value="Fahad">Fahad</option>
+        <option value="Mohammed">Mohammed</option>
+      </select>
+    </div>
+    <div>
+      <label>تاريخ الزيارة</label>
+      <input type="date" id="visitDate">
+    </div>
+    <div>
+      <label>الحالة</label>
+      <select id="visitStatus">
+        <option value="Planned">Planned</option>
+        <option value="Completed">Completed</option>
+      </select>
     </div>
   </div>
 
-  <div class="card">
-    <h3>تقييم Check‑List حسب الأقسام</h3>
-    <canvas id="assessmentChart" height="120"></canvas>
-  </div>
+  <br>
+  <button id="saveVisitBtn">حفظ الزيارة</button>
+</div>
 
-  <div class="card" style="margin-top:16px">
-    <h3>نسبة الإنجاز الإجمالية</h3>
-    <canvas id="assessmentPie" height="120"></canvas>
-  </div>
+<!-- ===== Visits Table ===== -->
+<div class="card">
+  <h3>الزيارات المسجلة</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>الفرع</th>
+        <th>البراند</th>
+        <th>الفني</th>
+        <th>تاريخ الزيارة</th>
+        <th>الحالة</th>
+      </tr>
+    </thead>
+    <tbody id="visitsTableBody"></tbody>
+  </table>
+</div>
 
-  <div class="card" style="margin-top:16px">
-    <h3>تطور الأداء الزمني + خط الهدف</h3>
-    <canvas id="performanceLine" height="120"></canvas>
-  </div>
+<script>
+/* ================= State ================= */
+const state = {
+  visits: []
+};
 
-</section>
+/* ================= Helpers ================= */
+function $(id) {
+  return document.getElementById(id);
+}
+
+/* ================= Save Visit ================= */
+$('saveVisitBtn').addEventListener('click', () => {
+  const branch = $('visitBranch').value.trim();
+  const brand = $('visitBrand').value.trim();
+  const technician = $('visitTechnician').value;
+  const date = $('visitDate').value;
+  const status = $('visitStatus').value;
+
+  if (!branch || !brand || !technician || !date) {
+    alert('الرجاء تعبئة جميع الحقول');
+    return;
+  }
+
+  state.visits.push({
+    branch,
+    brand,
+    technician,
+    date,
+    status
+  });
+
+  clearForm();
+  renderVisits();
+});
+
+/* ================= Render ================= */
+function renderVisits() {
+  const body = $('visitsTableBody');
+  body.innerHTML = '';
+
+  state.visits.forEach(v => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${v.branch}</td>
+      <td>${v.brand}</td>
+      <td>${v.technician}</td>
+      <td>${v.date}</td>
+      <td>${v.status}</td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+/* ================= Clear ================= */
+function clearForm() {
+  $('visitBranch').value = '';
+  $('visitBrand').value = '';
+  $('visitTechnician').value = '';
+  $('visitDate').value = '';
+  $('visitStatus').value = 'Planned';
+}
+</script>
+
+</body>
+</html>
