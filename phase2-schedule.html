@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-="UTF-8"><html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
 <title>إدارة زيارات الفروع والفنيين</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -35,7 +37,7 @@ header{
 .header-left{display:flex;align-items:center;gap:14px}
 .header-left img{height:40px}
 .app-version{font-size:11px;color:#d0d0d0}
-.logout-btn{background:#d64545;color:#fff;border:none;border-radius:20px;padding:6px 14px}
+.logout-btn{background:#d64545;color:#fff;border:none;border-radius:20px;padding:6px 14px;cursor:pointer}
 
 /* ===== NAV ===== */
 nav{background:#083c5a;display:flex;flex-wrap:wrap}
@@ -71,7 +73,7 @@ thead{background:#0d4b73;color:#fff}
 
 <body>
 
-<!-- LOGIN -->
+<!-- ================= LOGIN ================= -->
 <div id="loginBox" style="padding:40px;text-align:center">
   <h2>تسجيل الدخول</h2>
   <input id="loginEmail" placeholder="Email"><br><br>
@@ -80,7 +82,7 @@ thead{background:#0d4b73;color:#fff}
   <div id="loginMsg"></div>
 </div>
 
-<!-- APP -->
+<!-- ================= APP ================= -->
 <div id="app">
 
 <header>
@@ -105,8 +107,8 @@ thead{background:#0d4b73;color:#fff}
 <h2>Check‑List</h2>
 
 <form id="checklistForm">
-  <input id="cl_branch" placeholder="اسم الفرع">
-  <input id="cl_technician" placeholder="اسم الفني">
+  <input id="cl_branch" placeholder="اسم الفرع" required>
+  <input id="cl_technician" placeholder="اسم الفني" required>
   <select id="cl_status">
     <option value="completed">مكتملة</option>
     <option value="pending">معلّقة</option>
@@ -127,9 +129,9 @@ thead{background:#0d4b73;color:#fff}
 <h2>إدخال زيارة</h2>
 
 <form id="visitForm">
-  <input id="v_branch" placeholder="اسم الفرع">
-  <input id="v_technician" placeholder="اسم الفني">
-  <input id="v_date" type="date">
+  <input id="v_branch" placeholder="اسم الفرع" required>
+  <input id="v_technician" placeholder="اسم الفني" required>
+  <input id="v_date" type="date" required>
   <select id="v_status">
     <option value="completed">مكتملة</option>
     <option value="pending">معلّقة</option>
@@ -150,7 +152,7 @@ thead{background:#0d4b73;color:#fff}
 <h2>إدارة الفروع</h2>
 
 <form id="branchForm">
-  <input id="b_name" placeholder="اسم الفرع">
+  <input id="b_name" placeholder="اسم الفرع" required>
   <button type="submit">إضافة فرع</button>
 </form>
 
@@ -165,41 +167,48 @@ thead{background:#0d4b73;color:#fff}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, addDoc, onSnapshot }
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+/* ===== FIREBASE ===== */
 const firebaseConfig = {
   apiKey:"AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
   authDomain:"baghethan-ba325.firebaseapp.com",
   projectId:"baghethan-ba325"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const appFB = initializeApp(firebaseConfig);
+const auth = getAuth(appFB);
+const db = getFirestore(appFB);
+
+/* ===== ELEMENTS (FIXED) ===== */
+const loginBox = document.getElementById('loginBox');
+const app = document.getElementById('app');
 
 /* ===== LOGIN ===== */
 loginBtn.onclick = async ()=>{
   try{
     await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value);
-  }catch(e){ loginMsg.textContent=e.message }
+  }catch(e){
+    loginMsg.textContent = e.message;
+  }
 };
+
 logoutBtn.onclick = ()=>signOut(auth);
 
-/* ===== AUTH STATE ===== */
+/* ===== AUTH STATE (SAFE) ===== */
 onAuthStateChanged(auth,user=>{
   if(user){
-    loginBox.style.display='none';
-    app.style.display='block';
-    loadData();
+    if(loginBox) loginBox.style.display='none';
+    if(app) app.style.display='block';
   }else{
-    loginBox.style.display='block';
-    app.style.display='none';
+    if(loginBox) loginBox.style.display='block';
+    if(app) app.style.display='none';
   }
 });
 
-/* ===== TAB SWITCH ===== */
+/* ===== TABS ===== */
 window.openTab=(id,btn)=>{
   document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
@@ -222,7 +231,8 @@ onSnapshot(collection(db,'branch_checklists'),s=>{
   checklistTable.innerHTML='';
   s.docs.forEach(d=>{
     const c=d.data();
-    checklistTable.innerHTML+=`<tr><td>${c.branch}</td><td>${c.technician}</td><td>${c.status}</td></tr>`;
+    checklistTable.innerHTML+=`
+      <tr><td>${c.branch}</td><td>${c.technician}</td><td>${c.status}</td></tr>`;
   });
 });
 
@@ -242,7 +252,8 @@ onSnapshot(collection(db,'siteVisits'),s=>{
   visitsTable.innerHTML='';
   s.docs.forEach(d=>{
     const v=d.data();
-    visitsTable.innerHTML+=`<tr><td>${v.branch}</td><td>${v.technician}</td><td>${v.date}</td><td>${v.status}</td></tr>`;
+    visitsTable.innerHTML+=`
+      <tr><td>${v.branch}</td><td>${v.technician}</td><td>${v.date}</td><td>${v.status}</td></tr>`;
   });
 });
 
@@ -269,4 +280,3 @@ if(location.search.includes('debug=1')){
 </body>
 </html>
 ``
-<head>
