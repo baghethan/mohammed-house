@@ -1,134 +1,52 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <title>تسجيل الدخول | نظام إدارة الزيارات</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-  <style>
-    body{
-      margin:0;
-      font-family:Tahoma,Arial,sans-serif;
-      background:
-        linear-gradient(rgba(13,75,115,.85),rgba(13,75,115,.85)),
-        url('image_dba186.png') center/cover no-repeat fixed;
-      height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
+<script>
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_DOMAIN",
+    projectId: "YOUR_PROJECT_ID"
+  };
 
-    .login-box{
-      background:#fff;
-      width:360px;
-      border-radius:10px;
-      box-shadow:0 15px 40px rgba(0,0,0,.25);
-      overflow:hidden;
-    }
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-    .login-header{
-      background:#0d4b73;
-      color:#fff;
-      padding:16px;
-      text-align:center;
-      font-weight:bold;
-    }
+  function login(){
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const errorMsg = document.getElementById("errorMsg");
 
-    .login-body{
-      padding:20px;
-    }
+    db.collection("app_users")
+      .where("email", "==", email)
+      .limit(1)
+      .get()
+      .then(snapshot => {
+        if (snapshot.empty) {
+          throw "البريد غير مسجل";
+        }
 
-    .login-body label{
-      font-size:13px;
-      display:block;
-      margin-bottom:6px;
-      color:#333;
-    }
+        const user = snapshot.docs[0].data();
 
-    .login-body input{
-      width:100%;
-      padding:10px;
-      margin-bottom:14px;
-      border:1px solid #ccc;
-      border-radius:6px;
-      font-size:14px;
-    }
+        if (user.status !== "active") {
+          throw "الحساب غير مفعل";
+        }
 
-    .login-body button{
-      width:100%;
-      padding:10px;
-      background:#0d4b73;
-      color:#fff;
-      border:none;
-      border-radius:20px;
-      cursor:pointer;
-      font-size:14px;
-    }
+        // ⚠️ مثال بسيط (يفترض password محفوظ plain أو hashed)
+        if (user.password !== password) {
+          throw "كلمة المرور غير صحيحة";
+        }
 
-    .login-body button:hover{
-      background:#083c5a;
-    }
-
-    .login-footer{
-      text-align:center;
-      font-size:12px;
-      color:#777;
-      padding:10px;
-    }
-
-    .error{
-      color:#c62828;
-      font-size:12px;
-      margin-bottom:10px;
-      display:none;
-    }
-  </style>
-</head>
-<body>
-
-  <div class="login-box">
-    <div class="login-header">
-      تسجيل الدخول
-    </div>
-
-    <div class="login-body">
-      <div class="error" id="errorMsg">بيانات الدخول غير صحيحة</div>
-
-      <label>البريد الإلكتروني</label>
-      <input type="email" id="email" placeholder="name@company.com">
-
-      <label>كلمة المرور</label>
-      <input type="password" id="password" placeholder="********">
-
-      <button onclick="login()">دخول</button>
-    </div>
-
-    <div class="login-footer">
-      نظام إدارة زيارات الفروع والفنيين
-    </div>
-  </div>
-
-  <script>
-    /* ===== IF ALREADY LOGGED IN ===== */
-    if (localStorage.getItem("loggedIn") === "true") {
-      window.location.href = "Site-Visit2.html";
-    }
-
-    /* ===== LOGIN FUNCTION ===== */
-    function login(){
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value.trim();
-      const errorMsg = document.getElementById("errorMsg");
-
-      // مثال بسيط (بدون Firebase)
-      if(email === "admin@company.com" && password === "123456"){
+        // ✅ Session موحد
         localStorage.setItem("loggedIn", "true");
-        window.location.href = "Site-Visit2.html";
-      } else {
-        errorMsg.style.display = "block";
-      }
-    }
-  </script>
+        localStorage.setItem("userRole", user.role);
+        localStorage.setItem("userEmail", user.email);
 
-</body>
-</html>
+        window.location.href = "Site-Visit2.html";
+      })
+      .catch(err => {
+        errorMsg.innerText = err;
+        errorMsg.style.display = "block";
+      });
+  }
+</script>
