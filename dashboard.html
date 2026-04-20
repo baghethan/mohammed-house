@@ -1,189 +1,115 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>إدارة زيارات الفروع</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<title>Site Visit v3.1 – Firebase Data</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <style>
-    body {
-      font-family: Tahoma, Arial, sans-serif;
-      background: #f3f6fa;
-      margin: 0;
-      padding: 20px;
-    }
-    h2 {
-      color: #0d4b73;
-    }
-    .card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      box-shadow: 0 6px 20px rgba(0,0,0,.08);
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 12px;
-    }
-    label {
-      font-weight: bold;
-      font-size: 14px;
-    }
-    input, select {
-      padding: 8px 10px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 14px;
-    }
-    button {
-      padding: 10px 14px;
-      border-radius: 999px;
-      border: none;
-      background: #2f9e66;
-      color: #fff;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    th, td {
-      padding: 10px;
-      border-bottom: 1px solid #eee;
-      text-align: right;
-      font-size: 14px;
-    }
-    th {
-      background: #f0f5fa;
-      color: #0d4b73;
-    }
-  </style>
+<style>
+body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#eef3f8}
+header{background:#0d4b73;color:#fff;padding:14px}
+.container{max-width:1200px;margin:20px auto;padding:0 14px}
+.hidden{display:none}
+.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.stat{padding:14px;border-radius:12px;background:#f8fbff;border:1px solid #dde6ef}
+.stat strong{display:block;font-size:26px;color:#0d4b73}
+.stat span{font-size:13px;color:#555}
+</style>
 </head>
 
 <body>
 
-<h2>إدارة زيارات الفروع</h2>
+<header>
+  <strong>إدارة زيارات الفروع والفنيين – v3.1</strong>
+</header>
 
-<!-- ===== Add Visit ===== -->
+<div class="container">
+
 <div class="card">
-  <h3>إضافة زيارة فرع</h3>
-  <div class="grid">
-    <div>
-      <label>اسم الفرع</label>
-      <input id="visitBranch" placeholder="Branch Name">
-    </div>
-    <div>
-      <label>البراند</label>
-      <input id="visitBrand" placeholder="Brand">
-    </div>
-    <div>
-      <label>الفني</label>
-      <select id="visitTechnician">
-        <option value="">اختر الفني</option>
-        <option value="Ahmed">Ahmed</option>
-        <option value="Fahad">Fahad</option>
-        <option value="Mohammed">Mohammed</option>
-      </select>
-    </div>
-    <div>
-      <label>تاريخ الزيارة</label>
-      <input type="date" id="visitDate">
-    </div>
-    <div>
-      <label>الحالة</label>
-      <select id="visitStatus">
-        <option value="Planned">Planned</option>
-        <option value="Completed">Completed</option>
-      </select>
-    </div>
+  <h3>Dashboard (بيانات مباشرة من Firebase)</h3>
+  <div class="stats">
+    <div class="stat"><strong id="statBranches">0</strong><span>الفروع</span></div>
+    <div class="stat"><strong id="statTechnicians">0</strong><span>الفنيين</span></div>
+    <div class="stat"><strong id="statVisits">0</strong><span>الزيارات</span></div>
+    <div class="stat"><strong id="statChecklists">0</strong><span>Check‑Lists</span></div>
+    <div class="stat"><strong id="statBrands">0</strong><span>البراندات</span></div>
   </div>
-
-  <br>
-  <button id="saveVisitBtn">حفظ الزيارة</button>
 </div>
 
-<!-- ===== Visits Table ===== -->
 <div class="card">
-  <h3>الزيارات المسجلة</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>الفرع</th>
-        <th>البراند</th>
-        <th>الفني</th>
-        <th>تاريخ الزيارة</th>
-        <th>الحالة</th>
-      </tr>
-    </thead>
-    <tbody id="visitsTableBody"></tbody>
-  </table>
+  <h3>حالة الاتصال</h3>
+  <div id="status">جاري تحميل البيانات…</div>
 </div>
 
-<script>
-/* ================= State ================= */
-const state = {
-  visits: []
+</div>
+
+<script type="module">
+/* ===== Firebase Imports ===== */
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, collection, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+/* ===== Firebase Config (نفس مشروعك) ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
+  authDomain: "baghethan-ba325.firebaseapp.com",
+  projectId: "baghethan-ba325",
+  storageBucket: "baghethan-ba325.appspot.com",
+  messagingSenderId: "944819735112",
+  appId: "1:944819735112:web:07315600da39377320667d"
 };
 
-/* ================= Helpers ================= */
-function $(id) {
-  return document.getElementById(id);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* ===== State ===== */
+const state = {
+  branches: [],
+  technicians: [],
+  visits: [],
+  checklists: [],
+  brands: []
+};
+
+const $ = id => document.getElementById(id);
+
+/* ===== Render Stats ===== */
+function renderStats(){
+  $('statBranches').textContent = state.branches.length;
+  $('statTechnicians').textContent = state.technicians.length;
+  $('statVisits').textContent = state.visits.length;
+  $('statChecklists').textContent = state.checklists.length;
+  $('statBrands').textContent = state.brands.length;
 }
 
-/* ================= Save Visit ================= */
-$('saveVisitBtn').addEventListener('click', () => {
-  const branch = $('visitBranch').value.trim();
-  const brand = $('visitBrand').value.trim();
-  const technician = $('visitTechnician').value;
-  const date = $('visitDate').value;
-  const status = $('visitStatus').value;
-
-  if (!branch || !brand || !technician || !date) {
-    alert('الرجاء تعبئة جميع الحقول');
-    return;
-  }
-
-  state.visits.push({
-    branch,
-    brand,
-    technician,
-    date,
-    status
-  });
-
-  clearForm();
-  renderVisits();
+/* ===== Listeners ===== */
+onSnapshot(collection(db,'branches'), snap=>{
+  state.branches = snap.docs.map(d=>({id:d.id,...d.data()}));
+  renderStats();
 });
 
-/* ================= Render ================= */
-function renderVisits() {
-  const body = $('visitsTableBody');
-  body.innerHTML = '';
+onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap=>{
+  state.technicians = snap.docs.map(d=>({id:d.id,...d.data()}));
+  renderStats();
+});
 
-  state.visits.forEach(v => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${v.branch}</td>
-      <td>${v.brand}</td>
-      <td>${v.technician}</td>
-      <td>${v.date}</td>
-      <td>${v.status}</td>
-    `;
-    body.appendChild(tr);
-  });
-}
+onSnapshot(query(collection(db,'siteVisits'), orderBy('date','desc')), snap=>{
+  state.visits = snap.docs.map(d=>({id:d.id,...d.data()}));
+  renderStats();
+});
 
-/* ================= Clear ================= */
-function clearForm() {
-  $('visitBranch').value = '';
-  $('visitBrand').value = '';
-  $('visitTechnician').value = '';
-  $('visitDate').value = '';
-  $('visitStatus').value = 'Planned';
-}
+onSnapshot(query(collection(db,'branch_checklists'), orderBy('visitDate','desc')), snap=>{
+  state.checklists = snap.docs.map(d=>({id:d.id,...d.data()}));
+  renderStats();
+});
+
+onSnapshot(collection(db,'brand_assets'), snap=>{
+  state.brands = snap.docs.map(d=>({id:d.id,...d.data()}));
+  renderStats();
+});
+
+/* ===== Status ===== */
+$('status').textContent = '✅ تم الاتصال بـ Firebase وتحميل البيانات بنجاح';
 </script>
 
 </body>
