@@ -850,14 +850,33 @@
       const answers = seed ? { ...seed } : {};
       (state.checklistFields || []).filter(f => f.active !== false).sort((a,b)=>{ const sa=String(a.section||''); const sb=String(b.section||''); if(sa!==sb) return sa.localeCompare(sb); return Number(a.order||0)-Number(b.order||0); }).forEach(field => {
         if(field.repeat?.enabled){
-          answers[field.id] = [...document.querySelectorAll(`[data-repeat-field-id="${field.id}"]`)].map(el => (el.value || '').trim()).filter(Boolean);
+          const nodes = [...document.querySelectorAll(`[data-repeat-field-id="${field.id}"]`)];
+          if(nodes.length) answers[field.id] = nodes.map(el => (el.value || '').trim()).filter(Boolean);
+          else if(!(field.id in answers)) answers[field.id] = [];
           return;
         }
         const inputId = `dcf_${field.id}`;
-        if(field.fieldType === 'boolean'){ answers[field.id] = !!$(inputId)?.checked; return; }
-        if(field.fieldType === 'choice' && field.renderMode === 'radios'){ answers[field.id] = document.querySelector(`input[name="${inputId}"]:checked`)?.value || ''; return; }
-        if(field.fieldType === 'choice' && field.renderMode === 'checkboxes'){ answers[field.id] = [...document.querySelectorAll(`[data-checkbox-group-id="${field.id}"]:checked`)].map(el => el.value); return; }
-        answers[field.id] = $(inputId)?.value || '';
+        if(field.fieldType === 'boolean'){
+          const el = $(inputId);
+          if(el) answers[field.id] = !!el.checked;
+          else if(!(field.id in answers)) answers[field.id] = false;
+          return;
+        }
+        if(field.fieldType === 'choice' && field.renderMode === 'radios'){
+          const checked = document.querySelector(`input[name="${inputId}"]:checked`);
+          if(checked) answers[field.id] = checked.value;
+          else if(!(field.id in answers)) answers[field.id] = '';
+          return;
+        }
+        if(field.fieldType === 'choice' && field.renderMode === 'checkboxes'){
+          const checked = [...document.querySelectorAll(`[data-checkbox-group-id="${field.id}"]:checked`)];
+          if(checked.length) answers[field.id] = checked.map(el => el.value);
+          else if(!(field.id in answers)) answers[field.id] = [];
+          return;
+        }
+        const el = $(inputId);
+        if(el) answers[field.id] = el.value || '';
+        else if(!(field.id in answers)) answers[field.id] = '';
       });
       return answers;
     }
@@ -870,9 +889,9 @@
     function renderDynamicChecklistForm(values = {}){
       const container = $('dynamicChecklistSections');
       if(!container) return;
-      container.innerHTML = '';
       const fields = (state.checklistFields || []).filter(f => f.active !== false).sort((a,b)=>{ const sa=String(a.section||''); const sb=String(b.section||''); if(sa!==sb) return sa.localeCompare(sb); return Number(a.order||0)-Number(b.order||0); });
-      const currentAnswers = { ...values, ...collectDynamicChecklistAnswers(values) };
+      const currentAnswers = Object.keys(values || {}).length ? collectDynamicChecklistAnswers(values) : collectDynamicChecklistAnswers();
+      container.innerHTML = '';
       const grouped = {};
       fields.forEach(field => {
         if(!shouldShowDynamicField(field, currentAnswers)) return;
