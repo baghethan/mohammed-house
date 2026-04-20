@@ -196,7 +196,13 @@ function bindReportsEvents() {
 
 /* ================= Public Hook ================= */
 window.initReportsDashboard = function () {
-  if (!$$('assessmentChart')) return;
+  const chartEl = document.getElementById('assessmentChart');
+
+  // ✅ لا ترسم إذا التبويب غير ظاهر أو الصفحة لسه ما جهزت
+  if (!chartEl || chartEl.offsetParent === null) {
+    return;
+  }
+
   populateReportFilters();
   bindReportsEvents();
   renderReportsCharts();
