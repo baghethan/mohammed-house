@@ -1,275 +1,89 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit Professional v2.1.9</title>
-  <style>
-    :root {
-      --primary: #0d4b73; --accent: #2196f3; --success: #2f9e66; --danger: #d64545;
-      --bg: #f0f4f8; --card: #ffffff; --border: #d7e0ea; --radius: 16px;
-      --text: #163247; --muted: #6e8192; --shadow: 0 8px 30px rgba(0,0,0,0.05);
-    }
-    * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
-    body { margin: 0; background: var(--bg); color: var(--text); overflow-x: hidden; }
-    
-    header { background: var(--primary); color: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow); sticky: top; z-index: 100; }
-    .nav-tabs { display: flex; background: #fff; border-bottom: 1px solid var(--border); overflow-x: auto; padding: 10px 20px; gap: 10px; }
-    .tab-btn { padding: 10px 20px; border-radius: 999px; border: 1px solid var(--border); background: none; cursor: pointer; font-weight: 700; color: var(--muted); white-space: nowrap; transition: 0.3s; }
-    .tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+<section id="adminFields" class="panel">
+  <div class="card admin-card">
+    <div class="card-h" style="background: #0d4b73; color: #fff;">إدارة البنود</div>
+    <div class="card-b">
+      
+      <div class="grid-form" style="margin-bottom: 20px;">
+        <div class="field"><label>اسم البند</label><input id="f_label" placeholder="مثال: Upgrade Windows 10 to 11"></div>
+        <div class="field"><label>نوع السؤال</label>
+          <select id="f_type">
+            <option value="text">Text</option>
+            <option value="choice">سؤال خيارات</option>
+            <option value="number">Number</option>
+            <option value="boolean">صح / خطأ</option>
+          </select>
+        </div>
+        <div class="field"><label>الترتيب</label><input id="f_order" type="number" value="1"></div>
+        <div class="field"><label>القسم</label><input id="f_section" placeholder="Systems Assessment"></div>
+        <div class="field"><label>إجباري؟</label><select id="f_req"><option value="true">نعم</option><option value="false">لا</option></select></div>
+        <div class="field"><label>نشط؟</label><select id="f_active"><option value="true">نعم</option><option value="false">لا</option></select></div>
+      </div>
 
-    .container { max-width: 1500px; margin: 20px auto; padding: 0 20px; }
-    .panel { display: none; animation: fadeIn 0.4s; }
-    .panel.active { display: block; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      <div class="section-title">الظهور الشرطي</div>
+      <div class="logic-container-dashed">
+        <div class="grid-form">
+          <div class="field"><label>تفعيل الشرط؟</label><select id="f_logic_enabled"><option value="false">لا</option><option value="true">نعم</option></select></div>
+          <div class="field"><label>يعتمد على بند</label><select id="f_logic_ref"><option value="">اختر بنداً</option></select></div>
+          <div class="field"><label>المشغّل</label><select><option>يساوي</option></select></div>
+          <div class="field"><label>القيمة</label><input id="f_logic_val" placeholder="yes"></div>
+        </div>
+      </div>
 
-    .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 20px; overflow: hidden; }
-    .card-h { padding: 15px 20px; background: #f8fbff; border-bottom: 1px solid var(--border); font-weight: 800; color: var(--primary); }
-    .card-b { padding: 20px; }
+      <div class="section-title" style="margin-top: 20px;">التكرار حسب العدد</div>
+      <div class="logic-container-dashed">
+        <div class="grid-form">
+          <div class="field"><label>تفعيل التكرار؟</label><select id="f_repeat_enabled"><option value="false">لا</option><option value="true">نعم</option></select></div>
+          <div class="field"><label>العدد من بند</label><select id="f_repeat_ref"><option value="">اختر بنداً عددياً</option></select></div>
+          <div class="field"><label>قالب التسمية</label><input id="f_repeat_label" placeholder="رقم الموظف للجهاز {index}"></div>
+          <div class="field"><label>الحفظ كمصفوفة؟</label><select><option value="true">نعم</option><option value="false">لا</option></select></div>
+        </div>
+      </div>
 
-    .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-    .field { display: flex; flex-direction: column; gap: 8px; }
-    .field label { font-size: 13px; font-weight: 700; color: var(--primary); }
-    .field input, .field select, .field textarea { padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: #fbfcfe; }
-    
-    .btn { padding: 12px 25px; border-radius: 12px; border: none; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 10px; }
-    .btn-save { background: var(--success); color: #fff; }
-    .btn-admin { background: var(--accent); color: #fff; }
-    
-    .dynamic-list { list-style: none; padding: 0; }
-    .dynamic-list li { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px dashed var(--border); }
-    .repeat-box { margin-top: 15px; padding: 15px; background: #f0f7ff; border-radius: 12px; border: 1px solid #cde4ff; display: grid; gap: 10px; }
+      <div class="section-title" style="margin-top: 20px;">الربط بعد الحفظ</div>
+      <div class="logic-container-dashed">
+        <div class="grid-form">
+          <div class="field"><label>الهدف</label><select id="f_int_target"><option value="none">بدون</option><option value="windows_upgrades">windows_upgrades</option></select></div>
+          <div class="field"><label>الربط بواسطة</label><select><option>employeeId</option></select></div>
+          <div class="field"><label>نفّذ عند بند</label><select id="f_int_trigger"><option value="">بدون شرط</option></select></div>
+          <div class="field"><label>وقيمته</label><input id="f_int_val" placeholder="yes"></div>
+        </div>
+      </div>
 
-    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-    .hidden { display: none !important; }
-  </style>
-</head>
-<body>
-
-  <div id="loginOverlay" class="overlay">
-    <div class="card" style="width: 400px;">
-      <div class="card-h">تسجيل الدخول - النظام الموحد</div>
-      <div class="card-b">
-        <div class="field" style="margin-bottom: 15px;"><label>البريد الإلكتروني</label><input id="email" type="email"></div>
-        <div class="field" style="margin-bottom: 15px;"><label>كلمة المرور</label><input id="pass" type="password"></div>
-        <button id="loginBtn" class="btn btn-admin" style="width: 100%;">دخول</button>
+      <div style="margin-top: 25px; display: flex; justify-content: flex-end; gap: 10px;">
+        <button id="seedWindowsBtn" class="btn" style="background: #c47f00; color: #fff;">إنشاء مثال Upgrade Windows تلقائياً</button>
+        <button id="clearBuilderBtn" class="btn" style="background: #fff; border: 1px solid #d7e0ea; color: #0d4b73;">تنظيف</button>
+        <button id="saveFieldBtn" class="btn" style="background: #2f9e66; color: #fff;">حفظ البند</button>
       </div>
     </div>
   </div>
+</section>
 
-  <header>
-    <div style="font-size: 20px; font-weight: 800;">إدارة الزيارات والترقية v2.1.9</div>
-    <div id="userInfo" class="hidden"><span id="userMail"></span> | <button onclick="location.reload()" style="background:none; border:none; color:#fff; cursor:pointer; text-decoration:underline;">خروج</button></div>
-  </header>
-
-  <nav class="nav-tabs">
-    <button class="tab-btn active" data-panel="checklist">نموذج التقرير (Check-List)</button>
-    <button class="tab-btn" data-panel="admin">إدارة وتصميم البنود</button>
-    <button class="tab-btn" data-panel="upgrades">نتائج الترقية</button>
-  </nav>
-
-  <main class="container">
-    
-    <section id="checklist" class="panel active">
-      <div class="grid-form" style="grid-template-columns: 2fr 1fr;">
-        <div class="card">
-          <div class="card-h">تقرير الزيارة الميدانية</div>
-          <div class="card-b">
-            <div class="grid-form" style="margin-bottom: 25px;">
-              <div class="field"><label>الفني المسؤول</label><select id="cl_technician"></select></div>
-              <div class="field"><label>الزيارة المرتبطة</label><select id="cl_visit"></select></div>
-              <div class="field"><label>البراند</label><input id="cl_brand" readonly></div>
-            </div>
-            <div id="dynamicContainer"></div>
-            <div style="margin-top: 30px;"><button id="saveChecklist" class="btn btn-save">حفظ التقرير نهائياً</button></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-h">إرشادات</div>
-          <div class="card-b" style="font-size: 13px; color: var(--muted);">
-            عند اختيار "نعم" في بنود الترقية، سيظهر حقل العدد تلقائياً، ومنه تظهر مربعات الأرقام الوظيفية.
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="admin" class="panel">
-      <div class="grid-form" style="grid-template-columns: 1fr 1fr;">
-        <div class="card">
-          <div class="card-h">مصمم البنود الديناميكية</div>
-          <div class="card-b">
-            <div class="field" style="margin-bottom:12px;"><label>اسم البند</label><input id="f_label"></div>
-            <div class="field" style="margin-bottom:12px;"><label>نوع الإدخال</label><select id="f_type"><option value="text">نص</option><option value="number">رقم</option><option value="boolean">نعم/لا</option></select></div>
-            <div class="field" style="margin-bottom:12px;"><label>القسم</label><input id="f_section" placeholder="مثال: Software"></div>
-            
-            <div style="background:#f8fbff; padding:15px; border-radius:10px; margin-top:15px; border:1px solid var(--border);">
-              <div style="font-weight:700; font-size:12px; margin-bottom:10px;">المنطق والارتباط</div>
-              <div class="field"><label>يعتمد على (ظهور شرطي)</label><select id="f_logic_ref"><option value="">لا يوجد</option></select></div>
-              <div class="field" style="margin-top:8px;"><label>تكرار الحقل بناءً على (رقم)</label><select id="f_repeat_ref"><option value="">لا يوجد</option></select></div>
-            </div>
-            <button id="addFieldBtn" class="btn btn-admin" style="width:100%; margin-top:20px;">إضافة البند للمنظومة</button>
-            <button id="seedWindowsBtn" class="btn" style="width:100%; margin-top:10px; background:#ff9800; color:white;">إنشاء مثال Windows 11 المترابط</button>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-h">البنود الحالية في قاعدة البيانات</div>
-          <div id="adminFieldsList" class="card-b"></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="upgrades" class="panel">
-      <div class="card">
-        <div class="card-h">سجلات Windows 11 Upgrades</div>
-        <div class="card-b"><div id="upgradeTable">قيد التحميل...</div></div>
-      </div>
-    </section>
-
-  </main>
-
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, setDoc, query, orderBy, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-
-    // الربط مع مشروعك baghethan-ba325
-    const config = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
-    const app = initializeApp(config);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    let state = { fields: [], answers: {} };
-
-    // تبديل التبويبات
-    document.querySelectorAll('.tab-btn').forEach(b => b.onclick = () => {
-      document.querySelectorAll('.tab-btn, .panel').forEach(el => el.classList.remove('active'));
-      b.classList.add('active');
-      document.getElementById(b.dataset.panel).classList.add('active');
-    });
-
-    // تسجيل الدخول
-    document.getElementById('loginBtn').onclick = () => {
-      signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('pass').value)
-        .catch(e => alert(e.message));
-    };
-
-    onAuthStateChanged(auth, u => {
-      if(u) {
-        document.getElementById('loginOverlay').classList.add('hidden');
-        document.getElementById('userInfo').classList.remove('hidden');
-        document.getElementById('userMail').textContent = u.email;
-        initData();
-      }
-    });
-
-    function initData() {
-      // جلب البنود وترتيبها
-      onSnapshot(query(collection(db, 'checklist_fields'), orderBy('order')), snap => {
-        state.fields = snap.docs.map(d => ({id: d.id, ...d.data()}));
-        renderAdminList();
-        renderDynamicForm();
-        updateAdminSelects();
-      });
-
-      // جلب الفنيين
-      onSnapshot(collection(db, 'technicians'), snap => {
-        document.getElementById('cl_technician').innerHTML = snap.docs.map(d => `<option value="${d.id}">${d.data().name}</option>`).join('');
-      });
-    }
-
-    // بناء النموذج التفاعلي (نعم -> عدد -> تكرار)
-    function renderDynamicForm() {
-      const container = document.getElementById('dynamicContainer');
-      container.innerHTML = '';
-      const list = document.createElement('ul');
-      list.className = 'dynamic-list';
-
-      state.fields.forEach(f => {
-        // فحص الشرط: يظهر فقط إذا كان الحقل الأب يساوي القيمة المطلوبة
-        if(f.logic?.enabled) {
-          const parentVal = state.answers[f.logic.visibleWhen.fieldId];
-          if(String(parentVal) !== 'true') return;
-        }
-
-        const li = document.createElement('li');
-        li.innerHTML = `<label style="display:block; margin-bottom:8px; font-weight:700;">${f.label}</label>`;
-
-        if(f.fieldType === 'boolean') {
-          li.innerHTML += `
-            <div style="display:flex; gap:10px;">
-              <button class="btn ${state.answers[f.id] === true ? 'btn-admin' : ''}" onclick="window.setAns('${f.id}', true)" style="padding:5px 15px;">نعم</button>
-              <button class="btn ${state.answers[f.id] === false ? 'btn-save' : ''}" onclick="window.setAns('${f.id}', false)" style="padding:5px 15px; background:#6c757d;">لا</button>
-            </div>`;
-        } else {
-          const input = document.createElement('input');
-          input.type = f.fieldType;
-          input.style.width = '100%';
-          input.value = state.answers[f.id] || '';
-          input.oninput = (e) => window.setAns(f.id, e.target.value);
-          li.appendChild(input);
-        }
-
-        // منطق التكرار: إذا كان الحقل "مكرر" بناءً على حقل عددي
-        if(f.repeat?.enabled) {
-          const count = parseInt(state.answers[f.repeat.countFromFieldId] || 0);
-          if(count > 0) {
-            const repeatDiv = document.createElement('div');
-            repeatDiv.className = 'repeat-box';
-            for(let i=1; i<=count; i++) {
-              repeatDiv.innerHTML += `<div class="field"><label>${f.repeat.labelTemplate.replace('{index}', i)}</label><input type="text" placeholder="ادخل الرقم الوظيفي"></div>`;
-            }
-            li.appendChild(repeatDiv);
-          }
-        }
-        list.appendChild(li);
-      });
-      container.appendChild(list);
-    }
-
-    window.setAns = (id, val) => {
-      state.answers[id] = val;
-      renderDynamicForm(); // تحديث فوري للواجهة
-    };
-
-    // إدارة البنود (Admin)
-    function renderAdminList() {
-      document.getElementById('adminFieldsList').innerHTML = state.fields.map(f => `
-        <div style="padding:10px; border:1px solid #eee; margin-bottom:5px; border-radius:8px; display:flex; justify-content:space-between;">
-          <span>${f.label} (${f.fieldType})</span>
-          <button onclick="window.delField('${f.id}')" style="color:red; cursor:pointer; border:none; background:none;">حذف</button>
-        </div>
-      `).join('');
-    }
-
-    window.delField = async (id) => { if(confirm('حذف؟')) await deleteDoc(doc(db, 'checklist_fields', id)); };
-
-    function updateAdminSelects() {
-      const opts = '<option value="">لا يوجد</option>' + state.fields.map(f => `<option value="${f.id}">${f.label}</option>`).join('');
-      document.getElementById('f_logic_ref').innerHTML = opts;
-      document.getElementById('f_repeat_ref').innerHTML = opts;
-    }
-
-    document.getElementById('addFieldBtn').onclick = async () => {
-      const label = document.getElementById('f_label').value;
-      if(!label) return;
-      await addDoc(collection(db, 'checklist_fields'), {
-        label,
-        fieldType: document.getElementById('f_type').value,
-        section: document.getElementById('f_section').value,
-        order: state.fields.length + 1,
-        logic: { enabled: !!document.getElementById('f_logic_ref').value, visibleWhen: { fieldId: document.getElementById('f_logic_ref').value } },
-        repeat: { enabled: !!document.getElementById('f_repeat_ref').value, countFromFieldId: document.getElementById('f_repeat_ref').value, labelTemplate: 'رقم الموظف للجهاز {index}' }
-      });
-    };
-
-    // إنشاء المثال التلقائي المترابط
-    document.getElementById('seedWindowsBtn').onclick = async () => {
-      const q1 = await addDoc(collection(db, 'checklist_fields'), { label: 'Upgrade Windows 11?', fieldType: 'boolean', order: 100 });
-      const q2 = await addDoc(collection(db, 'checklist_fields'), { label: 'عدد الأجهزة المراد ترقيتها', fieldType: 'number', order: 101, logic: { enabled: true, visibleWhen: { fieldId: q1.id } } });
-      await addDoc(collection(db, 'checklist_fields'), { label: 'الأرقام الوظيفية للأجهزة', fieldType: 'text', order: 102, logic: { enabled: true, visibleWhen: { fieldId: q1.id } }, repeat: { enabled: true, countFromFieldId: q2.id, labelTemplate: 'رقم الموظف للجهاز {index}' } });
-      alert('تم إنشاء الثلاثة بنود المترابطة بنجاح!');
-    };
-
-  </script>
-</body>
-</html>
+<style>
+  /* تنسيقات إضافية لمطابقة الصورة تماماً */
+  .logic-container-dashed {
+    border: 1px dashed #d7e0ea;
+    border-radius: 12px;
+    padding: 15px;
+    background: #fbfcfe;
+    margin-bottom: 15px;
+  }
+  .section-title {
+    font-weight: 800;
+    color: #0d4b73;
+    margin-bottom: 10px;
+    padding-right: 10px;
+    border-right: 4px solid #0d4b73;
+  }
+  .admin-card {
+    border: 1px solid #d7e0ea;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  }
+  .field label {
+    margin-bottom: 5px;
+    display: block;
+    text-align: center; /* لمطابقة مظهر الصورة في التوسيط */
+  }
+  .field input, .field select {
+    text-align: center;
+  }
+</style>
