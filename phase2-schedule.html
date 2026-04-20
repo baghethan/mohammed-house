@@ -1668,35 +1668,151 @@
     }
 
     function attachListeners(){
-      $('loginBtn').addEventListener('click', loginWithEmail);
-      $('logoutBtn').addEventListener('click', async ()=>{ clearAllListeners(); await signOut(auth); });
-      $('langArBtn').addEventListener('click', ()=>applyLanguage('ar'));
-      $('langEnBtn').addEventListener('click', ()=>applyLanguage('en'));
-      $('checklistSearch').addEventListener('input', renderChecklistTable);
-      $('brandSearch').addEventListener('input', renderBrands);
-      $('cl_technician').addEventListener('change', populateVisitsForTechnician);
-      $('cl_visit_ref').addEventListener('change', ()=> fillChecklistFromVisit(state.visits.find(v=>v.id === $('cl_visit_ref').value)));
-      $('cl_branch_id').addEventListener('blur', autoFillFromBranchId);
-      $('cl_visit_date').addEventListener('change', updateMonthFromVisitDate);
-      $('saveChecklistBtn').addEventListener('click', saveChecklist);
-      $('clearChecklistBtn').addEventListener('click', clearChecklistForm);
-      $('deleteChecklistBtn').addEventListener('click', ()=>deleteChecklistById($('editingChecklistId').value.trim()));
-      $('brandKey').addEventListener('blur', ()=>{ $('brandKey').value = makeBrandKey(); });
-      $('brandNameEn').addEventListener('blur', ()=>{ if(!$('brandKey').value.trim()) $('brandKey').value = makeBrandKey(); });
-      $('brandLogoUrl').addEventListener('input', ()=>{ const url=$('brandLogoUrl').value.trim(); if(url) setPreview(url); else if(!$('brandLogoFile').value) setPreview(''); });
-      $('brandLogoFile').addEventListener('change', e=>{ const file=e.target.files?.[0]; if(!file){ if(!$('brandLogoUrl').value.trim()) setPreview(''); return; } const reader=new FileReader(); reader.onload = ev => setPreview(ev.target.result); reader.readAsDataURL(file); });
-      $('saveBrandBtn').addEventListener('click', saveBrand); $('clearBrandFormBtn').addEventListener('click', clearBrandForm); $('deleteBrandBtn').addEventListener('click', ()=>deleteBrandById($('editingBrandId').value.trim()));
-      $('uwBranchSelect')?.addEventListener('change', fillUpgradeWindowsFromBranch); $('uwEmployeeInBranch')?.addEventListener('change', fillUpgradeWindowsFromBranch); $('saveUWBtn')?.addEventListener('click', saveUpgradeWindowsRecord); $('clearUWBtn')?.addEventListener('click', clearUpgradeWindowsForm); $('uwSearch')?.addEventListener('input', renderUpgradeWindowsTable); $('importUWBtn')?.addEventListener('click', importUpgradeWindowsFromExcel); $('exportUWBtn')?.addEventListener('click', exportUpgradeWindowsToExcel); $('syncUWFromChecklistBtn')?.addEventListener('click', syncUpgradeWindowsFromChecklists);
-      $('visitTechnician').addEventListener('change', ()=>{ renderBranchSelectors(); fillVisitFromBranch(); });
-      $('visitBranch').addEventListener('change', fillVisitFromBranch); $('saveVisitBtn').addEventListener('click', saveVisit); $('clearVisitBtn').addEventListener('click', clearVisitForm); $('deleteVisitBtn').addEventListener('click', ()=>deleteVisitById($('editingVisitId').value.trim()));
-      $('saveBranchBtn').addEventListener('click', saveBranch); $('clearBranchBtn').addEventListener('click', clearBranchForm); $('branchSearch')?.addEventListener('input', renderBranchesList); $('importBranchesBtn')?.addEventListener('click', importBranchesFromExcel); $('exportBranchesBtn')?.addEventListener('click', exportBranchesToExcel);
-      $('technicianSelector')?.addEventListener('change', loadSelectedTechnician); $('loadTechnicianBtn')?.addEventListener('click', loadSelectedTechnician); $('techAssignRegion')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value })); $('techAssignCity')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value, city: $('techAssignCity').value })); $('techAssignBrand')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value, city: $('techAssignCity').value, brand: $('techAssignBrand').value })); $('techAssignBranch')?.addEventListener('change', syncTechnicianAssignmentFromBranch); $('saveTechnicianBtn').addEventListener('click', saveTechnician); $('clearTechnicianBtn').addEventListener('click', clearTechnicianForm);
-      $('userRole')?.addEventListener('change', applyRoleDefaultsToPermissionForm); $('userActiveSwitch')?.addEventListener('change', updateUserActiveLabel); $('applyUserRoleBtn')?.addEventListener('click', applyRoleDefaultsToPermissionForm); $('resetUserRoleBtn')?.addEventListener('click', applyRoleDefaultsToPermissionForm); $('selectAllPermissionPagesBtn')?.addEventListener('click', () => { applySelectedPagesToUI(permissionPages.map(p => p.key)); }); $('clearPermissionPagesBtn')?.addEventListener('click', () => { applySelectedPagesToUI([]); }); $('saveUserBtn').addEventListener('click', saveUser); $('clearUserBtn').addEventListener('click', clearUserForm);
-      $('runReportBtn').addEventListener('click', runReport);
+
+  const safeOn = (id, event, handler) => {
+    const el = $(id);
+    if (el) el.addEventListener(event, handler);
+  };
+
+  safeOn('loginBtn', 'click', loginWithEmail);
+  safeOn('logoutBtn', 'click', async () => { clearAllListeners(); await signOut(auth); });
+
+  safeOn('langArBtn', 'click', () => applyLanguage('ar'));
+  safeOn('langEnBtn', 'click', () => applyLanguage('en'));
+
+  safeOn('checklistSearch', 'input', renderChecklistTable);
+  safeOn('brandSearch', 'input', renderBrands);
+
+  safeOn('cl_technician', 'change', populateVisitsForTechnician);
+  safeOn('cl_visit_ref', 'change', () =>
+    fillChecklistFromVisit(state.visits.find(v => v.id === $('cl_visit_ref')?.value))
+  );
+
+  safeOn('cl_branch_id', 'blur', autoFillFromBranchId);
+  safeOn('cl_visit_date', 'change', updateMonthFromVisitDate);
+
+  safeOn('saveChecklistBtn', 'click', saveChecklist);
+  safeOn('clearChecklistBtn', 'click', clearChecklistForm);
+  safeOn('deleteChecklistBtn', 'click', () =>
+    deleteChecklistById($('editingChecklistId')?.value?.trim())
+  );
+
+  safeOn('brandKey', 'blur', () => {
+    if ($('brandKey')) $('brandKey').value = makeBrandKey();
+  });
+
+  safeOn('brandNameEn', 'blur', () => {
+    if ($('brandKey') && !$('brandKey').value.trim()) {
+      $('brandKey').value = makeBrandKey();
     }
+  });
+
+  safeOn('brandLogoUrl', 'input', () => {
+    const url = $('brandLogoUrl')?.value?.trim();
+    if (url) setPreview(url);
+    else if (!$('brandLogoFile')?.value) setPreview('');
+  });
+
+  safeOn('brandLogoFile', 'change', e => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      if (!$('brandLogoUrl')?.value?.trim()) setPreview('');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => setPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  });
+
+  safeOn('saveBrandBtn', 'click', saveBrand);
+  safeOn('clearBrandFormBtn', 'click', clearBrandForm);
+  safeOn('deleteBrandBtn', 'click', () =>
+    deleteBrandById($('editingBrandId')?.value?.trim())
+  );
+
+  safeOn('uwBranchSelect', 'change', fillUpgradeWindowsFromBranch);
+  safeOn('uwEmployeeInBranch', 'change', fillUpgradeWindowsFromBranch);
+  safeOn('saveUWBtn', 'click', saveUpgradeWindowsRecord);
+  safeOn('clearUWBtn', 'click', clearUpgradeWindowsForm);
+  safeOn('uwSearch', 'input', renderUpgradeWindowsTable);
+  safeOn('importUWBtn', 'click', importUpgradeWindowsFromExcel);
+  safeOn('exportUWBtn', 'click', exportUpgradeWindowsToExcel);
+  safeOn('syncUWFromChecklistBtn', 'click', syncUpgradeWindowsFromChecklists);
+
+  safeOn('visitTechnician', 'change', () => {
+    renderBranchSelectors();
+    fillVisitFromBranch();
+  });
+
+  safeOn('visitBranch', 'change', fillVisitFromBranch);
+  safeOn('saveVisitBtn', 'click', saveVisit);
+  safeOn('clearVisitBtn', 'click', clearVisitForm);
+  safeOn('deleteVisitBtn', 'click', () =>
+    deleteVisitById($('editingVisitId')?.value?.trim())
+  );
+
+  safeOn('saveBranchBtn', 'click', saveBranch);
+  safeOn('clearBranchBtn', 'click', clearBranchForm);
+  safeOn('branchSearch', 'input', renderBranchesList);
+  safeOn('importBranchesBtn', 'click', importBranchesFromExcel);
+  safeOn('exportBranchesBtn', 'click', exportBranchesToExcel);
+
+  safeOn('technicianSelector', 'change', loadSelectedTechnician);
+  safeOn('loadTechnicianBtn', 'click', loadSelectedTechnician);
+
+  safeOn('techAssignRegion', 'change', () =>
+    populateTechnicianAssignmentOptions({ region: $('techAssignRegion')?.value })
+  );
+
+  safeOn('techAssignCity', 'change', () =>
+    populateTechnicianAssignmentOptions({
+      region: $('techAssignRegion')?.value,
+      city: $('techAssignCity')?.value
+    })
+  );
+
+  safeOn('techAssignBrand', 'change', () =>
+    populateTechnicianAssignmentOptions({
+      region: $('techAssignRegion')?.value,
+      city: $('techAssignCity')?.value,
+      brand: $('techAssignBrand')?.value
+    })
+  );
+
+  safeOn('techAssignBranch', 'change', syncTechnicianAssignmentFromBranch);
+  safeOn('saveTechnicianBtn', 'click', saveTechnician);
+  safeOn('clearTechnicianBtn', 'click', clearTechnicianForm);
+
+  safeOn('userRole', 'change', applyRoleDefaultsToPermissionForm);
+  safeOn('userActiveSwitch', 'change', updateUserActiveLabel);
+  safeOn('applyUserRoleBtn', 'click', applyRoleDefaultsToPermissionForm);
+  safeOn('resetUserRoleBtn', 'click', applyRoleDefaultsToPermissionForm);
+  safeOn('selectAllPermissionPagesBtn', 'click', () =>
+    applySelectedPagesToUI(permissionPages.map(p => p.key))
+  );
+  safeOn('clearPermissionPagesBtn', 'click', () =>
+    applySelectedPagesToUI([])
+  );
+  safeOn('saveUserBtn', 'click', saveUser);
+  safeOn('clearUserBtn', 'click', clearUserForm);
+
+  safeOn('runReportBtn', 'click', runReport);
+}
 
     function listenBranches(){ if(unsub.branches) unsub.branches(); unsub.branches = onSnapshot(query(collection(db,'branches'), orderBy('branchName')), snap=>{ state.branches = snap.docs.map(d=>({id:d.id, ...d.data()})); renderBranchesList(); renderBranchSelectors(); populateTechnicianAssignmentOptions({}); renderStats(); }, err=>setAlert('branchError', 'branches: ' + err.message)); }
-    function listenTechnicians(){ if(unsub.technicians) unsub.technicians(); unsub.technicians = onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap=>{ state.technicians = snap.docs.map(d=>({id:d.id, ...d.data()})); renderTechniciansList(); renderTechnicianSelectors(); renderBranchSelectors(); renderLatestBrands(); renderStats(); populateVisitsForTechnician(); }, err=>setAlert('technicianError', 'technicians: ' + err.message)); }
+    function listenTechnicians() {
+  unsub.technicians = onSnapshot(
+    query(collection(db,'technicians'), orderBy('name')),
+    snap => {
+      state.technicians = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderTechniciansList();
+      renderTechnicianSelectors();
+
+      // ✅ مهم للتقارير
+      initReportsDashboard();
+    }
+  );
+}
     function listenVisits(){ if(unsub.visits) unsub.visits(); unsub.visits = onSnapshot(query(collection(db,'siteVisits'), orderBy('date','desc')), snap=>{ state.visits = snap.docs.map(d=>({id:d.id, ...d.data()})); renderVisitsTable(); populateVisitsForTechnician(); renderLatestBrands(); renderDashboardBrandBoxes(); renderStats(); }, err=>setAlert('visitError', 'siteVisits: ' + err.message)); }
     function listenChecklistFields(){ if(unsub.checklistFields) unsub.checklistFields(); unsub.checklistFields = onSnapshot(collection(db,'checklist_fields'), snap=>{ state.checklistFields = snap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>{ const sa=String(a.section||''); const sb=String(b.section||''); if(sa!==sb) return sa.localeCompare(sb); return Number(a.order||0)-Number(b.order||0); }); renderDynamicChecklistForm({}); }, err=>{ setAlert('checklistError', 'checklist_fields: ' + err.message); }); }
     
