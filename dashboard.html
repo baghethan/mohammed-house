@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Site Visit v3.9 – Dashboard</title>
+  <title>Site Visit v4.0 – Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -54,7 +54,11 @@
       color: #fff;
       border: none;
       cursor: pointer;
+      transition: .18s ease;
     }
+
+    button:hover { opacity: .96; }
+    button:disabled { opacity: .65; cursor: wait; }
 
     button.secondary {
       background: #295fa5;
@@ -64,6 +68,13 @@
       background: #eef4fb;
       color: #0d4b73;
       border: 1px solid #cfe2f3;
+    }
+
+    button.capture-btn {
+      background: #0d4b73;
+      width: auto;
+      min-width: 140px;
+      white-space: nowrap;
     }
 
     button.danger {
@@ -144,6 +155,35 @@
       font-size: 13px;
     }
 
+    .capture-status {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .capture-status.success {
+      display: block;
+      background: #ecfdf3;
+      color: #067647;
+      border: 1px solid #abefc6;
+    }
+
+    .capture-status.info {
+      display: block;
+      background: #eef4fb;
+      color: #0d4b73;
+      border: 1px solid #cfe2f3;
+    }
+
+    .capture-status.error {
+      display: block;
+      background: #fef3f2;
+      color: #b42318;
+      border: 1px solid #fecdca;
+    }
+
     .filters-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -198,6 +238,10 @@
       font-size: 13px;
     }
 
+    .export-frame {
+      background: #fff;
+    }
+
     /* ===== Brand summary cards ===== */
     .brand-grid {
       display: grid;
@@ -228,13 +272,13 @@
 
     .brand-card-logo,
     .brand-logo-placeholder {
-      width: 78px;
-      height: 78px;
-      border-radius: 20px;
+      width: 94px;
+      height: 94px;
+      border-radius: 22px;
       object-fit: cover;
       background: #fff;
       border: 1px solid #dbe7f1;
-      flex: 0 0 78px;
+      flex: 0 0 94px;
       box-shadow: 0 4px 12px rgba(0,0,0,.05);
     }
 
@@ -243,7 +287,7 @@
       align-items: center;
       justify-content: center;
       color: #98a2b3;
-      font-size: 18px;
+      font-size: 20px;
     }
 
     .brand-card-title {
@@ -251,7 +295,7 @@
     }
 
     .brand-card-name {
-      font-size: 22px;
+      font-size: 24px;
       font-weight: 700;
       color: #0d4b73;
       line-height: 1.2;
@@ -311,6 +355,7 @@
       overflow-x: auto;
       border: 1px solid #e3ebf3;
       border-radius: 14px;
+      background: #fff;
     }
 
     .visits-table {
@@ -414,7 +459,8 @@
 
       button.danger,
       .filter-actions button,
-      .preset-btn {
+      .preset-btn,
+      .capture-btn {
         width: 100%;
       }
 
@@ -428,9 +474,9 @@
 
       .brand-card-logo,
       .brand-logo-placeholder {
-        width: 64px;
-        height: 64px;
-        flex-basis: 64px;
+        width: 70px;
+        height: 70px;
+        flex-basis: 70px;
       }
 
       .brand-card-name {
@@ -460,7 +506,7 @@
 
 <div id="app" class="hidden">
   <header>
-    <strong>إدارة زيارات الفروع والفنيين – v3.9</strong>
+    <strong>إدارة زيارات الفروع والفنيين – v4.0</strong>
     <button id="logoutBtn" class="danger">Logout</button>
   </header>
 
@@ -499,66 +545,82 @@
       </div>
 
       <div id="activeRangeLabel" class="range-summary">الفترة الحالية: آخر سنة كاملة</div>
+      <div id="captureStatus" class="capture-status"></div>
     </div>
 
     <div class="card">
-      <h3>Dashboard</h3>
-
-      <div class="stats-main">
-        <div class="stat primary"><strong id="statBranches">0</strong><span>الفروع</span></div>
-        <div class="stat primary"><strong id="statTechnicians">0</strong><span>الفنيين</span></div>
-        <div class="stat primary"><strong id="statVisits">0</strong><span>إجمالي الزيارات (بعد الفلترة)</span></div>
-        <div class="stat primary"><strong id="statChecklists">0</strong><span>Check‑Lists (بعد الفلترة)</span></div>
+      <div class="section-head">
+        <h3 style="margin:0">Dashboard</h3>
+        <button class="capture-btn" data-capture-target="dashboardCapture" data-file-name="dashboard">نسخ صورة Dashboard</button>
       </div>
 
-      <div class="stats-sub">
-        <div class="stat success"><strong id="statCompletedVisits">0</strong><span>زيارات مكتملة</span></div>
-        <div class="stat warning"><strong id="statPendingVisits">0</strong><span>زيارات معلّقة</span></div>
-        <div class="stat info"><strong id="statVisitedTechnicians">0</strong><span>فنيون قاموا بزيارة</span></div>
-      </div>
+      <div id="dashboardCapture" class="export-frame">
+        <div class="stats-main">
+          <div class="stat primary"><strong id="statBranches">0</strong><span>الفروع</span></div>
+          <div class="stat primary"><strong id="statTechnicians">0</strong><span>الفنيين</span></div>
+          <div class="stat primary"><strong id="statVisits">0</strong><span>إجمالي الزيارات (بعد الفلترة)</span></div>
+          <div class="stat primary"><strong id="statChecklists">0</strong><span>Check‑Lists (بعد الفلترة)</span></div>
+        </div>
 
-      <div class="stats-sub">
-        <div class="stat"><strong id="statBrands">0</strong><span>عدد البراندات</span></div>
-        <div class="stat"><strong id="statBrandTypes">0</strong><span>أنواع البراند</span></div>
+        <div class="stats-sub">
+          <div class="stat success"><strong id="statCompletedVisits">0</strong><span>زيارات مكتملة</span></div>
+          <div class="stat warning"><strong id="statPendingVisits">0</strong><span>زيارات معلّقة</span></div>
+          <div class="stat info"><strong id="statVisitedTechnicians">0</strong><span>فنيون قاموا بزيارة</span></div>
+        </div>
+
+        <div class="stats-sub" style="margin-bottom:0;">
+          <div class="stat"><strong id="statBrands">0</strong><span>عدد البراندات</span></div>
+          <div class="stat"><strong id="statBrandTypes">0</strong><span>أنواع البراند</span></div>
+        </div>
       </div>
     </div>
 
     <div class="card">
       <div class="section-head">
-        <h3 style="margin:0">أسماء البراندات + الشعار + الحالة + Checklist</h3>
-        <div class="muted">كل بطاقة تعرض حجم أكبر للشعار وإحصائيات البراند ضمن الفترة المحددة</div>
+        <div>
+          <h3 style="margin:0">أسماء البراندات + الشعار + الحالة + Checklist</h3>
+          <div class="muted">كل بطاقة تعرض حجم أكبر للشعار وإحصائيات البراند ضمن الفترة المحددة</div>
+        </div>
+        <button class="capture-btn" data-capture-target="brandSummaryCapture" data-file-name="brand_summary">نسخ صورة البراندات</button>
       </div>
-      <div id="brandNamesBox" class="brand-grid empty">لا توجد بيانات برندات ضمن الفترة المحددة</div>
+      <div id="brandSummaryCapture" class="export-frame">
+        <div id="brandNamesBox" class="brand-grid empty">لا توجد بيانات برندات ضمن الفترة المحددة</div>
+      </div>
     </div>
 
     <div class="card">
       <div class="section-head">
-        <h3 style="margin:0">كل الزيارات</h3>
-        <div class="muted">عدد السجلات بعد الفلترة: <strong id="visitsTableCount">0</strong></div>
+        <div>
+          <h3 style="margin:0">كل الزيارات</h3>
+          <div class="muted">عدد السجلات بعد الفلترة: <strong id="visitsTableCount">0</strong></div>
+        </div>
+        <button class="capture-btn" data-capture-target="visitsSectionCapture" data-file-name="all_visits">نسخ صورة الزيارات</button>
       </div>
 
-      <div class="table-wrap">
-        <table class="visits-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>التاريخ</th>
-              <th>الفرع</th>
-              <th>الشعار</th>
-              <th>البراند</th>
-              <th>نوع البراند</th>
-              <th>الفني</th>
-              <th>الحالة</th>
-              <th>Checklist</th>
-              <th>ملاحظات</th>
-            </tr>
-          </thead>
-          <tbody id="visitsTableBody">
-            <tr>
-              <td colspan="10" class="empty-state">لا توجد زيارات ضمن الفترة المحددة</td>
-            </tr>
-          </tbody>
-        </table>
+      <div id="visitsSectionCapture" class="export-frame">
+        <div class="table-wrap">
+          <table class="visits-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>التاريخ</th>
+                <th>الفرع</th>
+                <th>الشعار</th>
+                <th>البراند</th>
+                <th>نوع البراند</th>
+                <th>الفني</th>
+                <th>الحالة</th>
+                <th>Checklist</th>
+                <th>ملاحظات</th>
+              </tr>
+            </thead>
+            <tbody id="visitsTableBody">
+              <tr>
+                <td colspan="10" class="empty-state">لا توجد زيارات ضمن الفترة المحددة</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -569,6 +631,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
@@ -605,6 +668,8 @@ const filters = {
 
 let unsub = [];
 let filtersBound = false;
+let captureBound = false;
+let captureStatusTimer = null;
 
 function normalizeStatus(v) {
   const s = String(v ?? '').trim().toLowerCase();
@@ -630,6 +695,109 @@ function escapeHtml(v) {
     '"': '&quot;',
     "'": '&#39;'
   }[c]));
+}
+
+function showCaptureStatus(message, type = 'info') {
+  const box = $('captureStatus');
+  if (!box) return;
+  box.className = `capture-status ${type}`;
+  box.textContent = message;
+  if (captureStatusTimer) clearTimeout(captureStatusTimer);
+  captureStatusTimer = setTimeout(() => {
+    box.className = 'capture-status';
+    box.textContent = '';
+  }, 4500);
+}
+
+function dataUrlToBlob(dataUrl) {
+  const parts = dataUrl.split(',');
+  const mimeMatch = parts[0].match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+  const byteString = atob(parts[1]);
+  const arrayBuffer = new ArrayBuffer(byteString.length);
+  const intArray = new Uint8Array(arrayBuffer);
+  for (let i = 0; i < byteString.length; i++) {
+    intArray[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([arrayBuffer], { type: mime });
+}
+
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+async function captureSectionAsImage(targetId, fileName, button) {
+  const target = $(targetId);
+  if (!target) {
+    showCaptureStatus('لم يتم العثور على القسم المطلوب لنسخ الصورة', 'error');
+    return;
+  }
+
+  if (typeof html2canvas === 'undefined') {
+    showCaptureStatus('مكتبة تصوير الشاشة غير متاحة حاليًا', 'error');
+    return;
+  }
+
+  const originalText = button ? button.textContent : '';
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'جارٍ تجهيز الصورة...';
+    }
+
+    const canvas = await html2canvas(target, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      windowWidth: document.documentElement.scrollWidth,
+      windowHeight: document.documentElement.scrollHeight
+    });
+
+    let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1));
+    if (!blob) {
+      blob = dataUrlToBlob(canvas.toDataURL('image/png'));
+    }
+
+    if (window.isSecureContext && navigator.clipboard && window.ClipboardItem) {
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+      showCaptureStatus('تم نسخ الصورة إلى الحافظة بنجاح', 'success');
+    } else {
+      downloadBlob(blob, `${fileName}.png`);
+      showCaptureStatus('المتصفح لا يدعم نسخ الصور مباشرة؛ تم تنزيل الصورة بدلًا من ذلك', 'info');
+    }
+  } catch (error) {
+    console.error(error);
+    showCaptureStatus('تعذر نسخ الصورة. تأكد من استخدام الصفحة عبر HTTPS أو جرّب مرة أخرى', 'error');
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
+}
+
+function bindCaptureEvents() {
+  if (captureBound) return;
+  captureBound = true;
+
+  document.querySelectorAll('[data-capture-target]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      captureSectionAsImage(btn.dataset.captureTarget, btn.dataset.fileName || 'capture', btn);
+    });
+  });
 }
 
 function toDateObject(value) {
@@ -1173,6 +1341,7 @@ onAuthStateChanged(auth, user => {
   $('app').classList.remove('hidden');
   clear();
   bindFilterEvents();
+  bindCaptureEvents();
   renderStats();
 
   unsub.push(onSnapshot(collection(db, 'branches'), s => {
