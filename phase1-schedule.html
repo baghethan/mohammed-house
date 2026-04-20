@@ -3,578 +3,454 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Legacy Check-List Migration Tool</title>
+  <title>Site-Visit v2.1.7 - Integrated System</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
-      --border:#d7e0ea; --text:#163247; --muted:#6e8192; --bg:#edf3f8; --card:#fff;
-      --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px;
+      --border:#d7e0ea; --text:#163247; --muted:#6e8192; --bg:#edf3f8; --card:#fff; --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px;
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg)}
     .hidden{display:none!important}.rtl-en{display:inline-block;direction:ltr;unicode-bidi:embed}
     header{background:var(--primary);color:#fff;padding:14px 18px;box-shadow:var(--shadow);position:sticky;top:0;z-index:50}
-    .header-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-    .title{font-size:24px;font-weight:800}
+    .header-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.title{font-size:24px;font-weight:800}.user-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:8px 12px;border-radius:999px}
-    .container{max-width:1500px;margin:18px auto;padding:0 14px 28px}
-    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-    .card,.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
-    .card{padding:16px;overflow:hidden}
-    .card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
-    .field{display:grid;gap:8px}.field label{font-size:14px;font-weight:700}
-    .field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:inherit;background:#fbfcfe}
-    .field textarea{min-height:96px;resize:vertical}
-    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-    .note{background:#f6fbff;border:1px dashed #bfd7e8;color:#33546b;border-radius:12px;padding:10px 12px;margin-top:12px;line-height:1.7}
-    .alert{padding:10px 12px;border-radius:12px;margin-top:10px}.alert.error{background:#ffecec;border:1px solid #f3b0b0;color:#8a1f1f}.alert.ok{background:#eaf9f0;border:1px solid #bce3c9;color:#20643b}.alert.warn{background:#fff7e8;border:1px solid #f1d28d;color:#8a5b00}
-    .btn{border:1px solid var(--border);border-radius:999px;padding:10px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer}
-    .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}.btn.green{background:var(--green);border-color:var(--green);color:#fff}.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}.btn.warning{background:var(--warning);border-color:var(--warning);color:#fff}.btn.small{padding:7px 11px;font-size:12px}
-    .item{background:#fcfdff;border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:10px}.item strong{display:block;color:var(--primary);margin-bottom:6px}.item small{display:block;color:var(--muted);line-height:1.55}
-    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
-    .stat{padding:14px}.stat .label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}.stat .value{font-size:28px;font-weight:800;color:var(--primary)}
-    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px;background:#fff}
-    table{width:100%;border-collapse:collapse} th,td{padding:12px 10px;border-bottom:1px solid #edf2f7;text-align:right;white-space:nowrap;font-size:13px;vertical-align:top} th{background:#f8fbff;color:var(--primary)}
-    .overlay{position:fixed;inset:0;background:rgba(13,75,115,.18);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}
-    .login-card{width:min(760px,96vw);background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 20px 50px rgba(0,0,0,.15);overflow:hidden}
-    .login-head{background:var(--primary);color:#fff;padding:16px 20px;font-size:18px;font-weight:800}
-    .login-body{padding:18px}
-    .switch-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
-    .switch-item{display:flex;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fbfcfe}
-    .mono{font-family:Consolas, Monaco, monospace}
-    pre{white-space:pre-wrap;word-break:break-word;background:#0f1a22;color:#d7e7f3;border-radius:16px;padding:14px;max-height:380px;overflow:auto}
-    @media (max-width:1200px){.grid-2,.grid-3,.grid-4,.stats{grid-template-columns:1fr}}
+    .container{max-width:1600px;margin:18px auto;padding:0 14px 28px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+    .tab-btn,.btn{border:1px solid var(--border);border-radius:999px;padding:10px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer}
+    .tab-btn.active,.btn.primary{background:var(--primary);color:#fff}.btn.green{background:var(--green);border-color:var(--green);color:#fff}.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}.btn.warning{background:var(--warning);border-color:var(--warning);color:#fff}
+    .btn.small{padding:7px 11px;font-size:12px}
+    .panel{display:none}.panel.active{display:block}
+    .grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}.grid-3{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:14px}.grid-4{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;overflow:hidden}.card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:14px;margin-bottom:18px}
+    .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+    .stat .label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}.stat .value{font-size:30px;font-weight:800;color:var(--primary)}
+    .field{display:grid;gap:8px}.field label{font-size:14px;font-weight:700}.field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:inherit;background:#fbfcfe}.field textarea{min-height:96px;resize:vertical}
+    .logic-box{border:1px dashed var(--border);border-radius:12px;padding:12px;background:#fbfcfe;margin-top:10px}
+    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px;background:#fff} table{width:100%;border-collapse:collapse} th,td{padding:12px 10px;border-bottom:1px solid #edf2f7;text-align:right;white-space:nowrap;font-size:14px} th{background:#f8fbff;color:var(--primary)}
+    .list{display:grid;gap:10px;max-height:520px;overflow:auto}.item{background:#fcfdff;border:1px solid var(--border);border-radius:14px;padding:12px}.item strong{display:block;color:var(--primary);margin-bottom:6px}.item small{display:block;color:var(--muted);line-height:1.55}
+    .section-title{margin:18px 0 10px;font-weight:800;color:var(--primary);font-size:16px;border-inline-start:4px solid var(--primary);padding-inline-start:10px}
+    .overlay{position:fixed;inset:0;background:rgba(13,75,115,.18);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}.login-card{width:min(760px,96vw);background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 20px 50px rgba(0,0,0,.15);overflow:hidden}.login-head{background:var(--primary);color:#fff;padding:16px 20px;font-size:18px;font-weight:800}.login-body{padding:18px}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef5ff;color:#295fa5;font-size:12px;font-weight:700}
+    .dynamic-checklist-wrap{display:grid;gap:16px}.dynamic-checklist-list{list-style:none;padding:0;margin:0;counter-reset:ck}.dynamic-checklist-list>li{position:relative;padding-inline-start:38px;margin-bottom:14px}.dynamic-checklist-list>li::before{counter-increment:ck;content:counter(ck) " -";position:absolute;inset-inline-start:0;top:6px;font-weight:800;color:var(--primary)}
+    .choice-group-dynamic{display:flex;gap:12px;flex-wrap:wrap}.choice-option{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;cursor:pointer}
+    @media (max-width:1200px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
+
   <div class="overlay" id="loginOverlay">
     <div class="login-card">
       <div class="login-head">تسجيل الدخول / Sign In</div>
       <div class="login-body">
-        <div class="note">هذه الأداة تنقل بيانات <span class="rtl-en">branch_checklists</span> القديمة (الأسئلة الثابتة <span class="rtl-en">q10..q29</span>) إلى الصيغة الجديدة الديناميكية <span class="rtl-en">dynamicAnswers</span> و <span class="rtl-en">dynamicFieldsSnapshot</span>.</div>
+        <div class="note">أهلاً بك في النظام الموحد v2.1.7. يرجى تسجيل الدخول للمتابعة.</div>
         <div class="grid-3" style="margin-top:14px">
-          <div class="field">
-            <label>البريد الإلكتروني / Email</label>
-            <input id="loginEmail" type="email" placeholder="name@company.com">
-          </div>
-          <div class="field">
-            <label>كلمة المرور / Password</label>
-            <input id="loginPassword" type="password" placeholder="Password">
-          </div>
-          <div class="field">
-            <label> </label>
-            <button class="btn primary" id="loginBtn" type="button">دخول / Login</button>
-          </div>
+          <div class="field"><label>البريد الإلكتروني / Email</label><input id="loginEmail" type="email" placeholder="name@company.com"></div>
+          <div class="field"><label>كلمة المرور / Password</label><input id="loginPassword" type="password" placeholder="Password"></div>
+          <div class="field"><label>&nbsp;</label><button class="btn green" id="loginBtn" type="button">دخول / Login</button></div>
         </div>
-        <div class="note" id="loginMessage">سجّل الدخول بحساب Admin أو حساب يملك صلاحية القراءة/الكتابة على <span class="rtl-en">checklist_fields</span> و <span class="rtl-en">branch_checklists</span>.</div>
+        <div id="loginMessage" class="note" style="margin-top:10px; color:var(--danger)"></div>
       </div>
     </div>
   </div>
 
   <header>
     <div class="header-row">
-      <div class="title">Legacy Check‑List Migration Tool</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <span class="chip">v1.0</span>
+      <div class="title" id="appTitle">إدارة الزيارات الميدانية والبنود الديناميكية</div>
+      <div class="user-row">
+        <span class="chip">v2.1.7</span>
         <span class="chip hidden" id="currentUserChip"></span>
-        <button class="btn danger hidden" id="logoutBtn" type="button">خروج / Logout</button>
+        <button class="btn danger hidden" id="logoutBtn">خروج / Logout</button>
       </div>
     </div>
   </header>
 
   <main class="container hidden" id="appRoot">
-    <div id="globalError" class="alert error hidden"></div>
-
-    <div class="grid-2">
-      <div class="card">
-        <h3>إعدادات النقل</h3>
-        <div class="note">الأداة ستقرأ البنود الحالية من <span class="rtl-en">checklist_fields</span>. إذا كانت بعض البنود القديمة غير موجودة، يمكنها إنشاء البنود المفقودة تلقائيًا قبل النقل.</div>
-        <div class="switch-row">
-          <label class="switch-item"><input type="checkbox" id="optCreateMissing" checked> <span>إنشاء البنود المفقودة في <span class="rtl-en">checklist_fields</span></span></label>
-          <label class="switch-item"><input type="checkbox" id="optSkipMigrated" checked> <span>تخطي السجلات التي تحتوي أصلًا على <span class="rtl-en">dynamicAnswers</span></span></label>
-          <label class="switch-item"><input type="checkbox" id="optOverwriteDynamic"> <span>الكتابة فوق <span class="rtl-en">dynamicAnswers</span> الحالية</span></label>
-          <label class="switch-item"><input type="checkbox" id="optDeleteLegacy"> <span>حذف الحقول القديمة <span class="rtl-en">q10..q29</span> بعد نجاح النقل</span></label>
-        </div>
-        <div class="actions">
-          <button class="btn" id="analyzeBtn" type="button">تحليل البيانات</button>
-          <button class="btn warning" id="createFieldsBtn" type="button">إنشاء البنود المفقودة فقط</button>
-          <button class="btn green" id="migrateBtn" type="button">تنفيذ Migration</button>
-        </div>
-        <div id="runMessage" class="note">جاهز للتحليل.</div>
-
-        <div class="stats">
-          <div class="stat"><span class="label">إجمالي السجلات</span><div class="value" id="statTotal">0</div></div>
-          <div class="stat"><span class="label">سجلات قديمة قابلة للنقل</span><div class="value" id="statLegacy">0</div></div>
-          <div class="stat"><span class="label">سجلات لديها Dynamic بالفعل</span><div class="value" id="statDynamic">0</div></div>
-          <div class="stat"><span class="label">البنود المفقودة</span><div class="value" id="statMissing">0</div></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>ملخص البنية القديمة</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>الحقل القديم</th>
-                <th>الملصق الجديد</th>
-                <th>القسم</th>
-                <th>النوع</th>
-              </tr>
-            </thead>
-            <tbody id="legacyMapBody"></tbody>
-          </table>
-        </div>
-      </div>
+    <div class="tabs" id="mainTabs">
+      <button class="tab-btn active" data-tab="dashboard">لوحة التحكم</button>
+      <button class="tab-btn" data-tab="checklist">Check-List</button>
+      <button class="tab-btn" data-tab="dynamicChecklistAdmin">إدارة البنود (Admin)</button>
+      <button class="tab-btn" data-tab="upgradeWindows">Upgrade Windows</button>
+      <button class="tab-btn" data-tab="visit">إدخال زيارة</button>
+      <button class="tab-btn" data-tab="branches">إدارة الفروع</button>
+      <button class="tab-btn" data-tab="technicians">إدارة الفنيين</button>
+      <button class="tab-btn" data-tab="permissions">الصلاحيات</button>
     </div>
 
-    <div class="grid-2" style="margin-top:16px">
-      <div class="card">
-        <h3>نتيجة التحليل</h3>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Document ID</th>
-                <th>الفني</th>
-                <th>Visit Date</th>
-                <th>Legacy</th>
-                <th>Dynamic</th>
-                <th>المفقود</th>
-              </tr>
-            </thead>
-            <tbody id="analysisBody"></tbody>
-          </table>
+    <section id="dashboard" class="panel active">
+      <div class="stats">
+        <div class="stat"><span class="label">إجمالي الفروع</span><div class="value" id="statBranches">0</div></div>
+        <div class="stat"><span class="label">إجمالي الزيارات</span><div class="value" id="statVisits">0</div></div>
+        <div class="stat"><span class="label">زيارات مكتملة</span><div class="value" id="statCompletedVisits">0</div></div>
+        <div class="stat"><span class="label">فنيون نشطون</span><div class="value" id="statVisitedTechnicians">0</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>أحدث سجلات Check-List</h3>
+          <div class="table-wrap"><table><thead><tr><th>تاريخ الزيارة</th><th>الفني</th><th>البراند</th><th>الفرع</th><th>المدينة</th></tr></thead><tbody id="latestChecklistBody"></tbody></table></div>
+        </div>
+        <div class="card">
+          <h3>إحصائيات البراندات</h3>
+          <div class="list" id="dashboardBrandStatsGrid"></div>
         </div>
       </div>
-      <div class="card">
-        <h3>سجل التنفيذ</h3>
-        <pre id="logBox"></pre>
+    </section>
+
+    <section id="checklist" class="panel">
+      <div class="grid-2">
+        <div class="card">
+          <h3>نموذج Check-List</h3>
+          <input id="editingChecklistId" type="hidden">
+          
+          <div class="section-title">بيانات الربط</div>
+          <div class="grid-4">
+            <div class="field"><label>الفني</label><select id="cl_technician"></select></div>
+            <div class="field"><label>الزيارة المرتبطة</label><select id="cl_visit_ref"></select></div>
+            <div class="field"><label>تاريخ الزيارة</label><input id="cl_visit_date" type="date"></div>
+            <div class="field"><label>البراند</label><input id="cl_brand" readonly></div>
+          </div>
+
+          <div class="section-title">البنود الديناميكية</div>
+          <div id="dynamicChecklistFormArea" class="dynamic-checklist-wrap">
+            </div>
+
+          <div class="actions" style="margin-top:20px">
+            <button class="btn green" id="saveChecklistBtn">حفظ التقرير</button>
+            <button class="btn" id="clearChecklistBtn">تنظيف</button>
+            <button class="btn danger hidden" id="deleteChecklistBtn">حذف</button>
+          </div>
+          <div id="checklistMessage" class="note"></div>
+        </div>
+
+        <div class="card">
+          <h3>التقارير المحفوظة</h3>
+          <div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>الفني</th><th>الفرع</th></tr></thead><tbody id="checklistTableBody"></tbody></table></div>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <section id="dynamicChecklistAdmin" class="panel">
+      <div class="grid-2">
+        <div class="card">
+          <h3>إدارة وتصميم البنود (Admin Only)</h3>
+          <input type="hidden" id="builderEditingId">
+          <div class="grid-3">
+            <div class="field"><label>اسم البند</label><input id="builderLabel" placeholder="مثال: حالة أجهزة البصمة"></div>
+            <div class="field"><label>نوع الحقل</label><select id="builderFieldType"><option value="text">نص قصير</option><option value="textarea">نص طويل</option><option value="number">رقم</option><option value="choice">خيار متعدد</option><option value="boolean">صح/خطأ</option></select></div>
+            <div class="field"><label>القسم</label><input id="builderSection" placeholder="IT Infrastructure"></div>
+            <div class="field"><label>الترتيب</label><input id="builderOrder" type="number" value="1"></div>
+            <div class="field" id="builderOptionCountWrap" class="hidden"><label>عدد الخيارات</label><input id="builderOptionCount" type="number" min="1" value="2"></div>
+            <div class="field" id="builderRenderModeWrap" class="hidden"><label>طريقة العرض</label><select id="builderRenderMode"><option value="select">قائمة منسدلة</option><option value="radios">أزرار اختيار</option><option value="checkboxes">مربعات اختيار</option></select></div>
+          </div>
+
+          <div id="builderOptionsBox" class="grid-3 hidden" style="margin-top:10px; border:1px solid var(--border); padding:10px; border-radius:12px"></div>
+
+          <div class="section-title">المنطق الشرطي (Conditional Logic)</div>
+          <div class="logic-box grid-3">
+            <div class="field"><label>تفعيل الشرط؟</label><select id="logicEnabled"><option value="false">لا</option><option value="true">نعم</option></select></div>
+            <div class="field"><label>يعتمد على بند</label><select id="logicFieldRef"></select></div>
+            <div class="field"><label>القيمة المطلوبة</label><input id="logicValue" placeholder="مثال: yes"></div>
+          </div>
+
+          <div class="section-title">التكرار (Repetition)</div>
+          <div class="logic-box grid-3">
+            <div class="field"><label>تفعيل التكرار؟</label><select id="repeatEnabled"><option value="false">لا</option><option value="true">نعم</option></select></div>
+            <div class="field"><label>العدد من بند</label><select id="repeatCountRef"></select></div>
+            <div class="field"><label>قالب التسمية</label><input id="repeatLabelTemplate" placeholder="جهاز رقم {index}"></div>
+          </div>
+
+          <div class="actions" style="margin-top:20px">
+            <button class="btn green" id="saveFieldBtn">حفظ البند</button>
+            <button class="btn" id="resetBuilderBtn">تنظيف</button>
+            <button class="btn warning" id="seedExampleBtn">إضافة مثال Windows</button>
+          </div>
+          <div id="builderMessage" class="note"></div>
+        </div>
+
+        <div class="card">
+          <h3>قائمة البنود الحالية</h3>
+          <div class="list" id="adminFieldsList"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="branches" class="panel"> <div class="card"><h3>إدارة الفروع</h3><div id="branchesList" class="list"></div></div> </section>
+    <section id="technicians" class="panel"> <div class="card"><h3>إدارة الفنيين</h3><div id="techniciansList" class="list"></div></div> </section>
+    <section id="permissions" class="panel"> <div class="card"><h3>الصلاحيات</h3><div id="usersTableBody"></div></div> </section>
+    <section id="upgradeWindows" class="panel"> <div class="card"><h3>Windows Upgrade Status</h3><div id="uwTableBody"></div></div> </section>
+    <section id="visit" class="panel"> <div class="card"><h3>تسجيل زيارة جديدة</h3></div> </section>
+
   </main>
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserSessionPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, collection, doc, setDoc, addDoc, query, getDocs, getDoc, Timestamp, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, query, orderBy, Timestamp, where, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const firebaseConfig = {
-      apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
-      authDomain:'baghethan-ba325.firebaseapp.com',
-      projectId:'baghethan-ba325',
-      storageBucket:'baghethan-ba325.firebasestorage.app',
-      messagingSenderId:'944819735112',
-      appId:'1:944819735112:web:07315600da39377320667d'
+    const firebaseConfig = { 
+        apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', 
+        authDomain:'baghethan-ba325.firebaseapp.com', 
+        projectId:'baghethan-ba325', 
+        storageBucket:'baghethan-ba325.firebasestorage.app', 
+        messagingSenderId:'944819735112', 
+        appId:'1:944819735112:web:07315600da39377320667d' 
     };
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const $ = id => document.getElementById(id);
 
     const state = {
-      user: null,
-      profile: null,
-      fields: [],
-      docs: [],
-      analysisRows: []
+      checklistFields: [],
+      branches: [],
+      technicians: [],
+      visits: [],
+      checklists: [],
+      currentUser: null,
+      currentUserProfile: null
     };
 
-    const LEGACY_DEFS = [
-      { oldKey:'q10_networkCabinetsCondition', label:'Network Cabinets Condition', section:'Network Infrastructure Assessment', fieldType:'choice', renderMode:'select', options:['In Shape','Requires Arrangement'], order:10 },
-      { oldKey:'q11_lowCurrentInfrastructure', label:'Low Current Infrastructure Condition', section:'Network Infrastructure Assessment', fieldType:'choice', renderMode:'select', options:['In Shape','Requires Arrangement'], order:11 },
-      { oldKey:'q12_uploadSpeed', label:'Upload 4-6 Mbps', section:'Network Infrastructure Assessment', fieldType:'choice', renderMode:'select', options:['Above the Range','Within the Range','Below the Range'], order:12 },
-      { oldKey:'q13_downloadSpeed', label:'Download 6-9 Mbps', section:'Network Infrastructure Assessment', fieldType:'choice', renderMode:'select', options:['Above the Range','Within the Range','Below the Range'], order:13 },
-      { oldKey:'q14_serverRoomTemperature', label:'Server Room Temperature', section:'Network Infrastructure Assessment', fieldType:'choice', renderMode:'select', options:['Above the Range','Within the Range','Below the Range'], order:14 },
-      { oldKey:'q15_upsStatus', label:'UPS Status', section:'Network Infrastructure Assessment', fieldType:'choice', renderMode:'select', options:['Fully Functioning','Requires Service'], order:15 },
-      { oldKey:'q16_pcCondition', label:'PCs Condition', section:'Hardware & Peripherals Assessment', fieldType:'choice', renderMode:'select', options:['Fully Functioning','Requires Service'], order:16 },
-      { oldKey:'q17_printersCondition', label:'Printers Condition', section:'Hardware & Peripherals Assessment', fieldType:'choice', renderMode:'select', options:['Fully Functioning','Requires Service'], order:17 },
-      { oldKey:'q18_unifiedCommunication', label:'Unified Communication', section:'Hardware & Peripherals Assessment', fieldType:'choice', renderMode:'select', options:['Fully Functioning','Requires Service'], order:18 },
-      { oldKey:'q19_unusedDamagedAssets', label:'Unused or Damaged IT Assets', section:'Hardware & Peripherals Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No'], order:19 },
-      { oldKey:'q20_assetReport', label:'Report Unused/Damaged IT Asset', section:'Hardware & Peripherals Assessment', fieldType:'textarea', renderMode:'', options:[], order:20 },
-      { oldKey:'q22_osUpToDate', label:'Operating System Up to Date', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No'], order:22 },
-      { oldKey:'q23_cleanup', label:'Cleanup and Remove Unwanted Apps', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No','Partially'], order:23 },
-      { oldKey:'q24_oneDriveBackup', label:'OneDrive Backup', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No','Partially'], order:24 },
-      { oldKey:'q25_customerFacingPortals', label:'Customer Facing Portals', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No','Partially'], order:25 },
-      { oldKey:'q26_erpBusinessApps', label:'ERP & Business Applications', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No','Requires Maintenance'], order:26 },
-      { oldKey:'q27_trainingRequirement', label:'Training Requirement', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'checkboxes', options:['Customer Facing Portals','ERP Functions','Business Solutions','Service Desk & End User Support','IT Soft Skills','No Requirement for IT Training','Other'], order:27 },
-      { oldKey:'q28_serviceReportSummary', label:'Service Report Summary', section:'Software & Systems Assessment', fieldType:'textarea', renderMode:'', options:[], order:28 },
-      { oldKey:'q29_upgradeWindows10To11', label:'Upgrade Windows 10 to 11', section:'Software & Systems Assessment', fieldType:'choice', renderMode:'select', options:['Yes','No','Other'], order:29 },
-      { oldKey:'q29_upgradeWindows10To11DeviceCount', label:'Number of devices (Q29A)', section:'Software & Systems Assessment', fieldType:'number', renderMode:'', options:[], order:30 },
-      { oldKey:'q29_upgradeWindows10To11EmployeeIds', label:'Employee IDs for devices (Q29B)', section:'Software & Systems Assessment', fieldType:'textarea', renderMode:'', options:[], order:31 },
-    ];
+    const $ = id => document.getElementById(id);
 
-    function esc(v){
-      return String(v ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
+    // --- Helpers ---
+    function esc(v){ return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function slugify(t){ return String(t||'').trim().toLowerCase().replace(/\s+/g,'_').replace(/[^\w\u0600-\u06FF]+/g,''); }
 
-    function norm(v){
-      return String(v || '')
-        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-        .toLowerCase().replace(/[^a-z0-9]+/g,'');
-    }
-
-    function logLine(msg){
-      const box = $('logBox');
-      const ts = new Date().toLocaleString('en-CA');
-      box.textContent += `[${ts}] ${msg}\n`;
-      box.scrollTop = box.scrollHeight;
-    }
-
-    function setGlobalError(msg=''){
-      const el = $('globalError');
-      if(!msg){ el.classList.add('hidden'); el.textContent=''; return; }
-      el.classList.remove('hidden'); el.textContent = msg;
-    }
-
-    function setLoginMessage(msg='', kind='info'){
-      const el = $('loginMessage');
-      el.textContent = msg;
-      el.style.color = kind === 'error' ? '#8a1f1f' : '';
-    }
-
-    function setRunMessage(msg='', kind='info'){
-      const el = $('runMessage');
-      el.textContent = msg;
-      el.className = kind === 'warn' ? 'alert warn' : kind === 'error' ? 'alert error' : 'note';
-    }
-
-    function toggleUi(isLoggedIn){
-      $('loginOverlay').classList.toggle('hidden', isLoggedIn);
-      $('appRoot').classList.toggle('hidden', !isLoggedIn);
-      $('logoutBtn').classList.toggle('hidden', !isLoggedIn);
-      $('currentUserChip').classList.toggle('hidden', !isLoggedIn);
-    }
-
-    function renderLegacyMap(){
-      $('legacyMapBody').innerHTML = LEGACY_DEFS.map(def => `
-        <tr>
-          <td class="mono">${esc(def.oldKey)}</td>
-          <td>${esc(def.label)}</td>
-          <td>${esc(def.section)}</td>
-          <td>${esc(def.fieldType)} ${def.renderMode ? ' / ' + esc(def.renderMode) : ''}</td>
-        </tr>
-      `).join('');
-    }
-
-    async function loadProfile(uid){
-      const snap = await getDoc(doc(db, 'app_users', uid));
-      return snap.exists() ? { id: snap.id, ...snap.data() } : null;
-    }
-
+    // --- Auth Logic ---
     async function login(){
-      const email = $('loginEmail').value.trim();
-      const password = $('loginPassword').value;
-      if(!email || !password){ setLoginMessage('أدخل البريد الإلكتروني وكلمة المرور.', 'error'); return; }
-      try{
-        $('loginBtn').disabled = true;
-        setLoginMessage('جاري تسجيل الدخول...', 'info');
-        await setPersistence(auth, browserSessionPersistence);
-        await signInWithEmailAndPassword(auth, email, password);
-      } catch(err){
-        setLoginMessage((err.code || 'error') + ' | ' + (err.message || ''), 'error');
-      } finally {
-        $('loginBtn').disabled = false;
-      }
+      const e = $('loginEmail').value, p = $('loginPassword').value;
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+        await signInWithEmailAndPassword(auth, e, p);
+      } catch (err) { $('loginMessage').textContent = "خطأ في الدخول: " + err.message; }
     }
-
-    function hasLegacyData(data){
-      return LEGACY_DEFS.some(def => {
-        const v = data?.[def.oldKey];
-        if(Array.isArray(v)) return v.length > 0;
-        return !(v === undefined || v === null || v === '');
-      });
-    }
-
-    function fieldLookup(fields){
-      const map = new Map();
-      fields.forEach(f => map.set(norm(f.label), f));
-      return map;
-    }
-
-    async function fetchFields(){
-      const snap = await getDocs(query(collection(db,'checklist_fields')));
-      const rows = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-      rows.sort((a,b) => {
-        const sa = String(a.section || '');
-        const sb = String(b.section || '');
-        if(sa !== sb) return sa.localeCompare(sb);
-        return Number(a.order || 0) - Number(b.order || 0);
-      });
-      state.fields = rows;
-      return rows;
-    }
-
-    async function fetchDocs(){
-      const snap = await getDocs(query(collection(db,'branch_checklists')));
-      state.docs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-      return state.docs;
-    }
-
-    async function createMissingFields(){
-      const current = state.fields.length ? state.fields : await fetchFields();
-      const lookup = fieldLookup(current);
-      let created = 0;
-      for(const def of LEGACY_DEFS){
-        if(lookup.has(norm(def.label))) continue;
-        const payload = {
-          label: def.label,
-          fieldType: def.fieldType,
-          renderMode: def.renderMode || '',
-          options: def.options.map(opt => ({ label: opt, value: String(opt).trim().toLowerCase().replace(/\s+/g,'_') })),
-          order: def.order,
-          section: def.section,
-          required: false,
-          active: true,
-          createdByMigration: true,
-          updatedAt: Timestamp.now(),
-          createdAt: Timestamp.now()
-        };
-        const ref = await addDoc(collection(db,'checklist_fields'), payload);
-        current.push({ id: ref.id, ...payload });
-        lookup.set(norm(def.label), { id: ref.id, ...payload });
-        created += 1;
-        logLine(`تم إنشاء بند مفقود: ${def.label} -> ${ref.id}`);
-      }
-      current.sort((a,b) => {
-        const sa = String(a.section || '');
-        const sb = String(b.section || '');
-        if(sa !== sb) return sa.localeCompare(sb);
-        return Number(a.order || 0) - Number(b.order || 0);
-      });
-      state.fields = current;
-      return created;
-    }
-
-    function convertValue(field, legacyValue){
-      if(field.fieldType === 'number'){
-        if(legacyValue === '' || legacyValue == null) return '';
-        const n = Number(legacyValue);
-        return Number.isFinite(n) ? n : '';
-      }
-      if(field.fieldType === 'boolean'){
-        if(typeof legacyValue === 'boolean') return legacyValue;
-        const v = String(legacyValue || '').toLowerCase();
-        return ['yes','true','صح','1'].includes(v);
-      }
-      if(Array.isArray(legacyValue)){
-        if(field.renderMode === 'checkboxes') return legacyValue;
-        return legacyValue.join('\n');
-      }
-      return legacyValue;
-    }
-
-    function buildAnalysisRows(fields, docs){
-      const lookup = fieldLookup(fields);
-      return docs.map(row => {
-        const missing = [];
-        LEGACY_DEFS.forEach(def => {
-          const v = row?.[def.oldKey];
-          const hasValue = Array.isArray(v) ? v.length > 0 : !(v === undefined || v === null || v === '');
-          if(hasValue && !lookup.has(norm(def.label))) missing.push(def.label);
-        });
-        return {
-          id: row.id,
-          technician: row.technicianName || row.technicianId || '-',
-          visitDate: row.visitDate || row.technicianVisitDate || '-',
-          hasLegacy: hasLegacyData(row),
-          hasDynamic: !!(row.dynamicAnswers && Object.keys(row.dynamicAnswers).length),
-          missing
-        };
-      });
-    }
-
-    function renderAnalysis(rows){
-      $('analysisBody').innerHTML = rows.map(r => `
-        <tr>
-          <td class="mono">${esc(r.id)}</td>
-          <td>${esc(r.technician)}</td>
-          <td>${esc(r.visitDate)}</td>
-          <td>${r.hasLegacy ? '<span class="badge">Yes</span>' : 'No'}</td>
-          <td>${r.hasDynamic ? '<span class="badge">Yes</span>' : 'No'}</td>
-          <td>${r.missing.length ? esc(r.missing.join(' | ')) : '—'}</td>
-        </tr>
-      `).join('') || '<tr><td colspan="6">لا توجد بيانات.</td></tr>';
-      $('statTotal').textContent = rows.length;
-      $('statLegacy').textContent = rows.filter(r => r.hasLegacy).length;
-      $('statDynamic').textContent = rows.filter(r => r.hasDynamic).length;
-      $('statMissing').textContent = [...new Set(rows.flatMap(r => r.missing))].length;
-    }
-
-    async function analyze(){
-      try{
-        setGlobalError('');
-        setRunMessage('جاري تحليل البيانات...', 'info');
-        $('logBox').textContent = '';
-        const fields = await fetchFields();
-        const docs = await fetchDocs();
-        const rows = buildAnalysisRows(fields, docs);
-        state.analysisRows = rows;
-        renderAnalysis(rows);
-        const uniqueMissing = [...new Set(rows.flatMap(r => r.missing))];
-        if(uniqueMissing.length){
-          setRunMessage(`التحليل انتهى. يوجد ${uniqueMissing.length} بند مفقود في checklist_fields.`, 'warn');
-          logLine('البنود المفقودة: ' + uniqueMissing.join(' | '));
-        } else {
-          setRunMessage('التحليل انتهى. لا توجد بنود مفقودة.', 'info');
-        }
-        logLine(`إجمالي السجلات: ${docs.length}`);
-        logLine(`سجلات legacy: ${rows.filter(r=>r.hasLegacy).length}`);
-        logLine(`سجلات dynamic: ${rows.filter(r=>r.hasDynamic).length}`);
-      } catch(err){
-        setRunMessage(err.message || String(err), 'error');
-        setGlobalError(err.message || String(err));
-      }
-    }
-
-    async function migrate(){
-      try{
-        setGlobalError('');
-        setRunMessage('بدء تنفيذ Migration...', 'info');
-        $('migrateBtn').disabled = true;
-        const createMissing = $('optCreateMissing').checked;
-        const skipMigrated = $('optSkipMigrated').checked;
-        const overwriteDynamic = $('optOverwriteDynamic').checked;
-        const deleteLegacy = $('optDeleteLegacy').checked;
-
-        let fields = await fetchFields();
-        if(createMissing){
-          const created = await createMissingFields();
-          logLine(`تم إنشاء ${created} بند/بنود مفقودة.`);
-          fields = await fetchFields();
-        }
-
-        const lookup = fieldLookup(fields);
-        const docs = await fetchDocs();
-        let migrated = 0, skipped = 0, errors = 0;
-
-        for(const row of docs){
-          try{
-            const alreadyDynamic = !!(row.dynamicAnswers && Object.keys(row.dynamicAnswers).length);
-            const legacy = hasLegacyData(row);
-            if(skipMigrated && alreadyDynamic){
-              skipped += 1;
-              logLine(`تخطي ${row.id}: لديه dynamicAnswers بالفعل.`);
-              continue;
-            }
-            if(!legacy && !alreadyDynamic){
-              skipped += 1;
-              logLine(`تخطي ${row.id}: لا يحتوي حقول legacy ولا dynamic.`);
-              continue;
-            }
-
-            const answers = overwriteDynamic ? {} : { ...(row.dynamicAnswers || {}) };
-            const missing = [];
-            for(const def of LEGACY_DEFS){
-              const value = row?.[def.oldKey];
-              const hasValue = Array.isArray(value) ? value.length > 0 : !(value === undefined || value === null || value === '');
-              if(!hasValue) continue;
-              const field = lookup.get(norm(def.label));
-              if(!field){
-                missing.push(def.label);
-                continue;
-              }
-              answers[field.id] = convertValue(field, value);
-            }
-
-            const update = {
-              dynamicAnswers: answers,
-              dynamicFieldsSnapshot: fields.filter(f => f.active !== false).map(f => ({
-                id:f.id, label:f.label, fieldType:f.fieldType, renderMode:f.renderMode || '', options:f.options || [], section:f.section || 'General', order:f.order ?? 1
-              })),
-              migratedFromLegacy: true,
-              migrationVersion: 'legacy-checklist-to-dynamic-v1',
-              migrationMissingMappings: missing,
-              migratedAt: Timestamp.now(),
-              updatedAt: Timestamp.now()
-            };
-            if(deleteLegacy){
-              LEGACY_DEFS.forEach(def => { update[def.oldKey] = deleteField(); });
-            }
-            await setDoc(doc(db,'branch_checklists', row.id), update, { merge:true });
-            migrated += 1;
-            logLine(`تم نقل ${row.id}${missing.length ? ' | مفقود: ' + missing.join(', ') : ''}`);
-          } catch(err){
-            errors += 1;
-            logLine(`خطأ في ${row.id}: ${err.message || String(err)}`);
-          }
-        }
-
-        setRunMessage(`انتهى النقل. Migrated=${migrated} | Skipped=${skipped} | Errors=${errors}`, errors ? 'warn' : 'info');
-        await analyze();
-      } catch(err){
-        setRunMessage(err.message || String(err), 'error');
-        setGlobalError(err.message || String(err));
-      } finally {
-        $('migrateBtn').disabled = false;
-      }
-    }
-
-    function renderUserChip(){
-      const role = state.profile?.role || 'unknown';
-      $('currentUserChip').textContent = `${state.profile?.name || state.user?.email || ''} | ${role}`;
-    }
-
-    $('loginBtn').addEventListener('click', login);
-    $('logoutBtn').addEventListener('click', async () => { await signOut(auth); });
-    $('analyzeBtn').addEventListener('click', analyze);
-    $('createFieldsBtn').addEventListener('click', async () => {
-      try{
-        $('createFieldsBtn').disabled = true;
-        const created = await createMissingFields();
-        setRunMessage(`تم إنشاء ${created} بند/بنود مفقودة.`, created ? 'info' : 'warn');
-        await analyze();
-      } catch(err){
-        setRunMessage(err.message || String(err), 'error');
-      } finally {
-        $('createFieldsBtn').disabled = false;
-      }
-    });
-    $('migrateBtn').addEventListener('click', migrate);
-
-    renderLegacyMap();
-    $('logBox').textContent = '';
 
     onAuthStateChanged(auth, async user => {
       if(user){
-        state.user = user;
-        try{
-          state.profile = await loadProfile(user.uid);
-          renderUserChip();
-          toggleUi(true);
-          setLoginMessage('تم تسجيل الدخول بنجاح.');
-          if(state.profile?.role && state.profile.role !== 'admin'){
-            setRunMessage('تنبيه: الحساب ليس Admin. قد تفشل القراءة/الكتابة حسب Firestore Rules.', 'warn');
-          }
-          await analyze();
-        } catch(err){
-          toggleUi(true);
-          setGlobalError(err.message || String(err));
-        }
+        state.currentUser = user;
+        const snap = await getDoc(doc(db, 'app_users', user.uid));
+        state.currentUserProfile = snap.exists() ? snap.data() : { role: 'user' };
+        
+        $('loginOverlay').classList.add('hidden');
+        $('appRoot').classList.remove('hidden');
+        $('logoutBtn').classList.remove('hidden');
+        $('currentUserChip').textContent = `${state.currentUserProfile.name || user.email} | ${state.currentUserProfile.role}`;
+        $('currentUserChip').classList.remove('hidden');
+
+        startListeners();
       } else {
-        state.user = null;
-        state.profile = null;
-        state.fields = [];
-        state.docs = [];
-        state.analysisRows = [];
-        $('currentUserChip').textContent = '';
-        $('analysisBody').innerHTML = '';
-        $('statTotal').textContent = '0';
-        $('statLegacy').textContent = '0';
-        $('statDynamic').textContent = '0';
-        $('statMissing').textContent = '0';
-        $('logBox').textContent = '';
-        toggleUi(false);
+        $('loginOverlay').classList.remove('hidden');
+        $('appRoot').classList.add('hidden');
       }
     });
+
+    // --- Realtime Listeners ---
+    function startListeners(){
+      // Fields Listener (Admin & Checklist Use)
+      onSnapshot(collection(db, 'checklist_fields'), snap => {
+        state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (a.order||0)-(b.order||0));
+        renderAdminFields();
+        populateReferenceSelects();
+        renderDynamicChecklistForm();
+      });
+
+      // Visits Listener
+      onSnapshot(collection(db, 'siteVisits'), snap => {
+        state.visits = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        populateVisitRefs();
+        renderStats();
+      });
+
+      // Branches & Techs
+      onSnapshot(collection(db, 'branches'), snap => { state.branches = snap.docs.map(d => ({id:d.id, ...d.data()})); });
+      onSnapshot(collection(db, 'technicians'), snap => { 
+        state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        populateTechSelect();
+      });
+    }
+
+    // --- Admin Builder Logic ---
+    $('builderFieldType').onchange = () => {
+      const isChoice = $('builderFieldType').value === 'choice';
+      $('builderOptionCountWrap').classList.toggle('hidden', !isChoice);
+      $('builderRenderModeWrap').classList.toggle('hidden', !isChoice);
+      $('builderOptionsBox').classList.toggle('hidden', !isChoice);
+      if(isChoice) renderOptionInputs();
+    };
+
+    function renderOptionInputs(){
+      const count = $('builderOptionCount').value;
+      const box = $('builderOptionsBox');
+      box.innerHTML = '';
+      for(let i=0; i<count; i++){
+        box.innerHTML += `<div class="field"><label>خيار ${i+1}</label><input class="opt-in" placeholder="اسم الخيار"></div>`;
+      }
+    }
+
+    async function saveField(){
+      const label = $('builderLabel').value;
+      if(!label) return alert("أدخل اسم البند");
+      
+      const payload = {
+        label,
+        fieldType: $('builderFieldType').value,
+        section: $('builderSection').value || 'عام',
+        order: Number($('builderOrder').value),
+        active: true,
+        logic: {
+          enabled: $('logicEnabled').value === 'true',
+          visibleWhen: { fieldId: $('logicFieldRef').value, value: $('logicValue').value }
+        },
+        repeat: {
+          enabled: $('repeatEnabled').value === 'true',
+          countFromFieldId: $('repeatCountRef').value,
+          labelTemplate: $('repeatLabelTemplate').value || label + " {index}"
+        },
+        updatedAt: Timestamp.now()
+      };
+
+      if(payload.fieldType === 'choice'){
+        payload.options = [...document.querySelectorAll('.opt-in')].map(i => ({label: i.value, value: slugify(i.value)}));
+        payload.renderMode = $('builderRenderMode').value;
+      }
+
+      const editId = $('builderEditingId').value;
+      if(editId) await setDoc(doc(db, 'checklist_fields', editId), payload, {merge:true});
+      else await addDoc(collection(db, 'checklist_fields'), payload);
+      
+      resetBuilder();
+    }
+
+    function resetBuilder(){
+        $('builderEditingId').value = '';
+        $('builderLabel').value = '';
+        $('builderFieldType').value = 'text';
+        $('builderOptionsBox').innerHTML = '';
+        $('builderOptionCountWrap').classList.add('hidden');
+        $('builderMessage').textContent = "تم الحفظ بنجاح";
+    }
+
+    function renderAdminFields(){
+      $('adminFieldsList').innerHTML = state.checklistFields.map(f => `
+        <div class="item">
+          <strong>${esc(f.label)} [${f.section}]</strong>
+          <small>النوع: ${f.fieldType} | الترتيب: ${f.order}</small>
+          <div class="actions" style="margin-top:5px">
+            <button class="btn small primary" onclick="editField('${f.id}')">تعديل</button>
+            <button class="btn small danger" onclick="deleteField('${f.id}')">حذف</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    window.editField = (id) => {
+        const f = state.checklistFields.find(x => x.id === id);
+        if(!f) return;
+        $('builderEditingId').value = f.id;
+        $('builderLabel').value = f.label;
+        $('builderFieldType').value = f.fieldType;
+        $('builderSection').value = f.section;
+        $('builderOrder').value = f.order;
+        $('logicEnabled').value = String(f.logic?.enabled);
+        // ... تكملة ملء باقي الحقول
+        $('builderFieldType').onchange();
+    };
+
+    window.deleteField = async (id) => {
+        if(confirm("حذف البند نهائياً؟")) await deleteDoc(doc(db, 'checklist_fields', id));
+    };
+
+    // --- Dynamic Checklist Form Logic ---
+    function renderDynamicChecklistForm(values = {}){
+        const area = $('dynamicChecklistFormArea');
+        if(!area) return;
+        area.innerHTML = '';
+        
+        const grouped = {};
+        state.checklistFields.forEach(f => {
+            // منطق الظهور الشرطي
+            if(f.logic?.enabled){
+                const triggerVal = values[f.logic.visibleWhen.fieldId];
+                if(String(triggerVal) !== String(f.logic.visibleWhen.value)) return;
+            }
+            const sec = f.section || 'General';
+            if(!grouped[sec]) grouped[sec] = [];
+            grouped[sec].push(f);
+        });
+
+        Object.entries(grouped).forEach(([name, fields]) => {
+            let html = `<div class="section-block"><div class="section-title">${name}</div><ul class="dynamic-checklist-list">`;
+            fields.forEach(f => {
+                html += `<li>${renderInput(f, values[f.id])}</li>`;
+                // منطق التكرار
+                if(f.repeat?.enabled){
+                    const count = Number(values[f.repeat.countFromFieldId] || 0);
+                    for(let i=0; i<count; i++){
+                        html += `<li style="margin-inline-start:20px"><input placeholder="${f.repeat.labelTemplate.replace('{index}', i+1)}"></li>`;
+                    }
+                }
+            });
+            html += `</ul></div>`;
+            area.innerHTML += html;
+        });
+    }
+
+    function renderInput(f, val){
+        if(f.fieldType === 'boolean') return `<label class="choice-option"><input type="checkbox" onchange="updateVal('${f.id}', this.checked)"> ${f.label}</label>`;
+        if(f.fieldType === 'choice') return `<label>${f.label}</label><select onchange="updateVal('${f.id}', this.value)"><option>اختر</option>${f.options.map(o=>`<option value="${o.value}">${o.label}</option>`).join('')}</select>`;
+        return `<label>${f.label}</label><input type="${f.fieldType}" oninput="updateVal('${f.id}', this.value)" value="${val||''}">`;
+    }
+
+    window.updateVal = (id, val) => {
+        // تحديث لحظي للنموذج لتفعيل الشرط أو التكرار
+        const currentAnswers = collectAnswers();
+        currentAnswers[id] = val;
+        renderDynamicChecklistForm(currentAnswers);
+    };
+
+    function collectAnswers(){
+        const ans = {};
+        // منطق جمع البيانات من الحقول
+        return ans;
+    }
+
+    function populateReferenceSelects(){
+        const opts = state.checklistFields.map(f => `<option value="${f.id}">${f.label}</option>`).join('');
+        $('logicFieldRef').innerHTML = '<option value="">اختر</option>' + opts;
+        $('repeatCountRef').innerHTML = '<option value="">اختر</option>' + opts;
+    }
+
+    function populateTechSelect(){
+        $('cl_technician').innerHTML = state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    }
+
+    function populateVisitRefs(){
+        $('cl_visit_ref').innerHTML = state.visits.map(v => `<option value="${v.id}">${v.date} - ${v.branchName}</option>`).join('');
+    }
+
+    function renderStats(){
+        $('statBranches').textContent = state.branches.length;
+        $('statVisits').textContent = state.visits.length;
+        $('statCompletedVisits').textContent = state.visits.filter(v => v.status === 'completed').length;
+        $('statVisitedTechnicians').textContent = state.technicians.length;
+    }
+
+    // --- UI Tabs ---
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            $(btn.dataset.tab).classList.add('active');
+        };
+    });
+
+    // --- Initial Bindings ---
+    $('loginBtn').onclick = login;
+    $('logoutBtn').onclick = () => auth.signOut();
+    $('saveFieldBtn').onclick = saveField;
+    $('resetBuilderBtn').onclick = resetBuilder;
+
   </script>
 </body>
 </html>
