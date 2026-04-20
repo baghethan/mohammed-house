@@ -111,6 +111,29 @@ header{
   font-weight:bold;
 }
 
+/* ===== FILTER BAR ===== */
+.filter-bar{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.filter-bar select,
+.filter-bar input,
+.filter-bar button{
+  padding:8px;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+.filter-bar button{
+  background:#0d4b73;
+  color:#fff;
+  border:none;
+  cursor:pointer;
+}
+
 /* ===== DASHBOARD CARDS ===== */
 .cards-top{
   display:grid;
@@ -157,7 +180,7 @@ header{
 table{
   width:100%;
   border-collapse:collapse;
-  margin-bottom:20px;
+  margin-bottom:30px;
 }
 
 thead{
@@ -171,20 +194,30 @@ th,td{
   border-bottom:1px solid #ddd;
 }
 
-/* ===== EXPORT ===== */
-.export-bar{
-  display:flex;
-  justify-content:flex-end;
-  margin-bottom:10px;
+/* ===== BRAND CARDS ===== */
+.brand-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:16px;
+  margin-bottom:40px;
 }
 
-.export-bar button{
-  background:#0d4b73;
-  color:#fff;
-  border:none;
-  border-radius:20px;
-  padding:6px 14px;
-  cursor:pointer;
+.brand-card{
+  background:#fff;
+  border-radius:14px;
+  padding:16px;
+  box-shadow:0 8px 20px rgba(0,0,0,.1);
+  text-align:center;
+}
+
+.brand-card h4{
+  margin:0 0 10px;
+  color:#0d4b73;
+}
+
+.brand-card div{
+  font-size:13px;
+  margin:4px 0;
 }
 </style>
 </head>
@@ -194,7 +227,7 @@ th,td{
 <!-- ===== LOGIN ===== -->
 <div id="loginBox">
   <div class="login-card">
-    <img src="LOGO-almajdouie.png">
+    LOGO-almajdouie.png
     <div class="login-version">v3.6 • آخر تحديث: 2026‑04‑21</div>
 
     <input id="loginEmail" type="email" placeholder="Email">
@@ -210,7 +243,7 @@ th,td{
 <header>
   <div class="header-left">
     <div class="header-logo">
-      <img src="LOGO-almajdouie.png">
+      LOGO-almajdouie.png
       <small class="app-version">v3.6 • آخر تحديث: 2026‑04‑21</small>
     </div>
     <div>إدارة إنجازات زيارات الفروع والفنيين</div>
@@ -221,6 +254,19 @@ th,td{
 <div class="container">
 
 <div class="dashboard-title">Dashboard</div>
+
+<!-- ===== FILTER BAR ===== -->
+<div class="filter-bar">
+  <input type="date" id="filterFrom">
+  <input type="date" id="filterTo">
+  <select id="filterTechnician">
+    <option value="">كل الفنيين</option>
+  </select>
+  <select id="filterBrand">
+    <option value="">كل البراندات</option>
+  </select>
+  <button onclick="applyFilters()">تطبيق الفلتر</button>
+</div>
 
 <div class="cards-top">
   <div class="card-blue"><span>Check‑Lists</span><strong id="statChecklists">0</strong></div>
@@ -234,10 +280,6 @@ th,td{
   <div class="card-white"><strong id="statPendingVisits">0</strong><span>زيارات معلّقة</span></div>
   <div class="card-white"><strong id="statVisitedTechnicians">0</strong><span>فنيين قاموا بزيارة</span></div>
   <div class="card-white"><strong id="statBrands">0</strong><span>عدد البراندات</span></div>
-</div>
-
-<div class="export-bar">
-  <button onclick="exportCSV()">Export CSV</button>
 </div>
 
 <h3>Latest Check‑Lists</h3>
@@ -257,12 +299,7 @@ th,td{
 </table>
 
 <h3>Brand Summary</h3>
-<table>
-<thead>
-<tr><th>البراند</th><th>إجمالي الزيارات</th><th>مكتملة</th><th>معلّقة</th></tr>
-</thead>
-<tbody id="brandTable"></tbody>
-</table>
+<div class="brand-grid" id="brandGrid"></div>
 
 </div>
 </div>
@@ -292,29 +329,82 @@ loginBtn.onclick = async ()=>{
 
 logoutBtn.onclick = ()=>signOut(auth);
 
-const state = { branches:[], technicians:[], visits:[], checklists:[] };
+/* ===== STATE ===== */
+const state = {
+  branches:[],
+  technicians:[],
+  visits:[],
+  checklists:[],
+  filteredVisits:[],
+  filteredChecklists:[]
+};
 
 function startDashboard(){
-  onSnapshot(collection(db,'branches'),s=>{state.branches=s.docs.map(d=>d.data());render();});
-  onSnapshot(collection(db,'technicians'),s=>{state.technicians=s.docs.map(d=>d.data());render();});
-  onSnapshot(collection(db,'siteVisits'),s=>{state.visits=s.docs.map(d=>d.data());render();});
-  onSnapshot(collection(db,'branch_checklists'),s=>{state.checklists=s.docs.map(d=>d.data());render();});
+  onSnapshot(collection(db,'branches'), s=>{
+    state.branches = s.docs.map(d=>d.data());
+    render();
+  });
+  onSnapshot(collection(db,'technicians'), s=>{
+    state.technicians = s.docs.map(d=>d.data());
+    populateFilters();
+    render();
+  });
+  onSnapshot(collection(db,'siteVisits'), s=>{
+    state.visits = s.docs.map(d=>d.data());
+    applyFilters();
+  });
+  onSnapshot(collection(db,'branch_checklists'), s=>{
+    state.checklists = s.docs.map(d=>d.data());
+    applyFilters();
+  });
+}
+
+function populateFilters(){
+  filterTechnician.innerHTML='<option value="">كل الفنيين</option>';
+  state.technicians.forEach(t=>{
+    filterTechnician.innerHTML+=`<option value="${t.id}">${t.name||t.id}</option>`;
+  });
+}
+
+function applyFilters(){
+  const from=filterFrom.value;
+  const to=filterTo.value;
+  const tech=filterTechnician.value;
+  const brand=filterBrand.value;
+
+  state.filteredVisits = state.visits.filter(v=>{
+    if(from && v.date<from) return false;
+    if(to && v.date>to) return false;
+    if(tech && v.technicianDocId!==tech) return false;
+    if(brand && v.brand!==brand) return false;
+    return true;
+  });
+
+  state.filteredChecklists = state.checklists.filter(c=>{
+    if(from && c.visitDate<from) return false;
+    if(to && c.visitDate>to) return false;
+    if(tech && c.technicianDocId!==tech) return false;
+    if(brand && c.brand!==brand) return false;
+    return true;
+  });
+
+  render();
 }
 
 function render(){
   statBranches.textContent = state.branches.length;
   statTechnicians.textContent = state.technicians.length;
-  statVisits.textContent = state.visits.length;
-  statChecklists.textContent = state.checklists.length;
+  statVisits.textContent = state.filteredVisits.length;
+  statChecklists.textContent = state.filteredChecklists.length;
 
-  const completed = state.visits.filter(v=>v.status==='completed'||v.checklistCompleted===true);
-  const pending = state.visits.filter(v=>v.status!=='completed'&&v.status!=='cancelled');
+  const completed = state.filteredVisits.filter(v=>v.status==='completed'||v.checklistCompleted===true);
+  const pending = state.filteredVisits.filter(v=>v.status!=='completed'&&v.status!=='cancelled');
 
   statCompletedVisits.textContent = completed.length;
   statPendingVisits.textContent = pending.length;
 
-  const techs = new Set(state.visits.map(v=>v.technicianDocId||v.technicianId||v.technicianEmail).filter(Boolean));
-  const brands = new Set(state.visits.map(v=>v.brand).filter(Boolean));
+  const techs=new Set(state.filteredVisits.map(v=>v.technicianDocId).filter(Boolean));
+  const brands=new Set(state.filteredVisits.map(v=>v.brand).filter(Boolean));
 
   statVisitedTechnicians.textContent = techs.size;
   statBrands.textContent = brands.size;
@@ -325,7 +415,7 @@ function render(){
 
 function renderLatest(){
   latestChecklists.innerHTML='';
-  state.checklists.slice(-5).reverse().forEach(c=>{
+  state.filteredChecklists.slice(-5).reverse().forEach(c=>{
     latestChecklists.innerHTML+=`
       <tr>
         <td>${c.branchName||'-'}</td>
@@ -337,7 +427,7 @@ function renderLatest(){
   });
 
   latestVisits.innerHTML='';
-  state.visits.slice(-5).reverse().forEach(v=>{
+  state.filteredVisits.slice(-5).reverse().forEach(v=>{
     latestVisits.innerHTML+=`
       <tr>
         <td>${v.branchName||'-'}</td>
@@ -349,50 +439,26 @@ function renderLatest(){
 }
 
 function renderBrands(){
-  brandTable.innerHTML='';
-  const brandMap={};
-
-  state.visits.forEach(v=>{
+  brandGrid.innerHTML='';
+  const map={};
+  state.filteredVisits.forEach(v=>{
     if(!v.brand) return;
-    if(!brandMap[v.brand]){
-      brandMap[v.brand]={visits:0,completed:0,pending:0};
-    }
-    brandMap[v.brand].visits++;
-    if(v.status==='completed'||v.checklistCompleted) brandMap[v.brand].completed++;
-    else brandMap[v.brand].pending++;
+    if(!map[v.brand]) map[v.brand]={visits:0,completed:0,pending:0};
+    map[v.brand].visits++;
+    if(v.status==='completed'||v.checklistCompleted) map[v.brand].completed++;
+    else map[v.brand].pending++;
   });
 
-  Object.keys(brandMap).forEach(b=>{
-    const d=brandMap[b];
-    brandTable.innerHTML+=`
-      <tr>
-        <td>${b}</td>
-        <td>${d.visits}</td>
-        <td>${d.completed}</td>
-        <td>${d.pending}</td>
-      </tr>`;
+  Object.keys(map).forEach(b=>{
+    const d=map[b];
+    brandGrid.innerHTML+=`
+      <div class="brand-card">
+        <h4>${b}</h4>
+        <div>إجمالي الزيارات: ${d.visits}</div>
+        <div>مكتملة: ${d.completed}</div>
+        <div>معلّقة: ${d.pending}</div>
+      </div>`;
   });
-}
-
-/* ===== STAGE 5: EXPORT CSV ===== */
-function exportCSV(){
-  let rows=[['Section','Field1','Field2','Field3','Field4']];
-
-  state.checklists.forEach(c=>{
-    rows.push(['Checklist',c.branchName,c.brand,c.technicianName,c.checklistCompleted?'Completed':'Pending']);
-  });
-
-  state.visits.forEach(v=>{
-    rows.push(['Visit',v.branchName,v.technicianName,v.date,v.status]);
-  });
-
-  let csv = rows.map(r=>r.join(',')).join('\n');
-  let blob = new Blob([csv],{type:'text/csv'});
-  let url = URL.createObjectURL(blob);
-  let a=document.createElement('a');
-  a.href=url;
-  a.download='dashboard_export.csv';
-  a.click();
 }
 
 onAuthStateChanged(auth,user=>{
@@ -409,4 +475,3 @@ onAuthStateChanged(auth,user=>{
 
 </body>
 </html>
-``
