@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body{
+  margin:0;
+  font-family:Tahoma,Arial,sans-serif;
+  background:#f4f7fb;
+}
+
+.container{
+  padding:20px;
+}
+
+/* ===== KPI CARDS ===== */
+.kpis{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:16px;
+  margin-bottom:24px;
+}
+
+.kpi{
+  background:#0d4b73;
+  color:#fff;
+  border-radius:14px;
+  padding:16px;
+  text-align:center;
+}
+
+.kpi span{
+  font-size:13px;
+  opacity:.9;
+}
+
+.kpi strong{
+  display:block;
+  font-size:32px;
+  margin-top:6px;
+}
+
+/* ===== SECTIONS ===== */
+.section{
+  background:#fff;
+  border-radius:14px;
+  padding:16px;
+  margin-bottom:24px;
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
+}
+
+.section h3{
+  margin-top:0;
+  margin-bottom:12px;
+  color:#0d4b73;
+}
+
+/* ===== TABLE ===== */
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+th,td{
+  padding:10px;
+  border-bottom:1px solid #  font-size:13px;  border-bottom:1px solid #e0e0e0;
+}
+
+/* ===== BRAND GRID ===== */
+.brand-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:16px;
+}
+
+.brand-card{
+  border:1px solid #e0e0e0;
+  border-radius:12px;
+  padding:12px;
+  text-align:center;
+}
+
+.brand-card img{
+  max-height:40px;
+  margin-bottom:8px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- ===== KPI ===== -->
+  <div class="kpis">
+    <div class="kpi"><span>الفروع</span><strong id="kpiBranches">0</strong></div>
+    <div class="kpi"><span>الفنيين</span><strong id="kpiTechnicians">0</strong></div>
+    <div class="kpi"><span>الزيارات</span><strong id="kpiVisits">0</strong></div>
+    <div class="kpi"><span>Check‑Lists</span><strong id="kpiChecklists">0</strong></div>
+  </div>
+
+  <!-- ===== LATEST CHECKLISTS ===== -->
+  <div class="section">
+    <h3>آخر Check‑Lists</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>الفرع</th>
+          <th>البراند</th>
+          <th>عدد الأسئلة</th>
+          <th>تاريخ الحفظ</th>
+        </tr>
+      </thead>
+      <tbody id="latestChecklists"></tbody>
+    </table>
+  </div>
+
+  <!-- ===== LATEST VISITS ===== -->
+  <div class="section">
+    <h3>آخر الزيارات</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>الفرع</th>
+          <th>الفني</th>
+          <th>التاريخ</th>
+          <th>الحالة</th>
+        </tr>
+      </thead>
+      <tbody id="latestVisits"></tbody>
+    </table>
+  </div>
+
+  <!-- ===== BRAND SUMMARY ===== -->
+  <div class="section">
+    <h3>البراندات</h3>
+    <div class="brand-grid" id="brandGrid"></div>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, onSnapshot }
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:"AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
+  authDomain:"baghethan-ba325.firebaseapp.com",
+  projectId:"baghethan-ba325"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* ===== KPI COUNTERS ===== */
+onSnapshot(collection(db,'branches'), s=>{
+  kpiBranches.textContent = s.size;
+});
+
+onSnapshot(collection(db,'technicians'), s=>{
+  kpiTechnicians.textContent = s.size;
+});
+
+onSnapshot(collection(db,'siteVisits'), s=>{
+  kpiVisits.textContent = s.size;
+});
+
+onSnapshot(collection(db,'branch_checklists'), s=>{
+  kpiChecklists.textContent = s.size;
+});
+
+/* ===== LATEST CHECKLISTS ===== */
+onSnapshot(collection(db,'branch_checklists'), s=>{
+  latestChecklists.innerHTML = '';
+  s.docs.slice(-5).reverse().forEach(d=>{
+    const c = d.data();
+    const answersCount = c.dynamicAnswers ? Object.keys(c.dynamicAnswers).length : 0;
+    latestChecklists.innerHTML += `
+      <tr>
+        <td>${c.branchName}</td>
+        <td>${c.brand}</td>
+        <td>${answersCount}</td>
+        <td>${c.checkListSavedAt}</td>
+      </tr>
+    `;
+  });
+});
+
+/* ===== LATEST VISITS ===== */
+onSnapshot(collection(db,'siteVisits'), s=>{
+  latestVisits.innerHTML = '';
+  s.docs.slice(-5).reverse().forEach(d=>{
+    const v = d.data();
+    latestVisits.innerHTML += `
+      <tr>
+        <td>${v.branchName}</td>
+        <td>${v.technicianName}</td>
+        <td>${v.date}</td>
+        <td>${v.status}</td>
+      </tr>
+    `;
+  });
+});
+
+/* ===== BRAND SUMMARY ===== */
+const brandMap = {};
+
+onSnapshot(collection(db,'branch_checklists'), s=>{
+  brandMap = {};
+  s.docs.forEach(d=>{
+    const c = d.data();
+    if(!brandMap[c.brand]) brandMap[c.brand] = 0;
+    brandMap[c.brand]++;
+  });
+  renderBrands();
+});
+
+onSnapshot(collection(db,'brand_assets'), s=>{
+  s.docs.forEach(d=>{
+    const b = d.data();
+    if(brandMap[b.brandKey] !== undefined){
+      brandMap[b.brandKey + '_logo'] = b.logoUrl;
+    }
+  });
+  renderBrands();
+});
+
+function renderBrands(){
+  brandGrid.innerHTML = '';
+  Object.keys(brandMap).forEach(key=>{
+    if(key.endsWith('_logo')) return;
+    const logo = brandMap[key + '_logo'];
+    brandGrid.innerHTML += `
+      <div class="brand-card">
+        ${logo ? `<img src : ''}
+        <div>${key}</div>
+        <small>${brandMap[key]} Check‑Lists</small>
+      </div>
+    `;
+  });
+}
+</script>
+
+</body>
+</html>
+  text-align:center;
+}
+
+th{
+  background:#0d4b73;
+  color:#fff;
