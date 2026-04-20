@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Site Visit v4.2 – Dashboard</title>
+  <title>Site Visit v4.3 – Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -257,8 +257,13 @@
       height: 100%;
       border-radius: 999px;
       width: 0%;
-      transition: width .35s ease;
+      opacity: 0.82;
+      transition: width .9s cubic-bezier(.22,1,.36,1), opacity .25s ease;
       background: linear-gradient(90deg, #7a5af8 0%, #9e77ed 100%);
+    }
+
+    .progress-fill.in-view {
+      opacity: 1;
     }
 
     .progress-meta {
@@ -577,7 +582,7 @@
 
 <div id="app" class="hidden">
   <header>
-    <strong>إدارة زيارات الفروع والفنيين – v4.2</strong>
+    <strong>إدارة زيارات الفروع والفنيين – v4.3</strong>
     <button id="logoutBtn" class="danger">Logout</button>
   </header>
 
@@ -642,7 +647,7 @@
             <span>نسبة الإنجاز</span>
             <div class="dashboard-progress">
               <div class="progress-track">
-                <div id="overallProgressBar" class="progress-fill" style="width:0%"></div>
+                <div id="overallProgressBar" class="progress-fill progress-on-scroll" data-progress="0" style="width:0%"></div>
               </div>
               <div class="progress-meta">
                 <span>المنجز</span>
@@ -663,7 +668,7 @@
       <div class="section-head">
         <div>
           <h3 style="margin:0">أسماء البراندات + الشعار + الحالة + Checklist</h3>
-          <div class="muted">كل بطاقة تعرض حجم أكبر للشعار وإحصائيات البراند ضمن الفترة المحددة مع شريط تقدم مرئي</div>
+          <div class="muted">كل بطاقة تعرض حجم أكبر للشعار وإحصائيات البراند ضمن الفترة المحددة مع شريط تقدم يظهر عند التمرير</div>
         </div>
         <button class="capture-btn" data-capture-target="brandSummaryCapture" data-file-name="brand_summary">نسخ صورة البراندات</button>
       </div>
@@ -754,6 +759,7 @@ let unsub = [];
 let filtersBound = false;
 let captureBound = false;
 let captureStatusTimer = null;
+let progressObserver = null;
 
 function normalizeStatus(v) {
   const s = String(v ?? '').trim().toLowerCase();
@@ -1160,6 +1166,36 @@ function renderBrandLogo(logoSrc, altText, cssClass = 'table-brand-logo') {
   return `<img class="${cssClass}" src="${escapeHtml(logoSrc)}" alt="${escapeHtml(altText)}">`;
 }
 
+function resetAndObserveProgressBars() {
+  if (progressObserver) {
+    progressObserver.disconnect();
+  }
+
+  const fills = Array.from(document.querySelectorAll('.progress-on-scroll'));
+  fills.forEach(fill => {
+    fill.style.width = '0%';
+    fill.classList.remove('in-view');
+  });
+
+  progressObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const el = entry.target;
+      const value = clampPercent(Number(el.dataset.progress || 0));
+      requestAnimationFrame(() => {
+        el.classList.add('in-view');
+        el.style.width = `${value}%`;
+      });
+      observer.unobserve(el);
+    });
+  }, {
+    threshold: 0.35,
+    rootMargin: '0px 0px -40px 0px'
+  });
+
+  fills.forEach(fill => progressObserver.observe(fill));
+}
+
 function aggregateBrands(filteredVisits) {
   const brandIndex = buildBrandAssetIndex();
   const map = new Map();
@@ -1246,7 +1282,7 @@ function renderBrandCards(brandEntries) {
             <strong>${item.completed}</strong>
             <span>مكتمل</span>
           </div>
-          <div class="brand-stat-item pending">
+          <div class="brand-stat-item.pending">
             <strong>${item.pending}</strong>
             <span>معلّق</span>
           </div>
@@ -1270,7 +1306,7 @@ function renderBrandCards(brandEntries) {
             <span>${formatPercent(item.completionRate)}</span>
           </div>
           <div class="progress-track">
-            <div class="progress-fill" style="width:${safeRate}%"></div>
+            <div class="progress-fill progress-on-scroll" data-progress="${safeRate}" style="width:0%"></div>
           </div>
           <div class="progress-meta">
             <span>المكتمل ${item.completed} من ${item.total}</span>
@@ -1354,13 +1390,15 @@ function renderStats() {
   $('statBrands').textContent = brandNames.size;
   $('statBrandTypes').textContent = brandTypes.size;
   $('statCompletionRate').textContent = formatPercent(completionRate);
-  $('overallProgressBar').style.width = `${safeOverallRate}%`;
+  $('overallProgressBar').dataset.progress = String(safeOverallRate);
+  $('overallProgressBar').style.width = '0%';
   $('overallProgressMeta').textContent = `${formatPercent(completionRate)} من إجمالي ${filteredVisits.length} زيارة`;
 
   updateActivePresetButtons();
   updateRangeLabel();
   renderBrandCards(brandEntries);
   renderVisitsTable(filteredVisits, brandIndex);
+  resetAndObserveProgressBars();
 }
 
 function applyPresetRange(range) {
