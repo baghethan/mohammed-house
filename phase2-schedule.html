@@ -1,4 +1,5 @@
-<!DOCTYPE html>< lang="ar" dir="rtl">
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <title>إدارة إنجازات زيارات الفروع والفنيين</title>
@@ -34,9 +35,7 @@ header{
   flex-direction:column;
 }
 
-.header-logo img{
-  height:40px;
-}
+.header-logo img{height:40px;}
 
 .app-version{
   font-size:11px;
@@ -70,9 +69,7 @@ header{
   box-shadow:0 20px 60px rgba(0,0,0,.25);
 }
 
-.login-card img{
-  height:55px;
-}
+.login-card img{height:55px;}
 
 .login-version{
   font-size:11px;
@@ -160,7 +157,7 @@ header{
 table{
   width:100%;
   border-collapse:collapse;
-  margin-bottom:30px;
+  margin-bottom:20px;
 }
 
 thead{
@@ -174,30 +171,20 @@ th,td{
   border-bottom:1px solid #ddd;
 }
 
-/* ===== BRAND CARDS ===== */
-.brand-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-  gap:16px;
-  margin-bottom:40px;
+/* ===== EXPORT ===== */
+.export-bar{
+  display:flex;
+  justify-content:flex-end;
+  margin-bottom:10px;
 }
 
-.brand-card{
-  background:#fff;
-  border-radius:14px;
-  padding:16px;
-  box-shadow:0 8px 20px rgba(0,0,0,.1);
-  text-align:center;
-}
-
-.brand-card h4{
-  margin:0 0 10px;
-  color:#0d4b73;
-}
-
-.brand-card div{
-  font-size:13px;
-  margin:4px 0;
+.export-bar button{
+  background:#0d4b73;
+  color:#fff;
+  border:none;
+  border-radius:20px;
+  padding:6px 14px;
+  cursor:pointer;
 }
 </style>
 </head>
@@ -249,6 +236,10 @@ th,td{
   <div class="card-white"><strong id="statBrands">0</strong><span>عدد البراندات</span></div>
 </div>
 
+<div class="export-bar">
+  <button onclick="exportCSV()">Export CSV</button>
+</div>
+
 <h3>Latest Check‑Lists</h3>
 <table>
 <thead>
@@ -266,7 +257,12 @@ th,td{
 </table>
 
 <h3>Brand Summary</h3>
-<div class="brand-grid" id="brandGrid"></div>
+<table>
+<thead>
+<tr><th>البراند</th><th>إجمالي الزيارات</th><th>مكتملة</th><th>معلّقة</th></tr>
+</thead>
+<tbody id="brandTable"></tbody>
+</table>
 
 </div>
 </div>
@@ -352,15 +348,14 @@ function renderLatest(){
   });
 }
 
-/* ===== STAGE 4: BRAND CARDS ===== */
 function renderBrands(){
-  brandGrid.innerHTML='';
-  const brandMap = {};
+  brandTable.innerHTML='';
+  const brandMap={};
 
   state.visits.forEach(v=>{
     if(!v.brand) return;
     if(!brandMap[v.brand]){
-      brandMap[v.brand] = { visits:0, completed:0, pending:0 };
+      brandMap[v.brand]={visits:0,completed:0,pending:0};
     }
     brandMap[v.brand].visits++;
     if(v.status==='completed'||v.checklistCompleted) brandMap[v.brand].completed++;
@@ -368,16 +363,36 @@ function renderBrands(){
   });
 
   Object.keys(brandMap).forEach(b=>{
-    const d = brandMap[b];
-    brandGrid.innerHTML += `
-      <div class="brand-card">
-        <h4>${b}</h4>
-        <div>إجمالي الزيارات: ${d.visits}</div>
-        <div>مكتملة: ${d.completed}</div>
-        <div>معلّقة: ${d.pending}</div>
-      </div>
-    `;
+    const d=brandMap[b];
+    brandTable.innerHTML+=`
+      <tr>
+        <td>${b}</td>
+        <td>${d.visits}</td>
+        <td>${d.completed}</td>
+        <td>${d.pending}</td>
+      </tr>`;
   });
+}
+
+/* ===== STAGE 5: EXPORT CSV ===== */
+function exportCSV(){
+  let rows=[['Section','Field1','Field2','Field3','Field4']];
+
+  state.checklists.forEach(c=>{
+    rows.push(['Checklist',c.branchName,c.brand,c.technicianName,c.checklistCompleted?'Completed':'Pending']);
+  });
+
+  state.visits.forEach(v=>{
+    rows.push(['Visit',v.branchName,v.technicianName,v.date,v.status]);
+  });
+
+  let csv = rows.map(r=>r.join(',')).join('\n');
+  let blob = new Blob([csv],{type:'text/csv'});
+  let url = URL.createObjectURL(blob);
+  let a=document.createElement('a');
+  a.href=url;
+  a.download='dashboard_export.csv';
+  a.click();
 }
 
 onAuthStateChanged(auth,user=>{
@@ -394,3 +409,4 @@ onAuthStateChanged(auth,user=>{
 
 </body>
 </html>
+``
