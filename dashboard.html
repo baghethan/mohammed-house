@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Site Visit v4.0 – Dashboard</title>
+  <title>Site Visit v4.1 – Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -129,6 +129,7 @@
     .stat.success { border-right: 6px solid #2f9e66; }
     .stat.warning { border-right: 6px solid #c47f00; }
     .stat.info    { border-right: 6px solid #295fa5; }
+    .stat.progress { border-right: 6px solid #7a5af8; }
 
     .footer-note {
       font-size: 13px;
@@ -349,6 +350,7 @@
     .brand-stat-item.pending { border-right: 4px solid #c47f00; }
     .brand-stat-item.cancelled { border-right: 4px solid #d64545; }
     .brand-stat-item.checklist { border-right: 4px solid #295fa5; }
+    .brand-stat-item.progress { border-right: 4px solid #7a5af8; }
 
     /* ===== Table ===== */
     .table-wrap {
@@ -506,7 +508,7 @@
 
 <div id="app" class="hidden">
   <header>
-    <strong>إدارة زيارات الفروع والفنيين – v4.0</strong>
+    <strong>إدارة زيارات الفروع والفنيين – v4.1</strong>
     <button id="logoutBtn" class="danger">Logout</button>
   </header>
 
@@ -566,6 +568,7 @@
           <div class="stat success"><strong id="statCompletedVisits">0</strong><span>زيارات مكتملة</span></div>
           <div class="stat warning"><strong id="statPendingVisits">0</strong><span>زيارات معلّقة</span></div>
           <div class="stat info"><strong id="statVisitedTechnicians">0</strong><span>فنيون قاموا بزيارة</span></div>
+          <div class="stat progress"><strong id="statCompletionRate">0%</strong><span>نسبة الإنجاز</span></div>
         </div>
 
         <div class="stats-sub" style="margin-bottom:0;">
@@ -579,7 +582,7 @@
       <div class="section-head">
         <div>
           <h3 style="margin:0">أسماء البراندات + الشعار + الحالة + Checklist</h3>
-          <div class="muted">كل بطاقة تعرض حجم أكبر للشعار وإحصائيات البراند ضمن الفترة المحددة</div>
+          <div class="muted">كل بطاقة تعرض حجم أكبر للشعار وإحصائيات البراند ضمن الفترة المحددة مع نسبة الإنجاز</div>
         </div>
         <button class="capture-btn" data-capture-target="brandSummaryCapture" data-file-name="brand_summary">نسخ صورة البراندات</button>
       </div>
@@ -695,6 +698,11 @@ function escapeHtml(v) {
     '"': '&quot;',
     "'": '&#39;'
   }[c]));
+}
+
+function formatPercent(value) {
+  const safe = Number.isFinite(value) ? value : 0;
+  return `${safe.toFixed(1)}%`;
 }
 
 function showCaptureStatus(message, type = 'info') {
@@ -1092,7 +1100,8 @@ function aggregateBrands(filteredVisits) {
         completed: 0,
         pending: 0,
         cancelled: 0,
-        checklistDone: 0
+        checklistDone: 0,
+        completionRate: 0
       });
     }
 
@@ -1109,9 +1118,14 @@ function aggregateBrands(filteredVisits) {
     if (visit.checklistCompleted === true) entry.checklistDone += 1;
   });
 
+  const entries = [...map.values()].map(item => ({
+    ...item,
+    completionRate: item.total ? (item.completed / item.total) * 100 : 0
+  })).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+
   return {
     brandIndex,
-    entries: [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'ar'))
+    entries
   };
 }
 
@@ -1155,6 +1169,10 @@ function renderBrandCards(brandEntries) {
         <div class="brand-stat-item checklist">
           <strong>${item.checklistDone}</strong>
           <span>Checklist مكتمل</span>
+        </div>
+        <div class="brand-stat-item progress">
+          <strong>${formatPercent(item.completionRate)}</strong>
+          <span>نسبة الإنجاز</span>
         </div>
       </div>
     </div>
@@ -1222,6 +1240,7 @@ function renderStats() {
       .filter(Boolean)
   );
 
+  const completionRate = filteredVisits.length ? (completed / filteredVisits.length) * 100 : 0;
   const brandNames = new Set(brandEntries.map(item => item.name).filter(Boolean));
   const brandTypes = new Set(brandEntries.map(item => item.brandType).filter(Boolean).filter(v => v !== '—'));
 
@@ -1230,6 +1249,7 @@ function renderStats() {
   $('statVisitedTechnicians').textContent = visitedTechs.size;
   $('statBrands').textContent = brandNames.size;
   $('statBrandTypes').textContent = brandTypes.size;
+  $('statCompletionRate').textContent = formatPercent(completionRate);
 
   updateActivePresetButtons();
   updateRangeLabel();
