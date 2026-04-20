@@ -2,22 +2,30 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>Site Visit v3.2 – Auth Enabled</title>
+<title>Site Visit v3.3 – Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#eef3f8}
 .hidden{display:none}
-header{background:#0d4b73;color:#fff;padding:14px}
-.container{max-width:1200px;margin:20px auto;padding:0 14px}
-.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+header{background:#0d4b73;color:#fff;padding:14px;display:flex;justify-content:space-between;align-items:center}
+.container{max-width:1300px;margin:20px auto;padding:0 14px}
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 6px 20px rgba(0,0,0,.08)}
 input,button{padding:10px;border-radius:8px;border:1px solid #ccc;width:100%}
 button{background:#2f9e66;color:#fff;border:none;cursor:pointer}
 button.danger{background:#d64545}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-.stat{padding:14px;border-radius:12px;background:#f8fbff;border:1px solid #dde6ef}
-.stat strong{display:block;font-size:26px;color:#0d4b73}
+.stats-main,.stats-sub{display:grid;gap:14px;margin-bottom:16px}
+.stats-main{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.stats-sub{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.stat{padding:14px;border-radius:14px;background:#f8fbff;border:1px solid #dde6ef}
+.stat strong{display:block;font-size:28px;color:#0d4b73}
 .stat span{font-size:13px;color:#555}
+.stat.primary{background:#0d4b73;color:#fff}
+.stat.primary strong{color:#fff}
+.stat.success{border-right:6px solid #2f9e66}
+.stat.warning{border-right:6px solid #c47f00}
+.stat.info{border-right:6px solid #295fa5}
+.footer-note{font-size:13px;color:#2f9e66}
 </style>
 </head>
 
@@ -40,39 +48,48 @@ button.danger{background:#d64545}
 <div id="app" class="hidden">
 
 <header>
-  <strong>إدارة زيارات الفروع والفنيين – v3.2</strong>
-  <button id="logoutBtn" class="danger" style="float:left">Logout</button>
+  <strong>إدارة زيارات الفروع والفنيين – v3.3</strong>
+  <button id="logoutBtn" class="danger">Logout</button>
 </header>
 
 <div class="container">
 
 <div class="card">
-  <h3>Dashboard (بيانات من Firebase)</h3>
-  <div class="stats">
-    <div class="stat"><strong id="statBranches">0</strong><span>الفروع</span></div>
-    <div class="stat"><strong id="statTechnicians">0</strong><span>الفنيين</span></div>
-    <div class="stat"><strong id="statVisits">0</strong><span>الزيارات</span></div>
-    <div class="stat"><strong id="statChecklists">0</strong><span>Check‑Lists</span></div>
-    <div class="stat"><strong id="statBrands">0</strong><span>البراندات</span></div>
+  <h3>Dashboard (بيانات مباشرة من Firebase)</h3>
+
+  <!-- الصف الأول -->
+  <div class="stats-main">
+    <div class="stat primary"><strong id="statBranches">0</strong><span>الفروع</span></div>
+    <div class="stat primary"><strong id="statTechnicians">0</strong><span>الفنيين</span></div>
+    <div class="stat primary"><strong id="statVisits">0</strong><span>إجمالي الزيارات</span></div>
+    <div class="stat primary"><strong id="statChecklists">0</strong><span>Check‑Lists</span></div>
+  </div>
+
+  <!-- الصف الثاني -->
+  <div class="stats-sub">
+    <div class="stat success"><strong id="statCompletedVisits">0</strong><span>زيارات مكتملة</span></div>
+    <div class="stat warning"><strong id="statPendingVisits">0</strong><span>زيارات معلّقة</span></div>
+    <div class="stat info"><strong id="statVisitedTechnicians">0</strong><span>فنيون قاموا بزيارة</span></div>
+  </div>
+
+  <!-- الصف الثالث -->
+  <div class="stats-sub">
+    <div class="stat"><strong id="statBrands">0</strong><span>عدد البراندات (من الزيارات)</span></div>
   </div>
 </div>
 
 <div class="card">
-  <div id="status">✅ تم تسجيل الدخول وتحميل البيانات</div>
+  <div class="footer-note">✅ تم تسجيل الدخول وتحميل البيانات من Firebase بنجاح</div>
 </div>
 
 </div>
 </div>
 
 <script type="module">
-/* ===== Firebase Imports ===== */
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } 
-  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, collection, query, orderBy, onSnapshot } 
-  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getFirestore, collection, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-/* ===== Firebase Config (نفس مشروعك) ===== */
 const firebaseConfig = {
   apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
   authDomain: "baghethan-ba325.firebaseapp.com",
@@ -88,22 +105,40 @@ const db = getFirestore(app);
 
 const $ = id => document.getElementById(id);
 
-/* ===== State ===== */
 const state = {
-  branches: [], technicians: [], visits: [], checklists: [], brands: []
+  branches:[], technicians:[], visits:[], checklists:[], brands:[]
 };
 
-/* ===== Render ===== */
 function renderStats(){
   $('statBranches').textContent = state.branches.length;
   $('statTechnicians').textContent = state.technicians.length;
   $('statVisits').textContent = state.visits.length;
   $('statChecklists').textContent = state.checklists.length;
-  $('statBrands').textContent = state.brands.length;
+
+  const completed = state.visits.filter(v =>
+    String(v.status||'').toLowerCase()==='completed' || v.checklistCompleted===true
+  ).length;
+
+  const pending = state.visits.filter(v=>{
+    const s=String(v.status||'').toLowerCase();
+    return s!=='completed' && s!=='cancelled';
+  }).length;
+
+  const visitedTechs = new Set(
+    state.visits.map(v=>v.technicianDocId||v.technicianId||v.technicianEmail).filter(Boolean)
+  );
+
+  const brands = new Set(
+    state.visits.map(v=>(v.brand||'').trim()).filter(Boolean)
+  );
+
+  $('statCompletedVisits').textContent = completed;
+  $('statPendingVisits').textContent = pending;
+  $('statVisitedTechnicians').textContent = visitedTechs.size;
+  $('statBrands').textContent = brands.size;
 }
 
-/* ===== Auth ===== */
-$('loginBtn').onclick = async () => {
+$('loginBtn').onclick = async ()=>{
   try{
     await signInWithEmailAndPassword(
       auth,
@@ -115,11 +150,9 @@ $('loginBtn').onclick = async () => {
   }
 };
 
-$('logoutBtn').onclick = async () => {
-  await signOut(auth);
-};
+$('logoutBtn').onclick = ()=>signOut(auth);
 
-onAuthStateChanged(auth, user=>{
+onAuthStateChanged(auth,user=>{
   if(user){
     $('loginBox').classList.add('hidden');
     $('app').classList.remove('hidden');
@@ -130,33 +163,12 @@ onAuthStateChanged(auth, user=>{
   }
 });
 
-/* ===== Firestore Listeners ===== */
 function startListeners(){
-
-  onSnapshot(collection(db,'branches'), snap=>{
-    state.branches = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderStats();
-  });
-
-  onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap=>{
-    state.technicians = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderStats();
-  });
-
-  onSnapshot(query(collection(db,'siteVisits'), orderBy('date','desc')), snap=>{
-    state.visits = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderStats();
-  });
-
-  onSnapshot(query(collection(db,'branch_checklists'), orderBy('visitDate','desc')), snap=>{
-    state.checklists = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderStats();
-  });
-
-  onSnapshot(collection(db,'brand_assets'), snap=>{
-    state.brands = snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderStats();
-  });
+  onSnapshot(collection(db,'branches'), s=>{state.branches=s.docs.map(d=>d.data());renderStats();});
+  onSnapshot(query(collection(db,'technicians'),orderBy('name')), s=>{state.technicians=s.docs.map(d=>d.data());renderStats();});
+  onSnapshot(query(collection(db,'siteVisits'),orderBy('date','desc')), s=>{state.visits=s.docs.map(d=>d.data());renderStats();});
+  onSnapshot(query(collection(db,'branch_checklists'),orderBy('visitDate','desc')), s=>{state.checklists=s.docs.map(d=>d.data());renderStats();});
+  onSnapshot(collection(db,'brand_assets'), s=>{state.brands=s.docs.map(d=>d.data());renderStats();});
 }
 </script>
 
