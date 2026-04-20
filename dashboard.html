@@ -2,15 +2,18 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>Site Visit v3.1 – Firebase Data</title>
+<title>Site Visit v3.2 – Auth Enabled</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#eef3f8}
+.hidden{display:none}
 header{background:#0d4b73;color:#fff;padding:14px}
 .container{max-width:1200px;margin:20px auto;padding:0 14px}
-.hidden{display:none}
 .card{background:#fff;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+input,button{padding:10px;border-radius:8px;border:1px solid #ccc;width:100%}
+button{background:#2f9e66;color:#fff;border:none;cursor:pointer}
+button.danger{background:#d64545}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 .stat{padding:14px;border-radius:12px;background:#f8fbff;border:1px solid #dde6ef}
 .stat strong{display:block;font-size:26px;color:#0d4b73}
@@ -20,14 +23,31 @@ header{background:#0d4b73;color:#fff;padding:14px}
 
 <body>
 
+<!-- ===== LOGIN ===== -->
+<div id="loginBox" class="container">
+  <div class="card">
+    <h3>تسجيل الدخول</h3>
+    <input id="loginEmail" type="email" placeholder="Email">
+    <br><br>
+    <input id="loginPassword" type="password" placeholder="Password">
+    <br><br>
+    <button id="loginBtn">دخول</button>
+    <p id="loginMsg"></p>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app" class="hidden">
+
 <header>
-  <strong>إدارة زيارات الفروع والفنيين – v3.1</strong>
+  <strong>إدارة زيارات الفروع والفنيين – v3.2</strong>
+  <button id="logoutBtn" class="danger" style="float:left">Logout</button>
 </header>
 
 <div class="container">
 
 <div class="card">
-  <h3>Dashboard (بيانات مباشرة من Firebase)</h3>
+  <h3>Dashboard (بيانات من Firebase)</h3>
   <div class="stats">
     <div class="stat"><strong id="statBranches">0</strong><span>الفروع</span></div>
     <div class="stat"><strong id="statTechnicians">0</strong><span>الفنيين</span></div>
@@ -38,16 +58,19 @@ header{background:#0d4b73;color:#fff;padding:14px}
 </div>
 
 <div class="card">
-  <h3>حالة الاتصال</h3>
-  <div id="status">جاري تحميل البيانات…</div>
+  <div id="status">✅ تم تسجيل الدخول وتحميل البيانات</div>
 </div>
 
+</div>
 </div>
 
 <script type="module">
 /* ===== Firebase Imports ===== */
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getFirestore, collection, query, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } 
+  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getFirestore, collection, query, orderBy, onSnapshot } 
+  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 /* ===== Firebase Config (نفس مشروعك) ===== */
 const firebaseConfig = {
@@ -60,20 +83,17 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 const db = getFirestore(app);
-
-/* ===== State ===== */
-const state = {
-  branches: [],
-  technicians: [],
-  visits: [],
-  checklists: [],
-  brands: []
-};
 
 const $ = id => document.getElementById(id);
 
-/* ===== Render Stats ===== */
+/* ===== State ===== */
+const state = {
+  branches: [], technicians: [], visits: [], checklists: [], brands: []
+};
+
+/* ===== Render ===== */
 function renderStats(){
   $('statBranches').textContent = state.branches.length;
   $('statTechnicians').textContent = state.technicians.length;
@@ -82,34 +102,62 @@ function renderStats(){
   $('statBrands').textContent = state.brands.length;
 }
 
-/* ===== Listeners ===== */
-onSnapshot(collection(db,'branches'), snap=>{
-  state.branches = snap.docs.map(d=>({id:d.id,...d.data()}));
-  renderStats();
+/* ===== Auth ===== */
+$('loginBtn').onclick = async () => {
+  try{
+    await signInWithEmailAndPassword(
+      auth,
+      $('loginEmail').value.trim(),
+      $('loginPassword').value
+    );
+  }catch(err){
+    $('loginMsg').textContent = err.message;
+  }
+};
+
+$('logoutBtn').onclick = async () => {
+  await signOut(auth);
+};
+
+onAuthStateChanged(auth, user=>{
+  if(user){
+    $('loginBox').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    startListeners();
+  }else{
+    $('loginBox').classList.remove('hidden');
+    $('app').classList.add('hidden');
+  }
 });
 
-onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap=>{
-  state.technicians = snap.docs.map(d=>({id:d.id,...d.data()}));
-  renderStats();
-});
+/* ===== Firestore Listeners ===== */
+function startListeners(){
 
-onSnapshot(query(collection(db,'siteVisits'), orderBy('date','desc')), snap=>{
-  state.visits = snap.docs.map(d=>({id:d.id,...d.data()}));
-  renderStats();
-});
+  onSnapshot(collection(db,'branches'), snap=>{
+    state.branches = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderStats();
+  });
 
-onSnapshot(query(collection(db,'branch_checklists'), orderBy('visitDate','desc')), snap=>{
-  state.checklists = snap.docs.map(d=>({id:d.id,...d.data()}));
-  renderStats();
-});
+  onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap=>{
+    state.technicians = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderStats();
+  });
 
-onSnapshot(collection(db,'brand_assets'), snap=>{
-  state.brands = snap.docs.map(d=>({id:d.id,...d.data()}));
-  renderStats();
-});
+  onSnapshot(query(collection(db,'siteVisits'), orderBy('date','desc')), snap=>{
+    state.visits = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderStats();
+  });
 
-/* ===== Status ===== */
-$('status').textContent = '✅ تم الاتصال بـ Firebase وتحميل البيانات بنجاح';
+  onSnapshot(query(collection(db,'branch_checklists'), orderBy('visitDate','desc')), snap=>{
+    state.checklists = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderStats();
+  });
+
+  onSnapshot(collection(db,'brand_assets'), snap=>{
+    state.brands = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderStats();
+  });
+}
 </script>
 
 </body>
