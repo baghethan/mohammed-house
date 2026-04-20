@@ -196,10 +196,21 @@ function bindReportsEvents() {
 
 /* ================= Public Hook ================= */
 window.initReportsDashboard = function () {
-  const chartEl = document.getElementById('assessmentChart');
+  // ✅ تأكد أن state جاهز
+  if (typeof state === 'undefined' || !state.checklists) return;
 
-  // ✅ لا ترسم إذا التبويب غير ظاهر أو الصفحة لسه ما جهزت
-  if (!chartEl || chartEl.offsetParent === null) {
+  // ✅ تأكد أن المستخدم داخل تبويب التقارير
+  const reportsPanel = document.getElementById('reports');
+  if (!reportsPanel || !reportsPanel.classList.contains('active')) {
+    return;
+  }
+
+  // ✅ تأكد أن عناصر الشارت موجودة
+  if (
+    !document.getElementById('assessmentChart') ||
+    !document.getElementById('assessmentPie') ||
+    !document.getElementById('performanceLine')
+  ) {
     return;
   }
 
