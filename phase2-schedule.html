@@ -1,9 +1,11 @@
-<!DOCTYPE html>< charset="UTF-8">
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
 <title>إدارة زيارات الفروع والفنيين</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-/* ===== BASE ===== */
 body{
   margin:0;
   font-family:Tahoma,Arial,sans-serif;
@@ -28,9 +30,7 @@ header{
   gap:14px;
 }
 
-.header-left img{
-  height:40px;
-}
+.header-left img{height:40px}
 
 .app-version{
   font-size:11px;
@@ -50,14 +50,13 @@ header{
 nav{
   background:#083c5a;
   display:flex;
-  flex-wrap:wrap;
 }
 
 nav button{
   background:none;
   border:none;
   color:#fff;
-  padding:12px 16px;
+  padding:12px 18px;
   cursor:pointer;
 }
 
@@ -75,7 +74,6 @@ section.active{display:block}
   display:grid;
   grid-template-columns:repeat(4,1fr);
   gap:16px;
-  margin-bottom:20px;
 }
 
 .card{
@@ -86,9 +84,8 @@ section.active{display:block}
   text-align:center;
 }
 
-.card strong{
-  font-size:28px;
-}
+.card span{font-size:13px}
+.card strong{display:block;font-size:28px}
 
 /* ===== FORMS ===== */
 form{
@@ -98,7 +95,7 @@ form{
   margin-bottom:20px;
 }
 
-form input, form select, form button{
+form input,form select,form button{
   padding:8px;
   margin:6px 0;
   width:100%;
@@ -149,7 +146,7 @@ thead{
     <img src="LOGO-almajdouie.png">
     <div>
       <div>إدارة زيارات الفروع والفنيين</div>
-      <div class="app-version">v4.3 • 2026‑04‑21</div>
+      <div class="app-version">v4.5 • 2026‑04‑21</div>
     </div>
   </div>
   <button class="logout-btn" id="logoutBtn">Logout</button>
@@ -166,10 +163,10 @@ thead{
 <section id="dashboard" class="active">
   <h2>Dashboard</h2>
   <div class="cards">
+    <div class="card"><span>الفروع</span><strong id="statBranches">0</strong></div>
+    <div class="card"><span>الفنيين</span><strong id="statTechnicians">0</strong></div>
+    <div class="card"><span>الزيارات</span><strong id="statVisits">0</strong></div>
     <div class="card"><span>Check‑Lists</span><strong id="statChecklists">0</strong></div>
-    <div class="card"><span>Visits</span><strong id="statVisits">0</strong></div>
-    <div class="card"><span>Technicians</span><strong id="statTechnicians">0</strong></div>
-    <div class="card"><span>Branches</span><strong id="statBranches">0</strong></div>
   </div>
 </section>
 
@@ -184,13 +181,11 @@ thead{
     <option value="completed">مكتملة</option>
     <option value="pending">معلّقة</option>
   </select>
-  <button type="submit">حفظ Check‑List</button>
+  <button type="submit">حفظ</button>
 </form>
 
 <table>
-<thead>
-<tr><th>الفرع</th><th>الفني</th><th>الحالة</th></tr>
-</thead>
+<thead><tr><th>الفرع</th><th>الفني</th><th>الحالة</th></tr></thead>
 <tbody id="checklistTable"></tbody>
 </table>
 </section>
@@ -207,13 +202,11 @@ thead{
     <option value="completed">مكتملة</option>
     <option value="pending">معلّقة</option>
   </select>
-  <button type="submit">حفظ زيارة</button>
+  <button type="submit">حفظ</button>
 </form>
 
 <table>
-<thead>
-<tr><th>الفرع</th><th>الفني</th><th>التاريخ</th><th>الحالة</th></tr>
-</thead>
+<thead><tr><th>الفرع</th><th>الفني</th><th>التاريخ</th><th>الحالة</th></tr></thead>
 <tbody id="visitsTable"></tbody>
 </table>
 </section>
@@ -238,9 +231,9 @@ thead{
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, addDoc, onSnapshot }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* ===== FIREBASE ===== */
 const firebaseConfig = {
@@ -261,14 +254,12 @@ const app = document.getElementById('app');
 loginBtn.onclick = async ()=>{
   try{
     await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value);
-  }catch(e){
-    loginMsg.textContent = e.message;
-  }
+  }catch(e){ loginMsg.textContent=e.message }
 };
 
 logoutBtn.onclick = ()=>signOut(auth);
 
-/* ===== AUTH STATE ===== */
+/* ===== AUTH ===== */
 onAuthStateChanged(auth,user=>{
   if(user){
     loginBox.style.display='none';
@@ -300,11 +291,10 @@ checklistForm.onsubmit=async e=>{
 
 onSnapshot(collection(db,'branch_checklists'),s=>{
   checklistTable.innerHTML='';
-  statChecklists.textContent = s.size;
+  statChecklists.textContent=s.size;
   s.docs.forEach(d=>{
     const c=d.data();
-    checklistTable.innerHTML+=`
-      <tr><td>${c.branch}</td><td>${c.technician}</td><td>${c.status}</td></tr>`;
+    checklistTable.innerHTML+=`<tr><td>${c.branch}</td><td>${c.technician}</td><td>${c.status}</td></tr>`;
   });
 });
 
@@ -322,11 +312,10 @@ visitForm.onsubmit=async e=>{
 
 onSnapshot(collection(db,'siteVisits'),s=>{
   visitsTable.innerHTML='';
-  statVisits.textContent = s.size;
+  statVisits.textContent=s.size;
   s.docs.forEach(d=>{
     const v=d.data();
-    visitsTable.innerHTML+=`
-      <tr><td>${v.branch}</td><td>${v.technician}</td><td>${v.date}</td><td>${v.status}</td></tr>`;
+    visitsTable.innerHTML+=`<tr><td>${v.branch}</td><td>${v.technician}</td><td>${v.date}</td><td>${v.status}</td></tr>`;
   });
 });
 
@@ -339,7 +328,7 @@ branchForm.onsubmit=async e=>{
 
 onSnapshot(collection(db,'branches'),s=>{
   branchesTable.innerHTML='';
-  statBranches.textContent = s.size;
+  statBranches.textContent=s.size;
   s.docs.forEach(d=>{
     branchesTable.innerHTML+=`<tr><td>${d.data().name}</td></tr>`;
   });
@@ -348,5 +337,3 @@ onSnapshot(collection(db,'branches'),s=>{
 
 </body>
 </html>
-<html lang="ar" dir="rtl">
-<head>
