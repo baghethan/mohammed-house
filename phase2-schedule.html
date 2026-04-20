@@ -1,8 +1,29 @@
-<!DOCTYPE html><!DOCTYPE:0;
+<!DOCTYPE html><!DOCTYPE html<meta charset="UTF-8">
+<title>إدارة إنجازات زيارات الفروع والفنيين</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+/* ===== GENERAL ===== */
+body{
+  margin:0;
   font-family:Tahoma,Arial,sans-serif;
   background:
     linear-gradient(rgba(240,245,250,.95),rgba(240,245,250,.95)),
     url('image_dba186.png') center/cover no-repeat fixed;
+}
+
+@media print {
+  body{
+    background:#fff !important;
+  }
+  .no-print{
+    display:none !important;
+  }
+  header{
+    background:#fff !important;
+    color:#000 !important;
+    border-bottom:2px solid #000;
+  }
 }
 
 /* ===== HEADER ===== */
@@ -33,13 +54,27 @@ header{
   color:#e0e0e0;
 }
 
-.logout-btn{
-  background:#d64545;
-  color:#fff;
+.header-actions{
+  display:flex;
+  gap:10px;
+}
+
+.logout-btn,
+.print-btn{
   border:none;
   border-radius:20px;
   padding:6px 14px;
   cursor:pointer;
+}
+
+.logout-btn{
+  background:#d64545;
+  color:#fff;
+}
+
+.print-btn{
+  background:#2f9e66;
+  color:#fff;
 }
 
 /* ===== LOGIN ===== */
@@ -96,15 +131,41 @@ header{
   padding:0 16px;
 }
 
+.dashboard-title{
+  text-align:center;
+  margin-bottom:20px;
+  font-weight:bold;
+}
+
+/* ===== FILTER BAR ===== */
+.filter-bar{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:12px;
+  margin-bottom:20px;
+}
+
+.filter-bar input,
+.filter-bar select,
+.filter-bar button{
+  padding:8px;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+.filter-bar button{
+  background:#0d4b73;
+  color:#fff;
+  border:none;
+  cursor:pointer;
+}
+
 /* ===== DASHBOARD CARDS ===== */
 .cards-top{
   display:grid;
   grid-template-columns:repeat(4,1fr);
   gap:16px;
   margin-bottom:18px;
-}
-
-s
 }
 
 .card-blue{
@@ -132,7 +193,25 @@ s
   box-shadow:0 8px 20px rgba(0,0,0,.1);
 }
 
-/* ===== BRAND CARDS ===== */
+/* ===== TABLES ===== */
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-bottom:30px;
+}
+
+thead{
+  background:#0d4b73;
+  color:#fff;
+}
+
+th,td{
+  padding:10px;
+  text-align:center;
+  border-bottom:1px solid #ddd;
+}
+
+/* ===== BRAND ===== */
 .brand-grid{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
@@ -150,28 +229,18 @@ s
 
 .brand-card img{
   max-height:50px;
-  margin-bottom:10px;
-}
-
-.brand-card h4{
-  margin:6px 0;
-  color:#0d4b73;
-}
-
-.brand-card div{
-  font-size:13px;
-  margin:4px 0;
+  margin-bottom:8px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
+<!-- ===== LOGIN ===== -->
 <div id="loginBox">
   <div class="login-card">
-    LOGO-almajdouie.png
-    <div class="login-version">v3.7 • آخر تحديث: 2026‑04‑21</div>
+    <img src="LOGO-almajdouie.png">
+    <div class="login-version">v3.8 • آخر تحديث: 2026‑04‑21</div>
     <input id="loginEmail" type="email" placeholder="Email">
     <input id="loginPassword" type="password" placeholder="Password">
     <button id="loginBtn">تسجيل الدخول</button>
@@ -179,21 +248,60 @@ s
   </div>
 </div>
 
-<!-- APP -->
+<!-- ===== APP ===== -->
 <div id="app">
 
 <header>
   <div class="header-left">
     <div class="header-logo">
-      LOGO-almajdouie.png
-      <small class="app-version">v3.7 • آخر تحديث: 2026‑04‑21</small>
+      <img src="LOGO-almajdouie.png">
+      <small class="app-version">v3.8 • آخر تحديث: 2026‑04‑21</small>
     </div>
     <div>إدارة إنجازات زيارات الفروع والفنيين</div>
   </div>
-  <button class="logout-btn" id="logoutBtn">Logout</button>
+  <div class="header-actions no-print">
+    <button class="print-btn" onclick="window.print()">Print</button>
+    <button class="logout-btn" id="logoutBtn">Logout</button>
+  </div>
 </header>
 
 <div class="container">
+
+<div class="dashboard-title">Dashboard</div>
+
+<div class="filter-bar no-print">
+  <input type="date" id="filterFrom">
+  <input type="date" id="filterTo">
+  <select id="filterTechnician"><option value="">كل الفنيين</option></select>
+  <select id="filterBrand"><option value="">كل البراندات</option></select>
+  <button onclick="applyFilters()">تطبيق الفلتر</button>
+</div>
+
+<div class="cards-top">
+  <div class="card-blue"><span>Check‑Lists</span><strong id="statChecklists">0</strong></div>
+  <div class="card-blue"><span>إجمالي الزيارات</span><strong id="statVisits">0</strong></div>
+  <div class="card-blue"><span>الفنيين</span><strong id="statTechnicians">0</strong></div>
+  <div class="card-blue"><span>الفروع</span><strong id="statBranches">0</strong></div>
+</div>
+
+<div class="cards-bottom">
+  <div class="card-white"><strong id="statCompletedVisits">0</strong><span>زيارات مكتملة</span></div>
+  <div class="card-white"><strong id="statPendingVisits">0</strong><span>زيارات معلّقة</span></div>
+  <div class="card-white"><strong id="statVisitedTechnicians">0</strong><span>فنيين قاموا بزيارة</span></div>
+  <div class="card-white"><strong id="statBrands">0</strong><span>عدد البراندات</span></div>
+</div>
+
+<h3>Latest Check‑Lists</h3>
+<table>
+<thead><tr><th>الفرع</th><th>البراند</th><th>الفني</th><th>التاريخ</th><th>الحالة</th></tr></thead>
+<tbody id="latestChecklists"></tbody>
+</table>
+
+<h3>Latest Visits</h3>
+<table>
+<thead><tr><th>الفرع</th><th>الفني</th><th>التاريخ</th><th>الحالة</th></tr></thead>
+<tbody id="latestVisits"></tbody>
+</table>
 
 <h3>Brand Summary</h3>
 <div class="brand-grid" id="brandGrid"></div>
@@ -204,9 +312,9 @@ s
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, collection, onSnapshot }
-  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey:"AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
@@ -226,52 +334,104 @@ loginBtn.onclick = async ()=>{
 
 logoutBtn.onclick = ()=>signOut(auth);
 
-const state = {
-  visits:[],
-  brands:[]
-};
+const state={branches:[],technicians:[],visits:[],checklists:[],filteredVisits:[],filteredChecklists:[]};
 
 function startDashboard(){
-  onSnapshot(collection(db,'siteVisits'), s=>{
-    state.visits = s.docs.map(d=>d.data());
-    renderBrands();
-  });
+  onSnapshot(collection(db,'branches'),s=>{state.branches=s.docs.map(d=>d.data());render();});
+  onSnapshot(collection(db,'technicians'),s=>{state.technicians=s.docs.map(d=>d.data());populateFilters();render();});
+  onSnapshot(collection(db,'siteVisits'),s=>{state.visits=s.docs.map(d=>d.data());applyFilters();});
+  onSnapshot(collection(db,'branch_checklists'),s=>{state.checklists=s.docs.map(d=>d.data());applyFilters();});
+  onSnapshot(collection(db,'brands'),s=>{state.brands=s.docs.map(d=>d.data());render();});
+}
 
-  onSnapshot(collection(db,'brands'), s=>{
-    state.brands = s.docs.map(d=>d.data());
-    renderBrands();
+function populateFilters(){
+  filterTechnician.innerHTML='<option value="">كل الفنيين</option>';
+  state.technicians.forEach(t=>{
+    filterTechnician.innerHTML+=`<option value="${t.id}">${t.name||t.id}</option>`;
   });
 }
 
-/* ===== BRAND SUMMARY WITH LOGOS ===== */
-function renderBrands(){
-  brandGrid.innerHTML='';
+function applyFilters(){
+  const from=filterFrom.value;
+  const to=filterTo.value;
+  const tech=filterTechnician.value;
+  const brand=filterBrand.value;
 
-  const brandMap={};
-
-  state.visits.forEach(v=>{
-    if(!v.brand) return;
-    if(!brandMap[v.brand]){
-      brandMap[v.brand]={visits:0,completed:0,pending:0};
-    }
-    brandMap[v.brand].visits++;
-    if(v.status==='completed'||v.checklistCompleted) brandMap[v.brand].completed++;
-    else brandMap[v.brand].pending++;
+  state.filteredVisits=state.visits.filter(v=>{
+    if(from&&v.date<from) return false;
+    if(to&&v.date>to) return false;
+    if(tech&&v.technicianDocId!==tech) return false;
+    if(brand&&v.brand!==brand) return false;
+    return true;
   });
 
-  Object.keys(brandMap).forEach(b=>{
-    const brandInfo = state.brands.find(x=>x.name===b);
-    const logo = brandInfo?.logoUrl || '';
+  state.filteredChecklists=state.checklists.filter(c=>{
+    if(from&&c.visitDate<from) return false;
+    if(to&&c.visitDate>to) return false;
+    if(tech&&c.technicianDocId!==tech) return false;
+    if(brand&&c.brand!==brand) return false;
+    return true;
+  });
 
-    const d = brandMap[b];
-    brandGrid.innerHTML += `
+  render();
+}
+
+function render(){
+  statBranches.textContent=state.branches.length;
+  statTechnicians.textContent=state.technicians.length;
+  statVisits.textContent=state.filteredVisits.length;
+  statChecklists.textContent=state.filteredChecklists.length;
+
+  const completed=state.filteredVisits.filter(v=>v.status==='completed'||v.checklistCompleted);
+  const pending=state.filteredVisits.filter(v=>v.status!=='completed'&&v.status!=='cancelled');
+
+  statCompletedVisits.textContent=completed.length;
+  statPendingVisits.textContent=pending.length;
+
+  const techs=new Set(state.filteredVisits.map(v=>v.technicianDocId).filter(Boolean));
+  const brands=new Set(state.filteredVisits.map(v=>v.brand).filter(Boolean));
+
+  statVisitedTechnicians.textContent=techs.size;
+  statBrands.textContent=brands.size;
+
+  renderLatest();
+  renderBrands();
+}
+
+function renderLatest(){
+  latestChecklists.innerHTML='';
+  state.filteredChecklists.slice(-5).reverse().forEach(c=>{
+    latestChecklists.innerHTML+=`
+      <tr><td>${c.branchName||'-'}</td><td>${c.brand||'-'}</td><td>${c.technicianName||'-'}</td><td>${c.visitDate||'-'}</td><td>${c.checklistCompleted?'مكتملة':'معلّقة'}</td></tr>`;
+  });
+
+  latestVisits.innerHTML='';
+  state.filteredVisits.slice(-5).reverse().forEach(v=>{
+    latestVisits.innerHTML+=`
+      <tr><td>${v.branchName||'-'}</td><td>${v.technicianName||'-'}</td><td>${v.date||'-'}</td><td>${v.status||'-'}</td></tr>`;
+  });
+}
+
+function renderBrands(){
+  brandGrid.innerHTML='';
+  const map={};
+  state.filteredVisits.forEach(v=>{
+    if(!v.brand) return;
+    if(!map[v.brand]) map[v.brand]={visits:0,completed:0,pending:0};
+    map[v.brand].visits++;
+    if(v.status==='completed'||v.checklistCompleted) map[v.brand].completed++;
+    else map[v.brand].pending++;
+  });
+
+  Object.keys(map).forEach(b=>{
+    const logo=state.brands?.find(x=>x.name===b)?.logoUrl||'';
+    const d=map[b];
+    brandGrid.innerHTML+=`
       <div class="brand-card">
-        ${logo ? `<img src="${logo}" alt="${b${b}</h4>
-        <div>إجمالي الزيارات: ${d.visits}</div>
+        ${logo?`<img src="${logo}  <div>إجمالي الزيارات: ${d.visits}</div>
         <div>مكتملة: ${d.completed}</div>
         <div>معلّقة: ${d.pending}</div>
-      </div>
-    `;
+      </div>`;
   });
 }
 
@@ -289,12 +449,5 @@ onAuthStateChanged(auth,user=>{
 
 </body>
 </html>
-
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<title>إدارة إنجازات زيارات الفروع والفنيين</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<style>
-body{
