@@ -8,7 +8,7 @@
 
 let reportBarChart, reportPieChart, reportLineChart;
 
-/* shorthand selector */
+/* selector helper */
 const $$ = id => document.getElementById(id);
 
 /* ================= Populate Filters ================= */
@@ -156,20 +156,25 @@ function renderReportsCharts() {
   });
 }
 
-/* ================= Events ================= */
-[
-  'reportTechnicianFilter',
-  'reportBrandFilter',
-  'reportFromDate',
-  'reportToDate',
-  'reportChartType',
-  'reportTargetValue'
-].forEach(id => {
-  $$(id)?.addEventListener('change', renderReportsCharts);
-});
+/* ================= Bind Events Safely ================= */
+function bindReportsEvents() {
+  [
+    'reportTechnicianFilter',
+    'reportBrandFilter',
+    'reportFromDate',
+    'reportToDate',
+    'reportChartType',
+    'reportTargetValue'
+  ].forEach(id => {
+    const el = $$(id);
+    if (el) el.addEventListener('change', renderReportsCharts);
+  });
+}
 
 /* ================= Public Hook ================= */
 window.initReportsDashboard = function () {
+  if (!$$('assessmentChart')) return;
   populateReportFilters();
+  bindReportsEvents();
   renderReportsCharts();
 };
