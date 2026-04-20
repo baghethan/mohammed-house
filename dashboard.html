@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Site Visit v3.7.1 – Dashboard</title>
+  <title>Site Visit v3.8 – Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -148,6 +148,50 @@
       padding: 8px 12px;
       border-radius: 999px;
       font-size: 13px;
+    }
+
+
+    .brand-chip.has-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding-inline: 10px 12px;
+    }
+
+    .brand-logo,
+    .brand-logo-placeholder {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      flex: 0 0 26px;
+      object-fit: cover;
+      background: #fff;
+      border: 1px solid #cfe2f3;
+    }
+
+    .brand-logo-placeholder {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #98a2b3;
+      font-size: 11px;
+    }
+
+    .visits-table .brand-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 160px;
+    }
+
+    .table-brand-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      object-fit: cover;
+      background: #fff;
+      border: 1px solid #dbe7f1;
+      flex: 0 0 28px;
     }
 
     .section-head {
@@ -323,7 +367,7 @@
 
 <div id="app" class="hidden">
   <header>
-    <strong>إدارة زيارات الفروع والفنيين – v3.7.1</strong>
+    <strong>إدارة زيارات الفروع والفنيين – v3.8</strong>
     <button id="logoutBtn" class="danger">Logout</button>
   </header>
 
@@ -387,7 +431,7 @@
     </div>
 
     <div class="card">
-      <h3>أسماء البراندات</h3>
+      <h3>أسماء البراندات + الشعار</h3>
       <div id="brandNamesBox" class="brand-list empty">لا توجد أسماء برندات ضمن الفترة المحددة</div>
     </div>
 
@@ -404,6 +448,7 @@
               <th>#</th>
               <th>التاريخ</th>
               <th>الفرع</th>
+              <th>الشعار</th>
               <th>البراند</th>
               <th>نوع البراند</th>
               <th>الفني</th>
@@ -414,7 +459,7 @@
           </thead>
           <tbody id="visitsTableBody">
             <tr>
-              <td colspan="9" class="empty-state">لا توجد زيارات ضمن الفترة المحددة</td>
+              <td colspan="10" class="empty-state">لا توجد زيارات ضمن الفترة المحددة</td>
             </tr>
           </tbody>
         </table>
@@ -663,6 +708,92 @@ function getBrandType(v) {
   return v.brandType || v.brand_type || v.type || v.category || '—';
 }
 
+
+function normalizeKey(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9؀-ۿ_-]/g, '');
+}
+
+function buildBrandAssetIndex() {
+  const index = new Map();
+
+  state.brands.forEach(asset => {
+    const keys = [
+      asset.id,
+      asset.key,
+      asset.brand,
+      asset.brandKey,
+      asset.brandName,
+      asset.name,
+      asset.nameEn,
+      asset.nameAr,
+      asset.title
+    ];
+
+    keys.forEach(key => {
+      const normalized = normalizeKey(key);
+      if (normalized && !index.has(normalized)) {
+        index.set(normalized, asset);
+      }
+    });
+  });
+
+  return index;
+}
+
+function getBrandAssetByVisit(visit, brandIndex) {
+  const candidates = [
+    visit.brand,
+    visit.brandName,
+    visit.brandKey,
+    visit.key,
+    visit.name,
+    visit.nameEn,
+    visit.nameAr,
+    visit.brandType,
+    visit.brand_type,
+    visit.type
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeKey(candidate);
+    if (normalized && brandIndex.has(normalized)) {
+      return brandIndex.get(normalized);
+    }
+  }
+
+  return null;
+}
+
+function getBrandLogoSrc(asset) {
+  if (!asset) return '';
+
+  const raw = asset.logoUrl || asset.logoData || asset.logo || '';
+  const value = String(raw ?? '').trim();
+  if (!value) return '';
+
+  if (value.startsWith('data:image/')) return value;
+  if (value.startsWith('http://') || value.startsWith('https://')) return value;
+
+  const compact = value.replace(/\s+/g, '');
+  if (/^[A-Za-z0-9+/=]+$/.test(compact) && compact.length > 100) {
+    return `data:image/png;base64,${compact}`;
+  }
+
+  return '';
+}
+
+function renderBrandLogo(logoSrc, altText, cssClass = 'table-brand-logo') {
+  if (!logoSrc) {
+    return '<span class="brand-logo-placeholder" title="لا يوجد شعار">—</span>';
+  }
+
+  return `<img class="${cssClass}" src="${escapeHtml(logoSrc)}" alt="${escapeHtml(altText)}">`;
+}
+
 function getTechnicianName(v) {
   return v.technicianName || v.techName || v.technicianEmail || v.technicianId || '—';
 }
@@ -676,21 +807,32 @@ function renderVisitsTable(filteredVisits) {
   $('visitsTableCount').textContent = filteredVisits.length;
 
   if (!filteredVisits.length) {
-    body.innerHTML = '<tr><td colspan="9" class="empty-state">لا توجد زيارات ضمن الفترة المحددة</td></tr>';
+    body.innerHTML = '<tr><td colspan="10" class="empty-state">لا توجد زيارات ضمن الفترة المحددة</td></tr>';
     return;
   }
+
+  const brandIndex = buildBrandAssetIndex();
 
   body.innerHTML = filteredVisits.map((v, index) => {
     const checklistDone = v.checklistCompleted === true ? 'مكتمل' : 'غير مكتمل';
     const checklistClass = v.checklistCompleted === true ? 'badge badge-success' : 'badge badge-warning';
     const statusText = statusLabel(v.status);
+    const brandName = getBrandName(v);
+    const brandAsset = getBrandAssetByVisit(v, brandIndex);
+    const logoSrc = getBrandLogoSrc(brandAsset);
 
     return `
       <tr>
         <td>${index + 1}</td>
         <td>${escapeHtml(formatDate(v.date || v.visitDate || v.createdAt))}</td>
         <td>${escapeHtml(getBranchName(v))}</td>
-        <td>${escapeHtml(getBrandName(v))}</td>
+        <td>${renderBrandLogo(logoSrc, `شعار ${brandName}`)}</td>
+        <td>
+          <div class="brand-cell">
+            ${logoSrc ? renderBrandLogo(logoSrc, `شعار ${brandName}`) : '<span class="brand-logo-placeholder">—</span>'}
+            <span>${escapeHtml(brandName)}</span>
+          </div>
+        </td>
         <td>${escapeHtml(getBrandType(v))}</td>
         <td>${escapeHtml(getTechnicianName(v))}</td>
         <td><span class="${badgeClassByStatus(v.status)}">${escapeHtml(statusText)}</span></td>
@@ -727,19 +869,34 @@ function renderStats() {
       .filter(Boolean)
   );
 
-  const brandNames = new Set(
-    filteredVisits
-      .map(v => v.brand || v.brandName || v.name || '')
-      .map(v => String(v || '').trim())
-      .filter(Boolean)
-  );
+  const brandIndex = buildBrandAssetIndex();
+  const brandEntriesMap = new Map();
 
-  const brandTypes = new Set(
-    filteredVisits
-      .map(v => v.brandType || v.brand_type || v.type || v.category || '')
-      .map(v => String(v || '').trim())
-      .filter(Boolean)
-  );
+  filteredVisits.forEach(v => {
+    const brandName = String(getBrandName(v) || '').trim();
+    if (!brandName || brandName === '—') return;
+
+    const mapKey = normalizeKey(brandName);
+    if (!mapKey) return;
+
+    const asset = getBrandAssetByVisit(v, brandIndex);
+    const logoSrc = getBrandLogoSrc(asset);
+    const brandType = String(getBrandType(v) || '').trim();
+
+    if (!brandEntriesMap.has(mapKey)) {
+      brandEntriesMap.set(mapKey, {
+        name: brandName,
+        brandType,
+        logoSrc
+      });
+    } else if (!brandEntriesMap.get(mapKey).logoSrc && logoSrc) {
+      brandEntriesMap.get(mapKey).logoSrc = logoSrc;
+    }
+  });
+
+  const brandEntries = [...brandEntriesMap.values()];
+  const brandNames = new Set(brandEntries.map(item => item.name).filter(Boolean));
+  const brandTypes = new Set(brandEntries.map(item => item.brandType).filter(Boolean));
 
   $('statCompletedVisits').textContent = completed;
   $('statPendingVisits').textContent = pending;
@@ -748,14 +905,19 @@ function renderStats() {
   $('statBrandTypes').textContent = brandTypes.size;
 
   const box = $('brandNamesBox');
-  if (brandNames.size === 0) {
+  if (brandEntries.length === 0) {
     box.className = 'brand-list empty';
     box.textContent = 'لا توجد أسماء برندات ضمن الفترة المحددة';
   } else {
     box.className = 'brand-list';
-    box.innerHTML = [...brandNames]
-      .sort((a, b) => a.localeCompare(b, 'ar'))
-      .map(n => `<span class="brand-chip">${escapeHtml(n)}</span>`)
+    box.innerHTML = brandEntries
+      .sort((a, b) => a.name.localeCompare(b.name, 'ar'))
+      .map(item => `
+        <span class="brand-chip ${item.logoSrc ? 'has-logo' : ''}">
+          ${item.logoSrc ? `<img class="brand-logo" src="${escapeHtml(item.logoSrc)}" alt="${escapeHtml(item.name)}">` : '<span class="brand-logo-placeholder">—</span>'}
+          <span>${escapeHtml(item.name)}</span>
+        </span>
+      `)
       .join('');
   }
 
