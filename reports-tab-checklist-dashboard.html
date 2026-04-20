@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>Reports – Check‑List Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body{
+      margin:0;
+      font-family:Tahoma,Arial,sans-serif;
+      background:#edf3f8;
+      padding:16px
+    }
+    .card{
+      background:#fff;
+      border-radius:16px;
+      padding:16px;
+      margin-bottom:16px;
+      box-shadow:0 10px 30px rgba(18,48,74,.08)
+    }
+    h3{margin-top:0;color:#0d4b73}
+    .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .field{display:flex;flex-direction:column;gap:6px}
+    label{font-size:14px;font-weight:700}
+    input,select{
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid #d7e0ea;
+      font-size:14px
+    }
+    @media(max-width:900px){
+      .grid-4{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ==================================================
+     يعمل داخل تبويب التقارير
+     يعتمد على:
+     state.checklists
+     state.technicians
+================================================== -->
+
+<section id="reports" class="panel active">
+
+  <!-- ================= Filters ================= -->
+  <div class="card">
+    <h3>تقارير Check‑List</h3>
+
+    <div class="grid-4">
+      <div class="field">
+        <label>الفني</label>
+        <select id="reportTechnicianFilter">
+          <option value="">كل الفنيين</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>البراند</label>
+        <select id="reportBrandFilter">
+          <option value="">كل البراندات</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>من تاريخ</label>
+        <input type="date" id="reportFromDate">
+      </div>
+
+      <div class="field">
+        <label>إلى تاريخ</label>
+        <input type="date" id="reportToDate">
+      </div>
+
+      <div class="field">
+        <label>نوع الشارت</label>
+        <select id="reportChartType">
+          <option value="bar">Bar</option>
+          <option value="stacked">Stacked</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>هدف الإنجاز (%)</label>
+        <input type="number" id="reportTargetValue" value="80" min="0" max="100">
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Charts ================= -->
+  <div class="card">
+    <h3>تقييم Check‑List حسب الأقسام</h3>
+    <canvas id="assessmentChart" height="120"></canvas>
+  </div>
+
+  <div class="card">
+    <h3>نسبة الإنجاز الإجمالية</h3>
+    <canvas id="assessmentPie" height="120"></canvas>
+  </div>
+
+  <div class="card">
+    <h3>تطور الأداء الزمني + خط الهدف</h3>
+    <canvas id="performanceLine" height="120"></canvas>
+  </div>
+
+</section>
+
+<script>
+/* ===== يعتمد على state الموجود في موقعك ===== */
+let barChart, pieChart, lineChart;
+const $ = id => document.getElementById(id);
+
+/* ===== Populate Filters ===== */
+function populateReportFilters(){
+  $('reportTechnicianFilter').innerHTML =
+    '<option value="">كل الفنيين</option>' +
+    state.technicians.map(t =>
+      `<option value="${t.id}">${t.name || t.id}</option>`
+    ).join('');
+
+  const brands = [...new Set(state.checklists.map(r => r.brand).filter(Boolean))];
+  $('reportBrandFilter').innerHTML =
+    '<option value="">كل البراندات</option>' +
+    brands.map(b => `<option value="${b}">${b}</option>`).join('');
+}
+
+/* ===== Filtered Data ===== */
+function getFilteredChecklists(){
+  const tech = $('reportTechnicianFilter').value;
+  const brand = $('reportBrandFilter').value;
+  const from = $('reportFromDate').value;
+  const to = $('reportToDate').value;
+
+  return state.checklists.filter(r => {
+    if(tech && r.technicianDocId !== tech) return false;
+    if(brand && r.brand !== brand) return false;
+    const d = r.visitDate || r.technicianVisitDate;
+    if(from && d < from) return false;
+    if(to && d > to) return false;
+    return true;
+  });
+}
+
+/* ===== Render Charts ===== */
+function renderReportsCharts(){
+
+  const sections = {
+    'Hardware & Peripherals Assessment':{c:0,p:0},
+    'Network Infrastructure Assessment':{c:0,p:0},
+    'Software & Systems Assessment':{c:0,p:0},
+    'Systems Assessment':{c:0,p:0}
+  };
+
+  getFilteredChecklists().forEach(r=>{
+    const done = r.status==='completed' || r.checklistCompleted;
+    (r.dynamicFieldsSnapshot||[]).forEach(f=>{
+      if(sections[f.section]){
+        done ? sections[f.section].c++ : sections[f.section].p++;
+      }
+    });
+  });
+
+  const labels = Object.keys(sections);
+  const completed = labels.map(l=>sections[l].c);
+  const pending = labels.map(l=>sections[l].p);
+
+  if(barChart) barChart.destroy();
+  barChart = new Chart($('assessmentChart'),{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'مكتمل',data:completed,backgroundColor:'#2f9e66'},
+        {label:'معلق',data:pending,backgroundColor:'#d64545'}
+      ]
+    },
+    options:{
+      scales: $('reportChartType').value==='stacked'
+        ? {x:{stacked:true},y:{stacked:true,beginAtZero:true}}
+        : {y:{beginAtZero:true}}
+    }
+  });
+
+  if(pieChart) pieChart.destroy();
+  pieChart = new Chart($('assessmentPie'),{
+    type:'pie',
+    data:{
+      labels:['مكتمل','معلق'],
+      datasets:[{
+        data:[
+          completed.reduce((a,b)=>a+b,0),
+          pending.reduce((a,b)=>a+b,0)
+        ],
+        backgroundColor:['#2f9e66','#d64545']
+      }]
+    }
+  });
+
+  const target = Number($('reportTargetValue').value || 0);
+  const timeline = {};
+
+  getFilteredChecklists().forEach(r=>{
+    const m=(r.visitDate||r.technicianVisitDate).slice(0,7);
+    timeline[m] ||= {c:0,p:0};
+    r.checklistCompleted ? timeline[m].c++ : timeline[m].p++;
+  });
+
+  const months = Object.keys(timeline).sort();
+  const pct = months.map(m=>{
+    const t=timeline[m].c+timeline[m].p;
+    return t?Math.round((timeline[m].c/t)*100):0;
+  });
+
+  if(lineChart) lineChart.destroy();
+  lineChart = new Chart($('performanceLine'),{
+    type:'line',
+    data:{
+      labels:months,
+      datasets:[
+        {
+          label:'نسبة الإنجاز',
+          data:pct,
+          borderColor:'#0d6efd',
+          backgroundColor:'rgba(13,110,253,.15)',
+          fill:true
+        },
+        {
+          label:'الهدف',
+          data:months.map(()=>target),
+          borderColor:'#dc3545',
+          borderDash:[6,6],
+          pointRadius:0
+        }
+      ]
+    },
+    options:{
+      scales:{
+        y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}
+      }
+    }
+  });
+}
+
+/* ===== Events ===== */
+[
+  'reportTechnicianFilter',
+  'reportBrandFilter',
+  'reportFromDate',
+  'reportToDate',
+  'reportChartType',
+  'reportTargetValue'
+].forEach(id => $(id).addEventListener('change', renderReportsCharts));
+
+/* ===== Call this after data load ===== */
+function onReportsReady(){
+  populateReportFilters();
+  renderReportsCharts();
+}
+</script>
+
+</body>
+</html>
