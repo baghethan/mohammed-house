@@ -6,37 +6,44 @@
    - Chart.js
 ====================================================== */
 
-let reportBarChart, reportPieChart, reportLineChart;
+let reportBarChart = null;
+let reportPieChart = null;
+let reportLineChart = null;
 
 /* selector helper */
-const $$ = id => document.getElementById(id);
+function $$(id) {
+  return document.getElementById(id);
+}
 
 /* ================= Populate Filters ================= */
 function populateReportFilters() {
-  if (!$$('reportTechnicianFilter')) return;
+  const techSelect = $$('reportTechnicianFilter');
+  const brandSelect = $$('reportBrandFilter');
+
+  if (!techSelect || !brandSelect) return;
 
   // Technicians
-  $$('reportTechnicianFilter').innerHTML =
+  techSelect.innerHTML =
     '<option value="">كل الفنيين</option>' +
-    state.technicians
+    (state.technicians || [])
       .map(t => `<option value="${t.id}">${t.name || t.id}</option>`)
       .join('');
 
   // Brands
-  const brands = [...new Set(state.checklists.map(r => r.brand).filter(Boolean))];
-  $$('reportBrandFilter').innerHTML =
+  const brands = [...new Set((state.checklists || []).map(r => r.brand).filter(Boolean))];
+  brandSelect.innerHTML =
     '<option value="">كل البراندات</option>' +
     brands.map(b => `<option value="${b}">${b}</option>`).join('');
 }
 
 /* ================= Filtering ================= */
 function getFilteredReportChecklists() {
-  const tech = $$('reportTechnicianFilter')?.value;
-  const brand = $$('reportBrandFilter')?.value;
-  const from = $$('reportFromDate')?.value;
-  const to = $$('reportToDate')?.value;
+  const tech = $$('reportTechnicianFilter')?.value || '';
+  const brand = $$('reportBrandFilter')?.value || '';
+  const from = $$('reportFromDate')?.value || '';
+  const to = $$('reportToDate')?.value || '';
 
-  return state.checklists.filter(r => {
+  return (state.checklists || []).filter(r => {
     if (tech && r.technicianDocId !== tech) return false;
     if (brand && r.brand !== brand) return false;
 
@@ -50,7 +57,11 @@ function getFilteredReportChecklists() {
 
 /* ================= Render Charts ================= */
 function renderReportsCharts() {
-  if (!$$('assessmentChart')) return;
+  const barCanvas = $$('assessmentChart');
+  const pieCanvas = $$('assessmentPie');
+  const lineCanvas = $$('performanceLine');
+
+  if (!barCanvas || !pieCanvas || !lineCanvas) return;
 
   /* ---------- BAR + PIE ---------- */
   const sections = {
@@ -61,7 +72,7 @@ function renderReportsCharts() {
   };
 
   getFilteredReportChecklists().forEach(r => {
-    const done = r.status === 'completed' || r.checklistCompleted;
+    const done = r.status === 'completed' || r.checklistCompleted === true;
     (r.dynamicFieldsSnapshot || []).forEach(f => {
       if (sections[f.section]) {
         done ? sections[f.section].c++ : sections[f.section].p++;
@@ -74,7 +85,7 @@ function renderReportsCharts() {
   const pending = labels.map(l => sections[l].p);
 
   if (reportBarChart) reportBarChart.destroy();
-  reportBarChart = new Chart($$('assessmentChart'), {
+  reportBarChart = new Chart(barCanvas, {
     type: 'bar',
     data: {
       labels,
@@ -84,14 +95,20 @@ function renderReportsCharts() {
       ]
     },
     options: {
+      responsive: true,
       scales: $$('reportChartType')?.value === 'stacked'
-        ? { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
-        : { y: { beginAtZero: true } }
+        ? {
+            x: { stacked: true },
+            y: { stacked: true, beginAtZero: true }
+          }
+        : {
+            y: { beginAtZero: true }
+          }
     }
   });
 
   if (reportPieChart) reportPieChart.destroy();
-  reportPieChart = new Chart($$('assessmentPie'), {
+  reportPieChart = new Chart(pieCanvas, {
     type: 'pie',
     data: {
       labels: ['مكتمل', 'معلق'],
@@ -110,8 +127,9 @@ function renderReportsCharts() {
   const timeline = {};
 
   getFilteredReportChecklists().forEach(r => {
-    const m = (r.visitDate || r.technicianVisitDate).slice(0, 7);
-    timeline[m] ||= { c: 0, p: 0 };
+    const m = (r.visitDate || r.technicianVisitDate || '').slice(0, 7);
+    if (!m) return;
+    if (!timeline[m]) timeline[m] = { c: 0, p: 0 };
     r.checklistCompleted ? timeline[m].c++ : timeline[m].p++;
   });
 
@@ -122,7 +140,7 @@ function renderReportsCharts() {
   });
 
   if (reportLineChart) reportLineChart.destroy();
-  reportLineChart = new Chart($$('performanceLine'), {
+  reportLineChart = new Chart(lineCanvas, {
     type: 'line',
     data: {
       labels: months,
@@ -145,11 +163,14 @@ function renderReportsCharts() {
       ]
     },
     options: {
+      responsive: true,
       scales: {
         y: {
           beginAtZero: true,
           max: 100,
-          ticks: { callback: v => v + '%' }
+          ticks: {
+            callback: v => v + '%'
+          }
         }
       }
     }
@@ -167,7 +188,9 @@ function bindReportsEvents() {
     'reportTargetValue'
   ].forEach(id => {
     const el = $$(id);
-    if (el) el.addEventListener('change', renderReportsCharts);
+    if (el) {
+      el.addEventListener('change', renderReportsCharts);
+    }
   });
 }
 
