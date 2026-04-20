@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Site Visit v4.1 – Dashboard</title>
+  <title>Site Visit v4.2 – Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -241,6 +241,75 @@
 
     .export-frame {
       background: #fff;
+    }
+
+    /* ===== Progress bars ===== */
+    .progress-track {
+      width: 100%;
+      height: 12px;
+      border-radius: 999px;
+      background: #e9eef5;
+      overflow: hidden;
+      border: 1px solid #dbe7f1;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      width: 0%;
+      transition: width .35s ease;
+      background: linear-gradient(90deg, #7a5af8 0%, #9e77ed 100%);
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #667085;
+    }
+
+    .dashboard-progress {
+      margin-top: 10px;
+    }
+
+    .dashboard-progress .progress-track {
+      height: 10px;
+      background: #efeaff;
+      border-color: #ddd6fe;
+    }
+
+    .dashboard-progress .progress-fill {
+      background: linear-gradient(90deg, #7a5af8 0%, #6941c6 100%);
+    }
+
+    .brand-progress-wrap {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed #dbe7f1;
+    }
+
+    .brand-progress-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      color: #475467;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .brand-progress-wrap .progress-track {
+      height: 14px;
+      background: #f4efff;
+      border-color: #e9d7fe;
+    }
+
+    .brand-progress-wrap .progress-fill {
+      background: linear-gradient(90deg, #7a5af8 0%, #6941c6 100%);
     }
 
     /* ===== Brand summary cards ===== */
@@ -508,7 +577,7 @@
 
 <div id="app" class="hidden">
   <header>
-    <strong>إدارة زيارات الفروع والفنيين – v4.1</strong>
+    <strong>إدارة زيارات الفروع والفنيين – v4.2</strong>
     <button id="logoutBtn" class="danger">Logout</button>
   </header>
 
@@ -568,7 +637,19 @@
           <div class="stat success"><strong id="statCompletedVisits">0</strong><span>زيارات مكتملة</span></div>
           <div class="stat warning"><strong id="statPendingVisits">0</strong><span>زيارات معلّقة</span></div>
           <div class="stat info"><strong id="statVisitedTechnicians">0</strong><span>فنيون قاموا بزيارة</span></div>
-          <div class="stat progress"><strong id="statCompletionRate">0%</strong><span>نسبة الإنجاز</span></div>
+          <div class="stat progress">
+            <strong id="statCompletionRate">0%</strong>
+            <span>نسبة الإنجاز</span>
+            <div class="dashboard-progress">
+              <div class="progress-track">
+                <div id="overallProgressBar" class="progress-fill" style="width:0%"></div>
+              </div>
+              <div class="progress-meta">
+                <span>المنجز</span>
+                <span id="overallProgressMeta">0% من إجمالي الزيارات</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="stats-sub" style="margin-bottom:0;">
@@ -582,7 +663,7 @@
       <div class="section-head">
         <div>
           <h3 style="margin:0">أسماء البراندات + الشعار + الحالة + Checklist</h3>
-          <div class="muted">كل بطاقة تعرض حجم أكبر للشعار وإحصائيات البراند ضمن الفترة المحددة مع نسبة الإنجاز</div>
+          <div class="muted">كل بطاقة تعرض حجم أكبر للشعار وإحصائيات البراند ضمن الفترة المحددة مع شريط تقدم مرئي</div>
         </div>
         <button class="capture-btn" data-capture-target="brandSummaryCapture" data-file-name="brand_summary">نسخ صورة البراندات</button>
       </div>
@@ -703,6 +784,11 @@ function escapeHtml(v) {
 function formatPercent(value) {
   const safe = Number.isFinite(value) ? value : 0;
   return `${safe.toFixed(1)}%`;
+}
+
+function clampPercent(value) {
+  const num = Number(value) || 0;
+  return Math.max(0, Math.min(100, num));
 }
 
 function showCaptureStatus(message, type = 'info') {
@@ -1139,44 +1225,61 @@ function renderBrandCards(brandEntries) {
   }
 
   box.className = 'brand-grid';
-  box.innerHTML = brandEntries.map(item => `
-    <div class="brand-card">
-      <div class="brand-card-head">
-        ${renderBrandLogo(item.logoSrc, `شعار ${item.name}`, 'brand-card-logo')}
-        <div class="brand-card-title">
-          <div class="brand-card-name">${escapeHtml(item.name)}</div>
-          <div class="brand-card-type">${escapeHtml(item.brandType || 'بدون نوع محدد')}</div>
+  box.innerHTML = brandEntries.map(item => {
+    const safeRate = clampPercent(item.completionRate);
+    return `
+      <div class="brand-card">
+        <div class="brand-card-head">
+          ${renderBrandLogo(item.logoSrc, `شعار ${item.name}`, 'brand-card-logo')}
+          <div class="brand-card-title">
+            <div class="brand-card-name">${escapeHtml(item.name)}</div>
+            <div class="brand-card-type">${escapeHtml(item.brandType || 'بدون نوع محدد')}</div>
+          </div>
         </div>
-      </div>
 
-      <div class="brand-stat-grid">
-        <div class="brand-stat-item total">
-          <strong>${item.total}</strong>
-          <span>إجمالي الزيارات</span>
+        <div class="brand-stat-grid">
+          <div class="brand-stat-item total">
+            <strong>${item.total}</strong>
+            <span>إجمالي الزيارات</span>
+          </div>
+          <div class="brand-stat-item completed">
+            <strong>${item.completed}</strong>
+            <span>مكتمل</span>
+          </div>
+          <div class="brand-stat-item pending">
+            <strong>${item.pending}</strong>
+            <span>معلّق</span>
+          </div>
+          <div class="brand-stat-item cancelled">
+            <strong>${item.cancelled}</strong>
+            <span>ملغي</span>
+          </div>
+          <div class="brand-stat-item checklist">
+            <strong>${item.checklistDone}</strong>
+            <span>Checklist مكتمل</span>
+          </div>
+          <div class="brand-stat-item progress">
+            <strong>${formatPercent(item.completionRate)}</strong>
+            <span>نسبة الإنجاز</span>
+          </div>
         </div>
-        <div class="brand-stat-item completed">
-          <strong>${item.completed}</strong>
-          <span>مكتمل</span>
-        </div>
-        <div class="brand-stat-item pending">
-          <strong>${item.pending}</strong>
-          <span>معلّق</span>
-        </div>
-        <div class="brand-stat-item cancelled">
-          <strong>${item.cancelled}</strong>
-          <span>ملغي</span>
-        </div>
-        <div class="brand-stat-item checklist">
-          <strong>${item.checklistDone}</strong>
-          <span>Checklist مكتمل</span>
-        </div>
-        <div class="brand-stat-item progress">
-          <strong>${formatPercent(item.completionRate)}</strong>
-          <span>نسبة الإنجاز</span>
+
+        <div class="brand-progress-wrap">
+          <div class="brand-progress-title">
+            <span>شريط التقدم</span>
+            <span>${formatPercent(item.completionRate)}</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width:${safeRate}%"></div>
+          </div>
+          <div class="progress-meta">
+            <span>المكتمل ${item.completed} من ${item.total}</span>
+            <span>المتبقي ${Math.max(item.total - item.completed, 0)}</span>
+          </div>
         </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function renderVisitsTable(filteredVisits, brandIndex) {
@@ -1241,6 +1344,7 @@ function renderStats() {
   );
 
   const completionRate = filteredVisits.length ? (completed / filteredVisits.length) * 100 : 0;
+  const safeOverallRate = clampPercent(completionRate);
   const brandNames = new Set(brandEntries.map(item => item.name).filter(Boolean));
   const brandTypes = new Set(brandEntries.map(item => item.brandType).filter(Boolean).filter(v => v !== '—'));
 
@@ -1250,6 +1354,8 @@ function renderStats() {
   $('statBrands').textContent = brandNames.size;
   $('statBrandTypes').textContent = brandTypes.size;
   $('statCompletionRate').textContent = formatPercent(completionRate);
+  $('overallProgressBar').style.width = `${safeOverallRate}%`;
+  $('overallProgressMeta').textContent = `${formatPercent(completionRate)} من إجمالي ${filteredVisits.length} زيارة`;
 
   updateActivePresetButtons();
   updateRangeLabel();
