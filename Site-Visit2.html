@@ -42,6 +42,19 @@
       color:#d0d0d0;
     }
 
+    .header-right{
+      display:flex;
+      align-items:center;
+      gap:15px;
+    }
+
+    .user-name{
+      font-size:13px;
+      background:rgba(255,255,255,.15);
+      padding:6px 12px;
+      border-radius:20px;
+    }
+
     .logout-btn{
       background:#d64545;
       color:#fff;
@@ -88,8 +101,9 @@
 <!-- ✅ Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-<!-- ✅ Firebase Init + Auth Guard -->
+<!-- ✅ Firebase Init + Auth Guard + Load User -->
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
@@ -105,11 +119,22 @@
   }
 
   const auth = firebase.auth();
+  const db   = firebase.firestore();
 
-  // ✅ Guard الصحيح (بدون Loop)
-  auth.onAuthStateChanged(user => {
+  // ✅ Guard + جلب اسم المستخدم
+  auth.onAuthStateChanged(async (user) => {
     if (!user) {
       window.location.href = "login.html";
+      return;
+    }
+
+    try {
+      const doc = await db.collection("app_users").doc(user.uid).get();
+      if (doc.exists && doc.data().name) {
+        document.getElementById("userName").innerText = doc.data().name;
+      }
+    } catch (e) {
+      console.error("Error loading user name", e);
     }
   });
 
@@ -125,11 +150,14 @@
     <img src="LOGO-almajdouie.png" alt="Logo">
     <div>
       <div class="app-title">إدارة زيارات الفروع والفنيين</div>
-      <div class="app-version">Shell v1.1 • 2026‑04‑20</div>
+      <div class="app-version">Shell v1.2 • 2026‑04‑20</div>
     </div>
   </div>
 
-  <button class="logout-btn" onclick="logout()">Logout</button>
+  <div class="header-right">
+    <div class="user-name" id="userName">...</div>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
 </header>
 
 <nav>
@@ -169,7 +197,6 @@
 
     if(btn) btn.classList.add("active");
 
-    // Dynamic صفحة مستقلة
     if(key === "dynamic"){
       window.location.href = pages[key];
       return;
