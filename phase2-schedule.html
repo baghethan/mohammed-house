@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<!DOCTYPE html><html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <title>إدارة إنجازات زيارات الفروع والفنيين</title>
@@ -210,14 +209,19 @@ th,td{
   text-align:center;
 }
 
-.brand-card h4{
-  margin:0 0 10px;
-  color:#0d4b73;
+/* ===== CHARTS ===== */
+.charts{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:20px;
+  margin-bottom:40px;
 }
 
-.brand-card div{
-  font-size:13px;
-  margin:4px 0;
+.chart-box{
+  background:#fff;
+  padding:16px;
+  border-radius:14px;
+  box-shadow:0 8px 20px rgba(0,0,0,.1);
 }
 </style>
 </head>
@@ -228,7 +232,7 @@ th,td{
 <div id="loginBox">
   <div class="login-card">
     LOGO-almajdouie.png
-    <div class="login-version">v3.6 • آخر تحديث: 2026‑04‑21</div>
+    <div class="login-version">v3.7 • آخر تحديث: 2026‑04‑21</div>
 
     <input id="loginEmail" type="email" placeholder="Email">
     <input id="loginPassword" type="password" placeholder="Password">
@@ -244,7 +248,7 @@ th,td{
   <div class="header-left">
     <div class="header-logo">
       LOGO-almajdouie.png
-      <small class="app-version">v3.6 • آخر تحديث: 2026‑04‑21</small>
+      <small class="app-version">v3.7 • آخر تحديث: 2026‑04‑21</small>
     </div>
     <div>إدارة إنجازات زيارات الفروع والفنيين</div>
   </div>
@@ -255,16 +259,11 @@ th,td{
 
 <div class="dashboard-title">Dashboard</div>
 
-<!-- ===== FILTER BAR ===== -->
 <div class="filter-bar">
   <input type="date" id="filterFrom">
   <input type="date" id="filterTo">
-  <select id="filterTechnician">
-    <option value="">كل الفنيين</option>
-  </select>
-  <select id="filterBrand">
-    <option value="">كل البراندات</option>
-  </select>
+  <select id="filterTechnician"><option value="">كل الفنيين</option></select>
+  <select id="filterBrand"><option value="">كل البراندات</option></select>
   <button onclick="applyFilters()">تطبيق الفلتر</button>
 </div>
 
@@ -301,8 +300,20 @@ th,td{
 <h3>Brand Summary</h3>
 <div class="brand-grid" id="brandGrid"></div>
 
+<h3>Analytics</h3>
+<div class="charts">
+  <div class="chart-box">
+    <canvas id="barChart"></canvas>
+  </div>
+  <div class="chart-box">
+    <canvas id="lineChart"></canvas>
+  </div>
+</div>
+
 </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -338,6 +349,8 @@ const state = {
   filteredVisits:[],
   filteredChecklists:[]
 };
+
+let barChart, lineChart;
 
 function startDashboard(){
   onSnapshot(collection(db,'branches'), s=>{
@@ -411,6 +424,7 @@ function render(){
 
   renderLatest();
   renderBrands();
+  renderCharts();
 }
 
 function renderLatest(){
@@ -460,6 +474,48 @@ function renderBrands(){
       </div>`;
   });
 }
+
+/* ===== STAGE 7: CHARTS ===== */
+function renderCharts(){
+  const completed = state.filteredVisits.filter(v=>v.status==='completed'||v.checklistCompleted===true).length;
+  const pending = state.filteredVisits.filter(v=>v.status!=='completed'&&v.status!=='cancelled').length;
+
+  if(barChart) barChart.destroy();
+  barChart = new Chart(barChartCanvas(), {
+    type:'bar',
+    data:{
+      labels:['مكتملة','معلّقة'],
+      datasets:[{
+        data:[completed,pending],
+        backgroundColor:['#2f9e66','#c47f00']
+      }]
+    }
+  });
+
+  const byDate={};
+  state.filteredVisits.forEach(v=>{
+    const d=v.date||'';
+    if(!d) return;
+    byDate[d]=(byDate[d]||0)+1;
+  });
+
+  if(lineChart) lineChart.destroy();
+  lineChart = new Chart(lineChartCanvas(), {
+    type:'line',
+    data:{
+      labels:Object.keys(byDate),
+      datasets:[{
+        label:'عدد الزيارات',
+        data:Object.values(byDate),
+        borderColor:'#0d4b73',
+        fill:false
+      }]
+    }
+  });
+}
+
+function barChartCanvas(){ return document.getElementById('barChart'); }
+function lineChartCanvas(){ return document.getElementById('lineChart'); }
 
 onAuthStateChanged(auth,user=>{
   if(user){
