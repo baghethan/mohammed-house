@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Site Visit v3.6 – Dashboard</title>
+  <title>Site Visit v3.7.1 – Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -46,6 +46,7 @@
       width: 100%;
       box-sizing: border-box;
       font-size: 14px;
+      font-family: inherit;
     }
 
     button {
@@ -53,6 +54,16 @@
       color: #fff;
       border: none;
       cursor: pointer;
+    }
+
+    button.secondary {
+      background: #295fa5;
+    }
+
+    button.light {
+      background: #eef4fb;
+      color: #0d4b73;
+      border: 1px solid #cfe2f3;
     }
 
     button.danger {
@@ -228,12 +239,68 @@
       font-size: 14px;
     }
 
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .filter-box label {
+      display: block;
+      margin-bottom: 6px;
+      color: #475467;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .preset-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .preset-btn {
+      width: auto;
+      min-width: 110px;
+      background: #eef4fb;
+      color: #0d4b73;
+      border: 1px solid #cfe2f3;
+    }
+
+    .preset-btn.active {
+      background: #0d4b73;
+      color: #fff;
+      border-color: #0d4b73;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .filter-actions button {
+      width: auto;
+      min-width: 140px;
+    }
+
+    .range-summary {
+      margin-top: 10px;
+      color: #667085;
+      font-size: 13px;
+    }
+
     @media (max-width: 768px) {
       header {
         align-items: stretch;
       }
 
-      button.danger {
+      button.danger,
+      .filter-actions button,
+      .preset-btn {
         width: 100%;
       }
     }
@@ -242,7 +309,6 @@
 
 <body>
 
-<!-- ===== LOGIN ===== -->
 <div id="loginBox" class="container">
   <div class="card">
     <h3>تسجيل الدخول</h3>
@@ -255,51 +321,80 @@
   </div>
 </div>
 
-<!-- ===== APP ===== -->
 <div id="app" class="hidden">
   <header>
-    <strong>إدارة زيارات الفروع والفنيين – v3.6</strong>
+    <strong>إدارة زيارات الفروع والفنيين – v3.7.1</strong>
     <button id="logoutBtn" class="danger">Logout</button>
   </header>
 
   <div class="container">
 
     <div class="card">
+      <div class="section-head">
+        <h3 style="margin:0">فلاتر الفترة</h3>
+        <div class="muted">تؤثر على الإحصائيات + أسماء البراندات + جدول الزيارات</div>
+      </div>
+
+      <div class="preset-buttons">
+        <button class="preset-btn active" data-range="week">أسبوع</button>
+        <button class="preset-btn" data-range="month">شهر</button>
+        <button class="preset-btn" data-range="quarter">ربع سنة</button>
+        <button class="preset-btn" data-range="half">نصف سنة</button>
+        <button class="preset-btn" data-range="year">السنة كاملة</button>
+        <button class="preset-btn" data-range="custom">من / إلى</button>
+      </div>
+
+      <div class="filters-grid">
+        <div class="filter-box">
+          <label for="filterFrom">من تاريخ</label>
+          <input id="filterFrom" type="date">
+        </div>
+
+        <div class="filter-box">
+          <label for="filterTo">إلى تاريخ</label>
+          <input id="filterTo" type="date">
+        </div>
+      </div>
+
+      <div class="filter-actions">
+        <button id="applyDateFilter" class="secondary">تطبيق من / إلى</button>
+        <button id="resetDateFilter" class="light">إعادة التعيين</button>
+      </div>
+
+      <div id="activeRangeLabel" class="range-summary">الفترة الحالية: آخر سنة كاملة</div>
+    </div>
+
+    <div class="card">
       <h3>Dashboard</h3>
 
-      <!-- الصف الأول -->
       <div class="stats-main">
         <div class="stat primary"><strong id="statBranches">0</strong><span>الفروع</span></div>
         <div class="stat primary"><strong id="statTechnicians">0</strong><span>الفنيين</span></div>
-        <div class="stat primary"><strong id="statVisits">0</strong><span>إجمالي الزيارات</span></div>
-        <div class="stat primary"><strong id="statChecklists">0</strong><span>Check‑Lists</span></div>
+        <div class="stat primary"><strong id="statVisits">0</strong><span>إجمالي الزيارات (بعد الفلترة)</span></div>
+        <div class="stat primary"><strong id="statChecklists">0</strong><span>Check‑Lists (بعد الفلترة)</span></div>
       </div>
 
-      <!-- الصف الثاني -->
       <div class="stats-sub">
         <div class="stat success"><strong id="statCompletedVisits">0</strong><span>زيارات مكتملة</span></div>
         <div class="stat warning"><strong id="statPendingVisits">0</strong><span>زيارات معلّقة</span></div>
         <div class="stat info"><strong id="statVisitedTechnicians">0</strong><span>فنيون قاموا بزيارة</span></div>
       </div>
 
-      <!-- الصف الثالث -->
       <div class="stats-sub">
         <div class="stat"><strong id="statBrands">0</strong><span>عدد البراندات</span></div>
         <div class="stat"><strong id="statBrandTypes">0</strong><span>أنواع البراند</span></div>
       </div>
     </div>
 
-    <!-- أسماء البراندات -->
     <div class="card">
       <h3>أسماء البراندات</h3>
-      <div id="brandNamesBox" class="brand-list empty">لا توجد أسماء برندات</div>
+      <div id="brandNamesBox" class="brand-list empty">لا توجد أسماء برندات ضمن الفترة المحددة</div>
     </div>
 
-    <!-- جدول الزيارات -->
     <div class="card">
       <div class="section-head">
         <h3 style="margin:0">كل الزيارات</h3>
-        <div class="muted">عدد السجلات: <strong id="visitsTableCount">0</strong></div>
+        <div class="muted">عدد السجلات بعد الفلترة: <strong id="visitsTableCount">0</strong></div>
       </div>
 
       <div class="table-wrap">
@@ -319,7 +414,7 @@
           </thead>
           <tbody id="visitsTableBody">
             <tr>
-              <td colspan="9" class="empty-state">لا توجد زيارات لعرضها</td>
+              <td colspan="9" class="empty-state">لا توجد زيارات ضمن الفترة المحددة</td>
             </tr>
           </tbody>
         </table>
@@ -361,7 +456,14 @@ const state = {
   brands: []
 };
 
+const filters = {
+  range: 'year',
+  from: '',
+  to: ''
+};
+
 let unsub = [];
+let filtersBound = false;
 
 function normalizeStatus(v) {
   const s = String(v ?? '').trim().toLowerCase();
@@ -380,43 +482,166 @@ function statusLabel(v) {
 }
 
 function escapeHtml(v) {
-  return String(v ?? '').replace(/[&<>"']/g, c => (
-    {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[c]
-  ));
+  return String(v ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[c]));
+}
+
+function toDateObject(value) {
+  if (!value) return null;
+
+  if (typeof value === 'object' && typeof value.toDate === 'function') {
+    const d = value.toDate();
+    return Number.isNaN(d?.getTime?.()) ? null : d;
+  }
+
+  if (typeof value === 'object' && value.seconds) {
+    const d = new Date(value.seconds * 1000);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 function formatDate(value) {
-  if (!value) return '—';
+  const date = toDateObject(value);
+  if (!date) return value ? String(value) : '—';
 
-  if (typeof value === 'object' && value.seconds) {
-    const date = new Date(value.seconds * 1000);
-    return new Intl.DateTimeFormat('ar-SA', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+  return new Intl.DateTimeFormat('ar-SA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
+}
+
+function formatDateOnly(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('ar-SA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(date);
+}
+
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function endOfDay(date) {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function getVisitDate(item) {
+  return toDateObject(item.date || item.visitDate || item.createdAt || item.timestamp);
+}
+
+function getChecklistDate(item) {
+  return toDateObject(item.visitDate || item.date || item.createdAt || item.timestamp);
+}
+
+function getRangeDates(range) {
+  const now = new Date();
+  const end = endOfDay(now);
+  const start = startOfDay(now);
+
+  switch (range) {
+    case 'week':
+      start.setDate(start.getDate() - 6);
+      return { start, end };
+    case 'month':
+      start.setMonth(start.getMonth() - 1);
+      start.setDate(start.getDate() + 1);
+      return { start, end };
+    case 'quarter':
+      start.setMonth(start.getMonth() - 3);
+      start.setDate(start.getDate() + 1);
+      return { start, end };
+    case 'half':
+      start.setMonth(start.getMonth() - 6);
+      start.setDate(start.getDate() + 1);
+      return { start, end };
+    case 'year':
+      start.setFullYear(start.getFullYear() - 1);
+      start.setDate(start.getDate() + 1);
+      return { start, end };
+    default:
+      return null;
+  }
+}
+
+function inCustomRange(itemDate) {
+  if (!itemDate) return false;
+  const from = filters.from ? startOfDay(new Date(filters.from)) : null;
+  const to = filters.to ? endOfDay(new Date(filters.to)) : null;
+  if (from && itemDate < from) return false;
+  if (to && itemDate > to) return false;
+  return true;
+}
+
+function inPresetRange(itemDate) {
+  if (!itemDate) return false;
+  const range = getRangeDates(filters.range);
+  if (!range) return true;
+  return itemDate >= range.start && itemDate <= range.end;
+}
+
+function getFilteredVisits() {
+  const visits = [...state.visits];
+  if (filters.range === 'custom') {
+    return visits.filter(v => inCustomRange(getVisitDate(v)));
+  }
+  return visits.filter(v => inPresetRange(getVisitDate(v)));
+}
+
+function getFilteredChecklists() {
+  const checklists = [...state.checklists];
+  if (filters.range === 'custom') {
+    return checklists.filter(v => inCustomRange(getChecklistDate(v)));
+  }
+  return checklists.filter(v => inPresetRange(getChecklistDate(v)));
+}
+
+function updateActivePresetButtons() {
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.range === filters.range);
+  });
+}
+
+function updateRangeLabel() {
+  const label = $('activeRangeLabel');
+
+  if (filters.range === 'custom') {
+    const fromText = filters.from ? formatDateOnly(new Date(filters.from)) : '—';
+    const toText = filters.to ? formatDateOnly(new Date(filters.to)) : '—';
+    label.textContent = `الفترة الحالية: من ${fromText} إلى ${toText}`;
+    return;
   }
 
-  const date = new Date(value);
-  if (!Number.isNaN(date.getTime())) {
-    return new Intl.DateTimeFormat('ar-SA', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
-  }
+  const labels = {
+    week: 'آخر أسبوع',
+    month: 'آخر شهر',
+    quarter: 'آخر ربع سنة',
+    half: 'آخر نصف سنة',
+    year: 'آخر سنة كاملة'
+  };
 
-  return String(value);
+  const range = getRangeDates(filters.range);
+  if (range) {
+    label.textContent = `الفترة الحالية: ${labels[filters.range] || '—'} (${formatDateOnly(range.start)} → ${formatDateOnly(range.end)})`;
+  } else {
+    label.textContent = 'الفترة الحالية: —';
+  }
 }
 
 function badgeClassByStatus(value) {
@@ -446,17 +671,16 @@ function getNotes(v) {
   return v.notes || v.note || v.comments || v.remark || '—';
 }
 
-function renderVisitsTable() {
+function renderVisitsTable(filteredVisits) {
   const body = $('visitsTableBody');
-  const visits = state.visits || [];
-  $('visitsTableCount').textContent = visits.length;
+  $('visitsTableCount').textContent = filteredVisits.length;
 
-  if (!visits.length) {
-    body.innerHTML = '<tr><td colspan="9" class="empty-state">لا توجد زيارات لعرضها</td></tr>';
+  if (!filteredVisits.length) {
+    body.innerHTML = '<tr><td colspan="9" class="empty-state">لا توجد زيارات ضمن الفترة المحددة</td></tr>';
     return;
   }
 
-  body.innerHTML = visits.map((v, index) => {
+  body.innerHTML = filteredVisits.map((v, index) => {
     const checklistDone = v.checklistCompleted === true ? 'مكتمل' : 'غير مكتمل';
     const checklistClass = v.checklistCompleted === true ? 'badge badge-success' : 'badge badge-warning';
     const statusText = statusLabel(v.status);
@@ -478,16 +702,19 @@ function renderVisitsTable() {
 }
 
 function renderStats() {
+  const filteredVisits = getFilteredVisits();
+  const filteredChecklists = getFilteredChecklists();
+
   $('statBranches').textContent = state.branches.length;
   $('statTechnicians').textContent = state.technicians.length;
-  $('statVisits').textContent = state.visits.length;
-  $('statChecklists').textContent = state.checklists.length;
+  $('statVisits').textContent = filteredVisits.length;
+  $('statChecklists').textContent = filteredChecklists.length;
 
-  const completed = state.visits.filter(v =>
+  const completed = filteredVisits.filter(v =>
     normalizeStatus(v.status) === 'completed' || v.checklistCompleted === true
   ).length;
 
-  const pending = state.visits.filter(v => {
+  const pending = filteredVisits.filter(v => {
     const status = normalizeStatus(v.status);
     if (status === 'pending') return true;
     if (status !== 'completed' && status !== 'cancelled' && v.checklistCompleted !== true) return true;
@@ -495,23 +722,23 @@ function renderStats() {
   }).length;
 
   const visitedTechs = new Set(
-    state.visits
+    filteredVisits
       .map(v => v.technicianDocId || v.technicianId || v.technicianEmail)
       .filter(Boolean)
   );
 
   const brandNames = new Set(
-    [
-      ...state.visits.map(v => v.brand || v.brandName || v.name || ''),
-      ...state.brands.map(b => b.brandName || b.brand || b.name || b.title || '')
-    ].map(v => String(v || '').trim()).filter(Boolean)
+    filteredVisits
+      .map(v => v.brand || v.brandName || v.name || '')
+      .map(v => String(v || '').trim())
+      .filter(Boolean)
   );
 
   const brandTypes = new Set(
-    [
-      ...state.visits.map(v => v.brandType || v.brand_type || v.type || v.category || ''),
-      ...state.brands.map(b => b.brandType || b.brand_type || b.type || b.category || '')
-    ].map(v => String(v || '').trim()).filter(Boolean)
+    filteredVisits
+      .map(v => v.brandType || v.brand_type || v.type || v.category || '')
+      .map(v => String(v || '').trim())
+      .filter(Boolean)
   );
 
   $('statCompletedVisits').textContent = completed;
@@ -523,7 +750,7 @@ function renderStats() {
   const box = $('brandNamesBox');
   if (brandNames.size === 0) {
     box.className = 'brand-list empty';
-    box.textContent = 'لا توجد أسماء برندات';
+    box.textContent = 'لا توجد أسماء برندات ضمن الفترة المحددة';
   } else {
     box.className = 'brand-list';
     box.innerHTML = [...brandNames]
@@ -532,7 +759,76 @@ function renderStats() {
       .join('');
   }
 
-  renderVisitsTable();
+  updateActivePresetButtons();
+  updateRangeLabel();
+  renderVisitsTable(filteredVisits);
+}
+
+function applyPresetRange(range) {
+  filters.range = range;
+  if (range !== 'custom') {
+    filters.from = '';
+    filters.to = '';
+    $('filterFrom').value = '';
+    $('filterTo').value = '';
+  }
+  renderStats();
+}
+
+function applyCustomRange() {
+  const from = $('filterFrom').value;
+  const to = $('filterTo').value;
+
+  if (!from && !to) {
+    filters.range = 'year';
+    filters.from = '';
+    filters.to = '';
+    renderStats();
+    return;
+  }
+
+  if (from && to && new Date(from) > new Date(to)) {
+    alert('تاريخ البداية يجب أن يكون قبل أو يساوي تاريخ النهاية');
+    return;
+  }
+
+  filters.range = 'custom';
+  filters.from = from;
+  filters.to = to;
+  renderStats();
+}
+
+function resetFilters() {
+  filters.range = 'year';
+  filters.from = '';
+  filters.to = '';
+  $('filterFrom').value = '';
+  $('filterTo').value = '';
+  renderStats();
+}
+
+function bindFilterEvents() {
+  if (filtersBound) return;
+  filtersBound = true;
+
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyPresetRange(btn.dataset.range));
+  });
+
+  $('applyDateFilter').addEventListener('click', applyCustomRange);
+  $('resetDateFilter').addEventListener('click', resetFilters);
+
+  $('filterFrom').addEventListener('change', () => {
+    filters.range = 'custom';
+    updateActivePresetButtons();
+    updateRangeLabel();
+  });
+
+  $('filterTo').addEventListener('change', () => {
+    filters.range = 'custom';
+    updateActivePresetButtons();
+    updateRangeLabel();
+  });
 }
 
 function clear() {
@@ -571,6 +867,8 @@ onAuthStateChanged(auth, user => {
   $('loginBox').classList.add('hidden');
   $('app').classList.remove('hidden');
   clear();
+  bindFilterEvents();
+  renderStats();
 
   unsub.push(onSnapshot(collection(db, 'branches'), s => {
     state.branches = s.docs.map(d => ({ id: d.id, ...d.data() }));
