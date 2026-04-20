@@ -53,19 +53,21 @@ section.active{display:block}
   display:grid;
   grid-template-columns:repeat(4,1fr);
   gap:16px;
-  margin-bottom:20px;
 }
 .card{
   background:#0d4b73;color:#fff;
   padding:16px;border-radius:14px;text-align:center;
 }
-.card span{font-size:13px}
-.card strong{display:block;font-size:28px}
+.card strong{font-size:28px}
 
 /* ===== TABLE ===== */
 table{width:100%;border-collapse:collapse;background:#fff}
 th,td{padding:10px;border-bottom:1px solid #ddd;text-align:center}
 thead{background:#0d4b73;color:#fff}
+
+/* ===== STATUS ===== */
+.ok{color:green;font-weight:bold}
+.warn{color:#c47f00;font-weight:bold}
 </style>
 </head>
 
@@ -85,10 +87,10 @@ thead{background:#0d4b73;color:#fff}
 
 <header>
   <div class="header-left">
-    <img src="LOGO-almajdouie.png">
+    LOGO-almajdouie.png
     <div>
       <div>إدارة زيارات الفروع والفنيين</div>
-      <div class="app-version">v5.0 • 2026‑04‑23</div>
+      <div class="app-version">v5.1 • 2026‑04‑23</div>
     </div>
   </div>
   <button class="logout-btn" id="logoutBtn">Logout</button>
@@ -96,9 +98,7 @@ thead{background:#0d4b73;color:#fff}
 
 <nav>
   <button class="active" onclick="openTab('dashboard',this)">Dashboard</button>
-  <button onclick="openTab('checklist',this)">Check‑List</button>
-  <button onclick="openTab('visits',this)">إدخال زيارة</button>
-  <button onclick="openTab('branches',this)">إدارة الفروع</button>
+  <button onclick="openTab('dynamic',this)">Dynamic Check‑List</button>
 </nav>
 
 <!-- ===== DASHBOARD ===== -->
@@ -112,51 +112,23 @@ thead{background:#0d4b73;color:#fff}
   </div>
 </section>
 
-<!-- ===== CHECK‑LIST ===== -->
-<section id="checklist">
-<h2>Check‑List</h2>
-<table>
-<thead>
-<tr>
-  <th>الفرع</th>
-  <th>البراند</th>
-  <th>عدد الأسئلة</th>
-  <th>تاريخ الحفظ</th>
-</tr>
-</thead>
-<tbody id="checklistTable"></tbody>
-</table>
-</section>
+<!-- ===== DYNAMIC CHECK‑LIST ===== -->
+<section id="dynamic">
+<h2>Dynamic Check‑List (Admin)</h2>
 
-<!-- ===== VISITS ===== -->
-<section id="visits">
-<h2>إدخال زيارة</h2>
+<select id="checklistSelector">
+  <option value="">اختر Check‑List</option>
+</select>
+
 <table>
 <thead>
 <tr>
-  <th>الفرع</th>
-  <th>الفني</th>
-  <th>التاريخ</th>
+  <th>السؤال</th>
+  <th>الإجابة</th>
   <th>الحالة</th>
 </tr>
 </thead>
-<tbody id="visitsTable"></tbody>
-</table>
-</section>
-
-<!-- ===== BRANCHES ===== -->
-<section id="branches">
-<h2>إدارة الفروع</h2>
-<table>
-<thead>
-<tr>
-  <th>اسم الفرع</th>
-  <th>المدينة</th>
-  <th>المنطقة</th>
-  <th>البراند</th>
-</tr>
-</thead>
-<tbody id="branchesTable"></tbody>
+<tbody id="dynamicTable"></tbody>
 </table>
 </section>
 
@@ -179,18 +151,17 @@ const appFB = initializeApp(firebaseConfig);
 const auth = getAuth(appFB);
 const db = getFirestore(appFB);
 
-const loginBox = document.getElementById('loginBox');
-const app = document.getElementById('app');
+const loginBox=document.getElementById('loginBox');
+const app=document.getElementById('app');
 
 /* ===== LOGIN ===== */
-loginBtn.onclick = async ()=>{
+loginBtn.onclick=async()=>{
   try{
-    await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value);
-  }catch(e){ loginMsg.textContent=e.message }
+    await signInWithEmailAndPassword(auth,loginEmail.value,loginPassword.value);
+  }catch(e){loginMsg.textContent=e.message}
 };
-logoutBtn.onclick = ()=>signOut(auth);
+logoutBtn.onclick=()=>signOut(auth);
 
-/* ===== AUTH ===== */
 onAuthStateChanged(auth,user=>{
   if(user){
     loginBox.style.display='none';
@@ -210,66 +181,47 @@ window.openTab=(id,btn)=>{
 };
 
 /* ===== DASHBOARD COUNTERS ===== */
-onSnapshot(collection(db,'branches'),s=>{
-  statBranches.textContent = s.size;
+onSnapshot(collection(db,'branches'),s=>statBranches.textContent=s.size);
+onSnapshot(collection(db,'technicians'),s=>statTechnicians.textContent=s.size);
+onSnapshot(collection(db,'siteVisits'),s=>statVisits.textContent=s.size);
+onSnapshot(collection(db,'branch_checklists'),s=>statChecklists.textContent=s.size);
+
+/* ===== DYNAMIC CHECK‑LIST ===== */
+let checklistMap={};
+let questionsMap={};
+
+onSnapshot(collection(db,'checklist_fields'),s=>{
+  s.docs.forEach(d=>{
+    questionsMap[d.id]=d.data().question;
+  });
 });
-onSnapshot(collection(db,'technicians'),s=>{
-  statTechnicians.textContent = s.size;
-});
-onSnapshot(collection(db,'siteVisits'),s=>{
-  statVisits.textContent = s.size;
-});
+
 onSnapshot(collection(db,'branch_checklists'),s=>{
-  statChecklists.textContent = s.size;
-});
-
-/* ===== CHECK‑LIST TABLE ===== */
-onSnapshot(collection(db,'branch_checklists'),s=>{
-  checklistTable.innerHTML='';
+  checklistSelector.innerHTML='<option value="">اختر Check‑List</option>';
+  checklistMap={};
   s.docs.forEach(d=>{
-    const c=d.data();
-    const answersCount = c.dynamicAnswers ? Object.keys(c.dynamicAnswers).length : 0;
-    checklistTable.innerHTML+=`
-      <tr>
-        <td>${c.branchName}</td>
-        <td>${c.brand}</td>
-        <td>${answersCount}</td>
-        <td>${c.checkListSavedAt}</td>
-      </tr>`;
+    checklistMap[d.id]=d.data();
+    checklistSelector.innerHTML+=`<option value="${d.id}">${d.data().branchName} - ${d.data().brand}</option>`;
   });
 });
 
-/* ===== VISITS TABLE ===== */
-onSnapshot(collection(db,'siteVisits'),s=>{
-  visitsTable.innerHTML='';
-  s.docs.forEach(d=>{
-    const v=d.data();
-    visitsTable.innerHTML+=`
-      <tr>
-        <td>${v.branchName}</td>
-        <td>${v.technicianName}</td>
-        <td>${v.date}</td>
-        <td>${v.status}</td>
-      </tr>`;
-  });
-});
+checklistSelector.onchange=()=>{
+  dynamicTable.innerHTML='';
+  const cl=checklistMap[checklistSelector.value];
+  if(!cl || !cl.dynamicAnswers) return;
 
-/* ===== BRANCHES TABLE ===== */
-onSnapshot(collection(db,'branches'),s=>{
-  branchesTable.innerHTML='';
-  s.docs.forEach(d=>{
-    const b=d.data();
-    branchesTable.innerHTML+=`
+  Object.keys(cl.dynamicAnswers).forEach(qid=>{
+    const answer=cl.dynamicAnswers[qid];
+    const status=answer==='yes'||answer==='fully_functioning';
+    dynamicTable.innerHTML+=`
       <tr>
-        <td>${b.branchName}</td>
-        <td>${b.city}</td>
-        <td>${b.region}</td>
-        <td>${b.brand}</td>
+        <td>${questionsMap[qid]||qid}</td>
+        <td>${answer}</td>
+        <td class="${status?'ok':'warn'}">${status?'✅':'⚠️'}</td>
       </tr>`;
   });
-});
+};
 </script>
 
 </body>
 </html>
-``
