@@ -101,7 +101,7 @@ header{
   cursor:pointer;
 }
 
-/* ===== DASHBOARD ===== */
+/* ===== APP ===== */
 #app{
   display:none;
 }
@@ -118,7 +118,7 @@ header{
   font-weight:bold;
 }
 
-/* الكروت نفس الشكل القديم */
+/* ===== DASHBOARD CARDS (نفس الشكل) ===== */
 .cards-top{
   display:grid;
   grid-template-columns:repeat(4,1fr);
@@ -147,6 +147,7 @@ header{
   display:grid;
   grid-template-columns:repeat(4,1fr);
   gap:16px;
+  margin-bottom:30px;
 }
 
 .card-white{
@@ -166,6 +167,28 @@ header{
 .card-white span{
   font-size:13px;
   color:#555;
+}
+
+/* ===== TABLES ===== */
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-bottom:30px;
+}
+
+thead{
+  background:#0d4b73;
+  color:#fff;
+}
+
+th,td{
+  padding:10px;
+  text-align:center;
+  border-bottom:1px solid #ddd;
+}
+
+h3{
+  margin:20px 0 10px;
 }
 </style>
 </head>
@@ -214,11 +237,39 @@ header{
 
   <!-- الصف السفلي -->
   <div class="cards-bottom">
+    <div class="card-white"><strong id="statCompletedVisits">0</strong><span>زيارات مكتملة</span></div>
+    <div class="card-white"><strong id="statPendingVisits">0</strong><span>زيارات معلّقة</span></div>
     <div class="card-white"><strong id="statVisitedTechnicians">0</strong><span>فنيين قاموا بزيارة</span></div>
     <div class="card-white"><strong id="statBrands">0</strong><span>عدد البراندات</span></div>
-    <div class="card-white"><strong id="statPendingVisits">0</strong><span>زيارات معلّقة</span></div>
-    <div class="card-white"><strong id="statCompletedVisits">0</strong><span>زيارات مكتملة</span></div>
   </div>
+
+  <!-- ===== STAGE 3 ===== -->
+  <h3>Latest Check‑Lists</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>الفرع</th>
+        <th>البراند</th>
+        <th>الفني</th>
+        <th>التاريخ</th>
+        <th>الحالة</th>
+      </tr>
+    </thead>
+    <tbody id="latestChecklists"></tbody>
+  </table>
+
+  <h3>Latest Visits</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>الفرع</th>
+        <th>الفني</th>
+        <th>التاريخ</th>
+        <th>الحالة</th>
+      </tr>
+    </thead>
+    <tbody id="latestVisits"></tbody>
+  </table>
 
 </div>
 </div>
@@ -244,7 +295,7 @@ const loginBox = document.getElementById('loginBox');
 const appBox = document.getElementById('app');
 
 /* ===== LOGIN ===== */
-document.getElementById('loginBtn').onclick = async ()=>{
+loginBtn.onclick = async ()=>{
   try{
     await signInWithEmailAndPassword(
       auth,
@@ -256,9 +307,9 @@ document.getElementById('loginBtn').onclick = async ()=>{
   }
 };
 
-document.getElementById('logoutBtn').onclick = ()=>signOut(auth);
+logoutBtn.onclick = ()=>signOut(auth);
 
-/* ===== DASHBOARD DATA (STAGE 1 + 2) ===== */
+/* ===== STATE ===== */
 const state = { branches:[], technicians:[], visits:[], checklists:[] };
 
 function startDashboard(){
@@ -285,6 +336,7 @@ function startDashboard(){
 }
 
 function render(){
+
   statBranches.textContent = state.branches.length;
   statTechnicians.textContent = state.technicians.length;
   statVisits.textContent = state.visits.length;
@@ -301,6 +353,37 @@ function render(){
 
   statVisitedTechnicians.textContent = techs.size;
   statBrands.textContent = brands.size;
+
+  renderLatestTables();
+}
+
+/* ===== STAGE 3 TABLES ===== */
+function renderLatestTables(){
+
+  latestChecklists.innerHTML = '';
+  state.checklists.slice(-5).reverse().forEach(c=>{
+    latestChecklists.innerHTML += `
+      <tr>
+        <td>${c.branchName || '-'}</td>
+        <td>${c.brand || '-'}</td>
+        <td>${c.technicianName || '-'}</td>
+        <td>${c.visitDate || '-'}</td>
+        <td>${c.checklistCompleted ? 'مكتملة' : 'معلّقة'}</td>
+      </tr>
+    `;
+  });
+
+  latestVisits.innerHTML = '';
+  state.visits.slice(-5).reverse().forEach(v=>{
+    latestVisits.innerHTML += `
+      <tr>
+        <td>${v.branchName || '-'}</td>
+        <td>${v.technicianName || '-'}</td>
+        <td>${v.date || '-'}</td>
+        <td>${v.status || '-'}</td>
+      </tr>
+    `;
+  });
 }
 
 /* ===== AUTH STATE ===== */
@@ -318,4 +401,3 @@ onAuthStateChanged(auth,user=>{
 
 </body>
 </html>
-``
