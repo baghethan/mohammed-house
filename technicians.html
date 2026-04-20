@@ -1,0 +1,587 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>technicians.html - Technician Management</title>
+  <style>
+    :root{
+      --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
+      --border:#d7e0ea; --text:#163247; --muted:#6e8192; --bg:#edf3f8; --card:#fff; --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg)}
+    .hidden{display:none!important}.rtl-en{display:inline-block;direction:ltr;unicode-bidi:embed}
+    header{background:var(--primary);color:#fff;padding:14px 18px;box-shadow:var(--shadow);position:sticky;top:0;z-index:50}
+    .header-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+    .title{font-size:24px;font-weight:800}
+    .user-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:8px 12px;border-radius:999px}
+    .container{max-width:1450px;margin:18px auto;padding:0 14px 28px}
+    .grid-2{display:grid;grid-template-columns:1.05fr .95fr;gap:16px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:14px}
+    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px}
+    .field{display:grid;gap:8px}
+    .field label{font-size:14px;font-weight:700}
+    .field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:inherit;background:#fbfcfe}
+    .field textarea{min-height:96px;resize:vertical}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;overflow:hidden}
+    .card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
+    .btn{border:1px solid var(--border);border-radius:999px;padding:10px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer}
+    .btn.green{background:var(--green);border-color:var(--green);color:#fff}
+    .btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+    .btn.small{padding:7px 11px;font-size:12px}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .note{background:#f6fbff;border:1px dashed #bfd7e8;color:#33546b;border-radius:12px;padding:10px 12px;margin-top:12px;line-height:1.7}
+    .alert{padding:10px 12px;border-radius:12px;margin-top:10px}
+    .alert.error{background:#ffecec;border:1px solid #f3b0b0;color:#8a1f1f}
+    .alert.ok{background:#eaf9f0;border:1px solid #bce3c9;color:#20643b}
+    .list{display:grid;gap:10px;max-height:78vh;overflow:auto}
+    .item{background:#fcfdff;border:1px solid var(--border);border-radius:14px;padding:12px}
+    .item strong{display:block;color:var(--primary);margin-bottom:6px}.item small{display:block;color:var(--muted);line-height:1.55}
+    .mini-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef5ff;color:#295fa5;font-size:12px;font-weight:700}
+    .overlay{position:fixed;inset:0;background:rgba(13,75,115,.18);display:flex;align-items:center;justify-content:center;padding:16px;z-index:200}
+    .login-card{width:min(760px,96vw);background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 20px 50px rgba(0,0,0,.15);overflow:hidden}
+    .login-head{background:var(--primary);color:#fff;padding:16px 20px;font-size:18px;font-weight:800}
+    .login-body{padding:18px}
+    .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    @media (max-width:1200px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="overlay" id="loginOverlay">
+    <div class="login-card">
+      <div class="login-head" id="loginTitle">تسجيل الدخول / Sign In</div>
+      <div class="login-body">
+        <div class="note" id="loginNote">صفحة مستقلة لإدارة الفنيين ونطاق الزيارة لكل فني.</div>
+        <div class="grid-3" style="margin-top:14px">
+          <div class="field"><label id="emailLabel">البريد الإلكتروني / Email</label><input id="loginEmail" type="email" placeholder="name@company.com"></div>
+          <div class="field"><label id="passwordLabel">كلمة المرور / Password</label><input id="loginPassword" type="password" placeholder="Password"></div>
+          <div class="field"><label> </label><button class="btn green" id="loginBtn" type="button">دخول / Login</button></div>
+        </div>
+        <div class="note" id="loginMessage">ادخل بحساب موجود في Firebase Authentication و <span class="rtl-en">app_users</span>.</div>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <div class="header-row">
+      <div class="title" id="appTitle">إدارة الفنيين / Technician Management</div>
+      <div class="user-row">
+        <button class="btn small" id="langArBtn" type="button">AR</button>
+        <button class="btn small" id="langEnBtn" type="button">EN</button>
+        <span class="chip">v1.0.0</span>
+        <span class="chip hidden" id="currentUserChip"></span>
+        <button class="btn danger hidden" id="logoutBtn" type="button">خروج / Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container hidden" id="appRoot">
+    <div class="toolbar">
+      <div class="badge">technicians</div>
+      <div class="note" id="toolbarNote" style="margin:0">اختر الفني الموجود أو عدّل بياناته وحدد له نطاق الزيارة حسب المنطقة / المدينة / البراند / الفرع.</div>
+    </div>
+
+    <section id="techniciansSection">
+      <div class="grid-2">
+        <div class="card">
+          <h3 id="technicianFormTitle">إدارة الفنيين</h3>
+          <div class="note" id="formNote">اختر الفني الموجود من القائمة أو من زر التعديل، ثم حدّد له نطاق الزيارة من الاختيارات التالية: <span class="rtl-en">Region / City / Brand / Branch Name</span>. عند إدخال زيارة لهذا الفني ستظهر له فقط الفروع المطابقة.</div>
+
+          <div class="grid-3" style="margin-top:12px">
+            <div class="field"><label id="selectorLabel">اختيار فني موجود</label><select id="technicianSelector"></select></div>
+            <div class="field"><label> </label><button class="btn" id="loadTechnicianBtn" type="button">تحميل بيانات الفني</button></div>
+            <div class="field"><label> </label><span class="badge" id="selectorBadge">اختر الفني ثم احفظ التعديل</span></div>
+          </div>
+
+          <div class="grid-4" style="margin-top:12px">
+            <div class="field"><label id="docIdLabel">Document ID / UID</label><input id="technicianDocId"></div>
+            <div class="field"><label id="codeLabel">معرف الفني (Code)</label><input id="technicianCode"></div>
+            <div class="field"><label id="nameLabel">اسم الفني</label><input id="technicianNameInput"></div>
+            <div class="field"><label id="emailFieldLabel">البريد الإلكتروني</label><input id="technicianEmail" type="email"></div>
+            <div class="field"><label>authUid</label><input id="technicianAuthUid"></div>
+            <div class="field"><label id="statusLabel">الحالة</label><select id="technicianStatus"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+            <div class="field"><label>Region</label><select id="techAssignRegion"></select></div>
+            <div class="field"><label>City</label><select id="techAssignCity"></select></div>
+            <div class="field"><label>Brand</label><select id="techAssignBrand"></select></div>
+            <div class="field" style="grid-column: span 2;"><label>Branch_Name</label><select id="techAssignBranch"></select></div>
+          </div>
+
+          <div class="actions">
+            <button class="btn green" id="saveTechnicianBtn" type="button">حفظ الفني</button>
+            <button class="btn" id="clearTechnicianBtn" type="button">تنظيف النموذج</button>
+            <button class="btn danger hidden" id="deleteTechnicianBtn" type="button">حذف الفني</button>
+          </div>
+
+          <div class="note" id="technicianMessage">اختر الفني أولاً، ثم حدّد له <span class="rtl-en">Region / City / Brand / Branch Name</span> واحفظ التعديل.</div>
+          <div id="technicianError" class="alert error hidden"></div>
+        </div>
+
+        <div class="card">
+          <h3 id="techniciansCurrentTitle">الفنيون الحاليون</h3>
+          <div class="list" id="techniciansList"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, collection, doc, setDoc, deleteDoc, query, orderBy, onSnapshot, Timestamp, getDocs, where, limit } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
+      authDomain:'baghethan-ba325.firebaseapp.com',
+      projectId:'baghethan-ba325',
+      storageBucket:'baghethan-ba325.firebasestorage.app',
+      messagingSenderId:'944819735112',
+      appId:'1:944819735112:web:07315600da39377320667d'
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    setPersistence(auth, browserLocalPersistence).catch(err => console.warn('Auth persistence warning:', err));
+    const db = getFirestore(app);
+
+    const state = {
+      technicians: [],
+      branches: [],
+      currentUser: null,
+      currentUserProfile: null,
+      currentLang: 'ar'
+    };
+
+    let unsubTechnicians = null, unsubBranches = null;
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (s) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+
+    const I18N = {
+      ar: {
+        appTitle:'إدارة الفنيين / Technician Management',
+        loginTitle:'تسجيل الدخول / Sign In',
+        loginNote:'صفحة مستقلة لإدارة الفنيين ونطاق الزيارة لكل فني.',
+        emailLabel:'البريد الإلكتروني / Email',
+        passwordLabel:'كلمة المرور / Password',
+        loginBtn:'دخول / Login',
+        toolbarNote:'اختر الفني الموجود أو عدّل بياناته وحدد له نطاق الزيارة حسب المنطقة / المدينة / البراند / الفرع.',
+        technicianFormTitle:'إدارة الفنيين',
+        formNote:'اختر الفني الموجود من القائمة أو من زر التعديل، ثم حدّد له نطاق الزيارة من الاختيارات التالية: Region / City / Brand / Branch Name. عند إدخال زيارة لهذا الفني ستظهر له فقط الفروع المطابقة.',
+        selectorLabel:'اختيار فني موجود',
+        loadTechnician:'تحميل بيانات الفني',
+        selectorBadge:'اختر الفني ثم احفظ التعديل',
+        docIdLabel:'Document ID / UID',
+        codeLabel:'معرف الفني (Code)',
+        nameLabel:'اسم الفني',
+        emailFieldLabel:'البريد الإلكتروني',
+        statusLabel:'الحالة',
+        save:'حفظ الفني',
+        clear:'تنظيف النموذج',
+        delete:'حذف الفني',
+        technicianMessage:'اختر الفني أولاً، ثم حدّد له Region / City / Brand / Branch Name واحفظ التعديل.',
+        techniciansCurrent:'الفنيون الحاليون',
+        noTechnicians:'لا يوجد فنيون.',
+        edit:'تحديد نطاق الزيارة',
+        deleteAction:'حذف',
+        loginMissing:'أدخل البريد الإلكتروني وكلمة المرور.',
+        loginHelp:'ادخل بحساب موجود في Firebase Authentication و app_users.',
+        unauthorized:'ليس لديك صلاحية إدارة الفنيين.',
+        selectTechnicianFirst:'اختر الفني أولاً من القائمة.',
+        docIdRequired:'Document ID / UID مطلوب',
+        saved:'تم حفظ الفني مع نطاق الزيارة.',
+        deleted:'تم حذف الفني.',
+        deleteConfirm:'هل تريد حذف الفني؟',
+        loaded:'تم تحميل بيانات الفني. حدّد النطاق ثم احفظ.',
+        loading:'جاري التحميل...',
+        allRegions:'كل المناطق',
+        allCities:'كل المدن',
+        allBrands:'كل البراندات',
+        allBranches:'كل الفروع',
+        selectTechnicianPlaceholder:'اختر فني للتعديل'
+      },
+      en: {
+        appTitle:'Technician Management / إدارة الفنيين',
+        loginTitle:'Sign In / تسجيل الدخول',
+        loginNote:'Standalone page to manage technicians and their visit scope.',
+        emailLabel:'Email / البريد الإلكتروني',
+        passwordLabel:'Password / كلمة المرور',
+        loginBtn:'Login / دخول',
+        toolbarNote:'Choose an existing technician or edit their data and set the visit scope by region / city / brand / branch.',
+        technicianFormTitle:'Technician Management',
+        formNote:'Choose an existing technician from the list or the edit button, then set the visit scope using Region / City / Brand / Branch Name. When entering a visit for this technician, only matching branches will appear.',
+        selectorLabel:'Select Existing Technician',
+        loadTechnician:'Load Technician Data',
+        selectorBadge:'Select technician then save changes',
+        docIdLabel:'Document ID / UID',
+        codeLabel:'Technician Code',
+        nameLabel:'Technician Name',
+        emailFieldLabel:'Email',
+        statusLabel:'Status',
+        save:'Save Technician',
+        clear:'Clear Form',
+        delete:'Delete Technician',
+        technicianMessage:'Choose a technician first, then set Region / City / Brand / Branch Name and save.',
+        techniciansCurrent:'Current Technicians',
+        noTechnicians:'No technicians found.',
+        edit:'Edit Visit Scope',
+        deleteAction:'Delete',
+        loginMissing:'Enter email and password.',
+        loginHelp:'Sign in with an account available in Firebase Authentication and app_users.',
+        unauthorized:'You do not have permission to manage technicians.',
+        selectTechnicianFirst:'Choose a technician from the list first.',
+        docIdRequired:'Document ID / UID is required',
+        saved:'Technician saved with visit scope.',
+        deleted:'Technician deleted.',
+        deleteConfirm:'Delete this technician?',
+        loaded:'Technician loaded. Set the scope and save.',
+        loading:'Loading...',
+        allRegions:'All regions',
+        allCities:'All cities',
+        allBrands:'All brands',
+        allBranches:'All branches',
+        selectTechnicianPlaceholder:'Select technician to edit'
+      }
+    };
+
+    function t(key){ return I18N[state.currentLang][key] || key; }
+
+    function applyLanguage(lang){
+      state.currentLang = lang;
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      $('appTitle').textContent = t('appTitle');
+      $('loginTitle').textContent = t('loginTitle');
+      $('loginNote').textContent = t('loginNote');
+      $('emailLabel').textContent = t('emailLabel');
+      $('passwordLabel').textContent = t('passwordLabel');
+      $('loginBtn').textContent = t('loginBtn');
+      $('toolbarNote').textContent = t('toolbarNote');
+      $('technicianFormTitle').textContent = t('technicianFormTitle');
+      $('formNote').textContent = t('formNote');
+      $('selectorLabel').textContent = t('selectorLabel');
+      $('loadTechnicianBtn').textContent = t('loadTechnician');
+      $('selectorBadge').textContent = t('selectorBadge');
+      $('docIdLabel').textContent = t('docIdLabel');
+      $('codeLabel').textContent = t('codeLabel');
+      $('nameLabel').textContent = t('nameLabel');
+      $('emailFieldLabel').textContent = t('emailFieldLabel');
+      $('statusLabel').textContent = t('statusLabel');
+      $('saveTechnicianBtn').textContent = t('save');
+      $('clearTechnicianBtn').textContent = t('clear');
+      $('deleteTechnicianBtn').textContent = t('delete');
+      $('technicianMessage').textContent = t('technicianMessage');
+      $('techniciansCurrentTitle').textContent = t('techniciansCurrent');
+      if(!$('loginEmail').value && !$('loginPassword').value) $('loginMessage').textContent = t('loginHelp');
+      renderTechnicianSelectors();
+      renderTechniciansList();
+      populateTechnicianAssignmentOptions({
+        region: $('techAssignRegion')?.value || '',
+        city: $('techAssignCity')?.value || '',
+        brand: $('techAssignBrand')?.value || '',
+        branchId: $('techAssignBranch')?.value || ''
+      });
+    }
+
+    function setAlert(msg = '', kind = 'error'){
+      const el = $('technicianError');
+      if(!msg){
+        el.className = 'alert error hidden';
+        el.textContent = '';
+        return;
+      }
+      el.className = `alert ${kind}`;
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+
+    function setMessage(msg){ $('technicianMessage').textContent = msg; }
+
+    function setOptions(id, rows, placeholder=''){
+      const el = $(id);
+      const cur = el.value;
+      el.innerHTML = `<option value="">${placeholder}</option>` + rows.join('');
+      if(cur && Array.from(el.options).some(o => o.value === cur)) el.value = cur;
+    }
+
+    function normalizeMatchValue(v){ return String(v || '').trim().toLowerCase(); }
+    function uniqueSortedValues(arr){ return [...new Set(arr.filter(Boolean).map(v => String(v).trim()))].sort((a,b) => a.localeCompare(b)); }
+
+    function getTechnicianScopedBranches({region='', city='', brand=''} = {}){
+      const r = normalizeMatchValue(region), c = normalizeMatchValue(city), b = normalizeMatchValue(brand);
+      return state.branches.filter(x => {
+        if(r && normalizeMatchValue(x.region) !== r) return false;
+        const xCity = normalizeMatchValue(x.city || x.location);
+        if(c && xCity !== c) return false;
+        if(b && normalizeMatchValue(x.brand) !== b) return false;
+        return true;
+      });
+    }
+
+    function populateTechnicianAssignmentOptions(preferred = {}){
+      const currentRegion = preferred.region ?? $('techAssignRegion')?.value ?? '';
+      const currentCity = preferred.city ?? $('techAssignCity')?.value ?? '';
+      const currentBrand = preferred.brand ?? $('techAssignBrand')?.value ?? '';
+      const currentBranchId = preferred.branchId ?? $('techAssignBranch')?.value ?? '';
+
+      const regions = uniqueSortedValues(state.branches.map(b => b.region));
+      setOptions('techAssignRegion', regions.map(v => `<option value="${esc(v)}">${esc(v)}</option>`), t('allRegions'));
+      if(currentRegion) $('techAssignRegion').value = currentRegion;
+
+      const citySource = getTechnicianScopedBranches({region: $('techAssignRegion').value});
+      const cities = uniqueSortedValues(citySource.map(b => b.city || b.location));
+      setOptions('techAssignCity', cities.map(v => `<option value="${esc(v)}">${esc(v)}</option>`), t('allCities'));
+      if(currentCity && Array.from($('techAssignCity').options).some(o => o.value === currentCity)) $('techAssignCity').value = currentCity;
+
+      const brandSource = getTechnicianScopedBranches({region: $('techAssignRegion').value, city: $('techAssignCity').value});
+      const brands = uniqueSortedValues(brandSource.map(b => b.brand));
+      setOptions('techAssignBrand', brands.map(v => `<option value="${esc(v)}">${esc(v)}</option>`), t('allBrands'));
+      if(currentBrand && Array.from($('techAssignBrand').options).some(o => o.value === currentBrand)) $('techAssignBrand').value = currentBrand;
+
+      const branchSource = getTechnicianScopedBranches({region: $('techAssignRegion').value, city: $('techAssignCity').value, brand: $('techAssignBrand').value});
+      const branchOptions = branchSource
+        .slice()
+        .sort((a,b) => String(a.branchName || '').localeCompare(String(b.branchName || '')))
+        .map(b => `<option value="${esc(b.id)}">${esc(b.branchName || b.id)}${b.brand || b.region || b.city ? ` - ${esc(b.brand || '-')}/${esc(b.region || '-')}/${esc(b.city || b.location || '-')}` : ''}</option>`);
+      setOptions('techAssignBranch', branchOptions, t('allBranches'));
+      if(currentBranchId && Array.from($('techAssignBranch').options).some(o => o.value === currentBranchId)) $('techAssignBranch').value = currentBranchId;
+    }
+
+    function syncTechnicianAssignmentFromBranch(){
+      const branchId = $('techAssignBranch')?.value || '';
+      if(!branchId) return;
+      const b = state.branches.find(x => x.id === branchId);
+      if(!b) return;
+      $('techAssignRegion').value = b.region || '';
+      populateTechnicianAssignmentOptions({ region: b.region || '', city: b.city || b.location || '', brand: b.brand || '', branchId: b.id || '' });
+      if(Array.from($('techAssignCity').options).some(o => o.value === (b.city || b.location || ''))) $('techAssignCity').value = b.city || b.location || '';
+      if(Array.from($('techAssignBrand').options).some(o => o.value === (b.brand || ''))) $('techAssignBrand').value = b.brand || '';
+      if(Array.from($('techAssignBranch').options).some(o => o.value === (b.id || ''))) $('techAssignBranch').value = b.id || '';
+    }
+
+    function renderTechnicianSelectors(){
+      const rows = state.technicians
+        .slice()
+        .sort((a,b) => String(a.name || '').localeCompare(String(b.name || '')))
+        .map(tn => `<option value="${esc(tn.id)}">${esc(tn.name || tn.id)}${tn.region || tn.city || tn.brand ? ` - ${esc(tn.region || '-')}/${esc(tn.city || '-')}/${esc(tn.brand || '-')}` : ''}</option>`);
+      setOptions('technicianSelector', rows, t('selectTechnicianPlaceholder'));
+    }
+
+    function renderTechniciansList(){
+      $('techniciansList').innerHTML = state.technicians.length ? state.technicians.map(tn => `<div class="item"><strong>${esc(tn.name || tn.id)}</strong><small>Doc ID: ${esc(tn.id)} | Code: ${esc(tn.technicianCode || tn.id)}</small><small>Email: ${esc(tn.email || '-')} | authUid: ${esc(tn.authUid || '-')}</small><small>Region: ${esc(tn.region || '-')} | City: ${esc(tn.city || '-')} | Brand: ${esc(tn.brand || '-')}</small><small>Branch: ${esc(tn.assignedBranchName || tn.branchName || '-')} | Status: ${esc(tn.status || 'active')}</small><div class="mini-actions"><button class="btn small" data-edit-tech="${esc(tn.id)}">${t('edit')}</button><button class="btn small danger" data-delete-tech="${esc(tn.id)}">${t('deleteAction')}</button></div></div>`).join('') : `<div class="note">${t('noTechnicians')}</div>`;
+      document.querySelectorAll('[data-edit-tech]').forEach(btn => btn.addEventListener('click', () => openTechnicianForEdit(btn.dataset.editTech)));
+      document.querySelectorAll('[data-delete-tech]').forEach(btn => btn.addEventListener('click', () => deleteTechnicianById(btn.dataset.deleteTech)));
+    }
+
+    function clearTechnicianForm(){
+      ['technicianDocId','technicianCode','technicianNameInput','technicianEmail','technicianAuthUid'].forEach(id => $(id).value='');
+      ['techAssignRegion','techAssignCity','techAssignBrand','techAssignBranch'].forEach(id => $(id).value='');
+      if($('technicianSelector')) $('technicianSelector').value='';
+      $('technicianStatus').value='active';
+      $('deleteTechnicianBtn').classList.add('hidden');
+      populateTechnicianAssignmentOptions({region:'', city:'', brand:'', branchId:''});
+      setMessage(t('technicianMessage'));
+      setAlert('');
+    }
+
+    function openTechnicianForEdit(id){
+      const tn = state.technicians.find(x => x.id === id);
+      if(!tn) return;
+      $('technicianSelector').value = tn.id || '';
+      $('technicianDocId').value = tn.id || '';
+      $('technicianCode').value = tn.technicianCode || '';
+      $('technicianNameInput').value = tn.name || '';
+      $('technicianEmail').value = tn.email || '';
+      $('technicianAuthUid').value = tn.authUid || '';
+      $('technicianStatus').value = tn.status || 'active';
+      populateTechnicianAssignmentOptions({ region: tn.region || '', city: tn.city || '', brand: tn.brand || '', branchId: tn.assignedBranchId || '' });
+      if(tn.region && Array.from($('techAssignRegion').options).some(o => o.value === tn.region)) $('techAssignRegion').value = tn.region;
+      populateTechnicianAssignmentOptions({ region: tn.region || '', city: tn.city || '', brand: tn.brand || '', branchId: tn.assignedBranchId || '' });
+      if(tn.city && Array.from($('techAssignCity').options).some(o => o.value === tn.city)) $('techAssignCity').value = tn.city;
+      if(tn.brand && Array.from($('techAssignBrand').options).some(o => o.value === tn.brand)) $('techAssignBrand').value = tn.brand;
+      if(tn.assignedBranchId && Array.from($('techAssignBranch').options).some(o => o.value === tn.assignedBranchId)) $('techAssignBranch').value = tn.assignedBranchId;
+      $('deleteTechnicianBtn').classList.remove('hidden');
+      setMessage(t('loaded'));
+      setAlert('');
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    function loadSelectedTechnician(){
+      const id = $('technicianSelector')?.value || '';
+      if(!id){ setAlert(t('selectTechnicianFirst')); return; }
+      openTechnicianForEdit(id);
+    }
+
+    async function saveTechnician(){
+      try{
+        const docId = $('technicianDocId').value.trim();
+        if(!docId) throw new Error(t('docIdRequired'));
+        const assignedBranch = state.branches.find(b => b.id === ($('techAssignBranch').value || '')) || null;
+        const payload = {
+          technicianCode: $('technicianCode').value.trim(),
+          name: $('technicianNameInput').value.trim(),
+          email: $('technicianEmail').value.trim(),
+          authUid: $('technicianAuthUid').value.trim(),
+          region: $('techAssignRegion').value.trim(),
+          city: $('techAssignCity').value.trim(),
+          brand: $('techAssignBrand').value.trim(),
+          assignedBranchId: $('techAssignBranch').value || '',
+          assignedBranchName: assignedBranch?.branchName || '',
+          status: $('technicianStatus').value,
+          updatedAt: Timestamp.now()
+        };
+        if(!state.technicians.some(tn => tn.id === docId)) payload.createdAt = Timestamp.now();
+        await setDoc(doc(db,'technicians', docId), payload, {merge:true});
+        setMessage(t('saved'));
+        setAlert('', 'ok');
+        clearTechnicianForm();
+      }catch(err){
+        setAlert(err.message || String(err));
+      }
+    }
+
+    async function deleteTechnicianById(id){
+      try{
+        if(!id) return;
+        if(!confirm(t('deleteConfirm'))) return;
+        await deleteDoc(doc(db,'technicians', id));
+        setMessage(t('deleted'));
+        setAlert('', 'ok');
+        clearTechnicianForm();
+      }catch(err){
+        setAlert(err.message || String(err));
+      }
+    }
+
+    async function resolveCurrentUserProfile(user){
+      let snap = await getDocs(query(collection(db,'app_users'), where('__name__','==', user.uid), limit(1)));
+      if(!snap.empty) return { id:snap.docs[0].id, ...snap.docs[0].data() };
+      snap = await getDocs(query(collection(db,'app_users'), where('email','==', user.email), limit(1)));
+      if(!snap.empty) return { id:snap.docs[0].id, ...snap.docs[0].data() };
+      return null;
+    }
+
+    function canManageTechnicians(profile){
+      if(!profile) return false;
+      if(profile.active === false) return false;
+      const pages = Array.isArray(profile.pages) ? profile.pages : [];
+      if(pages.length) return pages.includes('technicians');
+      return ['admin','supervisor'].includes(String(profile.role || '').toLowerCase());
+    }
+
+    function listenBranches(){
+      if(unsubBranches) unsubBranches();
+      unsubBranches = onSnapshot(query(collection(db,'branches'), orderBy('branchName')), snap => {
+        state.branches = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        populateTechnicianAssignmentOptions({
+          region: $('techAssignRegion')?.value || '',
+          city: $('techAssignCity')?.value || '',
+          brand: $('techAssignBrand')?.value || '',
+          branchId: $('techAssignBranch')?.value || ''
+        });
+      }, err => setAlert('branches: ' + err.message));
+    }
+
+    function listenTechnicians(){
+      if(unsubTechnicians) unsubTechnicians();
+      unsubTechnicians = onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap => {
+        state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        renderTechnicianSelectors();
+        renderTechniciansList();
+      }, err => setAlert('technicians: ' + err.message));
+    }
+
+    function clearListeners(){
+      [unsubTechnicians, unsubBranches].forEach(fn => { if(fn) fn(); });
+      unsubTechnicians = unsubBranches = null;
+    }
+
+    async function loginWithEmail(){
+      const email = $('loginEmail').value.trim();
+      const password = $('loginPassword').value;
+      if(!email || !password){
+        $('loginMessage').textContent = t('loginMissing');
+        return;
+      }
+      try{
+        $('loginBtn').disabled = true;
+        $('loginMessage').textContent = t('loading');
+        await setPersistence(auth, browserLocalPersistence);
+        await signInWithEmailAndPassword(auth, email, password);
+      }catch(err){
+        $('loginMessage').textContent = `${err.code || 'error'} - ${err.message || ''}`;
+      }finally{
+        $('loginBtn').disabled = false;
+      }
+    }
+
+    async function handleAuthState(user){
+      if(user){
+        state.currentUser = user;
+        let profile = null;
+        try{ profile = await resolveCurrentUserProfile(user); }catch(err){ console.warn(err); }
+        state.currentUserProfile = profile;
+        if(profile && profile.active === false){
+          alert(state.currentLang === 'ar' ? 'الحساب غير نشط.' : 'This account is inactive.');
+          await signOut(auth);
+          return;
+        }
+        if(!canManageTechnicians(profile)){
+          alert(t('unauthorized'));
+          await signOut(auth);
+          return;
+        }
+        $('currentUserChip').classList.remove('hidden');
+        $('currentUserChip').textContent = `${profile?.name || user.email} - ${profile?.role || 'user'}`;
+        $('logoutBtn').classList.remove('hidden');
+        $('loginOverlay').classList.add('hidden');
+        $('appRoot').classList.remove('hidden');
+        $('loginMessage').textContent = t('loginHelp');
+        listenBranches();
+        listenTechnicians();
+      } else {
+        clearListeners();
+        state.currentUser = null;
+        state.currentUserProfile = null;
+        state.technicians = [];
+        state.branches = [];
+        $('currentUserChip').classList.add('hidden');
+        $('currentUserChip').textContent = '';
+        $('logoutBtn').classList.add('hidden');
+        $('loginOverlay').classList.remove('hidden');
+        $('appRoot').classList.add('hidden');
+        $('loginMessage').textContent = t('loginHelp');
+        clearTechnicianForm();
+        renderTechnicianSelectors();
+        renderTechniciansList();
+      }
+    }
+
+    function attachListeners(){
+      $('loginBtn').addEventListener('click', loginWithEmail);
+      $('logoutBtn').addEventListener('click', async () => { clearListeners(); await signOut(auth); });
+      $('langArBtn').addEventListener('click', () => applyLanguage('ar'));
+      $('langEnBtn').addEventListener('click', () => applyLanguage('en'));
+      $('technicianSelector').addEventListener('change', loadSelectedTechnician);
+      $('loadTechnicianBtn').addEventListener('click', loadSelectedTechnician);
+      $('techAssignRegion').addEventListener('change', () => populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value }));
+      $('techAssignCity').addEventListener('change', () => populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value, city: $('techAssignCity').value }));
+      $('techAssignBrand').addEventListener('change', () => populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value, city: $('techAssignCity').value, brand: $('techAssignBrand').value }));
+      $('techAssignBranch').addEventListener('change', syncTechnicianAssignmentFromBranch);
+      $('saveTechnicianBtn').addEventListener('click', saveTechnician);
+      $('clearTechnicianBtn').addEventListener('click', clearTechnicianForm);
+      $('deleteTechnicianBtn').addEventListener('click', () => deleteTechnicianById($('technicianDocId').value.trim()));
+    }
+
+    attachListeners();
+    applyLanguage('ar');
+    renderTechnicianSelectors();
+    renderTechniciansList();
+    populateTechnicianAssignmentOptions({});
+    onAuthStateChanged(auth, handleAuthState);
+  </script>
+</body>
+</html>
