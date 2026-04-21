@@ -77,10 +77,12 @@
     .embedded-shell header{display:none!important}
     .embedded-shell .overlay{display:none!important}
     .embedded-shell .container{max-width:1600px;margin:18px auto;padding:0 14px 28px}
+    .session-note{background:#fff7e6;border:1px solid #f5d08a;color:#8a5a00;border-radius:12px;padding:12px 14px;margin:18px;line-height:1.7}
     @media (max-width:1200px){.grid-2,.grid-4,.upgrade-summary-top,.upgrade-meta-grid{grid-template-columns:1fr}.upgrade-mini-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
+  <div id="sessionNotice" class="session-note hidden">الرجاء تسجيل الدخول من الصفحة الرئيسية أولًا، ثم افتح صفحة Upgrade Windows من داخل النظام.</div>
   <div class="overlay" id="loginOverlay">
     <div class="login-card">
       <div class="login-head" id="loginTitle">تسجيل الدخول / Sign In</div>
@@ -208,8 +210,18 @@
     const auth = getAuth(app);
     setPersistence(auth, browserLocalPersistence).catch(err => console.warn('Auth persistence warning:', err));
     const db = getFirestore(app);
-    const embeddedShell = !!(window.parent && window.parent !== window && window.parent.appAuth && window.parent.appDb && window.parent.firebase);
-    if(embeddedShell) document.body.classList.add('embedded-shell');
+    const embeddedIframe = (() => { try { return !!(window.parent && window.parent !== window); } catch(e){ return false; } })();
+    if(embeddedIframe) document.body.classList.add('embedded-shell');
+
+    function getEmbeddedShellContext(){
+      try{
+        return (window.parent && window.parent !== window && window.parent.appAuth && window.parent.appDb && window.parent.firebase)
+          ? { auth: window.parent.appAuth, dbCompat: window.parent.appDb, firebase: window.parent.firebase }
+          : null;
+      }catch(e){
+        return null;
+      }
+    }
 
     const state = {
       branches: [],
@@ -390,6 +402,7 @@
       $('searchLabel').textContent = t('search');
       $('uwSearch').placeholder = t('searchPlaceholder');
       $('actionHeader').textContent = t('action');
+      if($('sessionNotice')) $('sessionNotice').textContent = state.currentLang === 'ar' ? 'الرجاء تسجيل الدخول من الصفحة الرئيسية أولًا، ثم افتح صفحة Upgrade Windows من داخل النظام.' : 'Please sign in from the main page first, then open Upgrade Windows from inside the system.';
       if(!$('loginEmail').value && !$('loginPassword').value) $('loginMessage').textContent = t('loginHelp');
       renderUpgradeWindowsTable();
       renderUpgradeWindowsSummary();
@@ -890,8 +903,9 @@
         let profile = null;
         try{ profile = await resolveCurrentUserProfile(user); }catch(err){ console.warn(err); }
         state.currentUserProfile = profile;
+        $('sessionNotice').classList.add('hidden');
         if(profile && profile.active === false){
-          if(embeddedShell){
+          if(embeddedIframe){
             $('loginOverlay').classList.add('hidden');
             $('appRoot').classList.add('hidden');
             setAlert(state.currentLang === 'ar' ? 'الحساب غير نشط.' : 'This account is inactive.');
@@ -902,7 +916,7 @@
           return;
         }
         if(!canOpenUpgradePage(profile)){
-          if(embeddedShell){
+          if(embeddedIframe){
             $('loginOverlay').classList.add('hidden');
             $('appRoot').classList.add('hidden');
             setAlert(t('unauthorized'));
@@ -914,7 +928,7 @@
         }
         $('currentUserChip').classList.remove('hidden');
         $('currentUserChip').textContent = `${profile?.name || user.email} - ${profile?.role || 'user'}`;
-        if(embeddedShell) $('logoutBtn').classList.add('hidden');
+        if(embeddedIframe) $('logoutBtn').classList.add('hidden');
         else $('logoutBtn').classList.remove('hidden');
         $('loginOverlay').classList.add('hidden');
         $('appRoot').classList.remove('hidden');
@@ -934,12 +948,14 @@
         $('currentUserChip').classList.add('hidden');
         $('currentUserChip').textContent = '';
         $('logoutBtn').classList.add('hidden');
-        if(embeddedShell){
+        if(embeddedIframe){
           $('loginOverlay').classList.add('hidden');
           $('appRoot').classList.add('hidden');
+          $('sessionNotice').classList.remove('hidden');
         }else{
           $('loginOverlay').classList.remove('hidden');
           $('appRoot').classList.add('hidden');
+          $('sessionNotice').classList.add('hidden');
           $('loginMessage').textContent = t('loginHelp');
         }
         clearUpgradeWindowsForm();
@@ -949,11 +965,14 @@
       }
     }
 
+    if(embeddedIframe) $('loginOverlay').classList.add('hidden');
+
     function attachListeners(){
-      if($('loginBtn')) $('loginBtn').addEventListener('click', () => { if(!embeddedShell) loginWithEmail(); });
+      if($('loginBtn')) $('loginBtn').addEventListener('click', () => { if(!embeddedIframe) loginWithEmail(); });
       $('logoutBtn').addEventListener('click', async () => {
         clearListeners();
-        if(embeddedShell && window.parent.appAuth) await window.parent.appAuth.signOut();
+        const shellCtx = getEmbeddedShellContext();
+        if(embeddedIframe && shellCtx && shellCtx.auth) await shellCtx.auth.signOut();
         else await signOut(auth);
       });
       $('langArBtn').addEventListener('click', () => applyLanguage('ar'));
@@ -970,13 +989,33 @@
       window.addEventListener('message', (e) => { if(e.data && e.data.type === 'LANG_CHANGE') applyLanguage(e.data.lang); });
     }
 
+    function bootAuthState(){
+      if(embeddedIframe){
+        $('loginOverlay').classList.add('hidden');
+        let tries = 0;
+        const maxTries = 50; // 10 seconds
+        const timer = setInterval(() => {
+          const shellCtx = getEmbeddedShellContext();
+          if(shellCtx && shellCtx.auth){
+            clearInterval(timer);
+            shellCtx.auth.onAuthStateChanged(handleAuthState);
+          }else if(++tries >= maxTries){
+            clearInterval(timer);
+            $('sessionNotice').classList.remove('hidden');
+            $('appRoot').classList.add('hidden');
+          }
+        }, 200);
+      }else{
+        onAuthStateChanged(auth, handleAuthState);
+      }
+    }
+
     attachListeners();
     applyLanguage('ar');
     populateUpgradeWindowsSelectors();
     renderUpgradeWindowsTable();
     renderUpgradeWindowsSummary();
-    if(embeddedShell) window.parent.appAuth.onAuthStateChanged(handleAuthState);
-    else onAuthStateChanged(auth, handleAuthState);
+    bootAuthState();
   </script>
 </body>
 </html>
