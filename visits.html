@@ -5,118 +5,486 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>visits.html - Branch Visits</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      background: #edf3f8;
-      font-family: Segoe UI, Tahoma, Arial, sans-serif;
+    :root{
+      --primary:#0d4b73;
+      --green:#2f9e66;
+      --danger:#d64545;
+      --warning:#c47f00;
+      --border:#d7e0ea;
+      --text:#163247;
+      --muted:#6e8192;
+      --bg:#edf3f8;
+      --card:#fff;
+      --shadow:0 10px 30px rgba(18,48,74,.08);
+      --radius:16px;
     }
-    .hidden { display: none !important; }
-    .session-note {
-      background:#fff7e6;
-      border:1px solid #f5d08a;
-      color:#8a5a00;
-      border-radius:12px;
-      padding:12px 14px;
-      margin:18px;
-      line-height:1.7;
-    }
-    #appRoot {
-      width: 100%;
-      height: 100vh;
-    }
-    #innerFrame {
-      width: 100%;
-      height: 100%;
-      border: none;
-      background: #fff;
-      display: block;
-    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg)}
+    .hidden{display:none !important}
+    .rtl-en{display:inline-block;direction:ltr;unicode-bidi:embed}
+    .container{max-width:1450px;margin:18px auto;padding:0 14px 28px}
+    .session-note{background:#fff7e6;border:1px solid #f5d08a;color:#8a5a00;border-radius:12px;padding:12px 14px;margin-bottom:16px;line-height:1.7}
+    /* hide mini topbar as requested */
+    .lang-wrap{display:none !important;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .lang-wrap .btn,.lang-wrap .badge{display:none !important}
+    .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .badge{display:none !important;padding:4px 8px;border-radius:999px;background:#eef5ff;color:#295fa5;font-size:12px;font-weight:700}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px;margin-bottom:18px}
+    .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+    .stat .label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+    .stat .value{font-size:30px;font-weight:800;color:var(--primary)}
+    .grid-2{display:grid;grid-template-columns:1.05fr .95fr;gap:16px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:14px}
+    .field{display:grid;gap:8px}
+    .field label{font-size:14px;font-weight:700}
+    .field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:inherit;background:#fbfcfe}
+    .field textarea{min-height:96px;resize:vertical}
+    .field input[readonly]{background:#f2f6fa}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;overflow:hidden}
+    .card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .btn{border:1px solid var(--border);border-radius:999px;padding:10px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer}
+    .btn.primary{background:var(--primary);color:#fff}
+    .btn.green{background:var(--green);border-color:var(--green);color:#fff}
+    .btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+    .btn.warning{background:var(--warning);border-color:var(--warning);color:#fff}
+    .btn.small{padding:7px 11px;font-size:12px}
+    .note{background:#f6fbff;border:1px dashed #bfd7e8;color:#33546b;border-radius:12px;padding:10px 12px;margin-top:12px;line-height:1.75}
+    .alert{padding:10px 12px;border-radius:12px;margin-top:10px}
+    .alert.error{background:#ffecec;border:1px solid #f3b0b0;color:#8a1f1f}
+    .alert.ok{background:#eaf9f0;border:1px solid #bce3c9;color:#20643b}
+    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px;background:#fff}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:12px 10px;border-bottom:1px solid #edf2f7;text-align:right;white-space:nowrap;font-size:14px;vertical-align:top}
+    th{background:#f8fbff;color:var(--primary)}
+    tr.clickable{cursor:pointer}
+    @media (max-width:1200px){.grid-2,.grid-3,.stats{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-  <div id="sessionNotice" class="session-note hidden">الرجاء تسجيل الدخول من الصفحة الرئيسية أولًا، ثم افتح صفحة الزيارات من داخل النظام.</div>
-
-  <div id="appRoot" class="hidden">
-    <iframe id="innerFrame" src="visits.html"></iframe>
+<main class="container">
+  <div class="lang-wrap" aria-hidden="true">
+    <button class="btn small" id="langArBtn" type="button">AR</button>
+    <button class="btn small" id="langEnBtn" type="button">EN</button>
+    <span class="badge">visits</span>
+    <span class="badge">v1.1.1</span>
   </div>
+  <div id="sessionNotice" class="session-note hidden">الرجاء تسجيل الدخول من الصفحة الرئيسية أولًا، ثم افتح صفحة الزيارات من داخل النظام.</div>
+  <div id="appRoot" class="hidden">
+    <div class="toolbar">
+      <div class="badge" id="appTitle">إدارة زيارات الفروع / Branch Visits</div>
+      <div class="note" id="pageNote" style="margin:0">عند اختيار الفني سيتم فلترة قائمة الفروع حسب نطاق الفني، وإذا كان الفرع Stellantis سيتم إنشاء سجلين لعلامتي Peugeot وCitroën.</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="label" id="lblTotalVisits">إجمالي الزيارات</span><div class="value" id="statTotalVisits">0</div></div>
+      <div class="stat"><span class="label" id="lblCompletedVisits">زيارات مكتملة</span><div class="value" id="statCompletedVisits">0</div></div>
+      <div class="stat"><span class="label" id="lblPlannedVisits">زيارات قيد التنفيذ</span><div class="value" id="statPlannedVisits">0</div></div>
+      <div class="stat"><span class="label" id="lblCancelledVisits">زيارات ملغية</span><div class="value" id="statCancelledVisits">0</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h3 id="visitFormTitle">إدخال / تعديل زيارة</h3>
+        <div class="note" id="visitNote">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني. وإذا كان الفرع من نوع <span class="rtl-en">Stellantis (Peugeot + Citroën)</span> فسيتم إنشاء سجلين زيارة على نفس الفرع للبراندين.</div>
+        <input type="hidden" id="editingVisitId" />
+        <div class="grid-3" style="margin-top:14px">
+          <div class="field"><label id="lblTechnician">الفني</label><select id="visitTechnician"></select></div>
+          <div class="field"><label id="lblBranch">الفرع</label><select id="visitBranch"></select></div>
+          <div class="field"><label id="lblVisitDate">تاريخ الزيارة</label><input id="visitDate" type="date" /></div>
+          <div class="field"><label>Brand</label><input id="visitBrand" readonly /></div>
+          <div class="field"><label>Branch ID</label><input id="visitBranchId" readonly /></div>
+          <div class="field"><label id="lblLocationSite">Location / Site</label><input id="visitLocation" readonly /></div>
+          <div class="field"><label id="lblStatus">الحالة</label><select id="visitStatus"><option value="planned">Planned</option><option value="completed">Completed</option><option value="postponed">Postponed</option><option value="cancelled">Cancelled</option></select></div>
+          <div class="field" style="grid-column:1/-1"><label id="lblNotes">ملاحظات</label><textarea id="visitNotes"></textarea></div>
+        </div>
+        <div class="actions">
+          <button class="btn green" id="saveVisitBtn" type="button">حفظ الزيارة</button>
+          <button class="btn" id="clearVisitBtn" type="button">تنظيف النموذج</button>
+          <button class="btn danger hidden" id="deleteVisitBtn" type="button">حذف السجل</button>
+        </div>
+        <div class="note" id="visitMessage">جاهز للحفظ.</div>
+        <div id="visitError" class="alert error hidden"></div>
+      </div>
+      <div class="card">
+        <h3 id="latestVisitsTitle">أحدث الزيارات</h3>
+        <div class="toolbar">
+          <div class="field" style="flex:1;min-width:240px">
+            <label id="lblSearch">بحث</label>
+            <input id="visitSearch" placeholder="ابحث بـ Branch / Brand / Technician / Status" />
+          </div>
+          <span class="badge" id="resultsBadge">0</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th id="thVisitDate">تاريخ الزيارة</th>
+                <th id="thBranch">الفرع</th>
+                <th>Brand</th>
+                <th id="thTechnician">الفني</th>
+                <th id="thStatus">الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="visitsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+(function(){
+  var permissionRoleDefaults = { admin:['visit','visits'], supervisor:['visit','visits'], technician:['visit','visits'], user:[] };
+  var state = { branches:[], technicians:[], visits:[], currentUser:null, currentUserProfile:null, currentLang:'ar' };
+  var unsub = { branches:null, technicians:null, visits:null };
+  var listenersBound = false;
+  var I18N = {
+    ar:{
+      appTitle:'إدارة زيارات الفروع / Branch Visits', pageNote:'عند اختيار الفني سيتم فلترة قائمة الفروع حسب نطاق الفني، وإذا كان الفرع Stellantis سيتم إنشاء سجلين لعلامتي Peugeot وCitroën.',
+      statTotalVisits:'إجمالي الزيارات', statCompletedVisits:'زيارات مكتملة', statPlannedVisits:'زيارات قيد التنفيذ', statCancelledVisits:'زيارات ملغية',
+      visitFormTitle:'إدخال / تعديل زيارة', visitNote:'عند اختيار الفني سيتم فلترة قائمة الفروع حسب Region / City / Brand / Branch Name المحددة في بطاقة الفني. وإذا كان الفرع من نوع Stellantis (Peugeot + Citroën) فسيتم إنشاء سجلين زيارة على نفس الفرع للبراندين.',
+      technician:'الفني', branch:'الفرع', visitDate:'تاريخ الزيارة', locationSite:'Location / Site', status:'الحالة', notes:'ملاحظات', saveVisit:'حفظ الزيارة', clearForm:'تنظيف النموذج', deleteRecord:'حذف السجل', latestVisits:'أحدث الزيارات', search:'بحث', ready:'جاهز للحفظ.', noVisits:'لا توجد زيارات.', selectTechnician:'اختر الفني', selectBranch:'اختر الفرع', inactiveAccount:'الحساب غير نشط.', noVisitPermission:'ليس لديك صلاحية الوصول لصفحة الزيارات.', noRecordPermission:'ليس لديك صلاحية لعرض هذا السجل.', chooseBranch:'اختر الفرع.', chooseTechnician:'اختر الفني.', enterVisitDate:'أدخل تاريخ الزيارة.', visitSaved:'تم حفظ الزيارة بنجاح.', visitSavedCompound:'تم حفظ الزيارة لنفس الفرع واحتسابها على Peugeot وCitroën.', deleteVisitConfirm:'هل تريد حذف الزيارة؟', deleteCompoundConfirm:'هذا السجل مرتبط بمجموعة زيارات. هل تريد حذف جميع الزيارات المرتبطة؟', notFoundUser:'تعذر العثور على ملف المستخدم في app_users.', sessionMissing:'الرجاء تسجيل الدخول من الصفحة الرئيسية أولًا، ثم افتح صفحة الزيارات من داخل النظام.'
+    },
+    en:{
+      appTitle:'Branch Visits / إدارة زيارات الفروع', pageNote:'Selecting a technician filters branches by scope. Stellantis branches create two visit rows for Peugeot and Citroën.',
+      statTotalVisits:'Total Visits', statCompletedVisits:'Completed Visits', statPlannedVisits:'In-Progress Visits', statCancelledVisits:'Cancelled Visits',
+      visitFormTitle:'Add / Edit Visit', visitNote:'Choosing a technician filters branches by Region / City / Brand / Branch Name from the technician card. Stellantis (Peugeot + Citroën) branches create two visit rows on save.',
+      technician:'Technician', branch:'Branch', visitDate:'Visit Date', locationSite:'Location / Site', status:'Status', notes:'Notes', saveVisit:'Save Visit', clearForm:'Clear Form', deleteRecord:'Delete Record', latestVisits:'Latest Visits', search:'Search', ready:'Ready to save.', noVisits:'No visits found.', selectTechnician:'Select technician', selectBranch:'Select branch', inactiveAccount:'This account is inactive.', noVisitPermission:'You do not have permission to access the visits page.', noRecordPermission:'You do not have permission to view this record.', chooseBranch:'Choose branch.', chooseTechnician:'Choose technician.', enterVisitDate:'Enter visit date.', visitSaved:'Visit saved successfully.', visitSavedCompound:'Visit saved for the same branch and counted for Peugeot and Citroën.', deleteVisitConfirm:'Delete this visit?', deleteCompoundConfirm:'This record is part of a grouped visit. Delete all related rows?', notFoundUser:'Unable to find the user profile in app_users.', sessionMissing:'Please sign in from the main page first, then open Visits from inside the system.'
+    }
+  };
 
-  <script>
-  (function(){
-    function $(id){ return document.getElementById(id); }
+  function $(id){ return document.getElementById(id); }
+  function esc(v){
+    var map = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function(s){ return map[s]; });
+  }
+  function t(key){ return (I18N[state.currentLang] && I18N[state.currentLang][key]) || key; }
+  function setAlert(id, msg, kind){ var el = $(id); if (!el) return; if (!msg) { el.className = 'alert error hidden'; el.textContent = ''; return; } el.className = 'alert ' + (kind || 'error'); el.textContent = msg; el.classList.remove('hidden'); }
+  function setMessage(id, msg){ var el = $(id); if (el) el.textContent = msg; }
+  function setOptions(id, options, placeholder){ var el = $(id); if (!el) return; var current = el.value; el.innerHTML = '<option value="">' + esc(placeholder || '') + '</option>' + options.join(''); if (current && Array.prototype.some.call(el.options, function(o){ return o.value === current; })) el.value = current; }
 
-    function showSessionOnly(){
+  function applyLanguage(lang){
+    state.currentLang = lang === 'en' ? 'en' : 'ar';
+    document.documentElement.lang = state.currentLang;
+    document.documentElement.dir = state.currentLang === 'ar' ? 'rtl' : 'ltr';
+    $('appTitle').textContent = t('appTitle');
+    $('pageNote').textContent = t('pageNote');
+    $('lblTotalVisits').textContent = t('statTotalVisits');
+    $('lblCompletedVisits').textContent = t('statCompletedVisits');
+    $('lblPlannedVisits').textContent = t('statPlannedVisits');
+    $('lblCancelledVisits').textContent = t('statCancelledVisits');
+    $('visitFormTitle').textContent = t('visitFormTitle');
+    $('visitNote').textContent = t('visitNote');
+    $('lblTechnician').textContent = t('technician');
+    $('lblBranch').textContent = t('branch');
+    $('lblVisitDate').textContent = t('visitDate');
+    $('lblLocationSite').textContent = t('locationSite');
+    $('lblStatus').textContent = t('status');
+    $('lblNotes').textContent = t('notes');
+    $('saveVisitBtn').textContent = t('saveVisit');
+    $('clearVisitBtn').textContent = t('clearForm');
+    $('deleteVisitBtn').textContent = t('deleteRecord');
+    $('latestVisitsTitle').textContent = t('latestVisits');
+    $('lblSearch').textContent = t('search');
+    $('thVisitDate').textContent = t('visitDate');
+    $('thBranch').textContent = t('branch');
+    $('thTechnician').textContent = t('technician');
+    $('thStatus').textContent = t('status');
+    $('sessionNotice').textContent = t('sessionMissing');
+    renderTechnicianSelectors();
+    renderBranchSelectors();
+    renderVisitsTable();
+    updateStats();
+  }
+
+  function clearAllListeners(){ Object.keys(unsub).forEach(function(key){ if (unsub[key]) unsub[key](); unsub[key] = null; }); }
+  function normalizeMatchValue(v){ return String(v || '').trim().toLowerCase(); }
+  function getDefaultPagesForRole(role){ return permissionRoleDefaults[role] ? permissionRoleDefaults[role].slice() : permissionRoleDefaults.user.slice(); }
+  function getEffectivePagesForProfile(profile){ if (Array.isArray(profile && profile.pages) && profile.pages.length) return profile.pages; return getDefaultPagesForRole((profile && profile.role) || 'user'); }
+  function isProfileActive(profile){ if (!profile) return false; if (profile.active === true) return true; if (String(profile.status || '').toLowerCase() === 'active') return true; if (profile.active === false) return false; if (String(profile.status || '').toLowerCase() === 'inactive') return false; return true; }
+
+  async function resolveCurrentUserProfile(user){
+    var db = window.parent.appDb;
+    var direct = await db.collection('app_users').doc(user.uid).get();
+    if (direct.exists) return direct.data();
+    if (user.email) {
+      var fallback = await db.collection('app_users').where('email', '==', user.email).limit(1).get();
+      if (!fallback.empty) return fallback.docs[0].data();
+    }
+    return null;
+  }
+
+  function getCurrentTechnicianIdentity(){
+    var profile = state.currentUserProfile || {};
+    var user = state.currentUser || {};
+    function norm(v){ return String(v || '').trim().toLowerCase(); }
+    var keys = new Set([norm(profile.technicianId), norm(user.uid), norm(user.email)].filter(Boolean));
+    var matchedTech = state.technicians.find(function(t){ return [norm(t.id), norm(t.technicianCode), norm(t.authUid), norm(t.email)].some(function(v){ return keys.has(v); }); });
+    [matchedTech && matchedTech.id, matchedTech && matchedTech.technicianCode, matchedTech && matchedTech.authUid, matchedTech && matchedTech.email].forEach(function(v){ var value = norm(v); if (value) keys.add(value); });
+    return { role: profile.role || 'user', keys: keys, matchedTechId: matchedTech ? (matchedTech.id || '') : '' };
+  }
+
+  function isVisitVisibleForCurrentUser(record){
+    var identity = getCurrentTechnicianIdentity();
+    if (identity.role === 'admin' || identity.role === 'supervisor') return true;
+    if (identity.role !== 'technician') return true;
+    var recordKeys = [String(record && record.technicianDocId || '').trim().toLowerCase(), String(record && record.technicianId || '').trim().toLowerCase(), String(record && record.technicianUid || '').trim().toLowerCase(), String(record && record.technicianEmail || '').trim().toLowerCase()].filter(Boolean);
+    return recordKeys.some(function(key){ return identity.keys.has(key); });
+  }
+  function canDeleteVisitForCurrentUser(){ var role = (state.currentUserProfile && state.currentUserProfile.role) || 'user'; return ['admin','supervisor'].indexOf(role) > -1; }
+
+  function renderTechnicianSelectors(){
+    var activeTechs = state.technicians.filter(function(t){ return (t.status || 'active') !== 'inactive'; }).sort(function(a,b){ return String(a.name || '').localeCompare(String(b.name || '')); });
+    var options = activeTechs.map(function(t){ var suffix = [t.region, t.city, t.brand].filter(Boolean).join(' / '); return '<option value="' + esc(t.id) + '">' + esc(t.name || t.id) + (suffix ? ' - ' + esc(suffix) : '') + '</option>'; });
+    setOptions('visitTechnician', options, t('selectTechnician'));
+    var identity = getCurrentTechnicianIdentity();
+    if (identity.role === 'technician' && identity.matchedTechId) $('visitTechnician').value = identity.matchedTechId;
+  }
+  function resolveTechnicianForVisitFilter(){
+    var selectedId = $('visitTechnician').value || '';
+    if (selectedId) return state.technicians.find(function(t){ return t.id === selectedId; }) || null;
+    var identity = getCurrentTechnicianIdentity();
+    if (identity.role === 'technician' && identity.matchedTechId) return state.technicians.find(function(t){ return t.id === identity.matchedTechId; }) || null;
+    return null;
+  }
+  function isBranchVisibleForTechnician(branch, tech){
+    if (!tech) return true;
+    if (tech.assignedBranchId && String(branch.id) !== String(tech.assignedBranchId)) return false;
+    if (tech.brand && normalizeMatchValue(branch.brand) !== normalizeMatchValue(tech.brand)) return false;
+    if (tech.region && normalizeMatchValue(branch.region) !== normalizeMatchValue(tech.region)) return false;
+    var branchCity = normalizeMatchValue(branch.city || branch.location);
+    if (tech.city && branchCity !== normalizeMatchValue(tech.city)) return false;
+    if (tech.assignedBranchName && !tech.assignedBranchId && normalizeMatchValue(branch.branchName) !== normalizeMatchValue(tech.assignedBranchName)) return false;
+    return true;
+  }
+  function renderBranchSelectors(){
+    var current = $('visitBranch').value || '';
+    var tech = resolveTechnicianForVisitFilter();
+    var rows = state.branches.filter(function(b){ return isBranchVisibleForTechnician(b, tech); }).sort(function(a,b){ return String(a.branchName || '').localeCompare(String(b.branchName || '')); });
+    var options = rows.map(function(b){ var suffix = [b.brand, b.region, b.city || b.location].filter(Boolean).join(' / '); return '<option value="' + esc(b.id) + '">' + esc(b.branchName || b.id) + (suffix ? ' - ' + esc(suffix) : '') + '</option>'; });
+    setOptions('visitBranch', options, t('selectBranch'));
+    if (current && rows.some(function(b){ return String(b.id) === String(current); })) $('visitBranch').value = current;
+    else { $('visitBranch').value = ''; $('visitBrand').value = ''; $('visitBranchId').value = ''; $('visitLocation').value = ''; }
+  }
+
+  function normalizeVisitBrandToken(v){ return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g,''); }
+  function canonicalBrandToken(v){
+    var token = normalizeVisitBrandToken(v);
+    if (['peugeot','peugot','peugedt','peugeotksa','peugotksa'].indexOf(token) > -1) return 'peugeot';
+    if (['citroen','citron','citroenksa'].indexOf(token) > -1) return 'citroen';
+    if (token.indexOf('peugeot') > -1 || token.indexOf('peugot') > -1 || token.indexOf('peugedt') > -1) return 'peugeot';
+    if (token.indexOf('citroen') > -1 || token.indexOf('citron') > -1) return 'citroen';
+    if (token.indexOf('stellantis') > -1) return 'stellantis';
+    return token;
+  }
+  function getCanonicalBrandDisplay(v){ var token = canonicalBrandToken(v); if (token === 'peugeot') return 'Peugeot'; if (token === 'citroen') return 'Citroën'; return v || ''; }
+  function isStellantisCompoundBranch(branch){ if (!branch) return false; var combined = [branch.brand, branch.branchName, branch.location, branch.id].map(canonicalBrandToken).join(' '); return combined.indexOf('stellantis') > -1 || (combined.indexOf('peugeot') > -1 && combined.indexOf('citroen') > -1); }
+  function getVisitBrandsForBranch(branch){ return isStellantisCompoundBranch(branch) ? ['Peugeot','Citroën'] : [getCanonicalBrandDisplay((branch && branch.brand) || '')]; }
+  function getVisitBrandKey(value){ return canonicalBrandToken(value); }
+  function getVisitBrandDisplay(branch){ return isStellantisCompoundBranch(branch) ? 'Stellantis (Peugeot + Citroën)' : getCanonicalBrandDisplay((branch && branch.brand) || ''); }
+  function fillVisitFromBranch(){ var branch = state.branches.find(function(x){ return String(x.id) === String($('visitBranch').value); }); if (!branch) return; $('visitBrand').value = getVisitBrandDisplay(branch); $('visitBranchId').value = branch.id || ''; $('visitLocation').value = branch.location || branch.city || branch.branchName || ''; }
+
+  function clearVisitForm(){
+    $('editingVisitId').value = '';
+    $('visitDate').value = '';
+    $('visitBrand').value = '';
+    $('visitBranchId').value = '';
+    $('visitLocation').value = '';
+    $('visitNotes').value = '';
+    $('visitStatus').value = 'planned';
+    var identity = getCurrentTechnicianIdentity();
+    if (identity.role === 'technician' && identity.matchedTechId) $('visitTechnician').value = identity.matchedTechId;
+    else $('visitTechnician').value = '';
+    renderBranchSelectors();
+    $('deleteVisitBtn').classList.add('hidden');
+    setMessage('visitMessage', t('ready'));
+    setAlert('visitError');
+  }
+
+  async function saveVisit(){
+    try {
+      var db = window.parent.appDb;
+      var fv = window.parent.firebase.firestore.FieldValue;
+      var branch = state.branches.find(function(b){ return String(b.id) === String($('visitBranch').value); });
+      var tech = state.technicians.find(function(t){ return String(t.id) === String($('visitTechnician').value); });
+      if (!branch) throw new Error(t('chooseBranch'));
+      if (!tech) throw new Error(t('chooseTechnician'));
+      if (!$('visitDate').value) throw new Error(t('enterVisitDate'));
+      var brandsToSave = getVisitBrandsForBranch(branch);
+      var editId = $('editingVisitId').value.trim();
+      var existing = editId ? state.visits.find(function(v){ return v.id === editId; }) : null;
+      var existingGroupId = existing ? (existing.visitGroupId || '') : '';
+      var targetGroupId = brandsToSave.length > 1 ? (existingGroupId || ('group-' + Date.now() + '-' + Math.floor(Math.random() * 100000))) : '';
+      var basePayload = {
+        branchId: branch.id,
+        branchName: branch.branchName || branch.id,
+        region: branch.region || '',
+        city: branch.city || '',
+        technicianId: tech.authUid || tech.id,
+        technicianDocId: tech.id,
+        technicianUid: tech.authUid || tech.id,
+        technicianName: tech.name || tech.id,
+        technicianEmail: tech.email || '',
+        date: $('visitDate').value,
+        status: $('visitStatus').value,
+        notes: $('visitNotes').value.trim(),
+        visitGroupId: targetGroupId,
+        compoundSource: brandsToSave.length > 1 ? 'stellantis' : '',
+        updatedAt: fv.serverTimestamp()
+      };
+      if (editId) {
+        if (existingGroupId) {
+          var relatedOld = state.visits.filter(function(v){ return v.visitGroupId === existingGroupId; });
+          for (var del = 0; del < relatedOld.length; del++) await db.collection('siteVisits').doc(relatedOld[del].id).delete();
+        } else if (existing && existing.id) {
+          await db.collection('siteVisits').doc(existing.id).delete();
+        }
+      }
+      for (var i = 0; i < brandsToSave.length; i++) {
+        var brandName = getCanonicalBrandDisplay(brandsToSave[i] || branch.brand || '');
+        var payload = Object.assign({}, basePayload, { brand: brandName, brandKey: getVisitBrandKey(brandName), visitGroupId: brandsToSave.length > 1 ? targetGroupId : '', compoundSource: brandsToSave.length > 1 ? 'stellantis' : '', createdAt: fv.serverTimestamp() });
+        await db.collection('siteVisits').add(payload);
+      }
+      clearVisitForm();
+      setMessage('visitMessage', brandsToSave.length > 1 ? t('visitSavedCompound') : t('visitSaved'));
+      setAlert('visitError');
+    } catch (err) {
+      setAlert('visitError', err.message || String(err));
+    }
+  }
+
+  async function deleteVisitById(id){
+    try {
+      if (!id) return;
+      if (!canDeleteVisitForCurrentUser()) throw new Error(t('noVisitPermission'));
+      var current = state.visits.find(function(v){ return v.id === id; });
+      var promptMsg = current && current.visitGroupId ? t('deleteCompoundConfirm') : t('deleteVisitConfirm');
+      if (!window.confirm(promptMsg)) return;
+      var db = window.parent.appDb;
+      if (current && current.visitGroupId) {
+        var related = state.visits.filter(function(v){ return v.visitGroupId === current.visitGroupId; });
+        for (var i = 0; i < related.length; i++) await db.collection('siteVisits').doc(related[i].id).delete();
+      } else {
+        await db.collection('siteVisits').doc(id).delete();
+      }
+      clearVisitForm();
+    } catch (err) {
+      setAlert('visitError', err.message || String(err));
+    }
+  }
+
+  function openVisitForEdit(id){
+    var visit = state.visits.find(function(v){ return v.id === id; });
+    if (!visit) return;
+    if (!isVisitVisibleForCurrentUser(visit)) { window.alert(t('noRecordPermission')); return; }
+    $('editingVisitId').value = visit.id;
+    $('visitTechnician').value = visit.technicianDocId || '';
+    renderBranchSelectors();
+    $('visitBranch').value = visit.branchId || '';
+    $('visitDate').value = visit.date || '';
+    $('visitStatus').value = visit.status || 'planned';
+    $('visitNotes').value = visit.notes || '';
+    fillVisitFromBranch();
+    if (canDeleteVisitForCurrentUser()) $('deleteVisitBtn').classList.remove('hidden');
+    else $('deleteVisitBtn').classList.add('hidden');
+  }
+
+  function updateStats(){
+    var rows = state.visits.filter(isVisitVisibleForCurrentUser);
+    $('statTotalVisits').textContent = rows.length;
+    $('statCompletedVisits').textContent = rows.filter(function(v){ return String(v.status || '').toLowerCase() === 'completed'; }).length;
+    $('statPlannedVisits').textContent = rows.filter(function(v){ var s = String(v.status || '').toLowerCase(); return ['planned','postponed','in progress'].indexOf(s) > -1; }).length;
+    $('statCancelledVisits').textContent = rows.filter(function(v){ return String(v.status || '').toLowerCase() === 'cancelled'; }).length;
+    if ($('resultsBadge')) $('resultsBadge').textContent = rows.length;
+  }
+
+  function renderVisitsTable(){
+    var q = String($('visitSearch').value || '').trim().toLowerCase();
+    var rows = state.visits.filter(isVisitVisibleForCurrentUser).filter(function(v){
+      if (!q) return true;
+      return [v.date, v.branchName, v.brand, v.technicianName, v.status, v.branchId].some(function(x){ return String(x || '').toLowerCase().indexOf(q) > -1; });
+    }).sort(function(a,b){ return String(b.date || '').localeCompare(String(a.date || '')); });
+    if ($('resultsBadge')) $('resultsBadge').textContent = rows.length;
+    $('visitsTableBody').innerHTML = rows.length ? rows.map(function(v){ return '<tr class="clickable" data-id="' + esc(v.id) + '"><td>' + esc(v.date) + '</td><td>' + esc(v.branchName) + '</td><td>' + esc(v.brand) + '</td><td>' + esc(v.technicianName) + '</td><td>' + esc(v.status) + '</td></tr>'; }).join('') : '<tr><td colspan="5">' + esc(t('noVisits')) + '</td></tr>';
+  }
+
+  function listenBranches(){ if (unsub.branches) unsub.branches(); var db = window.parent.appDb; unsub.branches = db.collection('branches').orderBy('branchName').onSnapshot(function(snap){ state.branches = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); renderBranchSelectors(); fillVisitFromBranch(); }, function(err){ setAlert('visitError', 'branches: ' + err.message); }); }
+  function listenTechnicians(){ if (unsub.technicians) unsub.technicians(); var db = window.parent.appDb; unsub.technicians = db.collection('technicians').orderBy('name').onSnapshot(function(snap){ state.technicians = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); renderTechnicianSelectors(); renderBranchSelectors(); }, function(err){ setAlert('visitError', 'technicians: ' + err.message); }); }
+  function listenVisits(){ if (unsub.visits) unsub.visits(); var db = window.parent.appDb; unsub.visits = db.collection('siteVisits').orderBy('date', 'desc').onSnapshot(function(snap){ state.visits = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); renderVisitsTable(); updateStats(); }, function(err){ setAlert('visitError', 'siteVisits: ' + err.message); }); }
+
+  function attachListeners(){
+    if (listenersBound) return;
+    listenersBound = true;
+    $('langArBtn').addEventListener('click', function(){ applyLanguage('ar'); });
+    $('langEnBtn').addEventListener('click', function(){ applyLanguage('en'); });
+    $('visitTechnician').addEventListener('change', function(){ renderBranchSelectors(); fillVisitFromBranch(); });
+    $('visitBranch').addEventListener('change', fillVisitFromBranch);
+    $('visitSearch').addEventListener('input', renderVisitsTable);
+    $('saveVisitBtn').addEventListener('click', saveVisit);
+    $('clearVisitBtn').addEventListener('click', clearVisitForm);
+    $('deleteVisitBtn').addEventListener('click', function(){ deleteVisitById($('editingVisitId').value.trim()); });
+    $('visitsTableBody').addEventListener('click', function(e){ var row = e.target.closest('tr[data-id]'); if (!row) return; openVisitForEdit(row.getAttribute('data-id')); });
+    window.addEventListener('message', function(e){ if (e.data && e.data.type === 'LANG_CHANGE') applyLanguage(e.data.lang); });
+  }
+
+  function resetPage(){
+    clearAllListeners();
+    state.currentUser = null;
+    state.currentUserProfile = null;
+    state.branches = [];
+    state.technicians = [];
+    state.visits = [];
+    $('appRoot').classList.add('hidden');
+    $('sessionNotice').classList.remove('hidden');
+    $('visitsTableBody').innerHTML = '<tr><td colspan="5">' + esc(t('noVisits')) + '</td></tr>';
+    updateStats();
+  }
+
+  function bootInsideShell(){
+    try {
+      if (!window.parent || window.parent === window || !window.parent.appAuth || !window.parent.appDb || !window.parent.firebase) {
+        $('sessionNotice').classList.remove('hidden');
+        $('appRoot').classList.add('hidden');
+        return;
+      }
+      var auth = window.parent.appAuth;
+      attachListeners();
+      applyLanguage('ar');
+      renderTechnicianSelectors();
+      renderBranchSelectors();
+      renderVisitsTable();
+      updateStats();
+      clearVisitForm();
+      auth.onAuthStateChanged(async function(user){
+        if (!user) { resetPage(); return; }
+        $('sessionNotice').classList.add('hidden');
+        try {
+          var profile = await resolveCurrentUserProfile(user);
+          state.currentUser = user;
+          state.currentUserProfile = profile;
+          if (!profile) { setAlert('visitError', t('notFoundUser')); $('appRoot').classList.add('hidden'); return; }
+          if (!isProfileActive(profile)) { window.alert(t('inactiveAccount')); $('appRoot').classList.add('hidden'); return; }
+          var allowedPages = getEffectivePagesForProfile(profile);
+          if (allowedPages.indexOf('visit') === -1 && allowedPages.indexOf('visits') === -1) { window.alert(t('noVisitPermission')); $('appRoot').classList.add('hidden'); return; }
+          $('appRoot').classList.remove('hidden');
+          setAlert('visitError');
+          listenBranches();
+          listenTechnicians();
+          listenVisits();
+          clearVisitForm();
+        } catch (err) {
+          console.error(err);
+          setAlert('visitError', err.message || String(err));
+        }
+      });
+    } catch (e) {
+      console.error(e);
       $('sessionNotice').classList.remove('hidden');
       $('appRoot').classList.add('hidden');
     }
+  }
 
-    function showApp(){
-      $('sessionNotice').classList.add('hidden');
-      $('appRoot').classList.remove('hidden');
-    }
-
-    function forwardShellObjects(){
-      if (!window.parent || window.parent === window) return false;
-      if (!window.parent.appAuth || !window.parent.appDb || !window.parent.firebase) return false;
-      window.appAuth = window.parent.appAuth;
-      window.appDb = window.parent.appDb;
-      window.firebase = window.parent.firebase;
-      return true;
-    }
-
-    function injectHideTopbarStyle(){
-      var frame = $('innerFrame');
-      if (!frame) return;
-      try {
-        var doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
-        if (!doc) return;
-
-        var style = doc.getElementById('hide-topbar-style');
-        if (!style) {
-          style = doc.createElement('style');
-          style.id = 'hide-topbar-style';
-          style.textContent = [
-            '.lang-wrap{display:none !important;}',
-            '.lang-wrap .lang-btn{display:none !important;}',
-            '.lang-wrap .badge{display:none !important;}'
-          ].join('\n');
-          doc.head.appendChild(style);
-        }
-      } catch (e) {
-        console.error('Unable to inject CSS into visits iframe:', e);
-      }
-    }
-
-    function boot(){
-      if (!forwardShellObjects()) {
-        showSessionOnly();
-        return;
-      }
-
-      showApp();
-
-      var auth = window.parent.appAuth;
-      var frame = $('innerFrame');
-      if (frame) {
-        frame.addEventListener('load', function(){
-          injectHideTopbarStyle();
-        });
-      }
-
-      auth.onAuthStateChanged(function(user){
-        if (!user) {
-          showSessionOnly();
-          return;
-        }
-        showApp();
-        injectHideTopbarStyle();
-      });
-    }
-
-    boot();
-  })();
-  </script>
+  bootInsideShell();
+})();
+</script>
 </body>
 </html>
