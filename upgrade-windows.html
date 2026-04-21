@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -72,6 +73,10 @@
     .upgrade-brand-logo,.upgrade-brand-logo-placeholder{width:46px;height:46px;border-radius:12px;object-fit:cover;background:#fff;border:1px solid #dbe7f1;flex:0 0 46px}
     .upgrade-brand-logo-placeholder{display:inline-flex;align-items:center;justify-content:center;color:#98a2b3;font-size:14px;font-weight:700}
     .upgrade-brand-name{font-size:15px;font-weight:700;color:var(--primary);line-height:1.3;word-break:break-word}
+    
+    .embedded-shell header{display:none!important}
+    .embedded-shell .overlay{display:none!important}
+    .embedded-shell .container{max-width:1600px;margin:18px auto;padding:0 14px 28px}
     @media (max-width:1200px){.grid-2,.grid-4,.upgrade-summary-top,.upgrade-meta-grid{grid-template-columns:1fr}.upgrade-mini-grid{grid-template-columns:1fr}}
   </style>
 </head>
@@ -203,6 +208,8 @@
     const auth = getAuth(app);
     setPersistence(auth, browserLocalPersistence).catch(err => console.warn('Auth persistence warning:', err));
     const db = getFirestore(app);
+    const embeddedShell = !!(window.parent && window.parent !== window && window.parent.appAuth && window.parent.appDb && window.parent.firebase);
+    if(embeddedShell) document.body.classList.add('embedded-shell');
 
     const state = {
       branches: [],
@@ -349,11 +356,11 @@
       document.documentElement.lang = lang;
       document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
       $('appTitle').textContent = t('appTitle');
-      $('loginTitle').textContent = t('loginTitle');
-      $('loginNote').textContent = t('loginNote');
-      $('emailLabel').textContent = t('emailLabel');
-      $('passwordLabel').textContent = t('passwordLabel');
-      $('loginBtn').textContent = t('loginBtn');
+      if($('loginTitle')) $('loginTitle').textContent = t('loginTitle');
+      if($('loginNote')) $('loginNote').textContent = t('loginNote');
+      if($('emailLabel')) $('emailLabel').textContent = t('emailLabel');
+      if($('passwordLabel')) $('passwordLabel').textContent = t('passwordLabel');
+      if($('loginBtn')) $('loginBtn').textContent = t('loginBtn');
       $('toolbarNote').textContent = t('toolbarNote');
       $('summaryTitle').textContent = t('summaryTitle');
       $('statTotalLabel').textContent = t('statTotal');
@@ -403,7 +410,6 @@
     function setMessage(msg){ $('uwMessage').textContent = msg; }
 
     function toFirestorePlainData(data){
-      // Make sure Excel rows / generated objects are plain serializable objects before writing to Firestore.
       return JSON.parse(JSON.stringify(data || {}));
     }
 
@@ -604,7 +610,11 @@
         if(!payload.employeeName && !payload.employeeId && !payload.deviceName) throw new Error(t('employeeRequired'));
         const editId = $('uwEditingId').value.trim();
         if(editId) await setDoc(doc(db,'windows_upgrades', editId), payload, {merge:true});
-        else { const createPayload = toFirestorePlainData(payload); createPayload.createdAt = Timestamp.now(); await addDoc(collection(db,'windows_upgrades'), createPayload); }
+        else {
+          const createPayload = toFirestorePlainData(payload);
+          createPayload.createdAt = Timestamp.now();
+          await addDoc(collection(db,'windows_upgrades'), createPayload);
+        }
         setMessage(t('saved'));
         setAlert('', 'ok');
         clearUpgradeWindowsForm();
@@ -811,7 +821,9 @@
       if(!profile) return false;
       if(profile.active === false) return false;
       const pages = Array.isArray(profile.pages) ? profile.pages : [];
-      if(pages.length) return pages.includes('upgradeWindows');
+      const shellPages = Array.isArray(profile.shellPages) ? profile.shellPages : [];
+      const merged = pages.concat(shellPages).map(v => String(v || '').trim().toLowerCase());
+      if(merged.length) return merged.includes('upgradewindows') || merged.includes('upgrade');
       return ['admin','supervisor','technician'].includes(String(profile.role || '').toLowerCase());
     }
 
@@ -879,18 +891,31 @@
         try{ profile = await resolveCurrentUserProfile(user); }catch(err){ console.warn(err); }
         state.currentUserProfile = profile;
         if(profile && profile.active === false){
-          alert(state.currentLang === 'ar' ? 'الحساب غير نشط.' : 'This account is inactive.');
-          await signOut(auth);
+          if(embeddedShell){
+            $('loginOverlay').classList.add('hidden');
+            $('appRoot').classList.add('hidden');
+            setAlert(state.currentLang === 'ar' ? 'الحساب غير نشط.' : 'This account is inactive.');
+          }else{
+            alert(state.currentLang === 'ar' ? 'الحساب غير نشط.' : 'This account is inactive.');
+            await signOut(auth);
+          }
           return;
         }
         if(!canOpenUpgradePage(profile)){
-          alert(t('unauthorized'));
-          await signOut(auth);
+          if(embeddedShell){
+            $('loginOverlay').classList.add('hidden');
+            $('appRoot').classList.add('hidden');
+            setAlert(t('unauthorized'));
+          }else{
+            alert(t('unauthorized'));
+            await signOut(auth);
+          }
           return;
         }
         $('currentUserChip').classList.remove('hidden');
         $('currentUserChip').textContent = `${profile?.name || user.email} - ${profile?.role || 'user'}`;
-        $('logoutBtn').classList.remove('hidden');
+        if(embeddedShell) $('logoutBtn').classList.add('hidden');
+        else $('logoutBtn').classList.remove('hidden');
         $('loginOverlay').classList.add('hidden');
         $('appRoot').classList.remove('hidden');
         $('loginMessage').textContent = t('loginHelp');
@@ -909,9 +934,14 @@
         $('currentUserChip').classList.add('hidden');
         $('currentUserChip').textContent = '';
         $('logoutBtn').classList.add('hidden');
-        $('loginOverlay').classList.remove('hidden');
-        $('appRoot').classList.add('hidden');
-        $('loginMessage').textContent = t('loginHelp');
+        if(embeddedShell){
+          $('loginOverlay').classList.add('hidden');
+          $('appRoot').classList.add('hidden');
+        }else{
+          $('loginOverlay').classList.remove('hidden');
+          $('appRoot').classList.add('hidden');
+          $('loginMessage').textContent = t('loginHelp');
+        }
         clearUpgradeWindowsForm();
         populateUpgradeWindowsSelectors();
         renderUpgradeWindowsTable();
@@ -920,8 +950,12 @@
     }
 
     function attachListeners(){
-      $('loginBtn').addEventListener('click', loginWithEmail);
-      $('logoutBtn').addEventListener('click', async () => { clearListeners(); await signOut(auth); });
+      if($('loginBtn')) $('loginBtn').addEventListener('click', () => { if(!embeddedShell) loginWithEmail(); });
+      $('logoutBtn').addEventListener('click', async () => {
+        clearListeners();
+        if(embeddedShell && window.parent.appAuth) await window.parent.appAuth.signOut();
+        else await signOut(auth);
+      });
       $('langArBtn').addEventListener('click', () => applyLanguage('ar'));
       $('langEnBtn').addEventListener('click', () => applyLanguage('en'));
       $('uwBranchSelect').addEventListener('change', fillUpgradeWindowsFromBranch);
@@ -933,6 +967,7 @@
       $('importUWBtn').addEventListener('click', importUpgradeWindowsFromExcel);
       $('exportUWBtn').addEventListener('click', exportUpgradeWindowsToExcel);
       $('syncUWFromChecklistBtn').addEventListener('click', syncUpgradeWindowsFromChecklists);
+      window.addEventListener('message', (e) => { if(e.data && e.data.type === 'LANG_CHANGE') applyLanguage(e.data.lang); });
     }
 
     attachListeners();
@@ -940,7 +975,8 @@
     populateUpgradeWindowsSelectors();
     renderUpgradeWindowsTable();
     renderUpgradeWindowsSummary();
-    onAuthStateChanged(auth, handleAuthState);
+    if(embeddedShell) window.parent.appAuth.onAuthStateChanged(handleAuthState);
+    else onAuthStateChanged(auth, handleAuthState);
   </script>
 </body>
 </html>
