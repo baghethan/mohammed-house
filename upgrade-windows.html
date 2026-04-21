@@ -110,6 +110,11 @@ body.upgrade-only #dynamicChecklistAdmin.panel.active { display:none !important;
 body.upgrade-only .tabs { justify-content:flex-start; }
 body.upgrade-only .container { max-width: 1600px; }
 body.upgrade-only .standalone-note { margin-bottom:16px; }
+body.embedded-shell header{display:none!important}
+body.embedded-shell .tabs{display:none!important}
+body.embedded-shell .standalone-note{display:none!important}
+body.embedded-shell .overlay{display:none!important}
+body.embedded-shell .container{max-width:1600px;margin:0 auto;padding:8px 12px 20px}
 
 </style>
 </head>
@@ -550,8 +555,8 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, query, orderBy, onSnapshot, Timestamp, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getAuth as _getAuth, signInWithEmailAndPassword as _signInWithEmailAndPassword, onAuthStateChanged as _onAuthStateChanged, signOut as _signOut, setPersistence as _setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, collection as _collection, doc as _doc, setDoc as _setDoc, addDoc as _addDoc, deleteDoc as _deleteDoc, query as _query, orderBy as _orderBy, onSnapshot as _onSnapshot, Timestamp as _Timestamp, where as _where, limit as _limit, getDocs as _getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
@@ -563,9 +568,113 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    setPersistence(auth, browserLocalPersistence).catch(err=>console.warn('Auth persistence warning:', err));
+    const auth = _getAuth(app);
+    _setPersistence(auth, browserLocalPersistence).catch(err=>console.warn('Auth persistence warning:', err));
     const db = getFirestore(app);
+
+    const embeddedIframe = (() => { try { return !!(window.parent && window.parent !== window); } catch(e){ return false; } })();
+    if(embeddedIframe) document.body.classList.add('embedded-shell');
+
+    function getShellContext(){
+      try{
+        return (window.parent && window.parent !== window && window.parent.appAuth && window.parent.appDb && window.parent.firebase)
+          ? { auth: window.parent.appAuth, db: window.parent.appDb, firebase: window.parent.firebase }
+          : null;
+      }catch(e){
+        return null;
+      }
+    }
+
+    function collection(dbArg, name){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.db) return shell.db.collection(name);
+      return _collection(dbArg, name);
+    }
+    function doc(dbArg, name, id){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.db) return shell.db.collection(name).doc(id);
+      return _doc(dbArg, name, id);
+    }
+    function orderBy(field, direction){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.db) return { __kind:'orderBy', field, direction };
+      return _orderBy(field, direction);
+    }
+    function where(field, op, value){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.db){
+        const compatField = (field === '__name__' && shell?.firebase?.firestore?.FieldPath) ? shell.firebase.firestore.FieldPath.documentId() : field;
+        return { __kind:'where', field: compatField, op, value };
+      }
+      return _where(field, op, value);
+    }
+    function limit(n){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.db) return { __kind:'limit', n };
+      return _limit(n);
+    }
+    function query(base, ...constraints){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.db){
+        let ref = base;
+        constraints.filter(Boolean).forEach(c => {
+          if(c.__kind === 'where') ref = ref.where(c.field, c.op, c.value);
+          else if(c.__kind === 'orderBy') ref = ref.orderBy(c.field, c.direction);
+          else if(c.__kind === 'limit') ref = ref.limit(c.n);
+        });
+        return ref;
+      }
+      return _query(base, ...constraints);
+    }
+    function onSnapshot(ref, next, error){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.db) return ref.onSnapshot(next, error);
+      return _onSnapshot(ref, next, error);
+    }
+    function getDocs(ref){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.db) return ref.get();
+      return _getDocs(ref);
+    }
+    function setDoc(ref, data, opts){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.db) return ref.set(data, opts || {});
+      return _setDoc(ref, data, opts);
+    }
+    function addDoc(ref, data){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.db) return ref.add(data);
+      return _addDoc(ref, data);
+    }
+    function deleteDoc(ref){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.db) return ref.delete();
+      return _deleteDoc(ref);
+    }
+    const Timestamp = {
+      now(){
+        const shell = getShellContext();
+        if(embeddedIframe && shell?.firebase?.firestore?.Timestamp) return shell.firebase.firestore.Timestamp.now();
+        return _Timestamp.now();
+      }
+    };
+    function onAuthStateChanged(authArg, callback){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.auth) return shell.auth.onAuthStateChanged(callback);
+      return _onAuthStateChanged(authArg, callback);
+    }
+    function signOut(authArg){
+      const shell = getShellContext();
+      if(embeddedIframe && shell?.auth) return shell.auth.signOut();
+      return _signOut(authArg);
+    }
+    function setPersistence(authArg, mode){
+      if(embeddedIframe) return Promise.resolve();
+      return _setPersistence(authArg, mode);
+    }
+    function signInWithEmailAndPassword(authArg, email, password){
+      return _signInWithEmailAndPassword(authArg, email, password);
+    }
 
     const state = {
       branches:[], technicians:[], visits:[], checklists:[], checklistFields:[], brands:[], users:[], windowsUpgrades:[],
@@ -1636,6 +1745,8 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
       }
       $('reportsHead').innerHTML=head; $('reportsBody').innerHTML = body || `<tr><td colspan="6">${state.currentLang==='ar'?'لا توجد نتائج.':'No results.'}</td></tr>`;
     }
+
+    if(embeddedIframe) $('loginOverlay').classList.add('hidden');
 
     function attachListeners(){
       $('loginBtn').addEventListener('click', loginWithEmail);
