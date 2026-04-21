@@ -1,4 +1,5 @@
-<!DOCTYPE html><!DOCTYPE html="rtl">
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <title>Dashboard</title>
@@ -704,9 +705,10 @@
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
-  const $ = (id) => document.getElementById(id);
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
 
-  const state = {
+  var state = {
     branches: [],
     technicians: [],
     visits: [],
@@ -714,29 +716,29 @@
     brands: []
   };
 
-  const filters = {
+  var filters = {
     range: 'year',
     from: '',
     to: ''
   };
 
-  let unsub = [];
-  let filtersBound = false;
-  let captureBound = false;
-  let captureStatusTimer = null;
-  let progressObserver = null;
-  let listenersStarted = false;
+  var unsub = [];
+  var filtersBound = false;
+  var captureBound = false;
+  var captureStatusTimer = null;
+  var progressObserver = null;
+  var listenersStarted = false;
 
   function normalizeStatus(v){
-    const s = String(v ?? '').trim().toLowerCase();
-    if (['completed','complete','done','closed','مكتمل'].includes(s)) return 'completed';
-    if (['pending','open','in progress','معلق','معلّق'].includes(s)) return 'pending';
-    if (['cancelled','canceled','ملغي','ملغى'].includes(s)) return 'cancelled';
+    var s = String(v || '').trim().toLowerCase();
+    if (['completed','complete','done','closed','مكتمل'].indexOf(s) > -1) return 'completed';
+    if (['pending','open','in progress','معلق','معلّق'].indexOf(s) > -1) return 'pending';
+    if (['cancelled','canceled','ملغي','ملغى'].indexOf(s) > -1) return 'cancelled';
     return s;
   }
 
   function statusLabel(v){
-    const s = normalizeStatus(v);
+    var s = normalizeStatus(v);
     if (s === 'completed') return 'مكتمل';
     if (s === 'pending') return 'معلّق';
     if (s === 'cancelled') return 'ملغي';
@@ -744,49 +746,48 @@
   }
 
   function escapeHtml(v){
-    const map = {
+    var map = {
       '&':'&amp;',
       '<':'&lt;',
       '>':'&gt;',
       '"':'&quot;',
       "'":'&#39;'
     };
-    return String(v ?? '').replace(/[&<>"']/g, (c) => map[c]);
+    return String(v || '').replace(/[&<>"']/g, function(c){ return map[c]; });
   }
 
   function formatPercent(value){
-    const safe = Number.isFinite(value) ? value : 0;
-    return `${safe.toFixed(1)}%`;
+    var safe = isFinite(value) ? value : 0;
+    return safe.toFixed(1) + '%';
   }
 
   function clampPercent(value){
-    const num = Number(value) || 0;
+    var num = Number(value) || 0;
     return Math.max(0, Math.min(100, num));
   }
 
-  function showCaptureStatus(message, type = 'info'){
-    const box = $('captureStatus');
+  function showCaptureStatus(message, type){
+    var box = $('captureStatus');
     if (!box) return;
-
-    box.className = `capture-status ${type}`;
+    box.className = 'capture-status ' + (type || 'info');
     box.textContent = message;
 
     if (captureStatusTimer) clearTimeout(captureStatusTimer);
-    captureStatusTimer = setTimeout(() => {
+    captureStatusTimer = setTimeout(function(){
       box.className = 'capture-status';
       box.textContent = '';
     }, 4500);
   }
 
   function dataUrlToBlob(dataUrl){
-    const parts = dataUrl.split(',');
-    const mimeMatch = parts[0].match(/:(.*?);/);
-    const mime = mimeMatch ? mimeMatch[1] : 'image/png';
-    const byteString = atob(parts[1]);
-    const arrayBuffer = new ArrayBuffer(byteString.length);
-    const intArray = new Uint8Array(arrayBuffer);
+    var parts = dataUrl.split(',');
+    var mimeMatch = parts[0].match(/:(.*?);/);
+    var mime = mimeMatch ? mimeMatch[1] : 'image/png';
+    var byteString = atob(parts[1]);
+    var arrayBuffer = new ArrayBuffer(byteString.length);
+    var intArray = new Uint8Array(arrayBuffer);
 
-    for (let i = 0; i < byteString.length; i++) {
+    for (var i = 0; i < byteString.length; i++) {
       intArray[i] = byteString.charCodeAt(i);
     }
 
@@ -794,18 +795,18 @@
   }
 
   function downloadBlob(blob, fileName){
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
     link.href = url;
     link.download = fileName;
     document.body.appendChild(link);
     link.click();
     link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 500);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 500);
   }
 
   async function captureSectionAsImage(targetId, fileName, button){
-    const target = $(targetId);
+    var target = $(targetId);
     if (!target) {
       showCaptureStatus('لم يتم العثور على القسم المطلوب لنسخ الصورة', 'error');
       return;
@@ -816,7 +817,7 @@
       return;
     }
 
-    const originalText = button ? button.textContent : '';
+    var originalText = button ? button.textContent : '';
 
     try {
       if (button) {
@@ -824,7 +825,7 @@
         button.textContent = 'جارٍ تجهيز الصورة...';
       }
 
-      const canvas = await html2canvas(target, {
+      var canvas = await html2canvas(target, {
         backgroundColor: '#ffffff',
         scale: 2,
         useCORS: true,
@@ -836,7 +837,10 @@
         windowHeight: document.documentElement.scrollHeight
       });
 
-      let blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png', 1));
+      var blob = await new Promise(function(resolve){
+        canvas.toBlob(resolve, 'image/png', 1);
+      });
+
       if (!blob) {
         blob = dataUrlToBlob(canvas.toDataURL('image/png'));
       }
@@ -847,7 +851,7 @@
         ]);
         showCaptureStatus('تم نسخ الصورة إلى الحافظة بنجاح', 'success');
       } else {
-        downloadBlob(blob, `${fileName}.png`);
+        downloadBlob(blob, fileName + '.png');
         showCaptureStatus('المتصفح لا يدعم نسخ الصور مباشرة؛ تم تنزيل الصورة بدلًا من ذلك', 'info');
       }
     } catch (error) {
@@ -865,8 +869,8 @@
     if (captureBound) return;
     captureBound = true;
 
-    document.querySelectorAll('[data-capture-target]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-capture-target]').forEach(function(btn){
+      btn.addEventListener('click', function(){
         captureSectionAsImage(btn.dataset.captureTarget, btn.dataset.fileName || 'capture', btn);
       });
     });
@@ -876,21 +880,21 @@
     if (!value) return null;
 
     if (typeof value === 'object' && typeof value.toDate === 'function') {
-      const d = value.toDate();
-      return Number.isNaN(d?.getTime?.()) ? null : d;
+      var d1 = value.toDate();
+      return isNaN(d1.getTime()) ? null : d1;
     }
 
     if (typeof value === 'object' && value.seconds) {
-      const d = new Date(value.seconds * 1000);
-      return Number.isNaN(d.getTime()) ? null : d;
+      var d2 = new Date(value.seconds * 1000);
+      return isNaN(d2.getTime()) ? null : d2;
     }
 
-    const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? null : d;
+    var d3 = new Date(value);
+    return isNaN(d3.getTime()) ? null : d3;
   }
 
   function formatDate(value){
-    const date = toDateObject(value);
+    var date = toDateObject(value);
     if (!date) return value ? String(value) : '—';
 
     return new Intl.DateTimeFormat('ar-SA', {
@@ -903,7 +907,7 @@
   }
 
   function formatDateOnly(date){
-    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '—';
+    if (!(date instanceof Date) || isNaN(date.getTime())) return '—';
 
     return new Intl.DateTimeFormat('ar-SA', {
       year:'numeric',
@@ -913,13 +917,13 @@
   }
 
   function startOfDay(date){
-    const d = new Date(date);
+    var d = new Date(date);
     d.setHours(0,0,0,0);
     return d;
   }
 
   function endOfDay(date){
-    const d = new Date(date);
+    var d = new Date(date);
     d.setHours(23,59,59,999);
     return d;
   }
@@ -933,30 +937,30 @@
   }
 
   function getRangeDates(range){
-    const now = new Date();
-    const end = endOfDay(now);
-    const start = startOfDay(now);
+    var now = new Date();
+    var end = endOfDay(now);
+    var start = startOfDay(now);
 
     switch (range) {
       case 'week':
         start.setDate(start.getDate() - 6);
-        return { start, end };
+        return { start:start, end:end };
       case 'month':
         start.setMonth(start.getMonth() - 1);
         start.setDate(start.getDate() + 1);
-        return { start, end };
+        return { start:start, end:end };
       case 'quarter':
         start.setMonth(start.getMonth() - 3);
         start.setDate(start.getDate() + 1);
-        return { start, end };
+        return { start:start, end:end };
       case 'half':
         start.setMonth(start.getMonth() - 6);
         start.setDate(start.getDate() + 1);
-        return { start, end };
+        return { start:start, end:end };
       case 'year':
         start.setFullYear(start.getFullYear() - 1);
         start.setDate(start.getDate() + 1);
-        return { start, end };
+        return { start:start, end:end };
       default:
         return null;
     }
@@ -964,8 +968,8 @@
 
   function inCustomRange(itemDate){
     if (!itemDate) return false;
-    const from = filters.from ? startOfDay(new Date(filters.from)) : null;
-    const to = filters.to ? endOfDay(new Date(filters.to)) : null;
+    var from = filters.from ? startOfDay(new Date(filters.from)) : null;
+    var to = filters.to ? endOfDay(new Date(filters.to)) : null;
     if (from && itemDate < from) return false;
     if (to && itemDate > to) return false;
     return true;
@@ -973,42 +977,42 @@
 
   function inPresetRange(itemDate){
     if (!itemDate) return false;
-    const range = getRangeDates(filters.range);
+    var range = getRangeDates(filters.range);
     if (!range) return true;
     return itemDate >= range.start && itemDate <= range.end;
   }
 
   function getFilteredVisits(){
     if (filters.range === 'custom') {
-      return state.visits.filter((v) => inCustomRange(getVisitDate(v)));
+      return state.visits.filter(function(v){ return inCustomRange(getVisitDate(v)); });
     }
-    return state.visits.filter((v) => inPresetRange(getVisitDate(v)));
+    return state.visits.filter(function(v){ return inPresetRange(getVisitDate(v)); });
   }
 
   function getFilteredChecklists(){
     if (filters.range === 'custom') {
-      return state.checklists.filter((v) => inCustomRange(getChecklistDate(v)));
+      return state.checklists.filter(function(v){ return inCustomRange(getChecklistDate(v)); });
     }
-    return state.checklists.filter((v) => inPresetRange(getChecklistDate(v)));
+    return state.checklists.filter(function(v){ return inPresetRange(getChecklistDate(v)); });
   }
 
   function updateActivePresetButtons(){
-    document.querySelectorAll('.preset-btn').forEach((btn) => {
+    document.querySelectorAll('.preset-btn').forEach(function(btn){
       btn.classList.toggle('active', btn.dataset.range === filters.range);
     });
   }
 
   function updateRangeLabel(){
-    const label = $('activeRangeLabel');
+    var label = $('activeRangeLabel');
 
     if (filters.range === 'custom') {
-      const fromText = filters.from ? formatDateOnly(new Date(filters.from)) : '—';
-      const toText = filters.to ? formatDateOnly(new Date(filters.to)) : '—';
-      label.textContent = `الفترة الحالية: من ${fromText} إلى ${toText}`;
+      var fromText = filters.from ? formatDateOnly(new Date(filters.from)) : '—';
+      var toText = filters.to ? formatDateOnly(new Date(filters.to)) : '—';
+      label.textContent = 'الفترة الحالية: من ' + fromText + ' إلى ' + toText;
       return;
     }
 
-    const labels = {
+    var labels = {
       week:'آخر أسبوع',
       month:'آخر شهر',
       quarter:'آخر ربع سنة',
@@ -1016,16 +1020,17 @@
       year:'آخر سنة كاملة'
     };
 
-    const range = getRangeDates(filters.range);
+    var range = getRangeDates(filters.range);
     if (range) {
-      label.textContent = `الفترة الحالية: ${labels[filters.range] || '—'} (${formatDateOnly(range.start)} → ${formatDateOnly(range.end)})`;
+      label.textContent = 'الفترة الحالية: ' + (labels[filters.range] || '—') +
+        ' (' + formatDateOnly(range.start) + ' → ' + formatDateOnly(range.end) + ')';
     } else {
       label.textContent = 'الفترة الحالية: —';
     }
   }
 
   function badgeClassByStatus(value){
-    const s = normalizeStatus(value);
+    var s = normalizeStatus(value);
     if (s === 'completed') return 'badge badge-success';
     if (s === 'pending') return 'badge badge-warning';
     if (s === 'cancelled') return 'badge badge-danger';
@@ -1053,7 +1058,7 @@
   }
 
   function normalizeKey(value){
-    return String(value ?? '')
+    return String(value || '')
       .trim()
       .toLowerCase()
       .replace(/\s+/g, '')
@@ -1061,10 +1066,10 @@
   }
 
   function buildBrandAssetIndex(){
-    const index = new Map();
+    var index = new Map();
 
-    state.brands.forEach((asset) => {
-      const keys = [
+    state.brands.forEach(function(asset){
+      var keys = [
         asset.id,
         asset.key,
         asset.brand,
@@ -1076,8 +1081,8 @@
         asset.title
       ];
 
-      keys.forEach((key) => {
-        const normalized = normalizeKey(key);
+      keys.forEach(function(key){
+        var normalized = normalizeKey(key);
         if (normalized && !index.has(normalized)) {
           index.set(normalized, asset);
         }
@@ -1088,7 +1093,7 @@
   }
 
   function getBrandAssetByVisit(visit, brandIndex){
-    const candidates = [
+    var candidates = [
       visit.brand,
       visit.brandName,
       visit.brandKey,
@@ -1101,8 +1106,8 @@
       visit.type
     ];
 
-    for (const candidate of candidates) {
-      const normalized = normalizeKey(candidate);
+    for (var i = 0; i < candidates.length; i++) {
+      var normalized = normalizeKey(candidates[i]);
       if (normalized && brandIndex.has(normalized)) {
         return brandIndex.get(normalized);
       }
@@ -1114,49 +1119,55 @@
   function getBrandLogoSrc(asset){
     if (!asset) return '';
 
-    const raw = asset.logoUrl || asset.logoData || asset.logo || '';
-    const value = String(raw ?? '').trim();
+    var raw = asset.logoUrl || asset.logoData || asset.logo || '';
+    var value = String(raw || '').trim();
 
     if (!value) return '';
-    if (value.startsWith('data:image/')) return value;
-    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+    if (value.indexOf('data:image/') === 0) return value;
+    if (value.indexOf('http://') === 0 || value.indexOf('https://') === 0) return value;
 
-    const compact = value.replace(/\s+/g, '');
+    var compact = value.replace(/\s+/g, '');
     if (/^[A-Za-z0-9+/=]+$/.test(compact) && compact.length > 100) {
-      return `data:image/png;base64,${compact}`;
+      return 'data:image/png;base64,' + compact;
     }
 
     return '';
   }
 
-  function renderBrandLogo(logoSrc, altText, cssClass = 'table-brand-logo'){
+  function renderBrandLogo(logoSrc, altText, cssClass){
+    cssClass = cssClass || 'table-brand-logo';
+
     if (!logoSrc) {
-      const placeholderClass = cssClass === 'brand-card-logo'
+      var placeholderClass = cssClass === 'brand-card-logo'
         ? 'brand-logo-placeholder'
         : 'table-brand-logo-placeholder';
-      return `<span class="${placeholderClass}" title="لا يوجد شعار">—</span>`;
+      return '<span class="' + placeholderClass + '" title="لا يوجد شعار">—</span>';
     }
 
-    return `<img class="${cssClass}" src="${escapeHtml(logoSrc)}" alt="${escapeHtml(altText)}{
+    return '<img class="' + cssClass + '" src="' + escapeHtml(logoSrc) + '" alt="' + escapeHtml(altText) + '">';
+  }
+
+  function resetAndObserveProgressBars(){
+    if (progressObserver) {
       progressObserver.disconnect();
     }
 
-    const fills = Array.from(document.querySelectorAll('.progress-on-scroll'));
-    fills.forEach((fill) => {
+    var fills = Array.from(document.querySelectorAll('.progress-on-scroll'));
+    fills.forEach(function(fill){
       fill.style.width = '0%';
       fill.classList.remove('in-view');
     });
 
-    progressObserver = new IntersectionObserver((entries, observer) => {
-      entries.forEach((entry) => {
+    progressObserver = new IntersectionObserver(function(entries, observer){
+      entries.forEach(function(entry){
         if (!entry.isIntersecting) return;
 
-        const el = entry.target;
-        const value = clampPercent(Number(el.dataset.progress || 0));
+        var el = entry.target;
+        var value = clampPercent(Number(el.dataset.progress || 0));
 
-        requestAnimationFrame(() => {
+        requestAnimationFrame(function(){
           el.classList.add('in-view');
-          el.style.width = `${value}%`;
+          el.style.width = value + '%';
         });
 
         observer.unobserve(el);
@@ -1166,41 +1177,43 @@
       rootMargin:'0px 0px -40px 0px'
     });
 
-    fills.forEach((fill) => progressObserver.observe(fill));
+    fills.forEach(function(fill){
+      progressObserver.observe(fill);
+    });
   }
 
   function aggregateBrands(filteredVisits){
-    const brandIndex = buildBrandAssetIndex();
-    const map = new Map();
+    var brandIndex = buildBrandAssetIndex();
+    var map = new Map();
 
-    filteredVisits.forEach((visit) => {
-      const brandName = String(getBrandName(visit) || '').trim();
+    filteredVisits.forEach(function(visit){
+      var brandName = String(getBrandName(visit) || '').trim();
       if (!brandName || brandName === '—') return;
 
-      const key = normalizeKey(brandName);
+      var key = normalizeKey(brandName);
       if (!key) return;
 
-      const brandType = String(getBrandType(visit) || '').trim();
-      const brandAsset = getBrandAssetByVisit(visit, brandIndex);
-      const logoSrc = getBrandLogoSrc(brandAsset);
-      const status = normalizeStatus(visit.status);
+      var brandType = String(getBrandType(visit) || '').trim();
+      var brandAsset = getBrandAssetByVisit(visit, brandIndex);
+      var logoSrc = getBrandLogoSrc(brandAsset);
+      var status = normalizeStatus(visit.status);
 
       if (!map.has(key)) {
         map.set(key, {
-          key,
-          name: brandName,
-          brandType,
-          logoSrc,
-          total: 0,
-          completed: 0,
-          pending: 0,
-          cancelled: 0,
-          checklistDone: 0,
-          completionRate: 0
+          key:key,
+          name:brandName,
+          brandType:brandType,
+          logoSrc:logoSrc,
+          total:0,
+          completed:0,
+          pending:0,
+          cancelled:0,
+          checklistDone:0,
+          completionRate:0
         });
       }
 
-      const entry = map.get(key);
+      var entry = map.get(key);
       entry.total += 1;
 
       if (!entry.brandType && brandType && brandType !== '—') entry.brandType = brandType;
@@ -1214,16 +1227,21 @@
       if (visit.checklistCompleted === true) entry.checklistDone += 1;
     });
 
-    const entries = [...map.values()].map((item) => ({
-      ...item,
-      completionRate: item.total ? (item.completed / item.total) * 100 : 0
-    })).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    var entries = Array.from(map.values()).map(function(item){
+      item.completionRate = item.total ? (item.completed / item.total) * 100 : 0;
+      return item;
+    }).sort(function(a, b){
+      return a.name.localeCompare(b.name, 'ar');
+    });
 
-    return { brandIndex, entries };
+    return {
+      brandIndex: brandIndex,
+      entries: entries
+    };
   }
 
   function renderBrandCards(brandEntries){
-    const box = $('brandNamesBox');
+    var box = $('brandNamesBox');
 
     if (!brandEntries.length) {
       box.className = 'brand-grid empty';
@@ -1232,73 +1250,49 @@
     }
 
     box.className = 'brand-grid';
-    box.innerHTML = brandEntries.map((item) => {
-      const safeRate = clampPercent(item.completionRate);
 
-      return `
-        <div class="brand-card">
-          <div class="brand-card-head">
-            ${renderBrandLogo(item.logoSrc, `شعار ${item.name}`, 'brand-card-logo')}
-            <div class="brand-card-title">
-              <div class="brand-card-name">${escapeHtml(item.name)}</div>
-              <div class="brand-card-type">${escapeHtml(item.brandType || 'بدون نوع محدد')}</div>
-            </div>
-          </div>
+    var html = '';
+    brandEntries.forEach(function(item){
+      var safeRate = clampPercent(item.completionRate);
 
-          <div class="brand-stat-grid">
-            <div class="brand-stat-item total">
-              <strong>${item.total}</strong>
-              <span>إجمالي الزيارات</span>
-            </div>
+      html += ''
+        + '<div class="brand-card">'
+        +   '<div class="brand-card-head">'
+        +     renderBrandLogo(item.logoSrc, 'شعار ' + item.name, 'brand-card-logo')
+        +     '<div class="brand-card-title">'
+        +       '<div class="brand-card-name">' + escapeHtml(item.name) + '</div>'
+        +       '<div class="brand-card-type">' + escapeHtml(item.brandType || 'بدون نوع محدد') + '</div>'
+        +     '</div>'
+        +   '</div>'
+        +   '<div class="brand-stat-grid">'
+        +     '<div class="brand-stat-item total"><strong>' + item.total + '</strong><span>إجمالي الزيارات</span></div>'
+        +     '<div class="brand-stat-item completed"><strong>' + item.completed + '</strong><span>مكتمل</span></div>'
+        +     '<div class="brand-stat-item pending"><strong>' + item.pending + '</strong><span>معلّق</span></div>'
+        +     '<div class="brand-stat-item cancelled"><strong>' + item.cancelled + '</strong><span>ملغي</span></div>'
+        +     '<div class="brand-stat-item checklist"><strong>' + item.checklistDone + '</strong><span>Checklist مكتمل</span></div>'
+        +     '<div class="brand-stat-item progress"><strong>' + formatPercent(item.completionRate) + '</strong><span>نسبة الإنجاز</span></div>'
+        +   '</div>'
+        +   '<div class="brand-progress-wrap">'
+        +     '<div class="brand-progress-title">'
+        +       '<span>شريط التقدم</span>'
+        +       '<span>' + formatPercent(item.completionRate) + '</span>'
+        +     '</div>'
+        +     '<div class="progress-track">'
+        +       '<div class="progress-fill progress-on-scroll" data-progress="' + safeRate + '" style="width:0%"></div>'
+        +     '</div>'
+        +     '<div class="progress-meta">'
+        +       '<span>المكتمل ' + item.completed + ' من ' + item.total + '</span>'
+        +       '<span>المتبقي ' + Math.max(item.total - item.completed, 0) + '</span>'
+        +     '</div>'
+        +   '</div>'
+        + '</div>';
+    });
 
-            <div class="brand-stat-item completed">
-              <strong>${item.completed}</strong>
-              <span>مكتمل</span>
-            </div>
-
-            <div class="brand-stat-item pending">
-              <strong>${item.pending}</strong>
-              <span>معلّق</span>
-            </div>
-
-            <div class="brand-stat-item cancelled">
-              <strong>${item.cancelled}</strong>
-              <span>ملغي</span>
-            </div>
-
-            <div class="brand-stat-item checklist">
-              <strong>${item.checklistDone}</strong>
-              <span>Checklist مكتمل</span>
-            </div>
-
-            <div class="brand-stat-item progress">
-              <strong>${formatPercent(item.completionRate)}</strong>
-              <span>نسبة الإنجاز</span>
-            </div>
-          </div>
-
-          <div class="brand-progress-wrap">
-            <div class="brand-progress-title">
-              <span>شريط التقدم</span>
-              <span>${formatPercent(item.completionRate)}</span>
-            </div>
-
-            <div class="progress-track">
-              <div class="progress-fill progress-on-scroll" data-progress="${safeRate}" style="width:0%"></div>
-            </div>
-
-            <div class="progress-meta">
-              <span>المكتمل ${item.completed} من ${item.total}</span>
-              <span>المتبقي ${Math.max(item.total - item.completed, 0)}</span>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
+    box.innerHTML = html;
   }
 
   function renderVisitsTable(filteredVisits, brandIndex){
-    const body = $('visitsTableBody');
+    var body = $('visitsTableBody');
     $('visitsTableCount').textContent = filteredVisits.length;
 
     if (!filteredVisits.length) {
@@ -1306,66 +1300,71 @@
       return;
     }
 
-    body.innerHTML = filteredVisits.map((v, index) => {
-      const checklistDone = v.checklistCompleted === true ? 'مكتمل' : 'غير مكتمل';
-      const checklistClass = v.checklistCompleted === true ? 'badge badge-success' : 'badge badge-warning';
-      const statusText = statusLabel(v.status);
-      const brandName = getBrandName(v);
-      const brandAsset = getBrandAssetByVisit(v, brandIndex);
-      const logoSrc = getBrandLogoSrc(brandAsset);
+    var html = '';
+    filteredVisits.forEach(function(v, index){
+      var checklistDone = v.checklistCompleted === true ? 'مكتمل' : 'غير مكتمل';
+      var checklistClass = v.checklistCompleted === true ? 'badge badge-success' : 'badge badge-warning';
+      var statusText = statusLabel(v.status);
+      var brandName = getBrandName(v);
+      var brandAsset = getBrandAssetByVisit(v, brandIndex);
+      var logoSrc = getBrandLogoSrc(brandAsset);
 
-      return `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${escapeHtml(formatDate(v.date || v.visitDate || v.createdAt))}</td>
-          <td>${escapeHtml(getBranchName(v))}</td>
-          <td>${renderBrandLogo(logoSrc, `شعار ${brandName}`)}</td>
-          <td>${escapeHtml(brandName)}</td>
-          <td>${escapeHtml(getBrandType(v))}</td>
-          <td>${escapeHtml(getTechnicianName(v))}</td>
-          <td><span class="${badgeClassByStatus(v.status)}">${escapeHtml(statusText)}</span></td>
-          <td><span class="${checklistClass}">${escapeHtml(checklistDone)}</span></td>
-          <td>${escapeHtml(getNotes(v))}</td>
-        </tr>
-      `;
-    }).join('');
+      html += ''
+        + '<tr>'
+        +   '<td>' + (index + 1) + '</td>'
+        +   '<td>' + escapeHtml(formatDate(v.date || v.visitDate || v.createdAt)) + '</td>'
+        +   '<td>' + escapeHtml(getBranchName(v)) + '</td>'
+        +   '<td>' + renderBrandLogo(logoSrc, 'شعار ' + brandName) + '</td>'
+        +   '<td>' + escapeHtml(brandName) + '</td>'
+        +   '<td>' + escapeHtml(getBrandType(v)) + '</td>'
+        +   '<td>' + escapeHtml(getTechnicianName(v)) + '</td>'
+        +   '<td><span class="' + badgeClassByStatus(v.status) + '">' + escapeHtml(statusText) + '</span></td>'
+        +   '<td><span class="' + checklistClass + '">' + escapeHtml(checklistDone) + '</span></td>'
+        +   '<td>' + escapeHtml(getNotes(v)) + '</td>'
+        + '</tr>';
+    });
+
+    body.innerHTML = html;
   }
 
   function renderStats(){
-    const filteredVisits = getFilteredVisits();
-    const filteredChecklists = getFilteredChecklists();
-    const agg = aggregateBrands(filteredVisits);
-    const brandIndex = agg.brandIndex;
-    const brandEntries = agg.entries;
+    var filteredVisits = getFilteredVisits();
+    var filteredChecklists = getFilteredChecklists();
+    var agg = aggregateBrands(filteredVisits);
+    var brandIndex = agg.brandIndex;
+    var brandEntries = agg.entries;
 
     $('statBranches').textContent = state.branches.length;
     $('statTechnicians').textContent = state.technicians.length;
     $('statVisits').textContent = filteredVisits.length;
     $('statChecklists').textContent = filteredChecklists.length;
 
-    const completed = filteredVisits.filter((v) =>
-      normalizeStatus(v.status) === 'completed' || v.checklistCompleted === true
-    ).length;
+    var completed = filteredVisits.filter(function(v){
+      return normalizeStatus(v.status) === 'completed' || v.checklistCompleted === true;
+    }).length;
 
-    const pending = filteredVisits.filter((v) => {
-      const status = normalizeStatus(v.status);
+    var pending = filteredVisits.filter(function(v){
+      var status = normalizeStatus(v.status);
       if (status === 'pending') return true;
       if (status !== 'completed' && status !== 'cancelled' && v.checklistCompleted !== true) return true;
       return false;
     }).length;
 
-    const visitedTechs = new Set(
+    var visitedTechs = new Set(
       filteredVisits
-        .map((v) => v.technicianDocId || v.technicianId || v.technicianEmail)
+        .map(function(v){ return v.technicianDocId || v.technicianId || v.technicianEmail; })
         .filter(Boolean)
     );
 
-    const completionRate = filteredVisits.length ? (completed / filteredVisits.length) * 100 : 0;
-    const safeOverallRate = clampPercent(completionRate);
+    var completionRate = filteredVisits.length ? (completed / filteredVisits.length) * 100 : 0;
+    var safeOverallRate = clampPercent(completionRate);
 
-    const brandNames = new Set(brandEntries.map((item) => item.name).filter(Boolean));
-    const brandTypes = new Set(
-      brandEntries.map((item) => item.brandType).filter(Boolean).filter((v) => v !== '—')
+    var brandNames = new Set(brandEntries.map(function(item){ return item.name; }).filter(Boolean));
+    var brandTypes = new Set(
+      brandEntries
+        .map(function(item){ return item.brandType; })
+        .filter(Boolean)
+        .filter(function(v){ return v !== '—'; })
     );
 
     $('statCompletedVisits').textContent = completed;
@@ -1377,7 +1376,7 @@
 
     $('overallProgressBar').dataset.progress = String(safeOverallRate);
     $('overallProgressBar').style.width = '0%';
-    $('overallProgressMeta').textContent = `${formatPercent(completionRate)} من إجمالي ${filteredVisits.length} زيارة`;
+    $('overallProgressMeta').textContent = formatPercent(completionRate) + ' من إجمالي ' + filteredVisits.length + ' زيارة';
 
     updateActivePresetButtons();
     updateRangeLabel();
@@ -1400,8 +1399,8 @@
   }
 
   function applyCustomRange(){
-    const from = $('filterFrom').value;
-    const to = $('filterTo').value;
+    var from = $('filterFrom').value;
+    var to = $('filterTo').value;
 
     if (!from && !to) {
       filters.range = 'year';
@@ -1435,20 +1434,22 @@
     if (filtersBound) return;
     filtersBound = true;
 
-    document.querySelectorAll('.preset-btn').forEach((btn) => {
-      btn.addEventListener('click', () => applyPresetRange(btn.dataset.range));
+    document.querySelectorAll('.preset-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        applyPresetRange(btn.dataset.range);
+      });
     });
 
     $('applyDateFilter').addEventListener('click', applyCustomRange);
     $('resetDateFilter').addEventListener('click', resetFilters);
 
-    $('filterFrom').addEventListener('change', () => {
+    $('filterFrom').addEventListener('change', function(){
       filters.range = 'custom';
       updateActivePresetButtons();
       updateRangeLabel();
     });
 
-    $('filterTo').addEventListener('change', () => {
+    $('filterTo').addEventListener('change', function(){
       filters.range = 'custom';
       updateActivePresetButtons();
       updateRangeLabel();
@@ -1456,7 +1457,7 @@
   }
 
   function clearSubscriptions(){
-    unsub.forEach((u) => {
+    unsub.forEach(function(u){
       if (typeof u === 'function') u();
     });
     unsub = [];
@@ -1468,44 +1469,44 @@
     listenersStarted = true;
 
     unsub.push(
-      db.collection('branches').onSnapshot((s) => {
-        state.branches = s.docs.map((d) => ({ id:d.id, ...d.data() }));
+      db.collection('branches').onSnapshot(function(s){
+        state.branches = s.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
         renderStats();
-      }, (err) => console.error('branches', err))
+      }, function(err){ console.error('branches', err); })
     );
 
     unsub.push(
-      db.collection('technicians').orderBy('name').onSnapshot((s) => {
-        state.technicians = s.docs.map((d) => ({ id:d.id, ...d.data() }));
+      db.collection('technicians').orderBy('name').onSnapshot(function(s){
+        state.technicians = s.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
         renderStats();
-      }, (err) => console.error('technicians', err))
+      }, function(err){ console.error('technicians', err); })
     );
 
     unsub.push(
-      db.collection('siteVisits').orderBy('date', 'desc').onSnapshot((s) => {
-        state.visits = s.docs.map((d) => ({ id:d.id, ...d.data() }));
+      db.collection('siteVisits').orderBy('date', 'desc').onSnapshot(function(s){
+        state.visits = s.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
         renderStats();
-      }, (err) => console.error('siteVisits', err))
+      }, function(err){ console.error('siteVisits', err); })
     );
 
     unsub.push(
-      db.collection('branch_checklists').orderBy('visitDate', 'desc').onSnapshot((s) => {
-        state.checklists = s.docs.map((d) => ({ id:d.id, ...d.data() }));
+      db.collection('branch_checklists').orderBy('visitDate', 'desc').onSnapshot(function(s){
+        state.checklists = s.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
         renderStats();
-      }, (err) => console.error('branch_checklists', err))
+      }, function(err){ console.error('branch_checklists', err); })
     );
 
     unsub.push(
-      db.collection('brand_assets').onSnapshot((s) => {
-        state.brands = s.docs.map((d) => ({ id:d.id, ...d.data() }));
+      db.collection('brand_assets').onSnapshot(function(s){
+        state.brands = s.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
         renderStats();
-      }, (err) => console.error('brand_assets', err))
+      }, function(err){ console.error('brand_assets', err); })
     );
   }
 
   function bootInsideShell(){
     try {
-      const parentFirebase =
+      var parentFirebase =
         window.parent &&
         window.parent !== window &&
         window.parent.firebase
@@ -1518,14 +1519,14 @@
         return;
       }
 
-      const auth = parentFirebase.auth();
-      const db = parentFirebase.firestore();
+      var auth = parentFirebase.auth();
+      var db = parentFirebase.firestore();
 
       bindFilterEvents();
       bindCaptureEvents();
       renderStats();
 
-      auth.onAuthStateChanged((user) => {
+      auth.onAuthStateChanged(function(user){
         if (!user) {
           clearSubscriptions();
           $('dashboardRoot').classList.add('hidden');
@@ -1545,6 +1546,7 @@
   }
 
   bootInsideShell();
+})();
 </script>
 
 </body>
