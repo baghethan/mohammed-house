@@ -34,7 +34,7 @@
       padding: 0 14px 28px;
     }
     .lang-wrap {
-      display:flex;
+      display:none !important;
       gap:8px;
       flex-wrap:wrap;
       margin-bottom:14px;
@@ -49,6 +49,7 @@
       padding: 8px 12px;
       font-weight: 700;
       cursor: pointer;
+      display:none !important;
     }
     .lang-btn.active {
       background: var(--primary);
@@ -56,7 +57,7 @@
       border-color: var(--primary);
     }
     .badge {
-      display: inline-block;
+      display: none !important;
       padding: 4px 8px;
       border-radius: 999px;
       background: #eef5ff;
@@ -231,7 +232,7 @@
 </head>
 <body>
   <main class="container">
-    <div class="lang-wrap">
+    <div class="lang-wrap" aria-hidden="true">
       <button class="lang-btn active" id="langArBtn" type="button">AR</button>
       <button class="lang-btn" id="langEnBtn" type="button">EN</button>
       <span class="badge">branch_checklists</span>
@@ -506,8 +507,8 @@
 
     function syncLangButtons(){
       var isAr = state.currentLang === 'ar';
-      ['langArBtn'].forEach(function(id){ if ($(id)) $(id).classList.toggle('active', isAr); });
-      ['langEnBtn'].forEach(function(id){ if ($(id)) $(id).classList.toggle('active', !isAr); });
+      if ($('langArBtn')) $('langArBtn').classList.toggle('active', isAr);
+      if ($('langEnBtn')) $('langEnBtn').classList.toggle('active', !isAr);
     }
 
     function monthName(dateValue){
@@ -567,55 +568,27 @@
     }
 
     function normalizeFieldKey(value){
-      return String(value == null ? '' : value)
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .replace(/[^a-z0-9\u0600-\u06FF]+/g, '');
+      return String(value == null ? '' : value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g, '');
     }
 
-    function getFieldLabel(field){
-      return state.currentLang === 'en' ? (field.labelEn || field.label || '') : (field.labelAr || field.label || '');
-    }
-
-    function getSectionLabel(field){
-      var base = state.currentLang === 'en' ? (field.sectionEn || field.section || 'General') : (field.sectionAr || field.section || 'General');
-      return base || 'General';
-    }
-
-    function getOptionLabel(option){
-      if (!option) return '';
-      return state.currentLang === 'en' ? (option.labelEn || option.label || option.value || '') : (option.labelAr || option.label || option.value || '');
-    }
+    function getFieldLabel(field){ return state.currentLang === 'en' ? (field.labelEn || field.label || '') : (field.labelAr || field.label || ''); }
+    function getSectionLabel(field){ var base = state.currentLang === 'en' ? (field.sectionEn || field.section || 'General') : (field.sectionAr || field.section || 'General'); return base || 'General'; }
+    function getOptionLabel(option){ if (!option) return ''; return state.currentLang === 'en' ? (option.labelEn || option.label || option.value || '') : (option.labelAr || option.label || option.value || ''); }
 
     function resolveBranchMeta(branchId){
       var branch = state.branches.find(function(b){ return String(b.id) === String(branchId); });
-      return {
-        city: (branch && branch.city) || '',
-        region: (branch && branch.region) || '',
-        functionName: (branch && (branch.functionName || branch.function)) || '',
-        location: (branch && branch.location) || '',
-        branchName: (branch && branch.branchName) || ''
-      };
+      return { city:(branch&&branch.city)||'', region:(branch&&branch.region)||'', functionName:(branch&&(branch.functionName||branch.function))||'', location:(branch&&branch.location)||'', branchName:(branch&&branch.branchName)||'' };
     }
-
     function makeBrandKey(){
       var fromKey = $('cl_brandKey').value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 40);
       if (fromKey) return fromKey;
       return $('cl_brand').value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 40);
     }
-
-    function getDynamicFieldById(id){
-      return state.checklistFields.find(function(field){ return field.id === id; }) || null;
-    }
-
+    function getDynamicFieldById(id){ return state.checklistFields.find(function(field){ return field.id === id; }) || null; }
     function getDynamicFieldByLabel(label){
       var key = normalizeFieldKey(label);
-      return state.checklistFields.find(function(field){
-        return normalizeFieldKey(field.label) === key || normalizeFieldKey(field.labelEn) === key || normalizeFieldKey(field.labelAr) === key;
-      }) || null;
+      return state.checklistFields.find(function(field){ return normalizeFieldKey(field.label) === key || normalizeFieldKey(field.labelEn) === key || normalizeFieldKey(field.labelAr) === key; }) || null;
     }
-
     function resolveDynamicFieldRef(ref){
       if (!ref) return null;
       if (ref.fieldId) {
@@ -628,22 +601,14 @@
       }
       return null;
     }
-
-    function getDynamicAnswerByRef(ref, answers){
-      var field = resolveDynamicFieldRef(ref);
-      return field ? answers[field.id] : undefined;
-    }
-
+    function getDynamicAnswerByRef(ref, answers){ var field = resolveDynamicFieldRef(ref); return field ? answers[field.id] : undefined; }
     function shouldShowDynamicField(field, answers){
       var rule = field.logic && field.logic.visibleWhen;
       if (!(field.logic && field.logic.enabled) || !rule) return true;
       var sourceValue = getDynamicAnswerByRef({ fieldId: rule.fieldId, fieldLabel: rule.fieldLabel }, answers);
-      if (rule.operator === 'equals') {
-        return String(sourceValue == null ? '' : sourceValue).toLowerCase() === String(rule.value == null ? '' : rule.value).toLowerCase();
-      }
+      if (rule.operator === 'equals') return String(sourceValue == null ? '' : sourceValue).toLowerCase() === String(rule.value == null ? '' : rule.value).toLowerCase();
       return true;
     }
-
     function getDynamicRepeatCount(field, answers){
       if (!(field.repeat && field.repeat.enabled)) return 0;
       var sourceValue = getDynamicAnswerByRef({ fieldId: field.repeat.countFromFieldId, fieldLabel: field.repeat.countFromFieldLabel }, answers);
@@ -653,26 +618,14 @@
 
     function renderDynamicInput(field, value, inputId){
       var fieldLabel = getFieldLabel(field);
-      if (field.fieldType === 'boolean') {
-        return '<div class="field"><label>' + esc(fieldLabel) + '</label><label class="choice-option"><input type="checkbox" id="' + inputId + '" data-field-id="' + esc(field.id) + '" ' + (value ? 'checked' : '') + ' /><span>' + esc(t('checkedLabel')) + '</span></label></div>';
-      }
-      if (field.fieldType === 'date') {
-        return '<div class="field"><label>' + esc(fieldLabel) + '</label><input type="date" id="' + inputId + '" data-field-id="' + esc(field.id) + '" value="' + esc(value || '') + '" /></div>';
-      }
-      if (field.fieldType === 'number') {
-        return '<div class="field"><label>' + esc(fieldLabel) + '</label><input type="number" id="' + inputId + '" data-field-id="' + esc(field.id) + '" value="' + esc(value || '') + '" /></div>';
-      }
-      if (field.fieldType === 'textarea') {
-        return '<div class="field"><label>' + esc(fieldLabel) + '</label><textarea id="' + inputId + '" data-field-id="' + esc(field.id) + '">' + esc(value || '') + '</textarea></div>';
-      }
+      if (field.fieldType === 'boolean') return '<div class="field"><label>' + esc(fieldLabel) + '</label><label class="choice-option"><input type="checkbox" id="' + inputId + '" data-field-id="' + esc(field.id) + '" ' + (value ? 'checked' : '') + ' /><span>' + esc(t('checkedLabel')) + '</span></label></div>';
+      if (field.fieldType === 'date') return '<div class="field"><label>' + esc(fieldLabel) + '</label><input type="date" id="' + inputId + '" data-field-id="' + esc(field.id) + '" value="' + esc(value || '') + '" /></div>';
+      if (field.fieldType === 'number') return '<div class="field"><label>' + esc(fieldLabel) + '</label><input type="number" id="' + inputId + '" data-field-id="' + esc(field.id) + '" value="' + esc(value || '') + '" /></div>';
+      if (field.fieldType === 'textarea') return '<div class="field"><label>' + esc(fieldLabel) + '</label><textarea id="' + inputId + '" data-field-id="' + esc(field.id) + '">' + esc(value || '') + '</textarea></div>';
       if (field.fieldType === 'choice') {
         var options = Array.isArray(field.options) ? field.options : [];
-        if (field.renderMode === 'select') {
-          return '<div class="field"><label>' + esc(fieldLabel) + '</label><select id="' + inputId + '" data-field-id="' + esc(field.id) + '"><option value="">' + esc(t('chooseOption')) + '</option>' + options.map(function(opt){ return '<option value="' + esc(opt.value) + '" ' + (String(value || '') === String(opt.value) ? 'selected' : '') + '>' + esc(getOptionLabel(opt)) + '</option>'; }).join('') + '</select></div>';
-        }
-        if (field.renderMode === 'radios') {
-          return '<div class="field"><label>' + esc(fieldLabel) + '</label><div class="choice-group-dynamic">' + options.map(function(opt){ return '<label class="choice-option"><input type="radio" name="' + inputId + '" value="' + esc(opt.value) + '" data-radio-group-id="' + esc(field.id) + '" ' + (String(value || '') === String(opt.value) ? 'checked' : '') + ' /><span>' + esc(getOptionLabel(opt)) + '</span></label>'; }).join('') + '</div></div>';
-        }
+        if (field.renderMode === 'select') return '<div class="field"><label>' + esc(fieldLabel) + '</label><select id="' + inputId + '" data-field-id="' + esc(field.id) + '"><option value="">' + esc(t('chooseOption')) + '</option>' + options.map(function(opt){ return '<option value="' + esc(opt.value) + '" ' + (String(value || '') === String(opt.value) ? 'selected' : '') + '>' + esc(getOptionLabel(opt)) + '</option>'; }).join('') + '</select></div>';
+        if (field.renderMode === 'radios') return '<div class="field"><label>' + esc(fieldLabel) + '</label><div class="choice-group-dynamic">' + options.map(function(opt){ return '<label class="choice-option"><input type="radio" name="' + inputId + '" value="' + esc(opt.value) + '" data-radio-group-id="' + esc(field.id) + '" ' + (String(value || '') === String(opt.value) ? 'checked' : '') + ' /><span>' + esc(getOptionLabel(opt)) + '</span></label>'; }).join('') + '</div></div>';
         if (field.renderMode === 'checkboxes') {
           var values = Array.isArray(value) ? value : [];
           return '<div class="field"><label>' + esc(fieldLabel) + '</label><div class="choice-group-dynamic">' + options.map(function(opt){ return '<label class="choice-option"><input type="checkbox" value="' + esc(opt.value) + '" data-checkbox-group-id="' + esc(field.id) + '" ' + (values.indexOf(opt.value) > -1 ? 'checked' : '') + ' /><span>' + esc(getOptionLabel(opt)) + '</span></label>'; }).join('') + '</div></div>';
@@ -683,39 +636,22 @@
 
     function collectDynamicChecklistAnswers(seed){
       var answers = seed ? Object.assign({}, seed) : {};
-      state.checklistFields
-        .filter(function(field){ return field.active !== false; })
-        .sort(function(a, b){
-          var sa = String(a.section || '');
-          var sb = String(b.section || '');
-          if (sa !== sb) return sa.localeCompare(sb);
-          return Number(a.order || 0) - Number(b.order || 0);
-        })
-        .forEach(function(field){
-          if (field.repeat && field.repeat.enabled) {
-            var nodes = Array.from(document.querySelectorAll('[data-repeat-field-id="' + field.id + '"]'));
-            answers[field.id] = nodes.map(function(el){ return (el.value || '').trim(); }).filter(Boolean);
-            return;
-          }
-          var inputId = 'dcf_' + field.id;
-          if (field.fieldType === 'boolean') {
-            var boolEl = $(inputId);
-            answers[field.id] = !!(boolEl && boolEl.checked);
-            return;
-          }
-          if (field.fieldType === 'choice' && field.renderMode === 'radios') {
-            var checkedRadio = document.querySelector('input[name="' + inputId + '"]:checked');
-            answers[field.id] = checkedRadio ? checkedRadio.value : '';
-            return;
-          }
-          if (field.fieldType === 'choice' && field.renderMode === 'checkboxes') {
-            var checkedBoxes = Array.from(document.querySelectorAll('[data-checkbox-group-id="' + field.id + '"]:checked'));
-            answers[field.id] = checkedBoxes.map(function(el){ return el.value; });
-            return;
-          }
-          var el = $(inputId);
-          answers[field.id] = el ? (el.value || '') : '';
-        });
+      state.checklistFields.filter(function(field){ return field.active !== false; }).sort(function(a, b){
+        var sa = String(a.section || ''), sb = String(b.section || '');
+        if (sa !== sb) return sa.localeCompare(sb);
+        return Number(a.order || 0) - Number(b.order || 0);
+      }).forEach(function(field){
+        if (field.repeat && field.repeat.enabled) {
+          var nodes = Array.from(document.querySelectorAll('[data-repeat-field-id="' + field.id + '"]'));
+          answers[field.id] = nodes.map(function(el){ return (el.value || '').trim(); }).filter(Boolean);
+          return;
+        }
+        var inputId = 'dcf_' + field.id;
+        if (field.fieldType === 'boolean') { var boolEl = $(inputId); answers[field.id] = !!(boolEl && boolEl.checked); return; }
+        if (field.fieldType === 'choice' && field.renderMode === 'radios') { var checkedRadio = document.querySelector('input[name="' + inputId + '"]:checked'); answers[field.id] = checkedRadio ? checkedRadio.value : ''; return; }
+        if (field.fieldType === 'choice' && field.renderMode === 'checkboxes') { var checkedBoxes = Array.from(document.querySelectorAll('[data-checkbox-group-id="' + field.id + '"]:checked')); answers[field.id] = checkedBoxes.map(function(el){ return el.value; }); return; }
+        var el = $(inputId); answers[field.id] = el ? (el.value || '') : '';
+      });
       return answers;
     }
 
@@ -729,24 +665,15 @@
 
     function renderDynamicChecklistForm(values){
       values = values || {};
-      var container = $('dynamicChecklistSections');
-      if (!container) return;
+      var container = $('dynamicChecklistSections'); if (!container) return;
       var currentAnswers = Object.keys(values).length ? collectDynamicChecklistAnswers(values) : collectDynamicChecklistAnswers();
-      var fields = state.checklistFields
-        .filter(function(field){ return field.active !== false; })
-        .sort(function(a, b){
-          var sa = String(a.section || '');
-          var sb = String(b.section || '');
-          if (sa !== sb) return sa.localeCompare(sb);
-          return Number(a.order || 0) - Number(b.order || 0);
-        });
-      var grouped = {};
-      fields.forEach(function(field){
-        if (!shouldShowDynamicField(field, currentAnswers)) return;
-        var section = getSectionLabel(field);
-        if (!grouped[section]) grouped[section] = [];
-        grouped[section].push(field);
+      var fields = state.checklistFields.filter(function(field){ return field.active !== false; }).sort(function(a, b){
+        var sa = String(a.section || ''), sb = String(b.section || '');
+        if (sa !== sb) return sa.localeCompare(sb);
+        return Number(a.order || 0) - Number(b.order || 0);
       });
+      var grouped = {};
+      fields.forEach(function(field){ if (!shouldShowDynamicField(field, currentAnswers)) return; var section = getSectionLabel(field); if (!grouped[section]) grouped[section] = []; grouped[section].push(field); });
       container.innerHTML = '';
       Object.keys(grouped).forEach(function(section){
         var sectionFields = grouped[section];
@@ -779,79 +706,29 @@
       bindDynamicChecklistReactivity();
     }
 
-    function renderBrandsDatalist(){
-      $('brandsDatalist').innerHTML = state.brands.map(function(brand){ return '<option value="' + esc(brand.brand || brand.nameEn || brand.nameAr || brand.key || '') + '"></option>'; }).join('');
-    }
-
+    function renderBrandsDatalist(){ $('brandsDatalist').innerHTML = state.brands.map(function(brand){ return '<option value="' + esc(brand.brand || brand.nameEn || brand.nameAr || brand.key || '') + '"></option>'; }).join(''); }
     function populateTechnicianSelect(){
-      var techOptions = state.technicians
-        .filter(function(tn){ return (tn.status || 'active') !== 'inactive'; })
-        .sort(function(a, b){ return String(a.name || '').localeCompare(String(b.name || '')); })
-        .map(function(tn){ return '<option value="' + esc(tn.id) + '">' + esc(tn.name || tn.id) + '</option>'; });
+      var techOptions = state.technicians.filter(function(tn){ return (tn.status || 'active') !== 'inactive'; }).sort(function(a, b){ return String(a.name || '').localeCompare(String(b.name || '')); }).map(function(tn){ return '<option value="' + esc(tn.id) + '">' + esc(tn.name || tn.id) + '</option>'; });
       setOptions('cl_technician', techOptions, t('chooseTechnician'));
     }
-
     function populateVisitsForTechnician(){
       var technicianId = $('cl_technician').value || '';
       var tech = state.technicians.find(function(tn){ return tn.id === technicianId; }) || null;
       $('cl_technician_id').value = (tech && (tech.authUid || tech.id)) || '';
       $('cl_technician_email').value = (tech && tech.email) || '';
-      var rows = state.visits
-        .filter(function(visit){
-          if (!technicianId) return true;
-          return visit.technicianDocId === technicianId || visit.technicianId === ((tech && tech.authUid) || '') || visit.technicianEmail === ((tech && tech.email) || '');
-        })
-        .sort(function(a, b){ return String(b.date || '').localeCompare(String(a.date || '')); });
+      var rows = state.visits.filter(function(visit){
+        if (!technicianId) return true;
+        return visit.technicianDocId === technicianId || visit.technicianId === ((tech && tech.authUid) || '') || visit.technicianEmail === ((tech && tech.email) || '');
+      }).sort(function(a, b){ return String(b.date || '').localeCompare(String(a.date || '')); });
       var options = rows.map(function(visit){ return '<option value="' + esc(visit.id) + '">' + esc((visit.date || '-') + ' — ' + (visit.branchName || '-') + ' — ' + (visit.brand || '-')) + '</option>'; });
       setOptions('cl_visit_ref', options, t('chooseVisit'));
-      if (technicianId && rows.length === 1) {
-        $('cl_visit_ref').value = rows[0].id;
-        fillChecklistFromVisit(rows[0]);
-      }
+      if (technicianId && rows.length === 1) { $('cl_visit_ref').value = rows[0].id; fillChecklistFromVisit(rows[0]); }
     }
-
-    function fillChecklistFromVisit(visit){
-      if (!visit) return;
-      $('cl_brand').value = visit.brand || '';
-      $('cl_brandKey').value = visit.brandKey || '';
-      $('cl_branch_id').value = visit.branchId || '';
-      $('cl_location').value = visit.branchName || visit.locationSite || '';
-      $('cl_visit_date').value = visit.date || '';
-      $('cl_month').value = monthName(visit.date || '');
-    }
-
-    function autoFillFromBranchId(){
-      var branch = state.branches.find(function(b){ return String(b.id) === String($('cl_branch_id').value.trim()); });
-      if (!branch) return;
-      if (!$('cl_brand').value) $('cl_brand').value = branch.brand || '';
-      if (!$('cl_location').value) $('cl_location').value = branch.branchName || branch.location || branch.city || '';
-    }
-
+    function fillChecklistFromVisit(visit){ if (!visit) return; $('cl_brand').value = visit.brand || ''; $('cl_brandKey').value = visit.brandKey || ''; $('cl_branch_id').value = visit.branchId || ''; $('cl_location').value = visit.branchName || visit.locationSite || ''; $('cl_visit_date').value = visit.date || ''; $('cl_month').value = monthName(visit.date || ''); }
+    function autoFillFromBranchId(){ var branch = state.branches.find(function(b){ return String(b.id) === String($('cl_branch_id').value.trim()); }); if (!branch) return; if (!$('cl_brand').value) $('cl_brand').value = branch.brand || ''; if (!$('cl_location').value) $('cl_location').value = branch.branchName || branch.location || branch.city || ''; }
     function updateMonthFromVisitDate(){ $('cl_month').value = monthName($('cl_visit_date').value); }
-
-    function clearChecklistForm(){
-      $('editingChecklistId').value = '';
-      ['cl_technician_id','cl_technician_email','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_branch_manager','cl_visit_date','cl_month','cl_users_count'].forEach(function(id){ if ($(id)) $(id).value = ''; });
-      ['cl_technician','cl_visit_ref','cl_visit_scheduled','cl_calendar_booked'].forEach(function(id){ if ($(id)) $(id).value = ''; });
-      $('deleteChecklistBtn').classList.add('hidden');
-      renderDynamicChecklistForm({});
-      setMessage('checklistMessage', t('readyToSave'));
-      setAlert('checklistError');
-      populateVisitsForTechnician();
-    }
-
-    function getDynamicSummaryAnswer(answers){
-      var labels = ['Service Report Summary', 'Summary', 'ملخص التقرير'];
-      for (var i = 0; i < state.checklistFields.length; i++) {
-        var field = state.checklistFields[i];
-        if (labels.indexOf(field.label) > -1 || labels.indexOf(field.labelEn) > -1 || labels.indexOf(field.labelAr) > -1) {
-          var value = answers[field.id];
-          if (Array.isArray(value)) return value.join(', ');
-          return String(value || '');
-        }
-      }
-      return '';
-    }
+    function clearChecklistForm(){ $('editingChecklistId').value = ''; ['cl_technician_id','cl_technician_email','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_branch_manager','cl_visit_date','cl_month','cl_users_count'].forEach(function(id){ if ($(id)) $(id).value = ''; }); ['cl_technician','cl_visit_ref','cl_visit_scheduled','cl_calendar_booked'].forEach(function(id){ if ($(id)) $(id).value = ''; }); $('deleteChecklistBtn').classList.add('hidden'); renderDynamicChecklistForm({}); setMessage('checklistMessage', t('readyToSave')); setAlert('checklistError'); populateVisitsForTechnician(); }
+    function getDynamicSummaryAnswer(answers){ var labels = ['Service Report Summary', 'Summary', 'ملخص التقرير']; for (var i = 0; i < state.checklistFields.length; i++) { var field = state.checklistFields[i]; if (labels.indexOf(field.label) > -1 || labels.indexOf(field.labelEn) > -1 || labels.indexOf(field.labelAr) > -1) { var value = answers[field.id]; if (Array.isArray(value)) return value.join(', '); return String(value || ''); } } return ''; }
 
     async function saveChecklist(){
       try {
@@ -888,57 +765,27 @@
           numberOfUsers: $('cl_users_count').value ? Number($('cl_users_count').value) : null,
           dynamicAnswers: dynamicAnswers,
           dynamicFieldsSnapshot: state.checklistFields.filter(function(field){ return field.active !== false; }).map(function(field){
-            return {
-              id: field.id,
-              label: field.label,
-              labelAr: field.labelAr || '',
-              labelEn: field.labelEn || '',
-              fieldType: field.fieldType,
-              renderMode: field.renderMode || '',
-              options: field.options || [],
-              section: field.section || 'General',
-              sectionAr: field.sectionAr || '',
-              sectionEn: field.sectionEn || '',
-              order: field.order == null ? 1 : field.order,
-              logic: field.logic || {},
-              repeat: field.repeat || {},
-              integration: field.integration || {}
-            };
+            return { id: field.id, label: field.label, labelAr: field.labelAr || '', labelEn: field.labelEn || '', fieldType: field.fieldType, renderMode: field.renderMode || '', options: field.options || [], section: field.section || 'General', sectionAr: field.sectionAr || '', sectionEn: field.sectionEn || '', order: field.order == null ? 1 : field.order, logic: field.logic || {}, repeat: field.repeat || {}, integration: field.integration || {} };
           }),
           q28_serviceReportSummary: getDynamicSummaryAnswer(dynamicAnswers),
           updatedAt: fb.firestore.FieldValue.serverTimestamp()
         };
         if (!payload.technicianId) throw new Error(t('selectTechnicianFirst'));
         if (!payload.brand || !payload.branchId || !payload.locationSite || !payload.visitDate) throw new Error(t('completeRequiredFields'));
-
         var targetId = $('editingChecklistId').value.trim();
         if (!targetId && payload.linkedVisitId) {
           var existingByVisit = state.checklists.find(function(row){ return String(row.linkedVisitId || '') === String(payload.linkedVisitId); });
           if (existingByVisit && existingByVisit.id) targetId = existingByVisit.id;
         }
         if (!targetId) {
-          var existingByNaturalKey = state.checklists.find(function(row){
-            return String(row.technicianDocId || '') === String(payload.technicianDocId || '') && String(row.branchId || '') === String(payload.branchId || '') && String(row.visitDate || '') === String(payload.visitDate || '');
-          });
+          var existingByNaturalKey = state.checklists.find(function(row){ return String(row.technicianDocId || '') === String(payload.technicianDocId || '') && String(row.branchId || '') === String(payload.branchId || '') && String(row.visitDate || '') === String(payload.visitDate || ''); });
           if (existingByNaturalKey && existingByNaturalKey.id) targetId = existingByNaturalKey.id;
         }
-
-        if (targetId) {
-          await db.collection('branch_checklists').doc(targetId).set(payload, { merge: true });
-        } else {
-          var ref = await db.collection('branch_checklists').add(Object.assign({}, payload, { createdAt: fb.firestore.FieldValue.serverTimestamp() }));
-          targetId = ref.id;
-        }
-
+        if (targetId) await db.collection('branch_checklists').doc(targetId).set(payload, { merge: true });
+        else { var ref = await db.collection('branch_checklists').add(Object.assign({}, payload, { createdAt: fb.firestore.FieldValue.serverTimestamp() })); targetId = ref.id; }
         if (payload.linkedVisitId) {
-          await db.collection('siteVisits').doc(payload.linkedVisitId).set({
-            status: 'completed',
-            checklistCompleted: true,
-            checklistCompletedAt: fb.firestore.FieldValue.serverTimestamp(),
-            updatedAt: fb.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
+          await db.collection('siteVisits').doc(payload.linkedVisitId).set({ status: 'completed', checklistCompleted: true, checklistCompletedAt: fb.firestore.FieldValue.serverTimestamp(), updatedAt: fb.firestore.FieldValue.serverTimestamp() }, { merge: true });
         }
-
         setMessage('checklistMessage', t('checklistSaved'));
         setAlert('checklistError', '', 'ok');
         clearChecklistForm();
@@ -989,14 +836,7 @@
         return [row.brand, row.branchId, row.locationSite, row.branchManager, row.technicianName].some(function(value){ return String(value || '').toLowerCase().indexOf(q) > -1; });
       });
       $('checklistTableBody').innerHTML = rows.length ? rows.map(function(row){
-        return '<tr class="clickable" data-checklist-id="' + esc(row.id) + '">' +
-          '<td>' + esc(row.visitDate) + '</td>' +
-          '<td>' + esc(row.technicianName) + '</td>' +
-          '<td>' + esc(row.brand) + '</td>' +
-          '<td>' + esc(row.branchId) + '</td>' +
-          '<td>' + esc(row.locationSite) + '</td>' +
-          '<td>' + esc(row.branchManager) + '</td>' +
-        '</tr>';
+        return '<tr class="clickable" data-checklist-id="' + esc(row.id) + '">' + '<td>' + esc(row.visitDate) + '</td>' + '<td>' + esc(row.technicianName) + '</td>' + '<td>' + esc(row.brand) + '</td>' + '<td>' + esc(row.branchId) + '</td>' + '<td>' + esc(row.locationSite) + '</td>' + '<td>' + esc(row.branchManager) + '</td>' + '</tr>';
       }).join('') : '<tr><td colspan="6">' + esc(t('noRecords')) + '</td></tr>';
       document.querySelectorAll('[data-checklist-id]').forEach(function(row){ row.addEventListener('click', function(){ openChecklistForEdit(row.getAttribute('data-checklist-id')); }); });
     }
@@ -1009,7 +849,6 @@
       if (!fallback.empty) return fallback.docs[0].data();
       return null;
     }
-
     function canOpenChecklistPage(profile){
       if (!profile) return true;
       if (profile.active === false) return false;
@@ -1018,65 +857,12 @@
       var role = String(profile.role || '').toLowerCase();
       return ['admin','supervisor','technician','user'].indexOf(role) > -1;
     }
-
-    function listenBranches(){
-      if (unsub.branches) unsub.branches();
-      var db = window.parent.appDb;
-      unsub.branches = db.collection('branches').orderBy('branchName').onSnapshot(function(snap){
-        state.branches = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; });
-      }, function(error){ setAlert('checklistError', 'branches: ' + error.message); });
-    }
-
-    function listenTechnicians(){
-      if (unsub.technicians) unsub.technicians();
-      var db = window.parent.appDb;
-      unsub.technicians = db.collection('technicians').orderBy('name').onSnapshot(function(snap){
-        state.technicians = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; });
-        populateTechnicianSelect();
-        populateVisitsForTechnician();
-      }, function(error){ setAlert('checklistError', 'technicians: ' + error.message); });
-    }
-
-    function listenVisits(){
-      if (unsub.visits) unsub.visits();
-      var db = window.parent.appDb;
-      unsub.visits = db.collection('siteVisits').orderBy('date', 'desc').onSnapshot(function(snap){
-        state.visits = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; });
-        populateVisitsForTechnician();
-      }, function(error){ setAlert('checklistError', 'siteVisits: ' + error.message); });
-    }
-
-    function listenChecklistFields(){
-      if (unsub.checklistFields) unsub.checklistFields();
-      var db = window.parent.appDb;
-      unsub.checklistFields = db.collection('checklist_fields').onSnapshot(function(snap){
-        state.checklistFields = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }).sort(function(a, b){
-          var sa = String(a.section || '');
-          var sb = String(b.section || '');
-          if (sa !== sb) return sa.localeCompare(sb);
-          return Number(a.order || 0) - Number(b.order || 0);
-        });
-        renderDynamicChecklistForm(collectDynamicChecklistAnswers());
-      }, function(error){ setAlert('checklistError', 'checklist_fields: ' + error.message); });
-    }
-
-    function listenChecklists(){
-      if (unsub.checklists) unsub.checklists();
-      var db = window.parent.appDb;
-      unsub.checklists = db.collection('branch_checklists').orderBy('visitDate', 'desc').onSnapshot(function(snap){
-        state.checklists = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; });
-        renderChecklistTable();
-      }, function(error){ setAlert('checklistError', 'branch_checklists: ' + error.message); });
-    }
-
-    function listenBrands(){
-      if (unsub.brands) unsub.brands();
-      var db = window.parent.appDb;
-      unsub.brands = db.collection('brand_assets').orderBy('nameAr').onSnapshot(function(snap){
-        state.brands = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; });
-        renderBrandsDatalist();
-      }, function(error){ setAlert('checklistError', 'brand_assets: ' + error.message); });
-    }
+    function listenBranches(){ if (unsub.branches) unsub.branches(); var db = window.parent.appDb; unsub.branches = db.collection('branches').orderBy('branchName').onSnapshot(function(snap){ state.branches = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); }, function(error){ setAlert('checklistError', 'branches: ' + error.message); }); }
+    function listenTechnicians(){ if (unsub.technicians) unsub.technicians(); var db = window.parent.appDb; unsub.technicians = db.collection('technicians').orderBy('name').onSnapshot(function(snap){ state.technicians = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); populateTechnicianSelect(); populateVisitsForTechnician(); }, function(error){ setAlert('checklistError', 'technicians: ' + error.message); }); }
+    function listenVisits(){ if (unsub.visits) unsub.visits(); var db = window.parent.appDb; unsub.visits = db.collection('siteVisits').orderBy('date', 'desc').onSnapshot(function(snap){ state.visits = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); populateVisitsForTechnician(); }, function(error){ setAlert('checklistError', 'siteVisits: ' + error.message); }); }
+    function listenChecklistFields(){ if (unsub.checklistFields) unsub.checklistFields(); var db = window.parent.appDb; unsub.checklistFields = db.collection('checklist_fields').onSnapshot(function(snap){ state.checklistFields = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }).sort(function(a, b){ var sa = String(a.section || ''), sb = String(b.section || ''); if (sa !== sb) return sa.localeCompare(sb); return Number(a.order || 0) - Number(b.order || 0); }); renderDynamicChecklistForm(collectDynamicChecklistAnswers()); }, function(error){ setAlert('checklistError', 'checklist_fields: ' + error.message); }); }
+    function listenChecklists(){ if (unsub.checklists) unsub.checklists(); var db = window.parent.appDb; unsub.checklists = db.collection('branch_checklists').orderBy('visitDate', 'desc').onSnapshot(function(snap){ state.checklists = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); renderChecklistTable(); }, function(error){ setAlert('checklistError', 'branch_checklists: ' + error.message); }); }
+    function listenBrands(){ if (unsub.brands) unsub.brands(); var db = window.parent.appDb; unsub.brands = db.collection('brand_assets').orderBy('nameAr').onSnapshot(function(snap){ state.brands = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); renderBrandsDatalist(); }, function(error){ setAlert('checklistError', 'brand_assets: ' + error.message); }); }
 
     function attachListeners(){
       if (listenersBound) return;
@@ -1084,10 +870,7 @@
       $('langArBtn').addEventListener('click', function(){ applyLanguage('ar'); });
       $('langEnBtn').addEventListener('click', function(){ applyLanguage('en'); });
       $('cl_technician').addEventListener('change', populateVisitsForTechnician);
-      $('cl_visit_ref').addEventListener('change', function(){
-        var visit = state.visits.find(function(row){ return row.id === $('cl_visit_ref').value; });
-        fillChecklistFromVisit(visit);
-      });
+      $('cl_visit_ref').addEventListener('change', function(){ var visit = state.visits.find(function(row){ return row.id === $('cl_visit_ref').value; }); fillChecklistFromVisit(visit); });
       $('cl_branch_id').addEventListener('blur', autoFillFromBranchId);
       $('cl_visit_date').addEventListener('change', updateMonthFromVisitDate);
       $('saveChecklistBtn').addEventListener('click', saveChecklist);
@@ -1116,37 +899,21 @@
       try {
         var sessionNotice = $('sessionNotice');
         var appRoot = $('appRoot');
-        if (!sessionNotice || !appRoot) {
-          console.error('Missing required shell elements');
-          return;
-        }
-        if (!window.parent || window.parent === window || !window.parent.appAuth || !window.parent.appDb || !window.parent.firebase) {
-          sessionNotice.classList.remove('hidden');
-          appRoot.classList.add('hidden');
-          return;
-        }
-
+        if (!sessionNotice || !appRoot) { console.error('Missing required shell elements'); return; }
+        if (!window.parent || window.parent === window || !window.parent.appAuth || !window.parent.appDb || !window.parent.firebase) { sessionNotice.classList.remove('hidden'); appRoot.classList.add('hidden'); return; }
         var auth = window.parent.appAuth;
         attachListeners();
         applyLanguage('ar');
         clearChecklistForm();
         renderChecklistTable();
         renderDynamicChecklistForm({});
-
         auth.onAuthStateChanged(async function(user){
-          if (!user) {
-            resetPage();
-            return;
-          }
+          if (!user) { resetPage(); return; }
           sessionNotice.classList.add('hidden');
           try {
             state.currentUser = user;
             state.currentUserProfile = await resolveCurrentUserProfile(user);
-            if (!canOpenChecklistPage(state.currentUserProfile)) {
-              setAlert('checklistError', t('unauthorized'));
-              appRoot.classList.add('hidden');
-              return;
-            }
+            if (!canOpenChecklistPage(state.currentUserProfile)) { setAlert('checklistError', t('unauthorized')); appRoot.classList.add('hidden'); return; }
             appRoot.classList.remove('hidden');
             listenBranches();
             listenTechnicians();
