@@ -63,13 +63,13 @@
 
 <body>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js
+https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js>
+https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js>
 
 <header>
   <div class="header-left">
-    <img src="LOGO-almajdouie.png" alt="Logo">
+    LOGO-almajdouie.png
     <div class="app-title" id="shellTitle">Branch Visits System</div>
   </div>
   <div class="header-right">
@@ -115,12 +115,12 @@ window.firebase = firebase;
 /* ================= Pages ================= */
 const PAGES = {
   dashboard:  {file:'dashboard.html',  ar:'لوحة التحكم', en:'Dashboard'},
-  checklist:  {file:'check-list.html', ar:'Check‑List',   en:'Check‑List'},
+  checklist:  {file:'check-list.html', ar:'Check‑List', en:'Check‑List'},
   dynamic:    {file:'dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html', ar:'Dynamic Check‑List', en:'Dynamic Check‑List'},
-  visits:     {file:'visits.html',     ar:'Visits',       en:'Visits'},
-  branches:   {file:'branches.html',   ar:'Branches',     en:'Branches'},
+  visits:     {file:'visits.html',     ar:'Visits', en:'Visits'},
+  branches:   {file:'branches.html',   ar:'Branches', en:'Branches'},
   technicians:{file:'technicians.html',ar:'Technicians', en:'Technicians'},
-  brands:     {file:'brands.html',     ar:'Brands',       en:'Brands'},
+  brands:     {file:'brands.html',     ar:'Brands', en:'Brands'},
   upgrade:    {file:'upgrade-windows.html', ar:'Upgrade Windows', en:'Upgrade Windows'},
   permissions:{file:'permissions.html',ar:'Permissions', en:'Permissions'}
 };
@@ -142,18 +142,20 @@ function setLang(lang){
 btnAr.onclick=()=>setLang('ar');
 btnEn.onclick=()=>setLang('en');
 
-/* ================= ✅ THIS IS THE FIX ================= */
-/* إذا pages موجودة → نستخدمها فقط */
+/* ================= ✅ FINAL PERMISSIONS LOGIC ================= */
 function getAllowedPages(profile){
+  // ✅ إذا pages موجودة → نستخدمها فقط (بدون Dashboard افتراضي)
   if (Array.isArray(profile.pages) && profile.pages.length){
-    return profile.pages.map(p=>p.toLowerCase());
+    return profile.pages.map(p => p.toLowerCase());
   }
-  const role = (profile.role||'user').toLowerCase();
+
+  // ✅ إذا لم تُحدد pages → نرجع لافتراضي الدور
+  const role = (profile.role || 'user').toLowerCase();
   const ROLE_DEFAULTS = {
     admin: Object.keys(PAGES),
-    supervisor:['dashboard','checklist','dynamic','visits'],
-    technician:['dashboard','checklist'],
-    user:['dashboard']
+    supervisor: ['dashboard','checklist','dynamic','visits'],
+    technician: ['dashboard','checklist'],
+    user: ['dashboard']
   };
   return ROLE_DEFAULTS[role] || ['dashboard'];
 }
@@ -168,6 +170,7 @@ function loadPage(key, btn){
 /* ================= Auth ================= */
 auth.onAuthStateChanged(async user=>{
   if(!user){ location.href='login.html'; return; }
+
   const snap = await db.collection('app_users').doc(user.uid).get();
   const profile = snap.exists ? snap.data() : {role:'user'};
   userName.textContent = profile.name || user.email;
@@ -179,7 +182,16 @@ auth.onAuthStateChanged(async user=>{
   });
 
   setLang(currentLang);
-  loadPage(allowed[0], document.querySelector(`nav button[data-page="${allowed[0]}"]`));
+
+  // ✅ افتح Check‑List إذا موجودة، وإلا أول صفحة فقط
+  const defaultPage = allowed.includes('checklist')
+    ? 'checklist'
+    : allowed[0];
+
+  loadPage(
+    defaultPage,
+    document.querySelector(`nav button[data-page="${defaultPage}"]`)
+  );
 });
 
 function logout(){
