@@ -1,5 +1,196 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl solid var(--border);<html lang="ar" dir="rtl">
+  border-radius:14px;
+  padding:14px;
+  text-align:center;
+}
+.stat .label{
+  font-size:13px;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+.stat .value{
+  font-size:28px;
+  font-weight:800;
+  color:var(--primary);
+}
+
+/* ===== table ===== */
+.table-wrap{
+  overflow:auto;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:#fff;
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+th,td{
+  padding:12px 10px;
+  border-bottom:1px solid #edf2f7;
+  text-align:right;
+  white-space:nowrap;
+  font-size:14px;
+}
+th{
+  background:#f8fbff;
+  color:var(--primary);
+}
+</style>
+</head>
+
+<body>
+
+<!-- لا يُستخدم داخل iframe -->
+<div id="loginOverlay" class="hidden"></div>
+
+<header>
+  <h2>Upgrade Windows</h2>
+</header>
+
+<main class="container hidden" id="appRoot">
+
+  <!-- ===== Summary ===== -->
+  <div class="card">
+    <h3>ملخص Upgrade Windows</h3>
+    <div class="summary-grid">
+      <div class="stat">
+        <div class="label">إجمالي السجلات</div>
+        <div class="value" id="statTotal">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">إجمالي الأجهزة</div>
+        <div class="value" id="statDevices">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">قيد التنفيذ</div>
+        <div class="value" id="statProgress">0</div>
+      </div>
+      <div class="stat">
+        <div class="label">مكتمل</div>
+        <div class="value" id="statCompleted">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Table ===== -->
+  <div class="card">
+    <h3>سجلات Upgrade Windows</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Branch ID</th>
+            <th>Branch Name</th>
+            <th>Brand</th>
+            <th>City</th>
+            <th>Region</th>
+            <th>Employee ID</th>
+            <th>Employee</th>
+            <th>Device</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="uwTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth as _getAuth } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getFirestore, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+/* Firebase config */
+const firebaseConfig = {
+  apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
+  authDomain: "baghethan-ba325.firebaseapp.com",
+  projectId: "baghethan-ba325"
+};
+
+initializeApp(firebaseConfig);
+
+/* iframe detection */
+const embeddedIframe = (() => {
+  try { return window.parent && window.parent !== window; }
+  catch { return false; }
+})();
+
+if (embeddedIframe) {
+  document.body.classList.add('embedded-shell');
+}
+
+/* parent auth */
+function getParentAuth(){
+  try{
+    return window.parent.appAuth || null;
+  }catch{
+    return null;
+  }
+}
+
+/* DOM helpers */
+const $ = id => document.getElementById(id);
+
+/* Render */
+function render(rows){
+  $('statTotal').textContent = rows.length;
+  $('statDevices').textContent =
+    rows.reduce((s,r)=>s+(Number(r.devicesCount)||1),0);
+  $('statCompleted').textContent =
+    rows.filter(r=>String(r.status||'').toLowerCase()==='completed').length;
+  $('statProgress').textContent =
+    rows.filter(r=>['planned','in progress','pending']
+      .includes(String(r.status||'').toLowerCase())).length;
+
+  $('uwTableBody').innerHTML = rows.length
+    ? rows.map(r=>`
+      <tr>
+        <td>${r.branchId||''}</td>
+        <td>${r.branchName||''}</td>
+        <td>${r.brand||''}</td>
+        <td>${r.city||''}</td>
+        <td>${r.region||''}</td>
+        <td>${r.employeeId||''}</td>
+        <td>${r.employeeName||''}</td>
+        <td>${r.deviceName||''}</td>
+        <td>${r.status||''}</td>
+      </tr>
+    `).join('')
+    : `<tr><td colspan="9">لا توجد سجلات</td></tr>`;
+}
+
+/* Boot */
+function boot(){
+  const parentAuth = getParentAuth();
+  if (!embeddedIframe || !parentAuth) return;
+
+  parentAuth.onAuthStateChanged(user=>{
+    if(!user){
+      $('appRoot').classList.add('hidden');
+      return;
+    }
+    $('appRoot').classList.remove('hidden');
+
+    const db = window.parent.appDb;
+    onSnapshot(
+      collection(db,'windows_upgrades'),
+      snap=>{
+        const rows = snap.docs.map(d=>({id:d.id,...d.data()}));
+        render(rows);
+      }
+    );
+  });
+}
+
+boot();
+</script>
+
+</body>
+</html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,14 +203,21 @@
   --danger:#d64545;
   --border:#d7e0ea;
   --bg:#edf3f8;
-  --card:#fff;
+  --card:#ffffff;
+  --text:#163247;
+  --muted:#6e8192;
   --shadow:0 10px 30px rgba(18,48,74,.08);
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;background:var(--bg)}
+body{
+  margin:0;
+  font-family:Segoe UI,Tahoma,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text)
+}
 .hidden{display:none!important}
 
-/* ✅ iframe safe */
+/* ===== iframe safe ===== */
 body.embedded-shell header,
 body.embedded-shell .tabs,
 body.embedded-shell #loginOverlay{
@@ -31,105 +229,38 @@ body.embedded-shell .container{
   padding:12px;
 }
 
+/* ===== layout ===== */
 header{
   background:var(--primary);
   color:#fff;
   padding:14px 18px;
 }
-.container{max-width:1500px;margin:18px auto;padding:0 14px 28px}
-
+.container{
+  max-width:1600px;
+  margin:18px auto;
+  padding:0 14px 28px;
+}
 .card{
   background:var(--card);
   border:1px solid var(--border);
   border-radius:16px;
   box-shadow:var(--shadow);
   padding:16px;
-  margin-bottom:16px
+  margin-bottom:16px;
 }
 .card h3{
   margin:-16px -16px 14px;
   padding:12px 16px;
   background:var(--primary);
   color:#fff;
-  font-size:15px
-}
-</style>
-</head>
-
-<body>
-
-<!-- ✅ لا يظهر داخل iframe -->
-<div id="loginOverlay" class="hidden"></div>
-
-<header>
-  <h2>Upgrade Windows</h2>
-</header>
-
-<main class="container hidden" id="appRoot">
-
-  <div class="card">
-    <h3>ملخص Upgrade Windows</h3>
-    <div id="summaryText">جاهز</div>
-  </div>
-
-</main>
-
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth as _getAuth } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-
-/* Firebase */
-const firebaseConfig = {
-  apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
-  authDomain: "baghethan-ba325.firebaseapp.com",
-  projectId: "baghethan-ba325"
-};
-
-initializeApp(firebaseConfig);
-
-/* ✅ iframe detection */
-const embeddedIframe = (() => {
-  try {
-    return window.parent && window.parent !== window;
-  } catch {
-    return false;
-  }
-})();
-
-if (embeddedIframe) {
-  document.body.classList.add('embedded-shell');
+  font-size:15px;
 }
 
-/* ✅ use parent auth only */
-function getParentAuth(){
-  try{
-    return window.parent.appAuth || null;
-  }catch{
-    return null;
-  }
+/* ===== summary ===== */
+.summary-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(180px,1fr));
+  gap:14px;
 }
-
-/* ✅ auth state */
-function bootAuth(){
-  const parentAuth = getParentAuth();
-
-  if (embeddedIframe && parentAuth) {
-    parentAuth.onAuthStateChanged(user=>{
-      if(user){
-        document.getElementById('appRoot').classList.remove('hidden');
-      }else{
-        document.getElementById('appRoot').classList.add('hidden');
-      }
-    });
-  } else {
-    // ❌ لا تسجيل دخول داخلي
-    document.getElementById('appRoot').classList.add('hidden');
-  }
-}
-
-bootAuth();
-</script>
-
-</body>
-</html>
+.stat{
+  background:#fff;
