@@ -5,25 +5,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Upgrade Windows</title>
 
-  <!-- Excel library -->
+  <!-- ✅ Excel Library (صحيح 100%) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
-    body{margin:0;font-family:Tahoma,Arial;background:#edf3f8}
+    body{
+      margin:0;
+      font-family:Tahoma,Arial,sans-serif;
+      background:#edf3f8;
+    }
     .hidden{display:none}
     .container{padding:16px}
-    .card{background:#fff;border-radius:14px;padding:14px;margin-bottom:16px}
-    button{
-      background:#0d4b73;color:#fff;border:none;border-radius:8px;
-      padding:8px 14px;cursor:pointer;font-weight:bold;margin-left:8px
+    .card{
+      background:#fff;
+      border-radius:14px;
+      padding:14px;
+      margin-bottom:16px;
+      box-shadow:0 6px 16px rgba(0,0,0,.05);
     }
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:8px;border-bottom:1px solid #eee;font-size:13px}
+    button{
+      background:#0d4b73;
+      color:#fff;
+      border:none;
+      border-radius:8px;
+      padding:8px 14px;
+      cursor:pointer;
+      font-weight:bold;
+      margin-left:8px;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+    }
+    th,td{
+      padding:8px;
+      border-bottom:1px solid #eee;
+      font-size:13px;
+      text-align:right;
+      white-space:nowrap;
+    }
     th{background:#f3f6fa}
   </style>
 </head>
 
 <body>
+
+<div id="notice" class="container">
+  الرجاء تسجيل الدخول من النظام
+</div>
 
 <div class="container hidden" id="appRoot">
 
@@ -38,7 +67,7 @@
       <thead>
         <tr>
           <th>Branch ID</th>
-          <th>Branch</th>
+          <th>Branch Name</th>
           <th>Brand</th>
           <th>City</th>
           <th>Region</th>
@@ -53,12 +82,10 @@
 
 </div>
 
-<div id="notice" class="container">
-  الرجاء تسجيل الدخول من النظام
-</div>
-
 <script>
-/* ================= Firebase from parent ================= */
+/* =====================================================
+   ✅ Firebase من الصفحة الأم (Site-Visit2.html)
+   ===================================================== */
 const firebaseParent = window.parent.firebase;
 const auth = window.parent.appAuth;
 const db = window.parent.appDb;
@@ -69,11 +96,18 @@ const tableBody = document.getElementById('tableBody');
 
 let currentRows = [];
 
-/* ================= Auth ================= */
-if(auth.currentUser){ init(); }
-firebaseParent.auth().onAuthStateChanged(u => u ? init() : 0);
+/* =====================================================
+   ✅ Auth Binding (iframe-safe)
+   ===================================================== */
+if (auth && auth.currentUser) startApp();
+firebaseParent.auth().onAuthStateChanged(user => {
+  if (user) startApp();
+});
 
-function init(){
+/* =====================================================
+   Start App
+   ===================================================== */
+function startApp(){
   notice.classList.add('hidden');
   appRoot.classList.remove('hidden');
 
@@ -84,58 +118,71 @@ function init(){
     });
 }
 
-/* ================= Render ================= */
+/* =====================================================
+   Render Table
+   ===================================================== */
 function renderTable(rows){
   tableBody.innerHTML = rows.map(r=>`
     <tr>
-      <td>${r.branchId||''}</td>
-      <td>${r.branchName||''}</td>
-      <td>${r.brand||''}</td>
-      <td>${r.city||''}</td>
-      <td>${r.region||''}</td>
-      <td>${r.employeeName||''}</td>
-      <td>${r.deviceName||''}</td>
-      <td>${r.status||''}</td>
+      <td>${r.branchId || ""}</td>
+      <td>${r.branchName || ""}</td>
+      <td>${r.brand || ""}</td>
+      <td>${r.city || ""}</td>
+      <td>${r.region || ""}</td>
+      <td>${r.employeeName || ""}</td>
+      <td>${r.deviceName || ""}</td>
+      <td>${r.status || ""}</td>
     </tr>
   `).join('');
 }
 
-/* ================= Export ================= */
-document.getElementById('exportBtn').onclick = () => {
-  if(!currentRows.length){ alert("لا توجد بيانات"); return; }
-
+/* =====================================================
+   ✅ Export Excel
+   ===================================================== */
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (!currentRows.length){
+    alert("لا توجد بيانات للتصدير");
+    return;
+  }
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(currentRows);
-  XLSX.utils.book_append_sheet(wb, ws, "UpgradeWindows");
+  XLSX.utils.book_append_sheet(wb, ws, "Upgrade Windows");
   XLSX.writeFile(wb, "Upgrade_Windows.xlsx");
-};
+});
 
-/* ================= Import ================= */
-document.getElementById('importBtn').onclick =
-  () => document.getElementById('excelFile').click();
+/* =====================================================
+   ✅ Import Excel (حذف القديم + رفع الجديد)
+   ===================================================== */
+document.getElementById('importBtn').addEventListener('click', () => {
+  document.getElementById('excelFile').click();
+});
 
-document.getElementById('excelFile').onchange = async (e)=>{
-  if(!confirm("سيتم حذف كل البيانات القديمة. هل أنت متأكد؟")) return;
+document.getElementById('excelFile').addEventListener('change', async (e) => {
+  if (!confirm("⚠️ سيتم حذف كل البيانات القديمة. هل أنت متأكد؟")) return;
 
   const file = e.target.files[0];
-  const data = await file.arrayBuffer();
-  const wb = XLSX.read(data);
-  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+  if (!file) return;
 
-  // ✅ حذف القديم
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer);
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet);
+
+  // 🧹 حذف البيانات القديمة
   const snap = await db.collection("windows_upgrades").get();
   const batch = db.batch();
-  snap.docs.forEach(d => batch.delete(d.ref));
+  snap.docs.forEach(doc => batch.delete(doc.ref));
   await batch.commit();
 
-  // ✅ رفع الجديد
-  for(const r of rows){
-    await db.collection("windows_upgrades").add(r);
+  // ⬆️ رفع البيانات الجديدة
+  for (const row of rows) {
+    await db.collection("windows_upgrades").add(row);
   }
 
   alert("✅ تم الاستيراد بنجاح");
-};
+});
 </script>
 
 </body>
 </html>
+``
