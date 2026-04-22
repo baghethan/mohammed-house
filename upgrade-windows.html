@@ -3,227 +3,136 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Upgrade Windows</title>
-
-  <!-- ✅ Excel library -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx/script>
-
+  <title>Upgrade Windows - Debug</title>
   <style>
     body{margin:0;font-family:Tahoma,Arial;background:#edf3f8}
-    .hidden{display:none}
-    .container{max-width:1600px;margin:16px auto;padding:0 16px}
-    .card{
-      background:#fff;border-radius:14px;padding:14px;
-      margin-bottom:16px;box-shadow:0 6px 16px rgba(0,0,0,.08)
-    }
-    h3{margin:0 0 12px;color:#0d4b73}
-
-    .summary-grid{
-      display:grid;grid-template-columns:repeat(4,1fr);gap:12px
-    }
-    .stat{
-      border:1px solid #dde6ef;border-radius:12px;padding:14px
-    }
-    .stat span{font-size:12px;color:#6e8192}
-    .stat strong{font-size:26px;color:#0d4b73}
-
-    .mini-grid{
-      display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-      gap:12px
-    }
-    .mini-card{
-      border:1px solid #dde6ef;border-radius:14px;padding:12px;
-      border-top:5px solid #0d4b73
-    }
-    .mini-title{font-weight:bold;margin-bottom:6px;color:#0d4b73}
-    .mini-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px}
-
-    .progress{height:8px;background:#e9f0f6;border-radius:999px;margin-top:8px;overflow:hidden}
-    .progress-fill{height:100%;background:#0d4b73}
-
-    .brand-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-    .brand-logo{
-      width:36px;height:36px;object-fit:contain;
-      background:#fff;border-radius:8px;border:1px solid #dde6ef;padding:4px
-    }
-    .brand-placeholder{
-      width:36px;height:36px;border-radius:8px;
-      border:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;
-      color:#94a3b8
-    }
-
-    button{
-      background:#0d4b73;color:#fff;border:none;border-radius:8px;
-      padding:8px 14px;cursor:pointer;font-weight:bold;margin-left:8px
-    }
-
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:8px;border-bottom:1px solid #eee;font-size:13px;white-space:nowrap}
+    .wrap{max-width:1200px;margin:16px auto;padding:0 16px}
+    .card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 6px 16px rgba(0,0,0,.08);margin-bottom:16px}
+    .ok{color:#0a7a2f}
+    .err{color:#b42318;white-space:pre-wrap;direction:ltr;text-align:left;background:#fff5f5;border:1px solid #fecaca;padding:12px;border-radius:8px}
+    table{width:100%;border-collapse:collapse;background:#fff}
+    th,td{padding:8px;border-bottom:1px solid #eee;font-size:13px;text-align:right}
     th{background:#f3f6fa}
-    .brand-cell{display:flex;align-items:center;gap:6px}
-    .brand-cell img{width:24px;height:24px;object-fit:contain;background:#fff;border:1px solid #ddd;border-radius:6px;padding:2px}
   </style>
 </head>
-
 <body>
+  <div class="wrap">
+    <div class="card">
+      <h3>تشخيص صفحة Upgrade Windows</h3>
+      <div id="status">جاري الفحص...</div>
+    </div>
 
-<div id="notice" class="container">
-  الرجاء تسجيل الدخول من النظام
-</div>
-
-<div id="appRoot" class="container hidden">
-
-  <!-- ✅ الملخص -->
-  <div class="card">
-    <h3>الملخص</h3>
-    <div class="summary-grid">
-      <div class="stat"><span>إجمالي السجلات</span><br><strong id="statTotal">0</strong></div>
-      <div class="stat"><span>إجمالي الأجهزة</span><br><strong id="statDevices">0</strong></div>
-      <div class="stat"><span>قيد التنفيذ</span><br><strong id="statProgress">0</strong></div>
-      <div class="stat"><span>مكتمل</span><br><strong id="statCompleted">0</strong></div>
+    <div class="card">
+      <h3>أول 10 سجلات</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Branch ID</th>
+            <th>Branch Name</th>
+            <th>Brand</th>
+            <th>City</th>
+            <th>Region</th>
+            <th>Employee</th>
+            <th>Device</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
     </div>
   </div>
 
-  <!-- ✅ الكروت -->
-  <div class="card"><h3>بطاقات المناطق</h3><div id="regionsGrid" class="mini-grid"></div></div>
-  <div class="card"><h3>بطاقات المدن</h3><div id="citiesGrid" class="mini-grid"></div></div>
-  <div class="card"><h3>بطاقات البراندات</h3><div id="brandsGrid" class="mini-grid"></div></div>
+  <script>
+    const statusEl = document.getElementById('status');
+    const rowsEl = document.getElementById('rows');
 
-  <!-- ✅ أزرار -->
-  <div class="card">
-    <button id="exportBtn">⬇️ تصدير Excel</button>
-    <button id="importBtn">⬆️ استيراد Excel</button>
-    <input type="file" id="excelFile" accept=".xlsx" class="hidden">
-  </div>
+    function show(msg, isError){
+      statusEl.innerHTML = isError
+        ? '<div class="err">' + msg + '</div>'
+        : '<div class="ok">' + msg + '</div>';
+    }
 
-  <!-- ✅ الجدول -->
-  <div class="card">
-    <table>
-      <thead>
-        <tr>
-          <th>Status</th>
-          <th>Device</th>
-          <th>Employee</th>
-          <th>Region</th>
-          <th>City</th>
-          <th>Brand</th>
-          <th>Branch Name</th>
-          <th>Branch ID</th>
-        </tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
-  </div>
+    window.addEventListener('error', function(e){
+      show('JavaScript Error:\\n' + (e.message || 'Unknown error') + '\\nLine: ' + e.lineno + '\\nFile: ' + e.filename, true);
+    });
 
-</div>
+    (function(){
+      try {
+        const parentWin = window.parent;
+        if (!parentWin || parentWin === window) {
+          show('الصفحة ليست داخل iframe تابع للنظام.', true);
+          return;
+        }
 
-<script>
-const firebaseParent = window.parent.firebase;
-const auth = window.parent.appAuth;
-const db = window.parent.appDb;
+        const firebaseParent = parentWin.firebase;
+        const auth = parentWin.appAuth;
+        const db = parentWin.appDb;
 
-const notice = document.getElementById('notice');
-const appRoot = document.getElementById('appRoot');
+        if (!firebaseParent) {
+          show('window.parent.firebase غير موجود', true);
+          return;
+        }
+        if (!auth) {
+          show('window.parent.appAuth غير موجود', true);
+          return;
+        }
+        if (!db) {
+          show('window.parent.appDb غير موجود', true);
+          return;
+        }
 
-let brandIndex = {};
+        show('✅ تم العثور على Firebase و Auth و Firestore من الصفحة الأم. جاري فحص المستخدم...');
 
-db.collection("brand_assets").onSnapshot(s=>{
-  brandIndex={};
-  s.docs.forEach(d=>{
-    const b=d.data();
-    const k=(b.brand||b.name||'').toLowerCase();
-    if(k) brandIndex[k]=b;
-  });
-});
+        const start = function(user){
+          if (!user) {
+            show('⚠️ لا يوجد مستخدم مسجل دخول داخل Firebase Auth.', true);
+            return;
+          }
 
-function getLogo(name){
-  const a=brandIndex[(name||'').toLowerCase()];
-  if(!a) return '';
-  const l=a.logoUrl||a.logo||'';
-  if(l.startsWith('http')) return l;
-  if(l.length>100) return 'data:image/png;base64,'+l;
-  return '';
-}
+          show('✅ المستخدم مسجل. جاري قراءة windows_upgrades ...');
 
-auth.currentUser && start();
-firebaseParent.auth().onAuthStateChanged(u=>u&&start());
+          db.collection('windows_upgrades').limit(10).get()
+            .then(function(snap){
+              const docs = snap.docs.map(function(d){ return d.data(); });
 
-function start(){
-  notice.classList.add('hidden');
-  appRoot.classList.remove('hidden');
+              if (!docs.length) {
+                show('✅ الاتصال ناجح، لكن Collection windows_upgrades فارغة حاليًا.');
+                rowsEl.innerHTML = '<tr><td colspan="8">لا توجد سجلات</td></tr>';
+                return;
+              }
 
-  db.collection("windows_upgrades").onSnapshot(s=>{
-    const rows=s.docs.map(d=>d.data());
+              show('✅ الاتصال ناجح وتم جلب ' + docs.length + ' سجلات (أول 10 فقط للتشخيص).');
 
-    document.getElementById('statTotal').textContent=rows.length;
-    document.getElementById('statCompleted').textContent=rows.filter(r=>r.status==='completed').length;
-    document.getElementById('statProgress').textContent=rows.filter(r=>r.status!=='completed').length;
-    document.getElementById('statDevices').textContent=
-      rows.reduce((a,b)=>a+(+b.devicesCount||1),0);
+              rowsEl.innerHTML = docs.map(function(r){
+                return '<tr>' +
+                  '<td>' + (r.branchId || '') + '</td>' +
+                  '<td>' + (r.branchName || '') + '</td>' +
+                  '<td>' + (r.brand || '') + '</td>' +
+                  '<td>' + (r.city || '') + '</td>' +
+                  '<td>' + (r.region || '') + '</td>' +
+                  '<td>' + (r.employeeName || '') + '</td>' +
+                  '<td>' + (r.deviceName || '') + '</td>' +
+                  '<td>' + (r.status || '') + '</td>' +
+                '</tr>';
+              }).join('');
+            })
+            .catch(function(err){
+              show('Firestore Error:\\n' + (err && err.message ? err.message : err), true);
+            });
+        };
 
-    buildCards(rows,'region','regionsGrid');
-    buildCards(rows,'city','citiesGrid');
-    buildBrandCards(rows);
+        if (auth.currentUser) {
+          start(auth.currentUser);
+        } else {
+          firebaseParent.auth().onAuthStateChanged(function(user){
+            start(user);
+          });
+        }
 
-    document.getElementById('tableBody').innerHTML=rows.map(r=>`
-      <tr>
-        <td>${r.status||''}</td>
-        <td>${r.deviceName||''}</td>
-        <td>${r.employeeName||''}</td>
-        <td>${r.region||''}</td>
-        <td>${r.city||''}</td>
-        <td class="brand-cell">
-          ${getLogo(r.brand)?`<img src="${getLogo`:''}
-          ${r.brand||''}
-        </td>
-        <td>${r.branchName||''}</td>
-        <td>${r.branchId||''}</td>
-      </tr>
-    `).join('');
-  });
-}
-
-function buildCards(rows,key,target){
-  const map={};
-  rows.forEach(r=>{
-    const k=r[key]; if(!k) return;
-    map[k]=map[k]||{c:0,p:0};
-    r.status==='completed'?map[k].c++:map[k].p++;
-  });
-  document.getElementById(target).innerHTML=
-    Object.entries(map).map(([k,v])=>{
-      const t=v.c+v.p,p=t?Math.round(v.c/t*100):0;
-      return `<div class="mini-card">
-        <div class="mini-title">${k}</div>
-        <div class="mini-stats"><div>مكتمل: ${v.c}</div><div>قيد التنفيذ: ${v.p}</div></div>
-        <div class="progress"><div class="progress-fill" style="width:${p}%"></div></div>
-        <div style="font-size:11px">${p}%</div>
-      </div>`;
-    }).join('');
-}
-
-function buildBrandCards(rows){
-  const map={};
-  rows.forEach(r=>{
-    if(!r.brand) return;
-    map[r.brand]=map[r.brand]||{c:0,p:0};
-    r.status==='completed'?map[r.brand].c++:map[r.brand].p++;
-  });
-  document.getElementById('brandsGrid').innerHTML=
-    Object.entries(map).map(([k,v])=>{
-      const t=v.c+v.p,p=t?Math.round(v.c/t*100):0;
-      return `<div class="mini-card">
-        <div class="brand-head">
-          ${getLogo(k)?`<img class="brand-logo" src="${getplaceholder">—</div>`}
-          <div class="mini-title">${k}</div>
-        </div>
-        <div class="mini-stats"><div>مكتمل: ${v.c}</div><div>قيد التنفيذ: ${v.p}</div></div>
-        <div class="progress"><div class="progress-fill" style="width:${p}%"></div></div>
-        <div style="font-size:11px">${p}%</div>
-      </div>`;
-    }).join('');
-}
-</script>
-
+      } catch (err) {
+        show('Catch Error:\\n' + (err && err.message ? err.message : err), true);
+      }
+    })();
+  </script>
 </body>
 </html>
