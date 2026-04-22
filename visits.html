@@ -24,7 +24,6 @@
     .rtl-en{display:inline-block;direction:ltr;unicode-bidi:embed}
     .container{max-width:1450px;margin:18px auto;padding:0 14px 28px}
     .session-note{background:#fff7e6;border:1px solid #f5d08a;color:#8a5a00;border-radius:12px;padding:12px 14px;margin-bottom:16px;line-height:1.7}
-    /* hide mini topbar as requested */
     .lang-wrap{display:none !important;gap:8px;flex-wrap:wrap;margin-bottom:14px}
     .lang-wrap .btn,.lang-wrap .badge{display:none !important}
     .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
@@ -67,20 +66,24 @@
     <button class="btn small" id="langArBtn" type="button">AR</button>
     <button class="btn small" id="langEnBtn" type="button">EN</button>
     <span class="badge">visits</span>
-    <span class="badge">v1.1.1</span>
+    <span class="badge">v1.1.2</span>
   </div>
+
   <div id="sessionNotice" class="session-note hidden">الرجاء تسجيل الدخول من الصفحة الرئيسية أولًا، ثم افتح صفحة الزيارات من داخل النظام.</div>
+
   <div id="appRoot" class="hidden">
     <div class="toolbar">
       <div class="badge" id="appTitle">إدارة زيارات الفروع / Branch Visits</div>
       <div class="note" id="pageNote" style="margin:0">عند اختيار الفني سيتم فلترة قائمة الفروع حسب نطاق الفني، وإذا كان الفرع Stellantis سيتم إنشاء سجلين لعلامتي Peugeot وCitroën.</div>
     </div>
+
     <div class="stats">
       <div class="stat"><span class="label" id="lblTotalVisits">إجمالي الزيارات</span><div class="value" id="statTotalVisits">0</div></div>
       <div class="stat"><span class="label" id="lblCompletedVisits">زيارات مكتملة</span><div class="value" id="statCompletedVisits">0</div></div>
       <div class="stat"><span class="label" id="lblPlannedVisits">زيارات قيد التنفيذ</span><div class="value" id="statPlannedVisits">0</div></div>
       <div class="stat"><span class="label" id="lblCancelledVisits">زيارات ملغية</span><div class="value" id="statCancelledVisits">0</div></div>
     </div>
+
     <div class="grid-2">
       <div class="card">
         <h3 id="visitFormTitle">إدخال / تعديل زيارة</h3>
@@ -104,6 +107,7 @@
         <div class="note" id="visitMessage">جاهز للحفظ.</div>
         <div id="visitError" class="alert error hidden"></div>
       </div>
+
       <div class="card">
         <h3 id="latestVisitsTitle">أحدث الزيارات</h3>
         <div class="toolbar">
@@ -131,12 +135,14 @@
     </div>
   </div>
 </main>
+
 <script>
 (function(){
   var permissionRoleDefaults = { admin:['visit','visits'], supervisor:['visit','visits'], technician:['visit','visits'], user:[] };
   var state = { branches:[], technicians:[], visits:[], currentUser:null, currentUserProfile:null, currentLang:'ar' };
   var unsub = { branches:null, technicians:null, visits:null };
   var listenersBound = false;
+
   var I18N = {
     ar:{
       appTitle:'إدارة زيارات الفروع / Branch Visits', pageNote:'عند اختيار الفني سيتم فلترة قائمة الفروع حسب نطاق الفني، وإذا كان الفرع Stellantis سيتم إنشاء سجلين لعلامتي Peugeot وCitroën.',
@@ -230,6 +236,7 @@
     var recordKeys = [String(record && record.technicianDocId || '').trim().toLowerCase(), String(record && record.technicianId || '').trim().toLowerCase(), String(record && record.technicianUid || '').trim().toLowerCase(), String(record && record.technicianEmail || '').trim().toLowerCase()].filter(Boolean);
     return recordKeys.some(function(key){ return identity.keys.has(key); });
   }
+
   function canDeleteVisitForCurrentUser(){ var role = (state.currentUserProfile && state.currentUserProfile.role) || 'user'; return ['admin','supervisor'].indexOf(role) > -1; }
 
   function renderTechnicianSelectors(){
@@ -239,6 +246,7 @@
     var identity = getCurrentTechnicianIdentity();
     if (identity.role === 'technician' && identity.matchedTechId) $('visitTechnician').value = identity.matchedTechId;
   }
+
   function resolveTechnicianForVisitFilter(){
     var selectedId = $('visitTechnician').value || '';
     if (selectedId) return state.technicians.find(function(t){ return t.id === selectedId; }) || null;
@@ -246,6 +254,7 @@
     if (identity.role === 'technician' && identity.matchedTechId) return state.technicians.find(function(t){ return t.id === identity.matchedTechId; }) || null;
     return null;
   }
+
   function isBranchVisibleForTechnician(branch, tech){
     if (!tech) return true;
     if (tech.assignedBranchId && String(branch.id) !== String(tech.assignedBranchId)) return false;
@@ -256,6 +265,7 @@
     if (tech.assignedBranchName && !tech.assignedBranchId && normalizeMatchValue(branch.branchName) !== normalizeMatchValue(tech.assignedBranchName)) return false;
     return true;
   }
+
   function renderBranchSelectors(){
     var current = $('visitBranch').value || '';
     var tech = resolveTechnicianForVisitFilter();
@@ -281,7 +291,14 @@
   function getVisitBrandsForBranch(branch){ return isStellantisCompoundBranch(branch) ? ['Peugeot','Citroën'] : [getCanonicalBrandDisplay((branch && branch.brand) || '')]; }
   function getVisitBrandKey(value){ return canonicalBrandToken(value); }
   function getVisitBrandDisplay(branch){ return isStellantisCompoundBranch(branch) ? 'Stellantis (Peugeot + Citroën)' : getCanonicalBrandDisplay((branch && branch.brand) || ''); }
-  function fillVisitFromBranch(){ var branch = state.branches.find(function(x){ return String(x.id) === String($('visitBranch').value); }); if (!branch) return; $('visitBrand').value = getVisitBrandDisplay(branch); $('visitBranchId').value = branch.id || ''; $('visitLocation').value = branch.location || branch.city || branch.branchName || ''; }
+
+  function fillVisitFromBranch(){
+    var branch = state.branches.find(function(x){ return String(x.id) === String($('visitBranch').value); });
+    if (!branch) return;
+    $('visitBrand').value = getVisitBrandDisplay(branch);
+    $('visitBranchId').value = branch.id || '';
+    $('visitLocation').value = branch.location || branch.city || branch.branchName || '';
+  }
 
   function clearVisitForm(){
     $('editingVisitId').value = '';
@@ -300,54 +317,72 @@
     setAlert('visitError');
   }
 
+  function buildParentPlainObject(){
+    return window.parent && window.parent.Object ? new window.parent.Object() : {};
+  }
+
+  function buildVisitPayload(branch, tech, brandName, targetGroupId, multiBrand){
+    var fv = window.parent.firebase.firestore.FieldValue;
+    var payload = buildParentPlainObject();
+    payload.branchId = branch.id || '';
+    payload.branchName = branch.branchName || branch.id || '';
+    payload.region = branch.region || '';
+    payload.city = branch.city || '';
+    payload.technicianId = tech.authUid || tech.id || '';
+    payload.technicianDocId = tech.id || '';
+    payload.technicianUid = tech.authUid || tech.id || '';
+    payload.technicianName = tech.name || tech.id || '';
+    payload.technicianEmail = tech.email || '';
+    payload.date = $('visitDate').value;
+    payload.status = $('visitStatus').value;
+    payload.notes = $('visitNotes').value.trim();
+    payload.visitGroupId = multiBrand ? targetGroupId : '';
+    payload.compoundSource = multiBrand ? 'stellantis' : '';
+    payload.brand = brandName;
+    payload.brandKey = getVisitBrandKey(brandName);
+    payload.updatedAt = fv.serverTimestamp();
+    payload.createdAt = fv.serverTimestamp();
+    return payload;
+  }
+
   async function saveVisit(){
     try {
       var db = window.parent.appDb;
-      var fv = window.parent.firebase.firestore.FieldValue;
       var branch = state.branches.find(function(b){ return String(b.id) === String($('visitBranch').value); });
       var tech = state.technicians.find(function(t){ return String(t.id) === String($('visitTechnician').value); });
       if (!branch) throw new Error(t('chooseBranch'));
       if (!tech) throw new Error(t('chooseTechnician'));
       if (!$('visitDate').value) throw new Error(t('enterVisitDate'));
+
       var brandsToSave = getVisitBrandsForBranch(branch);
       var editId = $('editingVisitId').value.trim();
       var existing = editId ? state.visits.find(function(v){ return v.id === editId; }) : null;
       var existingGroupId = existing ? (existing.visitGroupId || '') : '';
-      var targetGroupId = brandsToSave.length > 1 ? (existingGroupId || ('group-' + Date.now() + '-' + Math.floor(Math.random() * 100000))) : '';
-      var basePayload = {
-        branchId: branch.id,
-        branchName: branch.branchName || branch.id,
-        region: branch.region || '',
-        city: branch.city || '',
-        technicianId: tech.authUid || tech.id,
-        technicianDocId: tech.id,
-        technicianUid: tech.authUid || tech.id,
-        technicianName: tech.name || tech.id,
-        technicianEmail: tech.email || '',
-        date: $('visitDate').value,
-        status: $('visitStatus').value,
-        notes: $('visitNotes').value.trim(),
-        visitGroupId: targetGroupId,
-        compoundSource: brandsToSave.length > 1 ? 'stellantis' : '',
-        updatedAt: fv.serverTimestamp()
-      };
+      var multiBrand = brandsToSave.length > 1;
+      var targetGroupId = multiBrand ? (existingGroupId || ('group-' + Date.now() + '-' + Math.floor(Math.random() * 100000))) : '';
+
       if (editId) {
         if (existingGroupId) {
           var relatedOld = state.visits.filter(function(v){ return v.visitGroupId === existingGroupId; });
-          for (var del = 0; del < relatedOld.length; del++) await db.collection('siteVisits').doc(relatedOld[del].id).delete();
+          for (var del = 0; del < relatedOld.length; del++) {
+            await db.collection('siteVisits').doc(relatedOld[del].id).delete();
+          }
         } else if (existing && existing.id) {
           await db.collection('siteVisits').doc(existing.id).delete();
         }
       }
+
       for (var i = 0; i < brandsToSave.length; i++) {
         var brandName = getCanonicalBrandDisplay(brandsToSave[i] || branch.brand || '');
-        var payload = Object.assign({}, basePayload, { brand: brandName, brandKey: getVisitBrandKey(brandName), visitGroupId: brandsToSave.length > 1 ? targetGroupId : '', compoundSource: brandsToSave.length > 1 ? 'stellantis' : '', createdAt: fv.serverTimestamp() });
+        var payload = buildVisitPayload(branch, tech, brandName, targetGroupId, multiBrand);
         await db.collection('siteVisits').add(payload);
       }
+
       clearVisitForm();
-      setMessage('visitMessage', brandsToSave.length > 1 ? t('visitSavedCompound') : t('visitSaved'));
+      setMessage('visitMessage', multiBrand ? t('visitSavedCompound') : t('visitSaved'));
       setAlert('visitError');
     } catch (err) {
+      console.error(err);
       setAlert('visitError', err.message || String(err));
     }
   }
@@ -404,12 +439,40 @@
       return [v.date, v.branchName, v.brand, v.technicianName, v.status, v.branchId].some(function(x){ return String(x || '').toLowerCase().indexOf(q) > -1; });
     }).sort(function(a,b){ return String(b.date || '').localeCompare(String(a.date || '')); });
     if ($('resultsBadge')) $('resultsBadge').textContent = rows.length;
-    $('visitsTableBody').innerHTML = rows.length ? rows.map(function(v){ return '<tr class="clickable" data-id="' + esc(v.id) + '"><td>' + esc(v.date) + '</td><td>' + esc(v.branchName) + '</td><td>' + esc(v.brand) + '</td><td>' + esc(v.technicianName) + '</td><td>' + esc(v.status) + '</td></tr>'; }).join('') : '<tr><td colspan="5">' + esc(t('noVisits')) + '</td></tr>';
+    $('visitsTableBody').innerHTML = rows.length
+      ? rows.map(function(v){ return '<tr class="clickable" data-id="' + esc(v.id) + '"><td>' + esc(v.date) + '</td><td>' + esc(v.branchName) + '</td><td>' + esc(v.brand) + '</td><td>' + esc(v.technicianName) + '</td><td>' + esc(v.status) + '</td></tr>'; }).join('')
+      : '<tr><td colspan="5">' + esc(t('noVisits')) + '</td></tr>';
   }
 
-  function listenBranches(){ if (unsub.branches) unsub.branches(); var db = window.parent.appDb; unsub.branches = db.collection('branches').orderBy('branchName').onSnapshot(function(snap){ state.branches = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); renderBranchSelectors(); fillVisitFromBranch(); }, function(err){ setAlert('visitError', 'branches: ' + err.message); }); }
-  function listenTechnicians(){ if (unsub.technicians) unsub.technicians(); var db = window.parent.appDb; unsub.technicians = db.collection('technicians').orderBy('name').onSnapshot(function(snap){ state.technicians = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); renderTechnicianSelectors(); renderBranchSelectors(); }, function(err){ setAlert('visitError', 'technicians: ' + err.message); }); }
-  function listenVisits(){ if (unsub.visits) unsub.visits(); var db = window.parent.appDb; unsub.visits = db.collection('siteVisits').orderBy('date', 'desc').onSnapshot(function(snap){ state.visits = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); renderVisitsTable(); updateStats(); }, function(err){ setAlert('visitError', 'siteVisits: ' + err.message); }); }
+  function listenBranches(){
+    if (unsub.branches) unsub.branches();
+    var db = window.parent.appDb;
+    unsub.branches = db.collection('branches').orderBy('branchName').onSnapshot(function(snap){
+      state.branches = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; });
+      renderBranchSelectors();
+      fillVisitFromBranch();
+    }, function(err){ setAlert('visitError', 'branches: ' + err.message); });
+  }
+
+  function listenTechnicians(){
+    if (unsub.technicians) unsub.technicians();
+    var db = window.parent.appDb;
+    unsub.technicians = db.collection('technicians').orderBy('name').onSnapshot(function(snap){
+      state.technicians = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; });
+      renderTechnicianSelectors();
+      renderBranchSelectors();
+    }, function(err){ setAlert('visitError', 'technicians: ' + err.message); });
+  }
+
+  function listenVisits(){
+    if (unsub.visits) unsub.visits();
+    var db = window.parent.appDb;
+    unsub.visits = db.collection('siteVisits').orderBy('date', 'desc').onSnapshot(function(snap){
+      state.visits = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; });
+      renderVisitsTable();
+      updateStats();
+    }, function(err){ setAlert('visitError', 'siteVisits: ' + err.message); });
+  }
 
   function attachListeners(){
     if (listenersBound) return;
@@ -454,6 +517,7 @@
       renderVisitsTable();
       updateStats();
       clearVisitForm();
+
       auth.onAuthStateChanged(async function(user){
         if (!user) { resetPage(); return; }
         $('sessionNotice').classList.add('hidden');
