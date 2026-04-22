@@ -1,138 +1,236 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Upgrade Windows - Debug</title>
-  <style>
-    body{margin:0;font-family:Tahoma,Arial;background:#edf3f8}
-    .wrap{max-width:1200px;margin:16px auto;padding:0 16px}
-    .card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 6px 16px rgba(0,0,0,.08);margin-bottom:16px}
-    .ok{color:#0a7a2f}
-    .err{color:#b42318;white-space:pre-wrap;direction:ltr;text-align:left;background:#fff5f5;border:1px solid #fecaca;padding:12px;border-radius:8px}
-    table{width:100%;border-collapse:collapse;background:#fff}
-    th,td{padding:8px;border-bottom:1px solid #eee;font-size:13px;text-align:right}
-    th{background:#f3f6fa}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="card">
-      <h3>تشخيص صفحة Upgrade Windows</h3>
-      <div id="status">جاري الفحص...</div>
-    </div>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Upgrade Windows</title>
 
-    <div class="card">
-      <h3>أول 10 سجلات</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Branch ID</th>
-            <th>Branch Name</th>
-            <th>Brand</th>
-            <th>City</th>
-            <th>Region</th>
-            <th>Employee</th>
-            <th>Device</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
+<!-- ===== Excel Library ===== -->
+https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.jsscript>
+
+<style>
+:root{
+  --primary:#0d4b73;
+  --green:#2f9e66;
+  --danger:#d64545;
+  --warning:#c47f00;
+  --border:#d7e0ea;
+  --bg:#edf3f8;
+  --card:#ffffff;
+  --text:#163247;
+  --muted:#6e8192;
+  --shadow:0 10px 30px rgba(18,48,74,.08);
+  --radius:16px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text)}
+.hidden{display:none!important}
+
+/* iframe safe */
+body.embedded-shell header,
+body.embedded-shell #loginOverlay{display:none!important}
+body.embedded-shell .container{max-width:1600px;margin:0 auto;padding:12px}
+
+/* header */
+header{background:var(--primary);color:#fff;padding:14px 18px;box-shadow:var(--shadow)}
+.title{font-size:22px;font-weight:800}
+
+/* layout */
+.container{max-width:1600px;margin:18px auto;padding:0 14px 28px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
+.card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
+
+/* grids */
+.grid-4{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:14px}
+@media (max-width:1200px){.grid-4,.grid-3{grid-template-columns:1fr}}
+
+.field{display:grid;gap:6px}
+.field label{font-size:13px;font-weight:700}
+.field input,.field select,.field textarea{
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px;
+  font:inherit;
+  background:#fbfcfe;
+}
+.field textarea{min-height:90px;resize:vertical}
+
+/* buttons */
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.btn{border:1px solid var(--border);border-radius:999px;padding:10px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer}
+.btn.green{background:var(--green);border-color:var(--green);color:#fff}
+.btn.warning{background:var(--warning);border-color:var(--warning);color:#fff}
+.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+
+/* notes */
+.note{background:#f6fbff;border:1px dashed #bfd7e8;border-radius:12px;padding:10px;color:#33546b;margin-top:12px}
+.alert{padding:10px;border-radius:12px;margin-top:10px}
+.alert.error{background:#ffecec;border:1px solid #f3b0b0;color:#8a1f1f}
+
+/* summary cards */
+.summary-grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px}
+.stat{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;text-align:center}
+.stat .label{font-size:13px;color:var(--muted)}
+.stat .value{font-size:28px;font-weight:800;color:var(--primary)}
+
+/* table */
+.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px;background:#fff}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px;border-bottom:1px solid #edf2f7;text-align:right;font-size:14px}
+th{background:#f8fbff;color:var(--primary)}
+</style>
+</head>
+
+<body>
+
+<div id="loginOverlay" class="hidden"></div>
+
+<header>
+  <div class="title">Upgrade Windows</div>
+</header>
+
+<main class="container hidden" id="appRoot">
+
+<!-- ===== SUMMARY ===== -->
+<div class="card">
+  <h3>ملخص Upgrade Windows</h3>
+  <div class="summary-grid">
+    <div class="stat"><div class="label">إجمالي السجلات</div><div class="value" id="statTotal">0</div></div>
+    <div class="stat"><div class="label">إجمالي الأجهزة</div><div class="value" id="statDevices">0</div></div>
+    <div class="stat"><div class="label">قيد التنفيذ</div><div class="value" id="statProgress">0</div></div>
+    <div class="stat"><div class="label">مكتمل</div><div class="value" id="statCompleted">0</div></div>
+  </div>
+</div>
+
+<!-- ===== FORM ===== -->
+<div class="card">
+  <h3>Upgrade Windows</h3>
+
+  <div class="grid-4">
+    <div class="field"><label>Branch Name</label><input id="branchName"></div>
+    <div class="field"><label>Branch ID</label><input id="branchId"></div>
+    <div class="field"><label>Region</label><input id="region"></div>
+    <div class="field"><label>City</label><input id="city"></div>
+
+    <div class="field"><label>Brand</label><input id="brand"></div>
+    <div class="field"><label>Function</label><input id="functionName"></div>
+    <div class="field"><label>Employee Name</label><input id="employeeName"></div>
+    <div class="field"><label>Employee ID</label><input id="employeeId"></div>
+
+    <div class="field"><label>Device Name</label><input id="deviceName"></div>
+    <div class="field"><label>Devices Count</label><input id="devicesCount" type="number"></div>
+    <div class="field"><label>Status</label>
+      <select id="status">
+        <option value="planned">Planned</option>
+        <option value="in progress">In Progress</option>
+        <option value="completed">Completed</option>
+      </select>
+    </div>
+    <div class="field"><label>Checklist Date</label><input id="checklistDate" type="date"></div>
+
+    <div class="field" style="grid-column:1/-1">
+      <label>Notes</label>
+      <textarea id="notes"></textarea>
     </div>
   </div>
 
-  <script>
-    const statusEl = document.getElementById('status');
-    const rowsEl = document.getElementById('rows');
+  <div class="actions">
+    <button class="btn green" onclick="saveRecord()">حفظ السجل</button>
+    <button class="btn" onclick="clearForm()">تنظيف</button>
+  </div>
 
-    function show(msg, isError){
-      statusEl.innerHTML = isError
-        ? '<div class="err">' + msg + '</div>'
-        : '<div class="ok">' + msg + '</div>';
-    }
+  <div class="grid-3" style="margin-top:14px">
+    <div class="field"><label>ملف Excel</label><input type="file" id="excelFile" accept=".xlsx,.xls"></div>
+    <div class="field"><label>&nbsp;</label><button class="btn warning" onclick="importExcel()">رفع ملف Excel (يمسح القديم)</button></div>
+    <div class="field"><label>&nbsp;</label><button class="btn" onclick="exportExcel()">تنزيل ملف Excel</button></div>
+  </div>
 
-    window.addEventListener('error', function(e){
-      show('JavaScript Error:\\n' + (e.message || 'Unknown error') + '\\nLine: ' + e.lineno + '\\nFile: ' + e.filename, true);
-    });
+  <div class="note">ارفع ملف الأجهزة أولًا، ثم سيتم التحديث حسب Employee ID.</div>
+  <div id="errorBox" class="alert error hidden"></div>
+</div>
 
-    (function(){
-      try {
-        const parentWin = window.parent;
-        if (!parentWin || parentWin === window) {
-          show('الصفحة ليست داخل iframe تابع للنظام.', true);
-          return;
-        }
+<!-- ===== TABLE ===== -->
+<div class="card">
+  <h3>سجلات Upgrade Windows</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Branch</th><th>Brand</th><th>Employee</th><th>Device</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
 
-        const firebaseParent = parentWin.firebase;
-        const auth = parentWin.appAuth;
-        const db = parentWin.appDb;
+</main>
 
-        if (!firebaseParent) {
-          show('window.parent.firebase غير موجود', true);
-          return;
-        }
-        if (!auth) {
-          show('window.parent.appAuth غير موجود', true);
-          return;
-        }
-        if (!db) {
-          show('window.parent.appDb غير موجود', true);
-          return;
-        }
+<script>
+/* ===== iframe auth ===== */
+if(window.parent && window.parent.appAuth){
+  document.body.classList.add('embedded-shell');
+  window.parent.appAuth.onAuthStateChanged(u=>{
+    document.getElementById('appRoot').classList.toggle('hidden', !u);
+  });
+}
 
-        show('✅ تم العثور على Firebase و Auth و Firestore من الصفحة الأم. جاري فحص المستخدم...');
+/* ===== data ===== */
+let records=[];
 
-        const start = function(user){
-          if (!user) {
-            show('⚠️ لا يوجد مستخدم مسجل دخول داخل Firebase Auth.', true);
-            return;
-          }
+/* ===== helpers ===== */
+function $(id){return document.getElementById(id)}
+function clearForm(){document.querySelectorAll('input,textarea').forEach(i=>i.value='')}
+function saveRecord(){
+  const r={
+    branchName:branchName.value,
+    branchId:branchId.value,
+    region:region.value,
+    city:city.value,
+    brand:brand.value,
+    functionName:functionName.value,
+    employeeName:employeeName.value,
+    employeeId:employeeId.value,
+    deviceName:deviceName.value,
+    devicesCount:devicesCount.value,
+    status:status.value,
+    checklistDate:checklistDate.value,
+    notes:notes.value
+  };
+  records.push(r);
+  renderTable();
+}
+function renderTable(){
+  tableBody.innerHTML=records.map(r=>`
+    <tr>
+      <td>${r.branchName}</td>
+      <td>${r.brand}</td>
+      <td>${r.employeeName}</td>
+      <td>${r.deviceName}</td>
+      <td>${r.status}</td>
+    </tr>`).join('');
+  statTotal.textContent=records.length;
+}
+function importExcel(){
+  const f=excelFile.files[0];
+  if(!f)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const wb=XLSX.read(e.target.result,{type:'binary'});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    records=rows;
+    renderTable();
+  };
+  reader.readAsBinaryString(f);
+}
+function exportExcel(){
+  const ws=XLSX.utils.json_to_sheet(records);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'UpgradeWindows');
+  XLSX.writeFile(wb,'upgrade_windows.xlsx');
+}
+</script>
 
-          show('✅ المستخدم مسجل. جاري قراءة windows_upgrades ...');
-
-          db.collection('windows_upgrades').limit(10).get()
-            .then(function(snap){
-              const docs = snap.docs.map(function(d){ return d.data(); });
-
-              if (!docs.length) {
-                show('✅ الاتصال ناجح، لكن Collection windows_upgrades فارغة حاليًا.');
-                rowsEl.innerHTML = '<tr><td colspan="8">لا توجد سجلات</td></tr>';
-                return;
-              }
-
-              show('✅ الاتصال ناجح وتم جلب ' + docs.length + ' سجلات (أول 10 فقط للتشخيص).');
-
-              rowsEl.innerHTML = docs.map(function(r){
-                return '<tr>' +
-                  '<td>' + (r.branchId || '') + '</td>' +
-                  '<td>' + (r.branchName || '') + '</td>' +
-                  '<td>' + (r.brand || '') + '</td>' +
-                  '<td>' + (r.city || '') + '</td>' +
-                  '<td>' + (r.region || '') + '</td>' +
-                  '<td>' + (r.employeeName || '') + '</td>' +
-                  '<td>' + (r.deviceName || '') + '</td>' +
-                  '<td>' + (r.status || '') + '</td>' +
-                '</tr>';
-              }).join('');
-            })
-            .catch(function(err){
-              show('Firestore Error:\\n' + (err && err.message ? err.message : err), true);
-            });
-        };
-
-        if (auth.currentUser) {
-          start(auth.currentUser);
-        } else {
-          firebaseParent.auth().onAuthStateChanged(function(user){
-            start(user);
-          });
-        }
-
-      } catch (err) {
-        show('Catch Error:\\n' + (err && err.message ? err.message : err), true);
-      }
-    })();
-  </script>
 </body>
 </html>
