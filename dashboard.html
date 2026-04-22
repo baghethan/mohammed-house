@@ -1,165 +1,585 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8" />
-<title>Branch Visits Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <title>Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#eef3f8;
+      --card:#ffffff;
+      --primary:#0d4b73;
+      --muted:#667085;
+      --border:#dbe7f1;
+      --blue:#4f8fdb;
+      --orange:#f97316;
+      --green:#5ac036;
+      --deep:#0b3048;
+      --deep2:#0d405e;
+      --deep3:#07283d;
+      --deepBorder:rgba(255,255,255,.12);
+      --deepGrid:rgba(255,255,255,.08);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);font-family:Tahoma,Arial,sans-serif;color:#163247}
+    .hidden{display:none!important}
+    .container{max-width:1320px;margin:20px auto;padding:0 14px 28px}
+    .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+    .section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .section-head h3{margin:0;color:var(--primary)}
+    .muted{color:var(--muted);font-size:13px}
+    button,input{padding:10px;border-radius:8px;border:1px solid #ccc;box-sizing:border-box;font-size:14px;font-family:inherit}
+    input{width:100%;background:#fff}
+    button{background:#0d4b73;color:#fff;border:none;cursor:pointer;transition:.18s ease}
+    button:hover{opacity:.96}
+    button:disabled{opacity:.65;cursor:wait}
+    button.secondary{background:#295fa5}
+    button.light{background:#eef4fb;color:#0d4b73;border:1px solid #cfe2f3}
+    button.capture-btn{background:#0d4b73;width:auto;min-width:170px;white-space:nowrap}
 
-<style>
-:root{
-  --bg:#eef3f8;
-  --card:#ffffff;
-  --primary:#0d4b73;
-  --muted:#667085;
-  --blue:#4f8fdb;
-  --orange:#f97316;
-  --green:#22c55e;
-  --deep:#0b3048;
-  --deep2:#0d405e;
-}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);font-family:Tahoma,Arial,sans-serif;color:#163247}
-.hidden{display:none!important}
-.container{max-width:1320px;margin:20px auto;padding:0 14px}
-.card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
-.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
-.section-head h3{margin:0;color:var(--primary)}
-button{background:#0d4b73;color:#fff;border:none;border-radius:8px;padding:10px 14px;cursor:pointer}
+    .session-note{background:#fff7e6;border:1px solid #f5d08a;color:#8a5a00;border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.7}
+    .filters-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:10px}
+    .filter-box label{display:block;margin-bottom:6px;color:#475467;font-size:13px;font-weight:600}
+    .filter-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .filter-actions button{width:auto;min-width:140px}
+    .range-summary{margin-top:10px;color:#667085;font-size:13px}
+    .capture-status{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13px;display:none}
+    .capture-status.success{display:block;background:#ecfdf3;color:#067647;border:1px solid #abefc6}
+    .capture-status.info{display:block;background:#eef4fb;color:#0d4b73;border:1px solid #cfe2f3}
+    .capture-status.error{display:block;background:#fef3f2;color:#b42318;border:1px solid #fecdca}
 
-/* ===== Evaluation Board ===== */
-.eval-board{background:linear-gradient(180deg,var(--deep),#07283d);border-radius:22px;padding:20px;color:#fff}
-.eval-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-.eval-header h4{margin:0;font-size:22px}
-.eval-sub{font-size:13px;color:#d0d5dd}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+    .stat{padding:14px;border-radius:14px;background:#f8fbff;border:1px solid #dde6ef}
+    .stat strong{display:block;font-size:28px;color:#0d4b73;margin-bottom:6px}
+    .stat span{font-size:13px;color:#555}
+    .stat.primary{background:#0d4b73;color:#fff}
+    .stat.primary strong,.stat.primary span{color:#fff}
 
-.eval-top{display:grid;grid-template-columns:260px 1fr;gap:24px;align-items:center}
+    .eval-board{background:linear-gradient(180deg,var(--deep) 0%, var(--deep3) 100%);border-radius:22px;overflow:hidden;box-shadow:0 12px 32px rgba(6,24,38,.26);position:relative}
+    .eval-board::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 18% 20%, rgba(255,255,255,.06), transparent 28%), radial-gradient(circle at 84% 78%, rgba(255,255,255,.05), transparent 30%);pointer-events:none}
+    .eval-layout{display:grid;grid-template-columns:120px 1fr;min-height:560px;position:relative;z-index:1}
+    .eval-side{background:linear-gradient(180deg,#f8fbff 0%, #eaf2fb 100%);display:flex;align-items:center;justify-content:center;padding:14px 8px;border-left:3px solid rgba(13,75,115,.15)}
+    .eval-side-content{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+    .eval-side-title{writing-mode:vertical-rl;transform:rotate(180deg);font-size:26px;line-height:1;font-weight:700;color:#0d4b73;letter-spacing:.5px;text-align:center}
+    .eval-side-sub{font-size:18px;font-weight:700;color:#b42318;writing-mode:vertical-rl;transform:rotate(180deg)}
+    .eval-main{padding:18px 18px 20px}
+    .eval-board-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+    .eval-board-title h3{margin:0;color:#fff;font-size:30px;line-height:1.1}
+    .eval-board-title .muted-white{color:#d0d5dd;font-size:13px;margin-top:6px}
+    .eval-copy-btn{background:#f8fbff;color:#0d4b73;border:1px solid rgba(255,255,255,.2);box-shadow:0 6px 18px rgba(0,0,0,.18)}
 
-/* Pie */
-.pie{width:220px;height:220px;border-radius:50%;background:conic-gradient(var(--blue) 0deg 210deg,var(--orange) 210deg 280deg,var(--green) 280deg 360deg);position:relative;margin:auto}
-.pie-center{position:absolute;inset:36px;border-radius:50%;background:var(--deep2);display:flex;flex-direction:column;align-items:center;justify-content:center}
-.pie-center strong{font-size:32px}
-.pie-center span{font-size:12px;color:#d0d5dd}
+    .eval-overview{display:grid;grid-template-columns:320px 1fr;gap:16px;margin-bottom:16px}
+    .eval-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .eval-grid.empty,.eval-overview.empty{display:block;color:#d0d5dd;font-size:14px;padding:18px 4px}
+    .pie-panel,.eval-panel{background:linear-gradient(180deg,var(--deep2) 0%, #0a3652 100%);border:1px solid var(--deepBorder);border-radius:18px;padding:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+    .pie-panel-title,.eval-panel-title{font-size:18px;font-weight:700;color:#fff;line-height:1.2;margin-bottom:6px;text-align:center}
+    .pie-panel-sub,.eval-panel-sub{font-size:12px;color:#d0d5dd;text-align:center;margin-bottom:12px}
 
-.legend{display:grid;gap:8px;font-size:13px}
-.legend div{display:flex;align-items:center;gap:8px}
-.dot{width:12px;height:12px;border-radius:50%}
-.dot.blue{background:var(--blue)}
-.dot.orange{background:var(--orange)}
-.dot.green{background:var(--green)}
+    .pie-wrap{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:6px}
+    .pie-chart{width:220px;height:220px;border-radius:50%;position:relative;box-shadow:0 10px 22px rgba(0,0,0,.22);background:conic-gradient(var(--blue) 0deg 0deg,var(--orange) 0deg 0deg,var(--green) 0deg 360deg)}
+    .pie-hole{position:absolute;inset:34px;border-radius:50%;background:linear-gradient(180deg,var(--deep2) 0%, #0a3652 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;text-align:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+    .pie-hole strong{font-size:34px;line-height:1}
+    .pie-hole span{font-size:12px;color:#d0d5dd;margin-top:4px}
+    .pie-stats{display:grid;gap:8px;min-width:210px}
+    .pie-stat{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.04);color:#fff}
+    .pie-dot{width:12px;height:12px;border-radius:50%}
+    .pie-dot.pos{background:var(--blue)}
+    .pie-dot.neg{background:var(--orange)}
+    .pie-dot.mix{background:var(--green)}
+    .pie-stat .meta{font-size:12px;color:#d0d5dd}
+    .pie-stat strong{display:block;font-size:18px;color:#fff}
 
-/* Bars */
-.eval-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:24px}
-.eval-card{background:var(--deep2);border-radius:16px;padding:14px}
-.eval-card h5{margin:0 0 10px;font-size:15px}
-.bar-wrap{height:140px;display:flex;align-items:flex-end;gap:12px}
-.bar{width:42px;border-radius:10px 10px 0 0}
-.bar.blue{background:var(--blue)}
-.bar.orange{background:var(--orange)}
-.percent{text-align:center;margin-top:6px;font-size:13px;color:#e5e7eb}
+    .eval-mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px}
+    .eval-mini{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px 8px;text-align:center}
+    .eval-mini strong{display:block;font-size:18px;color:#fff;margin-bottom:3px}
+    .eval-mini span{font-size:11px;color:#d0d5dd}
+    .eval-mini.primary{background:#f8fbff;border-color:#dbe7f1}
+    .eval-mini.primary strong,.eval-mini.primary span{color:#0d4b73}
 
-.session-note{background:#fff7e6;border:1px solid #f5d08a;color:#8a5a00;border-radius:14px;padding:14px}
-</style>
+    .chart-shell{position:relative;border:1px solid rgba(255,255,255,.08);border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));padding:10px 12px 12px;min-height:190px}
+    .chart-grid{position:absolute;inset:12px 12px 26px 12px;background:repeating-linear-gradient(to top, transparent 0, transparent 19%, var(--deepGrid) 19%, var(--deepGrid) 20%);border-radius:12px;pointer-events:none}
+    .chart-head{display:flex;justify-content:space-between;align-items:center;gap:8px;position:relative;z-index:1;margin-bottom:8px}
+    .chart-head .left,.chart-head .right{font-size:12px;color:#d0d5dd}
+    .chart-head .right{font-weight:700}
+    .chart-bars{display:flex;align-items:flex-end;justify-content:space-evenly;gap:18px;height:126px;position:relative;z-index:1;padding:0 8px}
+    .bar-group{display:flex;align-items:flex-end;gap:8px;height:100%}
+    .bar{width:34px;border-radius:10px 10px 4px 4px;position:relative;box-shadow:0 4px 10px rgba(0,0,0,.16)}
+    .bar.positive{background:linear-gradient(180deg,#66b1ff 0%, var(--blue) 100%)}
+    .bar.negative{background:linear-gradient(180deg,#ff9b54 0%, var(--orange) 100%)}
+    .bar-value{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:11px;color:#fff;font-weight:700;white-space:nowrap}
+    .chart-axis{display:flex;justify-content:space-evenly;gap:14px;margin-top:8px;position:relative;z-index:1;color:#d0d5dd;font-size:11px;text-align:center}
+    .chart-axis .label-wrap{width:82px}
+    .chart-legend{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin-top:10px;color:#d0d5dd;font-size:11px}
+    .legend-item{display:flex;align-items:center;gap:6px}
+    .legend-swatch{width:12px;height:12px;border-radius:3px}
+    .legend-swatch.positive{background:var(--blue)}
+    .legend-swatch.negative{background:var(--orange)}
+    .chart-note{display:flex;justify-content:space-between;gap:10px;margin-top:8px;color:#d0d5dd;font-size:11px}
+
+    @media (max-width:1080px){
+      .eval-overview{grid-template-columns:1fr}
+      .eval-layout{grid-template-columns:1fr}
+      .eval-side{padding:12px 14px;border-left:none;border-bottom:3px solid rgba(13,75,115,.15)}
+      .eval-side-content{flex-direction:row}
+      .eval-side-title,.eval-side-sub{writing-mode:horizontal-tb;transform:none}
+      .eval-grid{grid-template-columns:1fr}
+    }
+    @media (max-width:768px){
+      button.capture-btn,.filter-actions button{width:100%}
+      .eval-mini-grid{grid-template-columns:1fr 1fr}
+      .eval-board-title h3{font-size:22px}
+      .pie-chart{width:180px;height:180px}
+      .pie-hole{inset:26px}
+      .pie-hole strong{font-size:28px}
+    }
+  </style>
 </head>
 <body>
 <div class="container">
+  <div id="sessionNotice" class="session-note hidden">الرجاء تسجيل الدخول من الصفحة الرئيسية أولًا، ثم افتح Dashboard من داخل النظام.</div>
+  <div id="dashboardRoot" class="hidden">
 
-<div id="sessionNotice" class="session-note hidden">الرجاء تسجيل الدخول من الصفحة الرئيسية أولاً</div>
+    <div class="card">
+      <div class="section-head">
+        <h3>فلتر الفترة</h3>
+        <div class="muted">يؤثر على نسب التقييم والبطاقات التفصيلية من Check‑List</div>
+      </div>
+      <div class="filters-grid">
+        <div class="filter-box"><label for="filterFrom">من تاريخ</label><input id="filterFrom" type="date"></div>
+        <div class="filter-box"><label for="filterTo">إلى تاريخ</label><input id="filterTo" type="date"></div>
+      </div>
+      <div class="filter-actions">
+        <button id="applyDateFilter" class="secondary">تطبيق من / إلى</button>
+        <button id="resetDateFilter" class="light">إعادة التعيين</button>
+      </div>
+      <div id="activeRangeLabel" class="range-summary">الفترة الحالية: كل التواريخ</div>
+      <div id="captureStatus" class="capture-status"></div>
+    </div>
 
-<div id="dashboardRoot" class="hidden">
-
-<div class="card">
-  <div class="section-head">
-    <h3>التقييم من نموذج Check‑List</h3>
-    <button onclick="captureEval()">نسخ صورة التقييم</button>
-  </div>
-
-  <div id="evalSection" class="eval-board">
-    <div class="eval-header">
-      <div>
-        <h4>Overall Assessment</h4>
-        <div class="eval-sub">Pie + Bar Charts (Live Data)</div>
+    <div class="card">
+      <div class="section-head">
+        <h3>ملخص Check‑List</h3>
+        <div class="muted">ملخص مباشر من branch_checklists</div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat primary"><strong id="statChecklists">0</strong><span>عدد نماذج Check‑List</span></div>
+        <div class="stat"><strong id="statEvaluatedAnswers">0</strong><span>الإجابات المحتسبة</span></div>
+        <div class="stat"><strong id="statRecordsParticipated">0</strong><span>المشاركات بالأقسام المطلوبة</span></div>
       </div>
     </div>
 
-    <div class="eval-top">
-      <div>
-        <div class="pie">
-          <div class="pie-center">
-            <strong>58%</strong>
-            <span>Overall</span>
+    <div class="card">
+      <div class="section-head">
+        <div>
+          <h3>التقييم من نموذج Check‑List</h3>
+          <div class="muted">النسب مربوطة مباشرة من بيانات branch_checklists مع Pie Chart و Bar Charts</div>
+        </div>
+        <button class="capture-btn" id="copyEvalBtn" type="button">نسخ صورة التقييم</button>
+      </div>
+
+      <div id="checklistEvalCapture" class="eval-board">
+        <div class="eval-layout">
+          <div class="eval-side">
+            <div class="eval-side-content">
+              <div class="eval-side-title">Check‑List Dashboard</div>
+              <div class="eval-side-sub">Live</div>
+            </div>
+          </div>
+          <div class="eval-main">
+            <div class="eval-board-head">
+              <div class="eval-board-title">
+                <h3>Overall Assessment</h3>
+                <div class="muted-white">Pie + Bar Charts (Live Data)</div>
+              </div>
+              <button class="capture-btn eval-copy-btn" id="copyEvalBtnInner" type="button">نسخ صورة التقييم</button>
+            </div>
+
+            <div id="checklistOverviewBox" class="eval-overview empty">لا توجد بيانات تقييم من Check‑List ضمن الفترة المحددة</div>
+            <div id="checklistEvalBox" class="eval-grid empty">لا توجد بيانات تقييم من Check‑List ضمن الفترة المحددة</div>
           </div>
         </div>
       </div>
 
-      <div class="legend">
-        <div><span class="dot blue"></span> Fully Functioning</div>
-        <div><span class="dot orange"></span> Requires Service</div>
-        <div><span class="dot green"></span> Other / Mixed</div>
-      </div>
-    </div>
-
-    <div class="eval-grid">
-      <div class="eval-card">
-        <h5>Hardware & Peripherals</h5>
-        <div class="bar-wrap">
-          <div class="bar blue" style="height:75%"></div>
-          <div class="bar orange" style="height:25%"></div>
-        </div>
-        <div class="percent">75%</div>
-      </div>
-
-      <div class="eval-card">
-        <h5>Network Infrastructure</h5>
-        <div class="bar-wrap">
-          <div class="bar blue" style="height:60%"></div>
-          <div class="bar orange" style="height:40%"></div>
-        </div>
-        <div class="percent">60%</div>
-      </div>
-
-      <div class="eval-card">
-        <h5>Software & Systems</h5>
-        <div class="bar-wrap">
-          <div class="bar blue" style="height:85%"></div>
-          <div class="bar orange" style="height:15%"></div>
-        </div>
-        <div class="percent">85%</div>
-      </div>
-
-      <div class="eval-card">
-        <h5>Systems Assessment</h5>
-        <div class="bar-wrap">
-          <div class="bar blue" style="height:20%"></div>
-          <div class="bar orange" style="height:80%"></div>
-        </div>
-        <div class="percent">20%</div>
-      </div>
     </div>
   </div>
 </div>
 
-</div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
-function captureEval(){
-  const el = document.getElementById('evalSection');
-  html2canvas(el,{backgroundColor:null,scale:2}).then(c=>{
-    c.toBlob(b=>{
-      if(navigator.clipboard){
-        navigator.clipboard.write([new ClipboardItem({'image/png':b})]);
-        alert('✅ تم نسخ صورة التقييم');
-      }
-    })
-  })
-}
 (function(){
-  if(!window.parent || !window.parent.firebase){
-    document.getElementById('sessionNotice').classList.remove('hidden');
-    return;
+  var $ = function(id){ return document.getElementById(id); };
+  var state = { checklists: [] };
+  var filters = { from:'', to:'' };
+  var unsub = [];
+  var started = false;
+  var checklistSections = [
+    'Hardware & Peripherals Assessment',
+    'Network Infrastructure Assessment',
+    'Software & Systems Assessment',
+    'Systems Assessment'
+  ];
+
+  function normalizeSectionName(value){
+    return String(value || '')
+      .toLowerCase()
+      .replace(/&amp;/g,'&')
+      .replace(/[^a-z0-9]+/g,'');
   }
-  document.getElementById('dashboardRoot').classList.remove('hidden');
+
+  function toDateObject(value){
+    if (!value) return null;
+    if (typeof value === 'object' && typeof value.toDate === 'function') {
+      var d1 = value.toDate();
+      return isNaN(d1.getTime()) ? null : d1;
+    }
+    if (typeof value === 'object' && value.seconds) {
+      var d2 = new Date(value.seconds * 1000);
+      return isNaN(d2.getTime()) ? null : d2;
+    }
+    var d3 = new Date(value);
+    return isNaN(d3.getTime()) ? null : d3;
+  }
+
+  function formatDateOnly(date){
+    if (!(date instanceof Date) || isNaN(date.getTime())) return '—';
+    return new Intl.DateTimeFormat('ar-SA', { year:'numeric', month:'2-digit', day:'2-digit' }).format(date);
+  }
+
+  function startOfDay(date){ var d = new Date(date); d.setHours(0,0,0,0); return d; }
+  function endOfDay(date){ var d = new Date(date); d.setHours(23,59,59,999); return d; }
+
+  function getChecklistDate(item){
+    return toDateObject(item.visitDate || item.technicianVisitDate || item.checklistSavedDate || item.createdAt || item.timestamp);
+  }
+
+  function inCustomRange(itemDate){
+    if (!itemDate) return false;
+    var from = filters.from ? startOfDay(new Date(filters.from)) : null;
+    var to = filters.to ? endOfDay(new Date(filters.to)) : null;
+    if (from && itemDate < from) return false;
+    if (to && itemDate > to) return false;
+    return true;
+  }
+
+  function getFilteredChecklists(){
+    return state.checklists.filter(function(v){ return inCustomRange(getChecklistDate(v)); });
+  }
+
+  function updateRangeLabel(){
+    var label = $('activeRangeLabel');
+    if (!filters.from && !filters.to) {
+      label.textContent = 'الفترة الحالية: كل التواريخ';
+      return;
+    }
+    var fromText = filters.from ? formatDateOnly(new Date(filters.from)) : '—';
+    var toText = filters.to ? formatDateOnly(new Date(filters.to)) : '—';
+    label.textContent = 'الفترة الحالية: من ' + fromText + ' إلى ' + toText;
+  }
+
+  function formatPercent(value){
+    var safe = isFinite(value) ? value : 0;
+    return safe.toFixed(1) + '%';
+  }
+
+  function clampPercent(value){
+    var num = Number(value) || 0;
+    return Math.max(0, Math.min(100, num));
+  }
+
+  function scoreAnswer(value){
+    if (value == null || value === '') return null;
+    if (typeof value === 'boolean') return value ? 1 : 0;
+    if (typeof value === 'number') {
+      if (value >= 0 && value <= 1) return value;
+      return null;
+    }
+    if (Array.isArray(value)) {
+      var scores = value.map(scoreAnswer).filter(function(v){ return typeof v === 'number'; });
+      if (!scores.length) return null;
+      return scores.reduce(function(sum, item){ return sum + item; }, 0) / scores.length;
+    }
+    var key = normalizeSectionName(value);
+    if (!key) return null;
+    var positives = ['yes','true','checked','completed','fullyfunctioning','working','available','enabled','supported','upgraded','good','pass','stable','secure','ok','healthy'];
+    var negatives = ['no','false','notworking','requiresservice','needservice','needsservice','needsreplacement','replacementrequired','repairrequired','bad','issue','problem','failed','down','outdated','unavailable','requiresupgrade','norequirementforittraining'];
+    if (positives.indexOf(key) > -1) return 1;
+    if (negatives.indexOf(key) > -1) return 0;
+    if (key === 'partial' || key === 'average') return 0.5;
+    if (key.indexOf('fullyfunctioning') > -1 || key.indexOf('working') > -1 || key.indexOf('available') > -1 || key.indexOf('supported') > -1 || key.indexOf('upgraded') > -1 || key.indexOf('healthy') > -1) return 1;
+    if (key.indexOf('requiresservice') > -1 || key.indexOf('needservice') > -1 || key.indexOf('needsreplacement') > -1 || key.indexOf('problem') > -1 || key.indexOf('issue') > -1 || key.indexOf('failed') > -1 || key.indexOf('notworking') > -1 || key.indexOf('outdated') > -1) return 0;
+    return null;
+  }
+
+  function aggregateChecklistSections(filteredChecklists){
+    var lookup = {};
+    checklistSections.forEach(function(section){
+      lookup[normalizeSectionName(section)] = {
+        name: section,
+        points: 0,
+        answers: 0,
+        records: 0,
+        positive: 0,
+        negative: 0,
+        mixed: 0
+      };
+    });
+
+    filteredChecklists.forEach(function(row){
+      var answers = row.dynamicAnswers || {};
+      var snapshot = Array.isArray(row.dynamicFieldsSnapshot) ? row.dynamicFieldsSnapshot : [];
+      var touched = {};
+      snapshot.forEach(function(field){
+        var sectionName = field.sectionEn || field.section || field.sectionAr || '';
+        var key = normalizeSectionName(sectionName);
+        if (!lookup[key]) return;
+        var answer = answers[field.id];
+        var score = scoreAnswer(answer);
+        if (typeof score !== 'number') return;
+        lookup[key].points += score;
+        lookup[key].answers += 1;
+        if (score >= 0.75) lookup[key].positive += 1;
+        else if (score <= 0.25) lookup[key].negative += 1;
+        else lookup[key].mixed += 1;
+        touched[key] = true;
+      });
+      Object.keys(touched).forEach(function(key){ lookup[key].records += 1; });
+    });
+
+    return checklistSections.map(function(section){
+      var key = normalizeSectionName(section);
+      var item = lookup[key];
+      item.percent = item.answers ? (item.points / item.answers) * 100 : 0;
+      item.positivePercent = item.answers ? (item.positive / item.answers) * 100 : 0;
+      item.negativePercent = item.answers ? (item.negative / item.answers) * 100 : 0;
+      item.mixedPercent = item.answers ? (item.mixed / item.answers) * 100 : 0;
+      return item;
+    });
+  }
+
+  function renderChecklistOverview(sectionStats){
+    var box = $('checklistOverviewBox');
+    var totalAnswers = sectionStats.reduce(function(sum,item){ return sum + item.answers; }, 0);
+    var totalRecords = sectionStats.reduce(function(sum,item){ return sum + item.records; }, 0);
+    $('statChecklists').textContent = getFilteredChecklists().length;
+    $('statEvaluatedAnswers').textContent = totalAnswers;
+    $('statRecordsParticipated').textContent = totalRecords;
+
+    if (!totalAnswers) {
+      box.className = 'eval-overview empty';
+      box.textContent = 'لا توجد بيانات تقييم من Check‑List ضمن الفترة المحددة';
+      return;
+    }
+
+    var totalPositive = sectionStats.reduce(function(sum,item){ return sum + item.positive; }, 0);
+    var totalNegative = sectionStats.reduce(function(sum,item){ return sum + item.negative; }, 0);
+    var totalMixed = sectionStats.reduce(function(sum,item){ return sum + item.mixed; }, 0);
+    var totalPoints = sectionStats.reduce(function(sum,item){ return sum + item.points; }, 0);
+    var overallPercent = totalAnswers ? (totalPoints / totalAnswers) * 100 : 0;
+    var posPercent = totalAnswers ? (totalPositive / totalAnswers) * 100 : 0;
+    var negPercent = totalAnswers ? (totalNegative / totalAnswers) * 100 : 0;
+    var mixPercent = Math.max(0, 100 - posPercent - negPercent);
+
+    var p1 = clampPercent(posPercent);
+    var p2 = clampPercent(negPercent);
+    var p3 = clampPercent(mixPercent);
+    var deg1 = (p1 / 100) * 360;
+    var deg2 = ((p1 + p2) / 100) * 360;
+
+    box.className = 'eval-overview';
+    box.innerHTML = ''
+      + '<div class="pie-panel">'
+      +   '<div class="pie-panel-title">Overall Assessment</div>'
+      +   '<div class="pie-panel-sub">Pie Chart مربوط مباشرة من البيانات الحقيقية</div>'
+      +   '<div class="pie-wrap">'
+      +     '<div class="pie-chart" style="background:conic-gradient(var(--blue) 0deg ' + deg1 + 'deg,var(--orange) ' + deg1 + 'deg ' + deg2 + 'deg,var(--green) ' + deg2 + 'deg 360deg)">'
+      +       '<div class="pie-hole"><strong>' + formatPercent(overallPercent) + '</strong><span>Overall Score</span></div>'
+      +     '</div>'
+      +     '<div class="pie-stats">'
+      +       '<div class="pie-stat"><span class="pie-dot pos"></span><div><strong>' + totalPositive + '</strong><div class="meta">Fully Functioning • ' + formatPercent(posPercent) + '</div></div></div>'
+      +       '<div class="pie-stat"><span class="pie-dot neg"></span><div><strong>' + totalNegative + '</strong><div class="meta">Requires Service • ' + formatPercent(negPercent) + '</div></div></div>'
+      +       '<div class="pie-stat"><span class="pie-dot mix"></span><div><strong>' + totalMixed + '</strong><div class="meta">Other / Mixed • ' + formatPercent(mixPercent) + '</div></div></div>'
+      +     '</div>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="pie-panel">'
+      +   '<div class="pie-panel-title">Summary</div>'
+      +   '<div class="pie-panel-sub">إجمالي النماذج والإجابات المستخدمة في التقييم</div>'
+      +   '<div class="eval-mini-grid" style="margin-top:18px">'
+      +     '<div class="eval-mini"><strong>' + totalRecords + '</strong><span>مجموع المشاركات</span></div>'
+      +     '<div class="eval-mini"><strong>' + totalAnswers + '</strong><span>إجابات محتسبة</span></div>'
+      +     '<div class="eval-mini primary"><strong>' + formatPercent(overallPercent) + '</strong><span>التقييم العام</span></div>'
+      +   '</div>'
+      +   '<div class="chart-note" style="margin-top:16px"><span>المجموع التراكمي ' + totalPoints.toFixed(1) + '</span><span>الأقسام: ' + sectionStats.filter(function(x){ return x.answers > 0; }).length + '</span></div>'
+      + '</div>';
+  }
+
+  function renderChecklistEvaluation(sectionStats){
+    var box = $('checklistEvalBox');
+    if (!sectionStats.some(function(item){ return item.answers > 0; })) {
+      box.className = 'eval-grid empty';
+      box.textContent = 'لا توجد بيانات تقييم من Check‑List ضمن الفترة المحددة';
+      return;
+    }
+
+    box.className = 'eval-grid';
+    var html = '';
+    sectionStats.forEach(function(item){
+      var overall = clampPercent(item.percent);
+      var positive = clampPercent(item.positivePercent);
+      var negative = clampPercent(item.negativePercent);
+      var mixed = clampPercent(item.mixedPercent);
+      html += ''
+      + '<div class="eval-panel">'
+      +   '<div class="eval-panel-title">' + item.name + '</div>'
+      +   '<div class="eval-panel-sub">مرتبطة مباشرة من الحقول الديناميكية المحفوظة في branch_checklists</div>'
+      +   '<div class="eval-mini-grid">'
+      +     '<div class="eval-mini"><strong>' + item.records + '</strong><span>نماذج مشاركة</span></div>'
+      +     '<div class="eval-mini"><strong>' + item.answers + '</strong><span>إجابات محتسبة</span></div>'
+      +     '<div class="eval-mini primary"><strong>' + formatPercent(item.percent) + '</strong><span>نسبة التقييم</span></div>'
+      +   '</div>'
+      +   '<div class="chart-shell">'
+      +     '<div class="chart-grid"></div>'
+      +     '<div class="chart-head"><span class="left">Bar Chart</span><span class="right">Overall ' + formatPercent(item.percent) + '</span></div>'
+      +     '<div class="chart-bars">'
+      +       '<div class="bar-group">'
+      +         '<div class="bar positive" style="height:' + positive + '%"><span class="bar-value">' + formatPercent(item.positivePercent) + '</span></div>'
+      +         '<div class="bar negative" style="height:' + negative + '%"><span class="bar-value">' + formatPercent(item.negativePercent) + '</span></div>'
+      +       '</div>'
+      +       '<div class="bar-group">'
+      +         '<div class="bar positive" style="height:' + overall + '%"><span class="bar-value">' + formatPercent(item.percent) + '</span></div>'
+      +         '<div class="bar negative" style="height:' + mixed + '%"><span class="bar-value">' + formatPercent(item.mixedPercent) + '</span></div>'
+      +       '</div>'
+      +     '</div>'
+      +     '<div class="chart-axis"><div class="label-wrap">إيجابي / يحتاج خدمة</div><div class="label-wrap">التقييم / مختلط</div></div>'
+      +     '<div class="chart-legend"><div class="legend-item"><span class="legend-swatch positive"></span><span>Fully Functioning</span></div><div class="legend-item"><span class="legend-swatch negative"></span><span>Requires Service</span></div></div>'
+      +     '<div class="chart-note"><span>المجموع التراكمي ' + item.points.toFixed(1) + '</span><span>من أصل ' + item.answers + ' إجابة</span></div>'
+      +   '</div>'
+      + '</div>';
+    });
+    box.innerHTML = html;
+  }
+
+  async function captureEval(){
+    var target = $('checklistEvalCapture');
+    if (!target || typeof html2canvas === 'undefined') return;
+    try {
+      var canvas = await html2canvas(target, { backgroundColor:null, scale:2, useCORS:true, allowTaint:true, logging:false });
+      var blob = await new Promise(function(resolve){ canvas.toBlob(resolve, 'image/png', 1); });
+      if (window.isSecureContext && navigator.clipboard && window.ClipboardItem && blob) {
+        await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
+        showStatus('تم نسخ صورة التقييم بنجاح', 'success');
+      } else if (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'checklist_evaluation.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 500);
+        showStatus('تم تنزيل صورة التقييم لأن المتصفح لا يدعم النسخ المباشر', 'info');
+      }
+    } catch (e) {
+      console.error(e);
+      showStatus('تعذر نسخ صورة التقييم', 'error');
+    }
+  }
+
+  var statusTimer = null;
+  function showStatus(message, type){
+    var box = $('captureStatus');
+    if (!box) return;
+    box.className = 'capture-status ' + (type || 'info');
+    box.textContent = message;
+    if (statusTimer) clearTimeout(statusTimer);
+    statusTimer = setTimeout(function(){
+      box.className = 'capture-status';
+      box.textContent = '';
+    }, 4000);
+  }
+
+  function render(){
+    var filteredChecklists = getFilteredChecklists();
+    var sectionStats = aggregateChecklistSections(filteredChecklists);
+    updateRangeLabel();
+    renderChecklistOverview(sectionStats);
+    renderChecklistEvaluation(sectionStats);
+  }
+
+  function bindFilterEvents(){
+    $('applyDateFilter').addEventListener('click', function(){
+      filters.from = $('filterFrom').value;
+      filters.to = $('filterTo').value;
+      if (filters.from && filters.to && new Date(filters.from) > new Date(filters.to)) {
+        alert('تاريخ البداية يجب أن يكون قبل أو يساوي تاريخ النهاية');
+        return;
+      }
+      render();
+    });
+
+    $('resetDateFilter').addEventListener('click', function(){
+      filters.from = '';
+      filters.to = '';
+      $('filterFrom').value = '';
+      $('filterTo').value = '';
+      render();
+    });
+
+    $('copyEvalBtn').addEventListener('click', captureEval);
+    $('copyEvalBtnInner').addEventListener('click', captureEval);
+  }
+
+  function clearSubscriptions(){
+    unsub.forEach(function(u){ if (typeof u === 'function') u(); });
+    unsub = [];
+    started = false;
+  }
+
+  function startListeners(db){
+    if (started) return;
+    started = true;
+    unsub.push(
+      db.collection('branch_checklists').onSnapshot(function(snap){
+        state.checklists = snap.docs.map(function(d){
+          var data = d.data() || {};
+          data.id = d.id;
+          return data;
+        });
+        render();
+      }, function(err){ console.error('branch_checklists', err); })
+    );
+  }
+
+  function boot(){
+    try {
+      var parentFirebase = window.parent && window.parent !== window && window.parent.firebase ? window.parent.firebase : null;
+      if (!parentFirebase) {
+        $('sessionNotice').classList.remove('hidden');
+        $('dashboardRoot').classList.add('hidden');
+        return;
+      }
+      var auth = parentFirebase.auth();
+      var db = parentFirebase.firestore();
+      bindFilterEvents();
+      auth.onAuthStateChanged(function(user){
+        if (!user) {
+          clearSubscriptions();
+          $('sessionNotice').classList.remove('hidden');
+          $('dashboardRoot').classList.add('hidden');
+          return;
+        }
+        $('sessionNotice').classList.add('hidden');
+        $('dashboardRoot').classList.remove('hidden');
+        startListeners(db);
+      });
+    } catch (e) {
+      console.error(e);
+      $('sessionNotice').classList.remove('hidden');
+      $('dashboardRoot').classList.add('hidden');
+    }
+  }
+
+  boot();
 })();
 </script>
 </body>
