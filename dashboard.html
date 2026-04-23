@@ -2,45 +2,54 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard v1.8.0 | الرسوم المتقدمة</title>
+  <title>Dashboard v1.9.0 | شركة المجدوعي للسيارات</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  
   <style>
-    :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #38bdf8; --orange: #f97316; }
+    :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #38bdf8; --green: #10b981; --orange: #f97316; }
     body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
     .dashboard-wrapper { display: grid; grid-template-columns: 280px 1fr; height: 100vh; }
-    .sidebar { background: #fff; color: #000; border-left: 2px solid #ddd; padding: 15px; overflow-y: auto; }
+    
+    /* الشريط الجانبي - البراندات */
+    .sidebar { background: #fff; color: #000; border-left: 2px solid #ddd; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; }
+    .side-header { text-align: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
+    .brand-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .brand-logo { width: 50px; height: 35px; object-fit: contain; background: #fff; border: 1px solid #eee; border-radius: 4px; }
+    
     .main-content { display: flex; flex-direction: column; width: 100%; overflow-y: auto; padding-bottom: 50px; }
     .top-nav { padding: 12px 15px; background: #020617; color: #fff; display: flex; justify-content: space-between; align-items: center; }
     
-    .main-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 15px; padding: 20px; }
+    .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px; }
     .card { background: var(--card); border-radius: 12px; border: 1px solid #334155; display: flex; flex-direction: column; overflow: hidden; }
     .card-header { background: #0d4b73; color: #fff; padding: 10px 15px; font-size: 14px; font-weight: bold; }
-    .card-body { padding: 20px; flex-grow: 1; display: flex; align-items: center; justify-content: center; min-height: 300px; }
+    .card-body { padding: 20px; flex-grow: 1; display: flex; align-items: center; justify-content: center; min-height: 320px; position: relative; }
     
-    canvas { max-width: 100% !important; max-height: 100% !important; }
-    .footer { position: fixed; bottom: 0; width: 100%; background: #fff; color: #64748b; padding: 5px 20px; font-size: 11px; display: flex; justify-content: space-between; border-top: 1px solid #ddd; }
+    /* النسبة في منتصف الدونات */
+    .chart-center-text { position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
+    .chart-center-text h2 { margin: 0; color: var(--green); font-size: 32px; }
+    .chart-center-text p { margin: 0; font-size: 12px; color: #94a3b8; }
+
+    .footer { position: fixed; bottom: 0; width: 100%; background: #fff; color: #64748b; padding: 5px 20px; font-size: 10px; display: flex; justify-content: space-between; border-top: 1px solid #ddd; }
   </style>
 </head>
 <body>
 
 <div class="dashboard-wrapper">
   <aside class="sidebar">
-    <div style="text-align:center; border-bottom:1px solid #eee; margin-bottom:20px; padding-bottom:10px;">
-        <span style="font-size:12px; font-weight:bold;">إجمالي التقارير المستلمة</span>
-        <h1 style="font-size:54px; margin:0; color:#0d4b73;" id="totalVisits">0</h1>
+    <div class="side-header">
+        <span style="font-size: 11px; font-weight: bold;">إجمالي التقارير المستلمة</span>
+        <h1 style="font-size: 48px; margin: 0; color: #0d4b73;" id="totalVisits">0</h1>
     </div>
     <div id="sideBrandList"></div>
   </aside>
 
   <main class="main-content">
     <div class="top-nav">
-        <div style="font-weight:bold;">ALMAJDOUIE Dashboard v1.8.0</div>
-        <div id="statusTxt" style="color:#10b981; font-size:12px;">متصل حي ✅</div>
+        <div style="font-weight:bold;">ALMAJDOUIE | Dashboard v1.9.0-Final</div>
+        <div id="statusTxt" style="color:#10b981; font-size:11px;">مزامنة حية ✅</div>
     </div>
 
     <div class="main-grid">
@@ -48,11 +57,15 @@
             <div class="card-header">التقييم العام للأداء (Overall Status)</div>
             <div class="card-body">
                 <canvas id="doughnutChart"></canvas>
+                <div class="chart-center-text">
+                    <h2 id="overallPct">0%</h2>
+                    <p>نسبة الجاهزية</p>
+                </div>
             </div>
         </div>
 
         <div class="card">
-            <div class="card-header">مقارنة أداء الأقسام التقنية</div>
+            <div class="card-header">أداء الأقسام (Technical Score)</div>
             <div class="card-body">
                 <canvas id="barChart"></canvas>
             </div>
@@ -62,7 +75,7 @@
 </div>
 
 <div class="footer">
-    <div>v1.8.0-Charts-Edition</div>
+    <div>v1.9.0-Complete-Edition</div>
     <div id="liveClock"></div>
 </div>
 
@@ -80,75 +93,74 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
-  
   let doughnutChart, barChart;
+  let state = { brands: [], checklists: [] };
 
   firebase.auth().onAuthStateChanged(user => {
     if (user) {
-      db.collection('branch_checklists').onSnapshot(snap => {
-        const docs = snap.docs.map(d => d.data());
-        $('totalVisits').textContent = docs.length;
-        updateCharts(docs);
+      // جلب البراندات
+      db.collection('brand_assets').onSnapshot(s => {
+        state.brands = s.docs.map(d => ({id: d.id, ...d.data()}));
+        render();
+      });
+      // جلب الزيارات
+      db.collection('branch_checklists').onSnapshot(s => {
+        state.checklists = s.docs.map(d => d.data());
+        $('totalVisits').textContent = state.checklists.length;
+        render();
       });
     }
   });
 
-  function updateCharts(docs) {
-    let stats = { fully: 0, maintenance: 0, infra: 0, pcs: 0, conn: 0 };
-    const total = docs.length || 1;
+  function render() {
+    // 1. تحديث البراندات
+    $('sideBrandList').innerHTML = state.brands.map(b => {
+      const count = state.checklists.filter(c => c.brand === b.brand || c.brandId === b.id).length;
+      return `
+        <div class="brand-card">
+          <img src="${b.logoData || b.logoUrl || ''}" class="brand-logo">
+          <div style="font-size:12px; font-weight:bold;">${b.nameAr || b.brand} <span style="color:#64748b; font-weight:normal;">(${count})</span></div>
+        </div>`;
+    }).join('');
 
-    docs.forEach(doc => {
-      const a = doc.dynamicAnswers || {};
-      // تحليل البيانات بناءً على معرفاتك الحقيقية
-      if (a["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") { stats.infra++; stats.fully++; } else { stats.maintenance++; }
-      if (a["0NQrLqvsNNYgd0Iyy6by"] === "fully_functioning") { stats.pcs++; stats.fully++; } else { stats.maintenance++; }
-      if (a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") { stats.conn++; stats.fully++; } else { stats.maintenance++; }
+    // 2. تحليل البيانات للرسوم
+    const total = state.checklists.length || 1;
+    let counts = { infra: 0, hardware: 0, conn: 0 };
+    state.checklists.forEach(c => {
+      const a = c.dynamicAnswers || {};
+      if (a["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") counts.infra++;
+      if (a["0NQrLqvsNNYgd0Iyy6by"] === "fully_functioning") counts.hardware++;
+      if (a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") counts.conn++;
     });
 
-    // --- 1. إعداد Doughnut Chart ---
-    const doughnutCtx = $('doughnutChart').getContext('2d');
+    const avgPct = Math.round(((counts.infra + counts.hardware + counts.conn) / (total * 3)) * 100);
+    $('overallPct').innerText = avgPct + "%";
+
+    // --- Doughnut Chart ---
     if (doughnutChart) doughnutChart.destroy();
-    doughnutChart = new Chart(doughnutCtx, {
+    doughnutChart = new Chart($('doughnutChart'), {
       type: 'doughnut',
       data: {
-        labels: ['ممتاز / مكتمل', 'يحتاج صيانة / نقص'],
-        datasets: [{
-          data: [stats.fully, stats.maintenance],
-          backgroundColor: ['#10b981', '#f97316'],
-          borderWidth: 0,
-          hoverOffset: 10
-        }]
+        labels: ['مكتمل', 'نقص'],
+        datasets: [{ data: [avgPct, 100 - avgPct], backgroundColor: ['#10b981', '#334155'], borderWidth: 0 }]
       },
-      options: {
-        plugins: { legend: { position: 'bottom', labels: { color: '#f8fafc', font: { family: 'Cairo' } } } },
-        cutout: '70%'
-      }
+      options: { cutout: '80%', plugins: { legend: { display: false } } }
     });
 
-    // --- 2. إعداد Bar Chart ---
-    const barCtx = $('barChart').getContext('2d');
+    // --- Bar Chart ---
     if (barChart) barChart.destroy();
-    barChart = new Chart(barCtx, {
+    barChart = new Chart($('barChart'), {
       type: 'bar',
       data: {
         labels: ['البنية التحتية', 'الأجهزة', 'الاتصال'],
         datasets: [{
           label: 'نسبة الجاهزية %',
-          data: [
-            (stats.infra/total)*100, 
-            (stats.pcs/total)*100, 
-            (stats.conn/total)*100
-          ],
-          backgroundColor: '#38bdf8',
-          borderRadius: 8
+          data: [(counts.infra/total)*100, (counts.hardware/total)*100, (counts.conn/total)*100],
+          backgroundColor: '#38bdf8', borderRadius: 6
         }]
       },
       options: {
-        responsive: true,
-        scales: {
-          y: { beginAtZero: true, max: 100, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
-          x: { ticks: { color: '#f8fafc', font: { family: 'Cairo' } }, grid: { display: false } }
-        },
+        scales: { y: { max: 100, ticks: { color: '#94a3b8' } }, x: { ticks: { color: '#f8fafc' } } },
         plugins: { legend: { display: false } }
       }
     });
