@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Upgrade Windows - Final Improved</title>
+  <title>Upgrade Windows — النسخة النهائية المحسنة</title>
   <style>
     :root{
       --bg:#f3f6fb;
@@ -21,16 +21,14 @@
       --radius:18px;
     }
 
-    *{
-      box-sizing:border-box;
-    }
+    *{box-sizing:border-box}
 
     html,body{
       margin:0;
       padding:0;
       background:var(--bg);
       color:var(--text);
-      font-family:"Segoe UI", Tahoma, Arial, sans-serif;
+      font-family:"Segoe UI",Tahoma,Arial,sans-serif;
     }
 
     body{
@@ -43,7 +41,7 @@
     }
 
     .page-header{
-      background:linear-gradient(135deg, #0f5d95, #0f4c79);
+      background:linear-gradient(135deg,#0f5d95,#0f4c79);
       color:#fff;
       padding:18px 22px;
       border-radius:18px;
@@ -90,7 +88,6 @@
       margin-bottom:16px;
     }
 
-    /* Summary */
     .upgrade-summary-board{
       display:grid;
       gap:16px;
@@ -293,6 +290,55 @@
       text-align:center;
     }
 
+    .toolbar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:16px;
+    }
+
+    .btn{
+      border:none;
+      border-radius:12px;
+      padding:10px 14px;
+      background:var(--primary);
+      color:#fff;
+      font-weight:700;
+      cursor:pointer;
+      box-shadow:0 6px 14px rgba(15,93,149,.16);
+    }
+
+    .btn.secondary{
+      background:#fff;
+      color:var(--primary);
+      border:1px solid var(--border);
+      box-shadow:none;
+    }
+
+    textarea{
+      width:100%;
+      min-height:150px;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+      font-family:Consolas, monospace;
+      font-size:13px;
+      background:#fff;
+      direction:ltr;
+      text-align:left;
+    }
+
+    details{
+      margin-top:16px;
+    }
+
+    summary{
+      cursor:pointer;
+      font-weight:800;
+      color:var(--primary);
+      margin-bottom:10px;
+    }
+
     @media (max-width: 1200px){
       .upgrade-meta-grid{
         grid-template-columns:1fr;
@@ -309,11 +355,10 @@
 <body>
   <div class="page">
     <div class="page-header">
-      <h1>Upgrade Windows — النسخة النهائية المحسّنة</h1>
+      <h1>Upgrade Windows — النسخة النهائية المحسنة</h1>
       <p>
-        المنطق المعتمد:
-        إجمالي الأجهزة = إجمالي السجلات، مكتمل = عدد الأجهزة المكتملة،
-        المتبقي = إجمالي الأجهزة − مكتمل.
+        معاينة مستقلة لواجهة Upgrade Windows. هذه النسخة تعرض بيانات تجريبية مدمجة حتى ترى النتيجة مباشرة.
+        إذا أردت ربطها بملفك الأصلي Site-Visit.html أو Firebase يمكنني تجهيز نسخة مدمجة بعد رفع الملف.
       </p>
     </div>
 
@@ -321,9 +366,15 @@
       <h2 class="section-title">ملخص سريع Upgrade Windows</h2>
 
       <div class="note">
-        هذه نسخة مستقلة للتجربة.  
-        فقط قم بتغذية المصفوفة <code>state.windowsUpgrades</code> ومصفوفة <code>state.brands</code> من بياناتك الحقيقية،
-        ثم سيتم بناء الكروت والبطاقات تلقائيًا.
+        المنطق المعتمد:
+        <strong>إجمالي الأجهزة = إجمالي السجلات</strong>،
+        <strong>المتبقي = إجمالي الأجهزة − مكتمل</strong>.
+        البطاقات تعرض <strong>مكتمل</strong> و <strong>المتبقي</strong> حسب عدد الأجهزة.
+      </div>
+
+      <div class="toolbar">
+        <button class="btn" id="loadSampleBtn">تحميل بيانات تجريبية</button>
+        <button class="btn secondary" id="clearDataBtn">تفريغ البيانات</button>
       </div>
 
       <div class="upgrade-summary-board">
@@ -362,6 +413,11 @@
         </div>
       </div>
 
+      <details>
+        <summary>بيانات JSON الحالية</summary>
+        <textarea id="jsonPreview" readonly></textarea>
+      </details>
+
       <div class="footer-note">
         إذا كانت جميع الأجهزة مكتملة، سيظهر:
         <strong>مكتمل = إجمالي الأجهزة</strong> و <strong>المتبقي = 0</strong>
@@ -370,12 +426,7 @@
   </div>
 
   <script>
-    // ==============================
-    // Helpers
-    // ==============================
-    function $(id){
-      return document.getElementById(id);
-    }
+    function $(id){ return document.getElementById(id); }
 
     function esc(v){
       return String(v ?? '').replace(/[&<>\"']/g, s => ({
@@ -383,7 +434,7 @@
         '<':'&lt;',
         '>':'&gt;',
         '\"':'&quot;',
-        \"'\":'&#39;'
+        "'":'&#39;'
       }[s]));
     }
 
@@ -391,65 +442,75 @@
       return String(value || '').trim();
     }
 
-    // ==============================
-    // App State
-    // ==============================
     const state = {
       currentLang: 'ar',
       windowsUpgrades: [],
       brands: []
     };
 
-    // ==========================================================
-    // ضع بياناتك الحقيقية هنا
-    // ==========================================================
-    // مثال شكل البيانات المطلوبة في windowsUpgrades:
-    // state.windowsUpgrades = [
-    //   {
-    //     region: 'Eastern Province',
-    //     city: 'Hassa',
-    //     brand: 'Hyundai',
-    //     devicesCount: 4,
-    //     status: 'completed'
-    //   }
-    // ];
-    //
-    // مثال شكل بيانات البراندات:
-    // state.brands = [
-    //   {
-    //     brand: 'Hyundai',
-    //     nameEn: 'Hyundai',
-    //     nameAr: 'هيونداي',
-    //     key: 'hyundai',
-    //     logoUrl: 'https://example.com/hyundai.png'
-    //   }
-    // ];
+    const sampleRows = [
+      { region:'Eastern', city:'Hassa', brand:'Hyundai', devicesCount:4, status:'completed' },
+      { region:'Eastern', city:'Dammam', brand:'MMC IT', devicesCount:2, status:'in progress' },
+      { region:'Central Province', city:'Riyadh', brand:'Changan', devicesCount:3, status:'planned' },
+      { region:'Eastern', city:'Arar', brand:'Suzuki', devicesCount:1, status:'completed' },
+      { region:'Western Province', city:'Jeddah', brand:'Stellantis', devicesCount:2, status:'planned' }
+    ];
 
-    // ==============================
-    // Render Upgrade Windows Summary
-    // ==============================
+    const sampleBrands = [
+      {
+        brand:'Hyundai',
+        nameEn:'Hyundai',
+        nameAr:'هيونداي',
+        key:'hyundai',
+        logoUrl:'https://upload.wikimedia.org/wikipedia/commons/4/44/Hyundai_Motor_Company_logo.svg'
+      },
+      {
+        brand:'Changan',
+        nameEn:'Changan',
+        nameAr:'شانجان',
+        key:'changan',
+        logoUrl:'https://upload.wikimedia.org/wikipedia/commons/5/58/Changan_Automobile_logo.svg'
+      },
+      {
+        brand:'MMC IT',
+        nameEn:'MMC IT',
+        nameAr:'إم إم سي آي تي',
+        key:'mmc-it',
+        logoUrl:''
+      },
+      {
+        brand:'Suzuki',
+        nameEn:'Suzuki',
+        nameAr:'سوزوكي',
+        key:'suzuki',
+        logoUrl:'https://upload.wikimedia.org/wikipedia/commons/1/12/Suzuki_logo_2.svg'
+      },
+      {
+        brand:'Stellantis',
+        nameEn:'Stellantis',
+        nameAr:'ستيلانتس',
+        key:'stellantis',
+        logoUrl:'https://upload.wikimedia.org/wikipedia/commons/1/1d/Stellantis.svg'
+      }
+    ];
+
     function renderUpgradeWindowsSummary(){
-      // ✅ إجمالي الأجهزة = مجموع devicesCount
       const totalDevices = state.windowsUpgrades.reduce(
         (sum, r) => sum + (Number(r.devicesCount) || 0),
         0
       );
 
-      // ✅ مكتمل = مجموع الأجهزة التي حالتها completed
       const completedDevices = state.windowsUpgrades.reduce(
-        (sum, r) =>
-          sum + (
-            String(r.status || '').trim().toLowerCase() === 'completed'
-              ? (Number(r.devicesCount) || 0)
-              : 0
-          ),
+        (sum, r) => sum + (
+          String(r.status || '').trim().toLowerCase() === 'completed'
+            ? (Number(r.devicesCount) || 0)
+            : 0
+        ),
         0
       );
 
-      // ✅ المتبقي = إجمالي الأجهزة - مكتمل
       const remainingDevices = Math.max(totalDevices - completedDevices, 0);
 
-      // تحديث الكروت العلوية
       if ($('upgradeWindowsStatDevices')) {
         $('upgradeWindowsStatDevices').textContent = totalDevices;
       }
@@ -462,11 +523,9 @@
         $('upgradeWindowsStatInProgress').textContent = remainingDevices;
       }
 
-      // ألوان ثابتة للبطاقات
       const palette = [
-        '#198754', '#fd7e14', '#0d6efd',
-        '#6f42c1', '#dc3545', '#20c997',
-        '#0dcaf0', '#ffc107'
+        '#198754','#fd7e14','#0d6efd','#6f42c1',
+        '#dc3545','#20c997','#0dcaf0','#ffc107'
       ];
 
       const colorForKey = key => {
@@ -491,12 +550,10 @@
             b.nameEn,
             b.nameAr,
             b.key,
-            (typeof getCanonicalBrandDisplay === 'function'
-              ? getCanonicalBrandDisplay(b.nameEn || b.brand || b.key || '')
-              : '')
+            getCanonicalBrandDisplay(b.nameEn || b.brand || b.key || '')
           ]
-            .map(normalizeBrandName)
-            .filter(Boolean);
+          .map(normalizeBrandName)
+          .filter(Boolean);
 
           return keys.includes(normalized);
         });
@@ -600,116 +657,66 @@
                   ></div>
                 </div>
               </div>
-            </div>
-          `;
+            </div>`;
         }).join('');
       };
 
-      // بطاقات المناطق
       const regionsGrid = $('upgradeWindowsRegionsGrid');
       if (regionsGrid) {
         regionsGrid.innerHTML = buildGroupedCards(
           state.windowsUpgrades,
           'region',
-          state.currentLang === 'ar'
-            ? 'لا توجد مناطق حتى الآن.'
-            : 'No regions yet.'
+          'لا توجد مناطق حتى الآن.'
         );
       }
 
-      // بطاقات المدن
       const citiesGrid = $('upgradeWindowsCitiesGrid');
       if (citiesGrid) {
         citiesGrid.innerHTML = buildGroupedCards(
           state.windowsUpgrades,
           'city',
-          state.currentLang === 'ar'
-            ? 'لا توجد مدن حتى الآن.'
-            : 'No cities yet.'
+          'لا توجد مدن حتى الآن.'
         );
       }
 
-      // بطاقات البراندات
       const brandsGrid = $('upgradeWindowsBrandsGrid');
       if (brandsGrid) {
         brandsGrid.innerHTML = buildGroupedCards(
           state.windowsUpgrades,
           'brand',
-          state.currentLang === 'ar'
-            ? 'لا توجد براندات حتى الآن.'
-            : 'No brands yet.',
+          'لا توجد براندات حتى الآن.',
           true
+        );
+      }
+
+      if ($('jsonPreview')) {
+        $('jsonPreview').value = JSON.stringify(
+          {
+            windowsUpgrades: state.windowsUpgrades,
+            brands: state.brands
+          },
+          null,
+          2
         );
       }
     }
 
-    // ==============================
-    // Optional helper to set data later
-    // ==============================
     function setUpgradeWindowsData(rows = [], brands = []){
       state.windowsUpgrades = Array.isArray(rows) ? rows : [];
       state.brands = Array.isArray(brands) ? brands : [];
       renderUpgradeWindowsSummary();
     }
 
-    // ==============================
-    // Initial render
-    // ==============================
-    renderUpgradeWindowsSummary();
+    $('loadSampleBtn').addEventListener('click', () => {
+      setUpgradeWindowsData(sampleRows, sampleBrands);
+    });
 
-    // ==========================================================
-    // مثال سريع للتجربة (احذف التعليق إذا أردت)
-    // ==========================================================
-    /*
-    setUpgradeWindowsData(
-      [
-        {
-          region: 'Eastern Province',
-          city: 'Hassa',
-          brand: 'Hyundai',
-          devicesCount: 4,
-          status: 'completed'
-        },
-        {
-          region: 'Central Province',
-          city: 'Riyadh',
-          brand: 'Changan',
-          devicesCount: 3,
-          status: 'planned'
-        },
-        {
-          region: 'Eastern Province',
-          city: 'Dammam',
-          brand: 'MMC IT',
-          devicesCount: 2,
-          status: 'in progress'
-        }
-      ],
-      [
-        {
-          brand: 'Hyundai',
-          nameEn: 'Hyundai',
-          nameAr: 'هيونداي',
-          key: 'hyundai',
-          logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Hyundai_Motor_Company_logo.svg'
-        },
-        {
-          brand: 'Changan',
-          nameEn: 'Changan',
-          nameAr: 'شانجان',
-          key: 'changan',
-          logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/5/58/Changan_Automobile_logo.svg'
-        },
-        {
-          brand: 'MMC IT',
-          nameEn: 'MMC IT',
-          nameAr: 'إم إم سي آي تي',
-          key: 'mmc-it',
-          logoUrl: ''
-        }
-      ]
-    );
-    */
+    $('clearDataBtn').addEventListener('click', () => {
+      setUpgradeWindowsData([], []);
+    });
+
+    // تحميل البيانات التجريبية تلقائياً
+    setUpgradeWindowsData(sampleRows, sampleBrands);
   </script>
 </body>
 </html>
