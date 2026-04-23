@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upgrade Windows — لوحة البيانات الحية</title>
+    <title>Upgrade Windows — V1.0.6</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
@@ -14,7 +14,7 @@
             --primary: #0f5d95;
             --success: #10b981;
             --warning: #f59e0b;
-            --bg-glass: rgba(255, 255, 255, 0.7);
+            --glass: rgba(255, 255, 255, 0.7);
         }
 
         body {
@@ -23,12 +23,19 @@
         }
 
         .container-glass {
-            background: var(--bg-glass); backdrop-filter: blur(15px);
+            background: var(--glass); backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 20px;
             padding: 25px; box-shadow: 0 8px 32px rgba(0,0,0,0.05);
+            position: relative;
         }
 
-        /* الإحصائيات الكلية بالترتيب المطلوب: إجمالي -> متبقي -> مكتمل */
+        /* تنسيق معلومات الإصدار والوقت */
+        .info-header {
+            display: flex; justify-content: space-between;
+            font-size: 11px; color: #64748b; font-weight: bold;
+            margin-bottom: 5px;
+        }
+
         .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 25px 0; }
         .stat-card {
             background: #fff; padding: 20px; border-radius: 16px; text-align: center;
@@ -37,64 +44,51 @@
         .stat-card.warning { border-bottom-color: var(--warning); }
         .stat-card.success { border-bottom-color: var(--success); }
         .stat-card h2 { font-size: 38px; margin: 8px 0 0; color: var(--primary); }
-        .warning h2 { color: var(--warning); }
-        .success h2 { color: var(--success); }
 
-        /* الأقسام التفصيلية */
-        .details-layout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        .list-container { max-height: 550px; overflow-y: auto; background: rgba(255,255,255,0.5); border-radius: 15px; padding: 10px; }
-        
-        .item-box { background: #fff; border-radius: 12px; padding: 15px; margin-bottom: 12px; border: 1px solid #eee; }
-        .item-box h5 { margin: 0 0 10px; color: var(--primary); font-size: 15px; }
-
-        .counts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 10px; }
-        .badge { font-size: 10px; padding: 5px; border-radius: 8px; background: #f8fafc; text-align: center; border: 1px solid #eee; }
-        .badge b { display: block; font-size: 14px; margin-top: 3px; }
-
-        .progress-container { height: 6px; background: #eee; border-radius: 10px; overflow: hidden; }
-        .progress-fill { height: 100%; transition: 0.6s; }
+        .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .list-box { max-height: 500px; overflow-y: auto; background: rgba(255,255,255,0.4); border-radius: 15px; padding: 10px; }
+        .item-row { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 10px; border: 1px solid #eee; }
     </style>
 </head>
 <body>
 
 <div class="container-glass">
-    <h2 style="color: var(--primary); margin: 0 0 20px;">متابعة تحديثات ويندوز (Live)</h2>
+    <div class="info-header">
+        <div id="update-time">توقيت العرض: --:--</div>
+        <div>VERSION 1.0.6</div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="color: var(--primary); margin: 0;">لوحة متابعة تحديثات ويندوز</h2>
+        <div id="conn-indicator" style="font-size: 12px; color: var(--success);">● متصل بالسحابة</div>
+    </div>
 
     <div class="stats-grid">
         <div class="stat-card">
-            <span>إجمالي عدد الأجهزة</span>
+            <span>إجمالي الأجهزة</span>
             <h2 id="total-val">0</h2>
         </div>
         <div class="stat-card warning">
-            <span>المتبقي</span>
-            <h2 id="remain-val">0</h2>
+            <span>متبقي</span>
+            <h2 id="remain-val" style="color: var(--warning);">0</h2>
         </div>
         <div class="stat-card success">
-            <span>المكتمل</span>
-            <h2 id="done-val">0</h2>
+            <span>مكتمل</span>
+            <h2 id="done-val" style="color: var(--success);">0</h2>
         </div>
     </div>
 
-    <div class="details-layout">
-        <div>
-            <h4 style="margin-bottom:10px;">المناطق</h4>
-            <div id="reg-list" class="list-container"></div>
-        </div>
-        <div>
-            <h4 style="margin-bottom:10px;">المدن</h4>
-            <div id="city-list" class="list-container"></div>
-        </div>
-        <div>
-            <h4 style="margin-bottom:10px;">البراندات</h4>
-            <div id="brand-list" class="list-container"></div>
-        </div>
+    <div class="details-grid">
+        <div><h4>المناطق</h4> <div id="reg-list" class="list-box"></div></div>
+        <div><h4>المدن</h4> <div id="city-list" class="list-box"></div></div>
+        <div><h4>البراندات</h4> <div id="brand-list" class="list-box"></div></div>
     </div>
 </div>
 
 <script>
-    // بيانات الاتصال المستخرجة من صورتك
+    // بيانات الـ Config الخاصة بمشروع Almajdouie site-visit-87724
     const firebaseConfig = {
-        apiKey: "AIzaSyCzH9tL_y0iXk...", // استكمل المفتاح من الصورة الأولى
+        apiKey: "AIzaSyCzH9tL_y0iXk...", // استكمل المفتاح من صورتك
         authDomain: "site-visit-87724.firebaseapp.com",
         projectId: "site-visit-87724",
         storageBucket: "site-visit-87724.appspot.com",
@@ -105,60 +99,69 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // جلب البيانات لحظياً من مجموعة UpgradeWindows
+    // وظيفة لعرض التاريخ والوقت الحاليين
+    function updateDateTime() {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('ar-SA');
+        const timeStr = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        document.getElementById('update-time').innerText = `وقت التحديث: ${dateStr} | ${timeStr}`;
+    }
+
+    // جلب البيانات من Firestore
     db.collection("UpgradeWindows").onSnapshot(snapshot => {
         let total = 0, done = 0;
         const stats = { Region: {}, City: {}, Brand: {} };
 
         snapshot.forEach(doc => {
             const data = doc.data();
-            // مطابقة اسم الحقل Devices_Count كما في صورتك
-            const count = parseInt(data.Devices_Count || 1); 
+            const count = parseInt(data.Devices_Count || 1);
             const isDone = String(data.Status || '').toLowerCase().trim() === 'completed';
             
             total += count;
             if (isDone) done += count;
 
             ['Region', 'City', 'Brand'].forEach(key => {
-                const val = data[key] || 'غير محدد';
+                const val = data[key] || 'N/A';
                 if (!stats[key][val]) stats[key][val] = { t: 0, d: 0 };
                 stats[key][val].t += count;
                 if (isDone) stats[key][val].d += count;
             });
         });
 
-        // تحديث الأرقام الكبيرة
         document.getElementById('total-val').innerText = total;
         document.getElementById('done-val').innerText = done;
         document.getElementById('remain-val').innerText = total - done;
 
-        // تحديث القوائم التفصيلية
-        renderCards('reg-list', stats.Region);
-        renderCards('city-list', stats.City);
-        renderCards('brand-list', stats.Brand);
-    }, error => {
-        console.error("خطأ في الاتصال بقاعدة البيانات: ", error);
+        render('reg-list', stats.Region);
+        render('city-list', stats.City);
+        render('brand-list', stats.Brand);
+        
+        // تحديث الوقت عند كل تحديث للبيانات
+        updateDateTime();
     });
 
-    function renderCards(id, obj) {
+    function render(id, obj) {
         const container = document.getElementById(id);
         container.innerHTML = '';
         Object.entries(obj).sort((a,b) => b[1].t - a[1].t).forEach(([name, s]) => {
             const pct = Math.round((s.d / s.t) * 100) || 0;
             container.innerHTML += `
-                <div class="item-box">
-                    <h5>${name}</h5>
-                    <div class="counts-row">
-                        <div class="badge">إجمالي<b>${s.t}</b></div>
-                        <div class="badge" style="color:var(--warning)">متبقي<b>${s.t - s.d}</b></div>
-                        <div class="badge" style="color:var(--success)">مكتمل<b>${s.d}</b></div>
+                <div class="item-row">
+                    <div style="font-weight:bold; font-size:14px;">${name}</div>
+                    <div style="display:flex; justify-content:space-between; font-size:11px; margin:5px 0;">
+                        <span>إجمالي: ${s.t}</span>
+                        <span style="color:var(--warning)">متبقي: ${s.t - s.d}</span>
+                        <span style="color:var(--success)">مكتمل: ${s.d}</span>
                     </div>
-                    <div class="progress-container">
-                        <div class="progress-fill" style="width:${pct}%; background:${pct === 100 ? 'var(--success)' : 'var(--primary)'}"></div>
+                    <div style="height:4px; background:#eee; border-radius:10px; overflow:hidden;">
+                        <div style="width:${pct}%; height:100%; background:var(--primary);"></div>
                     </div>
                 </div>`;
         });
     }
+
+    // تحديث الوقت عند تحميل الصفحة لأول مرة
+    window.onload = updateDateTime;
 </script>
 </body>
 </html>
