@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upgrade Windows — V1.0.7</title>
+    <title>Upgrade Windows — V1.0.8</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
@@ -46,8 +46,6 @@
         .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
         .list-box { max-height: 500px; overflow-y: auto; background: rgba(255,255,255,0.4); border-radius: 15px; padding: 10px; }
         .item-row { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 10px; border: 1px solid #eee; }
-        
-        #conn-indicator { font-size: 12px; transition: 0.3s; }
     </style>
 </head>
 <body>
@@ -55,12 +53,12 @@
 <div class="container-glass">
     <div class="info-header">
         <div id="update-time">توقيت العرض: --:--</div>
-        <div>VERSION 1.0.7</div>
+        <div>VERSION 1.0.8</div>
     </div>
 
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <h2 style="color: var(--primary); margin: 0;">لوحة متابعة تحديثات ويندوز</h2>
-        <div id="conn-indicator" style="color: var(--warning);">● جاري الاتصال...</div>
+        <div id="conn-indicator" style="font-size: 12px; color: var(--warning);">● جاري المزامنة...</div>
     </div>
 
     <div class="stats-grid">
@@ -86,9 +84,9 @@
 </div>
 
 <script>
-    // ✅ بيانات الربط الخاصة بمشروعك (مأخوذة من صورتك eb4544)
+    // بيانات المشروع site-visit-87724
     const firebaseConfig = {
-        apiKey: "AIzaSyCzH9tL_y0iXk9p0U6...", // تأكد من وضع المفتاح كاملاً من الصورة
+        apiKey: "AIzaSyCzH9tL_y0iXk9p0U6...", // تأكد من وضع المفتاح كاملاً من صورتك eb4544
         authDomain: "site-visit-87724.firebaseapp.com",
         projectId: "site-visit-87724",
         storageBucket: "site-visit-87724.appspot.com",
@@ -96,7 +94,6 @@
         appId: "1:367252877543:web:9f0007e99996d91f4682ba"
     };
 
-    // تهيئة Firebase
     if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
     }
@@ -106,15 +103,14 @@
         const now = new Date();
         const dateStr = now.toLocaleDateString('ar-SA');
         const timeStr = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-        document.getElementById('update-time').innerText = `توقيت التحديث: ${dateStr} | ${timeStr}`;
+        document.getElementById('update-time').innerText = `تحديث: ${dateStr} | ${timeStr}`;
     }
 
-    // ✅ جلب البيانات وفحص الأخطاء
+    // تم تغيير المسمى هنا إلى windows_upgrades ليطابق الـ Rules
     function listenToData() {
-        db.collection("UpgradeWindows").onSnapshot(snapshot => {
+        db.collection("windows_upgrades").onSnapshot(snapshot => {
             if (snapshot.empty) {
-                console.warn("المجموعة فارغة أو غير موجودة.");
-                document.getElementById('conn-indicator').innerText = "● لا توجد بيانات";
+                document.getElementById('conn-indicator').innerText = "● لا توجد بيانات في المجموعة";
                 document.getElementById('conn-indicator').style.color = "red";
                 return;
             }
@@ -127,10 +123,8 @@
 
             snapshot.forEach(doc => {
                 const data = doc.data();
-                // ✅ استخدام الحقول كما في صورتك (Devices_Count و Status)
-                const count = parseInt(data.Devices_Count || 0); 
-                const status = String(data.Status || '').toLowerCase().trim();
-                const isDone = (status === 'completed');
+                const count = parseInt(data.Devices_Count || 0);
+                const isDone = String(data.Status || '').toLowerCase().trim() === 'completed';
                 
                 total += count;
                 if (isDone) done += count;
@@ -143,7 +137,6 @@
                 });
             });
 
-            // تحديث الأرقام
             document.getElementById('total-val').innerText = total;
             document.getElementById('done-val').innerText = done;
             document.getElementById('remain-val').innerText = total - done;
@@ -154,10 +147,9 @@
             updateDateTime();
 
         }, error => {
-            console.error("خطأ Firebase:", error);
+            console.error("Firebase Error:", error);
             document.getElementById('conn-indicator').innerText = "● خطأ في الصلاحيات";
             document.getElementById('conn-indicator').style.color = "red";
-            // إذا ظهر هذا الخطأ، فهذا يعني أن المستخدم لم يسجل دخوله
         });
     }
 
@@ -181,11 +173,7 @@
         });
     }
 
-    // البدء عند التحميل
-    window.onload = () => {
-        updateDateTime();
-        listenToData();
-    };
+    window.onload = listenToData;
 </script>
 </body>
 </html>
