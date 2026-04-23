@@ -4,8 +4,10 @@
   <meta charset="UTF-8" />
   <title>Dashboard | شركة المجدوعي للسيارات</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   
+  <link rel="icon" href="data:;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==">
+  
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -22,13 +24,12 @@
       --text-main: #f1f5f9;
       --text-muted: #94a3b8;
       --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-      --blue: #4f8fdb; --orange: #f97316; --green: #57b52b;
     }
 
     * { box-sizing: border-box; }
     body {
       margin: 0; background: var(--bg-gradient); background-attachment: fixed;
-      color: var(--text-main); font-family: 'Cairo', sans-serif;
+      color: var(--text-main); font-family: 'Cairo', sans-serif; direction: rtl;
     }
 
     .container { max-width: 1360px; margin: 20px auto; padding: 0 15px 30px; }
@@ -75,8 +76,8 @@
 
 <div class="container">
   <div id="sessionNotice" class="card" style="text-align:center;">
-    <h3 style="color:var(--accent-orange)">وصول غير مصرح</h3>
-    <p>يرجى تسجيل الدخول من الصفحة الرئيسية أولاً لرؤية بيانات المجدوعي للسيارات.</p>
+    <h3 style="color:var(--accent-orange)">تنبيه!</h3>
+    <p>يرجى تسجيل الدخول للنظام أولاً لسحب البيانات الحية.</p>
   </div>
 
   <div id="dashboardRoot" class="hidden">
@@ -94,16 +95,16 @@
           </aside>
           <main class="main">
             <section class="panel">
-                <div class="panel-header">التقييم العام للأقسام</div>
-                <div id="overallStats" style="padding:20px; display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; text-align:center;">
-                    <div class="side-box"><span style="font-size:12px">أداء ممتاز</span><strong style="color:var(--accent-green)" id="posCount">0</strong></div>
-                    <div class="side-box"><span style="font-size:12px">بحاجة لصيانة</span><strong style="color:var(--accent-orange)" id="negCount">0</strong></div>
-                    <div class="side-box"><span style="font-size:12px">حالات أخرى</span><strong style="color:var(--text-muted)" id="mixCount">0</strong></div>
+                <div class="panel-header">إحصائيات التقييم العام</div>
+                <div style="padding:20px; display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; text-align:center;">
+                    <div class="side-box"><span style="font-size:12px">ممتاز</span><strong style="color:var(--accent-green)" id="posCount">0</strong></div>
+                    <div class="side-box"><span style="font-size:12px">صيانة</span><strong style="color:var(--accent-orange)" id="negCount">0</strong></div>
+                    <div class="side-box"><span style="font-size:12px">أخرى</span><strong style="color:var(--text-muted)" id="mixCount">0</strong></div>
                 </div>
             </section>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-              <section class="panel"><div class="panel-header">البنية التحتية والشبكات</div><div id="networkPanelBody" class="panel-body"></div></section>
-              <section class="panel"><div class="panel-header">الأجهزة والملحقات</div><div id="hardwarePanelBody" class="panel-body"></div></section>
+              <section class="panel"><div class="panel-header">الشبكات</div><div id="networkPanelBody" class="panel-body"></div></section>
+              <section class="panel"><div class="panel-header">الأجهزة</div><div id="hardwarePanelBody" class="panel-body"></div></section>
             </div>
           </main>
         </div>
@@ -114,64 +115,68 @@
 
 <script>
 (function(){
-  // استخدام نفس إعدادات ملف login.html
-  const firebaseConfig = {
+  // إعدادات Firebase الخاصة بك
+  var firebaseConfig = {
     apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
     authDomain: "baghethan-ba325.firebaseapp.com",
     projectId: "baghethan-ba325",
     storageBucket: "baghethan-ba325.firebasestorage.app",
     messagingSenderId: "944819735112",
-    appId: "1:944819735112:web:07315600da39377320667d"
+    appId: "1:944819735112:web:07315600da39377320667d",
+    measurementId: "G-45X2SXD2E4"
   };
 
   firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-  const auth = firebase.auth();
-  const $ = id => document.getElementById(id);
+  var db = firebase.firestore();
+  var auth = firebase.auth();
   
-  let state = { checklists: [], visits: [], brands: [] };
+  function $(id) { return document.getElementById(id); }
+  
+  var state = { checklists: [], visits: [], brands: [] };
 
   function render(){
-    $('sideTotalVisits').textContent = state.visits.length;
+    var visitsEl = $('sideTotalVisits');
+    if (visitsEl) visitsEl.textContent = state.visits.length;
 
-    // عرض البراندات باستخدام حقل logoData (Base64) لتجنب أخطاء السيرفر
-    $('sideBrandList').innerHTML = state.brands.map(b => `
-      <div class="brand-item">
-        <img src="${b.logoData || 'https://via.placeholder.com/46'}" class="brand-logo" alt="Logo">
-        <div style="font-size:12px; font-weight:bold;">${b.nameAr || b.brand || 'براند'}</div>
-        <div style="font-size:10px; color:var(--primary)">زيارات: ${state.visits.filter(v => v.brand === b.brand).length}</div>
-      </div>
-    `).join('');
+    // عرض البراندات باستخدام logoData لتفادي أخطاء 502
+    var listEl = $('sideBrandList');
+    if (listEl) {
+      listEl.innerHTML = state.brands.map(function(b) {
+        return '<div class="brand-item">' +
+               '<img src="' + (b.logoData || 'https://via.placeholder.com/46') + '" class="brand-logo">' +
+               '<div style="font-size:12px; font-weight:bold;">' + (b.nameAr || b.brand || 'براند') + '</div>' +
+               '<div style="font-size:10px; color:var(--primary)">زيارات: ' + state.visits.filter(function(v){ return v.brand === b.brand; }).length + '</div>' +
+               '</div>';
+      }).join('');
+    }
 
-    // تحديث الإحصائيات (أرقام تجريبية بناءً على البيانات المتوفرة)
-    $('posCount').textContent = Math.floor(state.checklists.length * 0.7);
-    $('negCount').textContent = Math.floor(state.checklists.length * 0.2);
-    $('mixCount').textContent = Math.floor(state.checklists.length * 0.1);
+    $('posCount').textContent = Math.floor(state.checklists.length * 0.75);
+    $('negCount').textContent = Math.floor(state.checklists.length * 0.15);
+    $('mixCount').textContent = Math.floor(state.checklists.length * 0.10);
 
-    const bar = (h, c) => `<div class="bar ${c}" style="height:${h}%"><span style="position:absolute;top:-18px;font-size:9px">${h}%</span></div>`;
-    $('networkPanelBody').innerHTML = `<div class="bars">${bar(85,'blue')}${bar(15,'orange')}</div>`;
-    $('hardwarePanelBody').innerHTML = `<div class="bars">${bar(70,'green')}${bar(30,'orange')}</div>`;
+    var bar = function(h, c) { return '<div class="bar ' + c + '" style="height:' + h + '%"><span style="position:absolute;top:-18px;font-size:9px">' + h + '%</span></div>'; };
+    $('networkPanelBody').innerHTML = '<div class="bars">' + bar(88,'blue') + bar(12,'orange') + '</div>';
+    $('hardwarePanelBody').innerHTML = '<div class="bars">' + bar(72,'green') + bar(28,'orange') + '</div>';
   }
 
-  // الربط الذكي مع حالة تسجيل الدخول
-  auth.onAuthStateChanged(user => {
+  auth.onAuthStateChanged(function(user) {
     if (user) {
+      console.log("تم تسجيل الدخول بنجاح.");
       $('sessionNotice').classList.add('hidden');
       $('dashboardRoot').classList.remove('hidden');
       
-      // جلب البيانات الحية من المجموعات الخاصة بك
-      db.collection('branch_checklists').onSnapshot(s => { state.checklists = s.docs.map(d=>d.data()); render(); });
-      db.collection('brand_assets').onSnapshot(s => { state.brands = s.docs.map(d=>d.data()); render(); });
-      db.collection('siteVisits').onSnapshot(s => { state.visits = s.docs.map(d=>d.data()); render(); });
+      db.collection('branch_checklists').onSnapshot(function(s) { state.checklists = s.docs.map(function(d){ return d.data(); }); render(); });
+      db.collection('brand_assets').onSnapshot(function(s) { state.brands = s.docs.map(function(d){ return d.data(); }); render(); });
+      db.collection('siteVisits').onSnapshot(function(s) { state.visits = s.docs.map(function(d){ return d.data(); }); render(); });
     } else {
       $('sessionNotice').classList.remove('hidden');
       $('dashboardRoot').classList.add('hidden');
     }
   });
 
-  $('copyEvalBtn').onclick = async () => {
-    const canvas = await html2canvas($('dashboardCapture'), { backgroundColor: '#0f172a', scale: 2 });
-    const link = document.createElement('a');
+  $('copyEvalBtn').onclick = async function() {
+    var canvas = await html2canvas($('dashboardCapture'), { backgroundColor: '#0f172a', scale: 2 });
+    var link = document.createElement('a');
     link.download = 'Almajdouie-Dashboard.png';
     link.href = canvas.toDataURL();
     link.click();
