@@ -1,614 +1,167 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <title>Check-List Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <title>PowerBI Style Dashboard | شركة المجدوعي</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+  
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
   <style>
-    :root{
-      --bg:#eef3f8; --card:#ffffff; --primary:#0d4b73; --muted:#667085; --border:#dbe7f1;
-      --deep:#0b3048; --deep2:#0d405e; --deep3:#07283d; --deep4:#123f5c;
-      --grid:rgba(255,255,255,.10); --line:rgba(255,255,255,.12); --shadow:0 12px 32px rgba(6,24,38,.22);
-      --blue:#4f8fdb; --blue2:#7fc0ff; --orange:#f97316; --orange2:#ffb16f; --green:#57b52b; --green2:#86d85f; --purple:#7a3ec8;
+    :root {
+      --bg: #f4f7fa;
+      --header-blue: #0d4b73;
+      --text-dark: #1e293b;
+      --card-bg: #ffffff;
+      --status-green: #10b981;
+      --status-red: #ef4444;
     }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:#163247;font-family:Tahoma,Arial,sans-serif}
-    .hidden{display:none!important}
-    .container{max-width:1360px;margin:18px auto;padding:0 14px 28px}
-    .card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 6px 20px rgba(0,0,0,.08)}
-    .section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-    .section-head h3{margin:0;color:var(--primary);font-size:20px}
-    .muted{color:var(--muted);font-size:13px;line-height:1.6}
-    .session-note{background:#fff7e6;border:1px solid #f5d08a;color:#8a5a00;border-radius:14px;padding:14px 16px;line-height:1.8}
 
-    button,input,select{padding:10px 12px;border-radius:8px;border:1px solid #cfd8e3;box-sizing:border-box;font-size:14px;font-family:inherit}
-    input,select{width:100%;background:#fff}
-    button{background:var(--primary);color:#fff;border:none;cursor:pointer;transition:.18s ease}
-    button:hover{opacity:.96} button:disabled{opacity:.65;cursor:wait}
-    button.secondary{background:#295fa5} button.light{background:#eef4fb;color:#0d4b73;border:1px solid #cfe2f3}
-    button.capture-btn{background:var(--primary);min-width:170px;white-space:nowrap}
+    body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); color: var(--text-dark); overflow: hidden; }
 
-    .filters-grid{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:12px;margin-top:10px}
-    .filter-box label{display:block;margin-bottom:6px;color:#475467;font-size:13px;font-weight:600}
-    .filter-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-    .filter-actions button{min-width:140px}
-    .range-summary{margin-top:10px;color:#667085;font-size:13px}
-    .capture-status{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13px;display:none}
-    .capture-status.success{display:block;background:#ecfdf3;color:#067647;border:1px solid #abefc6}
-    .capture-status.info{display:block;background:#eef4fb;color:#0d4b73;border:1px solid #cfe2f3}
-    .capture-status.error{display:block;background:#fef3f2;color:#b42318;border:1px solid #fecdca}
+    /* الهيكل الرئيسي */
+    .dashboard-container { display: grid; grid-template-columns: 260px 1fr; height: 100vh; }
 
-    .dashboard-board{background:linear-gradient(180deg,var(--deep) 0%, var(--deep3) 100%);border-radius:22px;overflow:hidden;box-shadow:var(--shadow);position:relative}
-    .dashboard-board::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 15% 22%, rgba(255,255,255,.05), transparent 25%),radial-gradient(circle at 84% 78%, rgba(255,255,255,.04), transparent 28%);pointer-events:none}
-    .board-layout{direction:ltr;display:grid;grid-template-columns:260px 1fr;position:relative;z-index:1;min-height:720px}
+    /* الشريط الجانبي */
+    .sidebar { background: #fff; border-left: 3px solid var(--header-blue); padding: 20px; display: flex; flex-direction: column; align-items: center; position: relative; }
+    .side-title { color: var(--header-blue); font-size: 32px; font-weight: 800; transform: rotate(-90deg); position: absolute; left: -60px; top: 200px; white-space: nowrap; }
 
-    /* Sidebar brands */
-    .side{background:#f4f7fb;display:grid;grid-template-columns:74px 1fr;min-height:100%;border-right:4px solid rgba(13,75,115,.14)}
-    .side-title-wrap{display:flex;align-items:center;justify-content:center;padding:12px 6px;border-right:1px solid #dbe7f1}
-    .side-title{writing-mode:vertical-rl;transform:rotate(180deg);font-size:26px;font-weight:800;color:#0d4b73;letter-spacing:.6px;text-align:center;line-height:1.05}
-    .side-content{padding:16px 12px 16px 10px;display:flex;flex-direction:column;gap:14px;direction:rtl}
-    .side-box{background:#fff;border:1px solid #dbe7f1;border-radius:16px;padding:12px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,.04)}
-    .side-box strong{display:block;font-size:48px;line-height:1;color:#0d4b73}
-    .side-box span{font-size:13px;color:#667085}
-    .side-list{display:grid;gap:10px;max-height:560px;overflow:auto;padding-left:4px}
-    .brand-item{display:grid;grid-template-columns:46px 1fr auto;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px solid #dbe7f1;border-radius:14px}
-    .brand-logo,.brand-logo-placeholder{width:46px;height:46px;border-radius:12px;object-fit:cover;background:#fff;border:1px solid #dbe7f1;box-shadow:0 2px 8px rgba(0,0,0,.05)}
-    .brand-logo-placeholder{display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px}
-    .brand-meta{min-width:0}
-    .brand-name{font-size:12px;font-weight:700;color:#344054;line-height:1.35;word-break:break-word}
-    .brand-sub{font-size:11px;color:#667085;margin-top:3px}
-    .brand-value{min-width:60px;text-align:left}
-    .brand-value strong{display:block;font-size:22px;line-height:1;color:var(--purple)}
-    .brand-value span{font-size:11px;color:#667085}
-    .tiny-progress{height:6px;border-radius:999px;background:#edf2f7;overflow:hidden;margin-top:6px}
-    .tiny-progress span{display:block;height:100%;background:linear-gradient(90deg,#7a5af8 0%, #9b6ef3 100%)}
+    /* لوحة المعلومات العلوية */
+    .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: #fff; border-bottom: 1px solid #ddd; font-size: 13px; }
+    .db-status { display: flex; align-items: center; gap: 8px; font-weight: bold; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--status-red); transition: 0.3s; }
+    .status-dot.connected { background: var(--status-green); box-shadow: 0 0 8px var(--status-green); }
 
-    /* Main */
-    .main{padding:16px;direction:rtl}
-    .board-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
-    .board-head h3{margin:0;color:#fff;font-size:28px}
-    .board-head .sub{color:#c8d4df;font-size:13px;margin-top:4px;line-height:1.6}
-    .board-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:14px}
-    .panel{background:linear-gradient(180deg,var(--deep4) 0%, var(--deep2) 100%);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
-    .panel-header{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.10);display:flex;justify-content:space-between;align-items:center;gap:10px}
-    .panel-title{color:#fff;font-size:16px;font-weight:800}
-    .panel-subtitle{color:#c8d4df;font-size:11px}
-    .panel-body{padding:12px 14px}
+    /* شبكة العرض الرئيسية (Grid) */
+    .main-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: auto auto; gap: 15px; padding: 20px; overflow-y: auto; }
+    .card { background: var(--card-bg); border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column; border: 1px solid #edf2f7; }
+    .card-header { background: var(--header-blue); color: #fff; padding: 10px 15px; font-size: 13px; font-weight: bold; }
+    .card-body { padding: 15px; flex-grow: 1; min-height: 200px; display: flex; align-items: flex-end; justify-content: space-around; }
 
-    .overall-wrap{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:center}
-    .donut-wrap{display:flex;justify-content:center;align-items:center}
-    .donut{width:200px;height:200px;border-radius:50%;position:relative;box-shadow:0 10px 22px rgba(0,0,0,.22);background:conic-gradient(var(--blue) 0deg 0deg,var(--orange) 0deg 0deg,var(--green) 0deg 360deg)}
-    .donut-hole{position:absolute;inset:30px;border-radius:50%;background:linear-gradient(180deg,var(--deep2),#0b3550);display:flex;align-items:center;justify-content:center;flex-direction:column;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
-    .donut-hole strong{font-size:34px;color:#fff;line-height:1}
-    .donut-hole span{font-size:12px;color:#c8d4df;margin-top:4px}
-    .legend-list{display:grid;gap:10px}
-    .legend-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.04)}
-    .legend-dot{width:12px;height:12px;border-radius:50%}
-    .legend-dot.blue{background:var(--blue)} .legend-dot.orange{background:var(--orange)} .legend-dot.green{background:var(--green)}
-    .legend-text{display:flex;flex-direction:column;gap:2px;color:#fff;font-size:12px}
-    .legend-text small{color:#c8d4df;font-size:11px}
-    .overall-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
-    .metric{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:10px;text-align:center}
-    .metric strong{display:block;color:#fff;font-size:20px;margin-bottom:4px}
-    .metric span{font-size:11px;color:#c8d4df}
-
-    .chart-grid-bg{position:absolute;inset:0;background:repeating-linear-gradient(to top, transparent 0, transparent 19%, var(--grid) 19%, var(--grid) 20%);border-radius:12px;pointer-events:none}
-    .section-chart{position:relative;height:250px;border-radius:14px;padding:8px 8px 28px;background:rgba(255,255,255,.02);overflow:hidden}
-    .section-chart-header{display:flex;justify-content:space-between;align-items:center;gap:10px;position:relative;z-index:1;margin-bottom:8px;color:#c8d4df;font-size:11px}
-    .bars{position:relative;z-index:1;height:176px;display:flex;align-items:flex-end;justify-content:space-evenly;gap:18px;padding:0 8px}
-    .bar-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;height:100%;min-width:72px}
-    .bar-stack{display:flex;align-items:flex-end;gap:8px;height:100%}
-    .bar{width:34px;border-radius:10px 10px 4px 4px;position:relative;box-shadow:0 4px 10px rgba(0,0,0,.18)}
-    .bar.blue{background:linear-gradient(180deg,var(--blue2),var(--blue))}
-    .bar.orange{background:linear-gradient(180deg,var(--orange2),var(--orange))}
-    .bar.green{background:linear-gradient(180deg,var(--green2),var(--green))}
-    .bar-value{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:11px;color:#fff;font-weight:700;white-space:nowrap}
-    .bar-label{font-size:11px;color:#d0d9e2;text-align:center;line-height:1.3;min-height:30px}
-    .section-footer{display:flex;justify-content:space-between;gap:10px;margin-top:8px;color:#c8d4df;font-size:11px;position:relative;z-index:1}
-    .legend-inline{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:10px;color:#d0d9e2;font-size:11px}
-    .legend-inline span{display:inline-flex;align-items:center;gap:6px}
-    .legend-inline i{display:inline-block;width:12px;height:12px;border-radius:3px}
-
-    @media (max-width:1150px){
-      .board-layout{grid-template-columns:1fr}
-      .side{grid-template-columns:1fr;border-right:none;border-bottom:4px solid rgba(13,75,115,.14)}
-      .side-title-wrap{border-right:none;border-bottom:1px solid #dbe7f1}
-      .side-title{writing-mode:horizontal-tb;transform:none;font-size:24px}
-      .overall-wrap{grid-template-columns:1fr}
-    }
-    @media (max-width:900px){
-      .filters-grid{grid-template-columns:1fr 1fr}
-      .board-grid{grid-template-columns:1fr}
-    }
-    @media (max-width:640px){
-      .filters-grid{grid-template-columns:1fr}
-      .filter-actions button,.capture-btn{width:100%}
-      .donut{width:170px;height:170px}
-      .donut-hole{inset:24px}
-      .donut-hole strong{font-size:28px}
-      .overall-metrics{grid-template-columns:1fr 1fr}
-      .side-box strong{font-size:42px}
-      .bars{gap:8px}
-      .bar{width:26px}
-      .bar-col{min-width:58px}
-    }
+    /* تذييل الصفحة (Version & Time) */
+    .footer-info { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; border-top: 1px solid #ddd; padding: 8px 25px; display: flex; justify-content: space-between; font-size: 11px; color: #64748b; z-index: 100; }
+    
+    /* الأعمدة البيانية */
+    .bar-group { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    .bar { width: 25px; background: #4f8fdb; border-radius: 2px 2px 0 0; position: relative; transition: height 1s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .bar-val { position: absolute; top: -18px; width: 100%; text-align: center; font-size: 10px; font-weight: bold; }
   </style>
 </head>
 <body>
-<div class="container">
-  <div id="sessionNotice" class="session-note hidden">الرجاء تسجيل الدخول من الصفحة الرئيسية أولًا، ثم افتح Dashboard من داخل النظام.</div>
-  <div id="dashboardRoot" class="hidden">
 
-    <div class="card">
-      <div class="section-head">
-        <div>
-          <h3>فلاتر الفترة</h3>
-          <div class="muted">يمكنك اختيار المدة حسب الشهر أو ربع السنة أو من/إلى. الشريط الجانبي الآن يعرض البراندات التي تمت زيارتها: الاسم + عدد الزيارات + النسبة + الشعار.</div>
+<div class="dashboard-container">
+  <aside class="sidebar">
+    <div class="side-title">Site Visits Dashboard</div>
+    <div style="text-align: center; margin-top: 40px;">
+        <span style="font-size: 14px; color: #64748b;">Number of Visits</span>
+        <h1 style="font-size: 64px; margin: 0; color: var(--header-blue);" id="totalVisits">0</h1>
+    </div>
+  </aside>
+
+  <div style="display: flex; flex-direction: column; width: 100%;">
+    <div class="status-bar">
+        <div class="db-status">
+            <div id="statusDot" class="status-dot"></div>
+            <span id="statusText">جاري الاتصال بقاعدة البيانات...</span>
         </div>
-      </div>
-      <div class="filters-grid">
-        <div class="filter-box">
-          <label for="periodMode">نوع الفترة</label>
-          <select id="periodMode">
-            <option value="all">كل التواريخ</option>
-            <option value="month">شهر</option>
-            <option value="quarter">ربع سنة</option>
-            <option value="custom">من / إلى</option>
-          </select>
-        </div>
-        <div class="filter-box">
-          <label for="filterMonth">اختر الشهر</label>
-          <input id="filterMonth" type="month">
-        </div>
-        <div class="filter-box">
-          <label for="filterQuarter">اختر الربع</label>
-          <select id="filterQuarter">
-            <option value="Q1">الربع الأول (Q1)</option>
-            <option value="Q2">الربع الثاني (Q2)</option>
-            <option value="Q3">الربع الثالث (Q3)</option>
-            <option value="Q4">الربع الرابع (Q4)</option>
-          </select>
-        </div>
-        <div class="filter-box">
-          <label for="filterQuarterYear">سنة الربع</label>
-          <input id="filterQuarterYear" type="number" min="2020" max="2100" step="1" placeholder="2026">
-        </div>
-        <div class="filter-box">
-          <label for="filterFrom">من تاريخ / إلى تاريخ</label>
-          <input id="filterFrom" type="date">
-        </div>
-      </div>
-      <div class="filters-grid" style="grid-template-columns:repeat(5,minmax(150px,1fr));margin-top:10px;">
-        <div class="filter-box" style="grid-column:span 2;">
-          <label for="filterTo">إلى تاريخ</label>
-          <input id="filterTo" type="date">
-        </div>
-      </div>
-      <div class="filter-actions">
-        <button id="applyDateFilter" class="secondary">تطبيق الفلتر</button>
-        <button id="resetDateFilter" class="light">إعادة التعيين</button>
-      </div>
-      <div id="activeRangeLabel" class="range-summary">الفترة الحالية: كل التواريخ</div>
-      <div id="captureStatus" class="capture-status"></div>
+        <div style="font-weight: bold; color: var(--header-blue);">ALMAJDOUIE MOTORS | نظام إدارة الزيارات</div>
     </div>
 
-    <div class="card">
-      <div class="section-head">
-        <div>
-          <h3>Check‑List Dashboard</h3>
-          <div class="muted">نفس الفكرة المرجعية: الشريط الجانبي = Brands With Visits، واللوحة الرئيسية = تقييم الأقسام من Check‑List.</div>
+    <main class="main-grid">
+        <div class="card" style="grid-column: span 2;">
+            <div class="card-header">Network Infrastructure Services</div>
+            <div class="card-body" id="networkChart"></div>
         </div>
-        <button class="capture-btn" id="copyEvalBtn" type="button">نسخ صورة Dashboard</button>
-      </div>
-
-      <div id="dashboardCapture" class="dashboard-board">
-        <div class="board-layout">
-          <aside class="side">
-            <div class="side-title-wrap"><div class="side-title">Visited Brands</div></div>
-            <div class="side-content">
-              <div class="side-box">
-                <strong id="sideTotalBrands">0</strong>
-                <span>عدد البراندات التي تمت زيارتها</span>
-              </div>
-              <div id="sideBrandList" class="side-list"></div>
-            </div>
-          </aside>
-
-          <main class="main">
-            <div class="board-head">
-              <div>
-                <h3>Overall Assessment</h3>
-                <div class="sub" id="boardPeriodText">الفترة الحالية: كل التواريخ</div>
-              </div>
-              <button class="capture-btn eval-copy-btn" id="copyEvalBtnInner" type="button">نسخ صورة Dashboard</button>
-            </div>
-
-            <div class="board-grid">
-              <section class="panel" id="overallPanel">
-                <div class="panel-header">
-                  <div>
-                    <div class="panel-title">Overall Assessment</div>
-                    <div class="panel-subtitle">التقييم الكلي من كل الأقسام المطلوبة</div>
-                  </div>
-                </div>
-                <div class="panel-body" id="overallPanelBody"></div>
-              </section>
-
-              <section class="panel" id="networkPanel">
-                <div class="panel-header">
-                  <div>
-                    <div class="panel-title">Network Infrastructure Assessment</div>
-                    <div class="panel-subtitle">dynamicAnswers + dynamicFieldsSnapshot</div>
-                  </div>
-                </div>
-                <div class="panel-body" id="networkPanelBody"></div>
-              </section>
-
-              <section class="panel" id="hardwarePanel">
-                <div class="panel-header">
-                  <div>
-                    <div class="panel-title">Hardware &amp; Peripherals Assessment</div>
-                    <div class="panel-subtitle">dynamicAnswers + dynamicFieldsSnapshot</div>
-                  </div>
-                </div>
-                <div class="panel-body" id="hardwarePanelBody"></div>
-              </section>
-
-              <section class="panel" id="softwarePanel">
-                <div class="panel-header">
-                  <div>
-                    <div class="panel-title">Software &amp; Systems Assessment</div>
-                    <div class="panel-subtitle">dynamicAnswers + dynamicFieldsSnapshot</div>
-                  </div>
-                </div>
-                <div class="panel-body" id="softwarePanelBody"></div>
-              </section>
-
-              <section class="panel" id="systemsPanel" style="grid-column:1 / -1;">
-                <div class="panel-header">
-                  <div>
-                    <div class="panel-title">Systems Assessment</div>
-                    <div class="panel-subtitle">dynamicAnswers + dynamicFieldsSnapshot</div>
-                  </div>
-                </div>
-                <div class="panel-body" id="systemsPanelBody"></div>
-              </section>
-            </div>
-          </main>
+        <div class="card">
+            <div class="card-header">End User Services</div>
+            <div class="card-body" id="endUserChart"></div>
         </div>
-      </div>
-    </div>
+        </main>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<div class="footer-info">
+    <div>إصدار النظام: <strong id="appVersion">v1.2.0-Test</strong></div>
+    <div id="dateTimeDisplay">جاري تحميل الوقت...</div>
+    <div>متصل بـ: <strong id="dbInstance">baghethan-ba325 (Firestore)</strong></div>
+</div>
+
 <script>
 (function(){
-  var $ = function(id){ return document.getElementById(id); };
-  var state = { checklists: [], visits: [], brands: [] };
-  var filters = { mode:'all', from:'', to:'', month:'', quarter:'Q1', quarterYear:'' };
-  var unsub = [];
-  var started = false;
+  const $ = id => document.getElementById(id);
 
-  var SECTIONS = [
-    { key:'hardware', label:'Hardware & Peripherals Assessment' },
-    { key:'network', label:'Network Infrastructure Assessment' },
-    { key:'software', label:'Software & Systems Assessment' },
-    { key:'systems', label:'Systems Assessment' }
-  ];
+  // إعدادات Firebase من مشروعك
+  const firebaseConfig = {
+    apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
+    authDomain: "baghethan-ba325.firebaseapp.com",
+    projectId: "baghethan-ba325",
+    storageBucket: "baghethan-ba325.firebasestorage.app",
+    messagingSenderId: "944819735112",
+    appId: "1:944819735112:web:07315600da39377320667d"
+  };
 
-  function normalizeSectionName(value){ return String(value || '').toLowerCase().replace(/&amp;/g,'&').replace(/[^a-z0-9]+/g,''); }
-  function normalizeKey(value){ return String(value || '').trim().toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9\u0600-\u06FF_-]/g,''); }
-  function escapeHtml(v){ var m={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}; return String(v||'').replace(/[&<>"']/g,function(c){return m[c];}); }
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-  function toDateObject(value){
-    if (!value) return null;
-    if (typeof value === 'object' && typeof value.toDate === 'function') { var d1 = value.toDate(); return isNaN(d1.getTime()) ? null : d1; }
-    if (typeof value === 'object' && value.seconds) { var d2 = new Date(value.seconds * 1000); return isNaN(d2.getTime()) ? null : d2; }
-    var d3 = new Date(value); return isNaN(d3.getTime()) ? null : d3;
+  // تحديث الوقت والتاريخ لحظياً
+  function updateTime() {
+    const now = new Date();
+    $('dateTimeDisplay').innerText = "التاريخ: " + now.toLocaleDateString('ar-SA') + " | الوقت: " + now.toLocaleTimeString('ar-SA');
   }
-  function formatDateOnly(date){ if (!(date instanceof Date) || isNaN(date.getTime())) return '—'; return new Intl.DateTimeFormat('ar-SA', { year:'numeric', month:'2-digit', day:'2-digit' }).format(date); }
-  function formatMonthLabel(value){ if (!value) return '—'; var parts = String(value).split('-'); if (parts.length !== 2) return value; var d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1); return new Intl.DateTimeFormat('ar-SA', { year:'numeric', month:'long' }).format(d); }
-  function startOfDay(date){ var d = new Date(date); d.setHours(0,0,0,0); return d; }
-  function endOfDay(date){ var d = new Date(date); d.setHours(23,59,59,999); return d; }
-  function getChecklistDate(item){ return toDateObject(item.visitDate || item.technicianVisitDate || item.checklistSavedDate || item.createdAt || item.timestamp); }
-  function getVisitDate(item){ return toDateObject(item.date || item.visitDate || item.createdAt || item.timestamp); }
+  setInterval(updateTime, 1000);
+  updateTime();
 
-  function getQuarterRange(q, year){
-    var y = Number(year); if (!Number.isFinite(y)) return null;
-    var map = { 'Q1':[0,2], 'Q2':[3,5], 'Q3':[6,8], 'Q4':[9,11] };
-    if (!map[q]) return null;
-    var start = new Date(y, map[q][0], 1);
-    var end = new Date(y, map[q][1] + 1, 0);
-    return { start: startOfDay(start), end: endOfDay(end) };
-  }
-
-  function isInActiveRange(itemDate){
-    if (!itemDate) return false;
-    if (filters.mode === 'all') return true;
-    if (filters.mode === 'month') {
-      if (!filters.month) return false;
-      var parts = String(filters.month).split('-'); if (parts.length !== 2) return false;
-      var start = startOfDay(new Date(Number(parts[0]), Number(parts[1]) - 1, 1));
-      var end = endOfDay(new Date(Number(parts[0]), Number(parts[1]), 0));
-      return itemDate >= start && itemDate <= end;
-    }
-    if (filters.mode === 'quarter') {
-      var qRange = getQuarterRange(filters.quarter, filters.quarterYear); if (!qRange) return false;
-      return itemDate >= qRange.start && itemDate <= qRange.end;
-    }
-    if (filters.mode === 'custom') {
-      var from = filters.from ? startOfDay(new Date(filters.from)) : null;
-      var to = filters.to ? endOfDay(new Date(filters.to)) : null;
-      if (from && itemDate < from) return false;
-      if (to && itemDate > to) return false;
-      return true;
-    }
-    return true;
-  }
-
-  function getFilteredChecklists(){ return state.checklists.filter(function(v){ return isInActiveRange(getChecklistDate(v)); }); }
-  function getFilteredVisits(){ return state.visits.filter(function(v){ return isInActiveRange(getVisitDate(v)); }); }
-
-  function activeRangeText(){
-    if (filters.mode === 'month' && filters.month) return 'الفترة الحالية: شهر ' + formatMonthLabel(filters.month);
-    if (filters.mode === 'quarter') { var qn = { 'Q1':'الربع الأول', 'Q2':'الربع الثاني', 'Q3':'الربع الثالث', 'Q4':'الربع الرابع' }; return 'الفترة الحالية: ' + (qn[filters.quarter] || filters.quarter) + ' لسنة ' + (filters.quarterYear || '—'); }
-    if (filters.mode === 'custom') { var fromText = filters.from ? formatDateOnly(new Date(filters.from)) : '—'; var toText = filters.to ? formatDateOnly(new Date(filters.to)) : '—'; return 'الفترة الحالية: من ' + fromText + ' إلى ' + toText; }
-    return 'الفترة الحالية: كل التواريخ';
-  }
-  function updateRangeLabel(){ var txt = activeRangeText(); $('activeRangeLabel').textContent = txt; $('boardPeriodText').textContent = txt; }
-  function formatPercent(value){ var safe = isFinite(value) ? value : 0; return safe.toFixed(1) + '%'; }
-  function clampPercent(value){ var num = Number(value) || 0; return Math.max(0, Math.min(100, num)); }
-
-  function scoreAnswer(value){
-    if (value == null || value === '') return null;
-    if (typeof value === 'boolean') return value ? 1 : 0;
-    if (typeof value === 'number') { if (value >= 0 && value <= 1) return value; return null; }
-    if (Array.isArray(value)) {
-      var scores = value.map(scoreAnswer).filter(function(v){ return typeof v === 'number'; });
-      if (!scores.length) return null;
-      return scores.reduce(function(sum, item){ return sum + item; }, 0) / scores.length;
-    }
-    var key = normalizeSectionName(value);
-    if (!key) return null;
-    var positives = ['yes','true','checked','completed','fullyfunctioning','working','available','enabled','supported','upgraded','good','pass','stable','secure','ok','healthy'];
-    var negatives = ['no','false','notworking','requiresservice','needservice','needsservice','needsreplacement','replacementrequired','repairrequired','bad','issue','problem','failed','down','outdated','unavailable','requiresupgrade','norequirementforittraining'];
-    if (positives.indexOf(key) > -1) return 1;
-    if (negatives.indexOf(key) > -1) return 0;
-    if (key === 'partial' || key === 'average') return 0.5;
-    if (key.indexOf('fullyfunctioning') > -1 || key.indexOf('working') > -1 || key.indexOf('available') > -1 || key.indexOf('supported') > -1 || key.indexOf('upgraded') > -1 || key.indexOf('healthy') > -1) return 1;
-    if (key.indexOf('requiresservice') > -1 || key.indexOf('needservice') > -1 || key.indexOf('needsreplacement') > -1 || key.indexOf('problem') > -1 || key.indexOf('issue') > -1 || key.indexOf('failed') > -1 || key.indexOf('notworking') > -1 || key.indexOf('outdated') > -1) return 0;
-    return null;
-  }
-
-  function aggregateSections(rows){
-    var lookup = {};
-    SECTIONS.forEach(function(section){ lookup[normalizeSectionName(section.label)] = { key:section.key, name:section.label, points:0, answers:0, records:0, positive:0, negative:0, mixed:0 }; });
-    rows.forEach(function(row){
-      var answers = row.dynamicAnswers || {};
-      var snapshot = Array.isArray(row.dynamicFieldsSnapshot) ? row.dynamicFieldsSnapshot : [];
-      var touched = {};
-      snapshot.forEach(function(field){
-        var sectionName = field.sectionEn || field.section || field.sectionAr || '';
-        var key = normalizeSectionName(sectionName);
-        if (!lookup[key]) return;
-        var score = scoreAnswer(answers[field.id]);
-        if (typeof score !== 'number') return;
-        lookup[key].points += score; lookup[key].answers += 1;
-        if (score >= 0.75) lookup[key].positive += 1; else if (score <= 0.25) lookup[key].negative += 1; else lookup[key].mixed += 1;
-        touched[key] = true;
-      });
-      Object.keys(touched).forEach(function(key){ lookup[key].records += 1; });
+  // الاستماع للبيانات وتحديث حالة الاتصال
+  function startLiveTracking() {
+    db.collection('branch_checklists').onSnapshot(snapshot => {
+      // تحديث مؤشر الاتصال بنجاح
+      $('statusDot').classList.add('connected');
+      $('statusText').innerText = "قاعدة البيانات متصلة ومزامنة (Live)";
+      
+      const docs = snapshot.docs.map(d => d.data());
+      $('totalVisits').textContent = docs.length;
+      
+      processAndRender(docs);
+    }, error => {
+      // في حال فشل الاتصال
+      $('statusDot').classList.remove('connected');
+      $('statusText').innerText = "خطأ في الاتصال بقاعدة البيانات!";
+      console.error(error);
     });
-    return SECTIONS.map(function(section){ var item = lookup[normalizeSectionName(section.label)]; item.percent = item.answers ? (item.points / item.answers) * 100 : 0; item.positivePercent = item.answers ? (item.positive / item.answers) * 100 : 0; item.negativePercent = item.answers ? (item.negative / item.answers) * 100 : 0; item.mixedPercent = item.answers ? (item.mixed / item.answers) * 100 : 0; return item; });
   }
 
-  function getBrandName(v){ return v.brand || v.brandName || v.name || v.brand_title || 'بدون اسم'; }
-  function buildBrandAssetIndex(){
-    var index = new Map();
-    state.brands.forEach(function(asset){
-      [asset.id, asset.key, asset.brand, asset.brandKey, asset.brandName, asset.name, asset.nameEn, asset.nameAr, asset.title].forEach(function(key){
-        var n = normalizeKey(key); if (n && !index.has(n)) index.set(n, asset);
-      });
+  function processAndRender(docs) {
+    let stats = { network: 0, endUser: 0 };
+    docs.forEach(doc => {
+      const ans = doc.dynamicAnswers || {};
+      // قراءة المعرفات بناءً على صورة Firestore
+      if (ans["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") stats.network++;
+      if (ans["0NQrLqvsNNYgd0Iyy6by"] === "fully_functioning") stats.endUser++;
     });
-    return index;
-  }
-  function getBrandAssetByName(brandName, brandIndex){
-    var n = normalizeKey(brandName); return n && brandIndex.has(n) ? brandIndex.get(n) : null;
-  }
-  function getBrandLogoSrc(asset){
-    if (!asset) return '';
-    var raw = asset.logoUrl || asset.logoData || asset.logo || '';
-    var value = String(raw || '').trim(); if (!value) return '';
-    if (value.indexOf('data:image/') === 0) return value;
-    if (value.indexOf('http://') === 0 || value.indexOf('https://') === 0) return value;
-    var compact = value.replace(/\s+/g, '');
-    if (/^[A-Za-z0-9+/=]+$/.test(compact) && compact.length > 100) return 'data:image/png;base64,' + compact;
-    return '';
-  }
-  function brandLogoHtml(logoSrc, brandName){
-    if (!logoSrc) return '<span class="brand-logo-placeholder" title="لا يوجد شعار">—</span>';
-    return '<img class="brand-logo" src="' + escapeHtml(logoSrc) + '" alt="' + escapeHtml(brandName) + '">';
+
+    const total = docs.length || 1;
+    renderBarChart('networkChart', [
+        { label: "Infrastructure", val: (stats.network/total)*100, color: "#94a3b8" }
+    ]);
+    renderBarChart('endUserChart', [
+        { label: "PCs & Peripherals", val: (stats.endUser/total)*100, color: "#4f8fdb" }
+    ]);
   }
 
-  function aggregateVisitedBrands(visits){
-    var brandIndex = buildBrandAssetIndex();
-    var map = new Map();
-    visits.forEach(function(visit){
-      var brandName = getBrandName(visit);
-      var key = normalizeKey(brandName);
-      if (!key) return;
-      if (!map.has(key)) {
-        var asset = getBrandAssetByName(brandName, brandIndex);
-        map.set(key, { name: brandName, visits: 0, logoSrc: getBrandLogoSrc(asset) });
-      }
-      map.get(key).visits += 1;
-    });
-    var totalVisits = visits.length;
-    var items = Array.from(map.values()).map(function(item){
-      item.percent = totalVisits ? (item.visits / totalVisits) * 100 : 0;
-      return item;
-    }).sort(function(a,b){ return b.visits - a.visits || a.name.localeCompare(b.name, 'ar'); });
-    return { totalVisits: totalVisits, items: items };
+  function renderBarChart(containerId, items) {
+    $(containerId).innerHTML = items.map(item => `
+      <div class="bar-group">
+        <div class="bar" style="height:${item.val}%; background:${item.color}">
+          <span class="bar-val">${Math.round(item.val)}%</span>
+        </div>
+        <div style="font-size:10px; margin-top:5px;">${item.label}</div>
+      </div>
+    `).join('');
   }
 
-  function renderBrandSidebar(filteredVisits){
-    var agg = aggregateVisitedBrands(filteredVisits);
-    $('sideTotalBrands').textContent = agg.items.length;
-    var list = $('sideBrandList');
-    if (!agg.items.length) {
-      list.innerHTML = '<div class="brand-item"><div class="brand-logo-placeholder">—</div><div class="brand-meta"><div class="brand-name">لا توجد براندات</div><div class="brand-sub">لا توجد زيارات ضمن الفترة المختارة</div></div><div class="brand-value"><strong>0</strong><span>زيارة</span></div></div>';
-      return;
-    }
-    list.innerHTML = agg.items.map(function(item){
-      return ''
-        + '<div class="brand-item">'
-        +   brandLogoHtml(item.logoSrc, item.name)
-        +   '<div class="brand-meta">'
-        +     '<div class="brand-name">' + escapeHtml(item.name) + '</div>'
-        +     '<div class="brand-sub">' + item.visits + ' زيارة • ' + formatPercent(item.percent) + ' من إجمالي الزيارات</div>'
-        +     '<div class="tiny-progress"><span style="width:' + clampPercent(item.percent) + '%"></span></div>'
-        +   '</div>'
-        +   '<div class="brand-value"><strong>' + item.visits + '</strong><span>زيارة</span></div>'
-        + '</div>';
-    }).join('');
-  }
-
-  function renderOverallPanel(sectionStats){
-    var box = $('overallPanelBody');
-    var totalAnswers = sectionStats.reduce(function(sum, item){ return sum + item.answers; }, 0);
-    if (!totalAnswers) { box.innerHTML = '<div class="muted" style="color:#d0d9e2;padding:10px 0">لا توجد بيانات تقييم ضمن الفترة المحددة.</div>'; return; }
-    var totalPositive = sectionStats.reduce(function(sum, item){ return sum + item.positive; }, 0);
-    var totalNegative = sectionStats.reduce(function(sum, item){ return sum + item.negative; }, 0);
-    var totalMixed = sectionStats.reduce(function(sum, item){ return sum + item.mixed; }, 0);
-    var totalPoints = sectionStats.reduce(function(sum, item){ return sum + item.points; }, 0);
-    var totalRecords = sectionStats.reduce(function(sum, item){ return sum + item.records; }, 0);
-    var overallPercent = totalPoints / totalAnswers * 100;
-    var posPercent = totalPositive / totalAnswers * 100;
-    var negPercent = totalNegative / totalAnswers * 100;
-    var mixPercent = Math.max(0, 100 - posPercent - negPercent);
-    var deg1 = (clampPercent(posPercent) / 100) * 360;
-    var deg2 = ((clampPercent(posPercent) + clampPercent(negPercent)) / 100) * 360;
-
-    box.innerHTML = ''
-      + '<div class="overall-wrap">'
-      +   '<div class="donut-wrap">'
-      +     '<div class="donut" style="background:conic-gradient(var(--blue) 0deg ' + deg1 + 'deg,var(--orange) ' + deg1 + 'deg ' + deg2 + 'deg,var(--green) ' + deg2 + 'deg 360deg)">'
-      +       '<div class="donut-hole"><strong>' + formatPercent(overallPercent) + '</strong><span>Overall Score</span></div>'
-      +     '</div>'
-      +   '</div>'
-      +   '<div>'
-      +     '<div class="legend-list">'
-      +       '<div class="legend-item"><span class="legend-dot blue"></span><div class="legend-text">Fully Functioning<small>' + totalPositive + ' إجابة • ' + formatPercent(posPercent) + '</small></div></div>'
-      +       '<div class="legend-item"><span class="legend-dot orange"></span><div class="legend-text">Requires Service<small>' + totalNegative + ' إجابة • ' + formatPercent(negPercent) + '</small></div></div>'
-      +       '<div class="legend-item"><span class="legend-dot green"></span><div class="legend-text">Other / Mixed<small>' + totalMixed + ' إجابة • ' + formatPercent(mixPercent) + '</small></div></div>'
-      +     '</div>'
-      +     '<div class="overall-metrics">'
-      +       '<div class="metric"><strong>' + totalRecords + '</strong><span>مجموع المشاركات</span></div>'
-      +       '<div class="metric"><strong>' + totalAnswers + '</strong><span>إجابات محتسبة</span></div>'
-      +       '<div class="metric"><strong>' + formatPercent(overallPercent) + '</strong><span>التقييم العام</span></div>'
-      +     '</div>'
-      +   '</div>'
-      + '</div>';
-  }
-
-  function sectionChartHtml(item){
-    return ''
-      + '<div class="section-chart">'
-      +   '<div class="chart-grid-bg"></div>'
-      +   '<div class="section-chart-header"><span>Bar Chart</span><span>Overall ' + formatPercent(item.percent) + '</span></div>'
-      +   '<div class="bars">'
-      +     '<div class="bar-col"><div class="bar-stack"><div class="bar blue" style="height:' + clampPercent(item.positivePercent) + '%"><span class="bar-value">' + formatPercent(item.positivePercent) + '</span></div></div><div class="bar-label">Fully Functioning</div></div>'
-      +     '<div class="bar-col"><div class="bar-stack"><div class="bar orange" style="height:' + clampPercent(item.negativePercent) + '%"><span class="bar-value">' + formatPercent(item.negativePercent) + '</span></div></div><div class="bar-label">Requires Service</div></div>'
-      +     '<div class="bar-col"><div class="bar-stack"><div class="bar green" style="height:' + clampPercent(item.mixedPercent) + '%"><span class="bar-value">' + formatPercent(item.mixedPercent) + '</span></div></div><div class="bar-label">Other / Mixed</div></div>'
-      +   '</div>'
-      +   '<div class="legend-inline">'
-      +     '<span><i style="background:var(--blue)"></i> Fully Functioning</span>'
-      +     '<span><i style="background:var(--orange)"></i> Requires Service</span>'
-      +     '<span><i style="background:var(--green)"></i> Other / Mixed</span>'
-      +   '</div>'
-      +   '<div class="section-footer"><span>' + item.records + ' مشاركة</span><span>' + item.answers + ' إجابة محتسبة</span><span>المجموع التراكمي ' + item.points.toFixed(1) + '</span></div>'
-      + '</div>';
-  }
-
-  function renderPanels(sectionStats){
-    var map = {}; sectionStats.forEach(function(item){ map[item.key] = item; });
-    $('networkPanelBody').innerHTML = map.network && map.network.answers ? sectionChartHtml(map.network) : '<div class="muted" style="color:#d0d9e2">لا توجد بيانات لهذا القسم.</div>';
-    $('hardwarePanelBody').innerHTML = map.hardware && map.hardware.answers ? sectionChartHtml(map.hardware) : '<div class="muted" style="color:#d0d9e2">لا توجد بيانات لهذا القسم.</div>';
-    $('softwarePanelBody').innerHTML = map.software && map.software.answers ? sectionChartHtml(map.software) : '<div class="muted" style="color:#d0d9e2">لا توجد بيانات لهذا القسم.</div>';
-    $('systemsPanelBody').innerHTML = map.systems && map.systems.answers ? sectionChartHtml(map.systems) : '<div class="muted" style="color:#d0d9e2">لا توجد بيانات لهذا القسم.</div>';
-  }
-
-  async function captureDashboard(){
-    var target = $('dashboardCapture');
-    if (!target || typeof html2canvas === 'undefined') return;
-    try {
-      var canvas = await html2canvas(target, { backgroundColor:null, scale:2, useCORS:true, allowTaint:true, logging:false });
-      var blob = await new Promise(function(resolve){ canvas.toBlob(resolve, 'image/png', 1); });
-      if (window.isSecureContext && navigator.clipboard && window.ClipboardItem && blob) {
-        await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
-        showStatus('تم نسخ صورة Dashboard بنجاح', 'success');
-      } else if (blob) {
-        var url = URL.createObjectURL(blob); var a = document.createElement('a'); a.href = url; a.download = 'checklist_dashboard.png'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(url); }, 500); showStatus('تم تنزيل صورة Dashboard لأن النسخ المباشر غير مدعوم', 'info');
-      }
-    } catch (e) { console.error(e); showStatus('تعذر نسخ صورة Dashboard', 'error'); }
-  }
-
-  var statusTimer = null;
-  function showStatus(message, type){ var box = $('captureStatus'); if (!box) return; box.className = 'capture-status ' + (type || 'info'); box.textContent = message; if (statusTimer) clearTimeout(statusTimer); statusTimer = setTimeout(function(){ box.className = 'capture-status'; box.textContent = ''; }, 4000); }
-
-  function render(){
-    var filteredChecklists = getFilteredChecklists();
-    var filteredVisits = getFilteredVisits();
-    var sectionStats = aggregateSections(filteredChecklists);
-    updateRangeLabel();
-    renderBrandSidebar(filteredVisits);
-    renderOverallPanel(sectionStats);
-    renderPanels(sectionStats);
-  }
-
-  function bindFilterEvents(){
-    $('applyDateFilter').addEventListener('click', function(){
-      filters.mode = $('periodMode').value;
-      filters.month = $('filterMonth').value;
-      filters.quarter = $('filterQuarter').value;
-      filters.quarterYear = $('filterQuarterYear').value;
-      filters.from = $('filterFrom').value;
-      filters.to = $('filterTo').value;
-      if (filters.mode === 'quarter' && !filters.quarterYear) { alert('أدخل سنة الربع أولًا.'); return; }
-      if (filters.mode === 'custom' && filters.from && filters.to && new Date(filters.from) > new Date(filters.to)) { alert('تاريخ البداية يجب أن يكون قبل أو يساوي تاريخ النهاية'); return; }
-      render();
-    });
-    $('resetDateFilter').addEventListener('click', function(){
-      filters = { mode:'all', from:'', to:'', month:'', quarter:'Q1', quarterYear:'' };
-      $('periodMode').value = 'all'; $('filterMonth').value = ''; $('filterQuarter').value = 'Q1'; $('filterQuarterYear').value = ''; $('filterFrom').value = ''; $('filterTo').value = ''; render();
-    });
-    $('copyEvalBtn').addEventListener('click', captureDashboard);
-    $('copyEvalBtnInner').addEventListener('click', captureDashboard);
-  }
-
-  function clearSubscriptions(){ unsub.forEach(function(u){ if (typeof u === 'function') u(); }); unsub = []; started = false; }
-  function startListeners(db){
-    if (started) return; started = true;
-    unsub.push(db.collection('branch_checklists').onSnapshot(function(snap){ state.checklists = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); render(); }, function(err){ console.error('branch_checklists', err); }));
-    unsub.push(db.collection('siteVisits').onSnapshot(function(snap){ state.visits = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); render(); }, function(err){ console.error('siteVisits', err); }));
-    unsub.push(db.collection('brand_assets').onSnapshot(function(snap){ state.brands = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; }); render(); }, function(err){ console.error('brand_assets', err); }));
-  }
-
-  function boot(){
-    try {
-      var parentFirebase = window.parent && window.parent !== window && window.parent.firebase ? window.parent.firebase : null;
-      if (!parentFirebase) { $('sessionNotice').classList.remove('hidden'); $('dashboardRoot').classList.add('hidden'); return; }
-      var auth = parentFirebase.auth(); var db = parentFirebase.firestore();
-      bindFilterEvents();
-      auth.onAuthStateChanged(function(user){
-        if (!user) { clearSubscriptions(); $('sessionNotice').classList.remove('hidden'); $('dashboardRoot').classList.add('hidden'); return; }
-        $('sessionNotice').classList.add('hidden'); $('dashboardRoot').classList.remove('hidden'); startListeners(db);
-      });
-    } catch (e) { console.error(e); $('sessionNotice').classList.remove('hidden'); $('dashboardRoot').classList.add('hidden'); }
-  }
-
-  boot();
+  startLiveTracking();
 })();
 </script>
 </body>
