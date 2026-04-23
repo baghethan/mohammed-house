@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Check‑List Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
     body {
@@ -19,15 +19,6 @@
       padding: 0 14px 28px;
     }
 
-    .card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 16px;
-      box-shadow: 0 6px 20px rgba(0,0,0,.08);
-    }
-
-    /* ===== Dashboard Layout ===== */
     .dashboard-board {
       background: linear-gradient(180deg,#0b3048,#07283d);
       border-radius: 24px;
@@ -37,45 +28,53 @@
 
     .board-layout {
       display: grid;
-      grid-template-columns: 260px 1fr;
+      grid-template-columns: 1fr 300px;
       min-height: 700px;
+    }
+
+    /* ===== Main ===== */
+    .main {
+      padding: 24px;
+      color: #fff;
     }
 
     /* ===== Sidebar ===== */
     .side {
-      background: #f4f7fb;
-      border-left: 4px solid rgba(13,75,115,.14);
+      background: #f9fbfe;
+      border-right: 1px solid #dbe7f1;
       display: flex;
       flex-direction: column;
     }
 
-    .side-title {
-      text-align: center;
-      font-weight: 800;
-      color: #0d4b73;
+    .side-header {
       padding: 16px;
+      text-align: center;
       border-bottom: 1px solid #dbe7f1;
     }
 
-    .side-total {
-      text-align: center;
-      padding: 16px;
-    }
-
-    .side-total strong {
-      font-size: 32px;
+    .side-header h4 {
+      margin: 0;
+      font-size: 16px;
       color: #0d4b73;
-      display: block;
+      font-weight: 800;
     }
 
-    .side-total span {
-      font-size: 13px;
+    .side-header strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 28px;
+      color: #0d4b73;
+    }
+
+    .side-header span {
+      font-size: 12px;
       color: #667085;
     }
 
     .side-list {
-      padding: 12px;
+      padding: 14px;
       display: grid;
+      grid-template-columns: 1fr;
       gap: 12px;
       overflow-y: auto;
     }
@@ -86,41 +85,32 @@
       border: 1px solid #dbe7f1;
       border-radius: 16px;
       padding: 14px;
-      box-shadow: 0 4px 12px rgba(0,0,0,.04);
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 8px;
       text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,.04);
     }
 
     .brand-logo {
       width: 64px;
       height: 64px;
       border-radius: 14px;
+      border: 1px solid #e3e9f1;
       object-fit: contain;
-      border: 1px solid #dbe7f1;
+      background: #fff;
     }
 
     .brand-name {
+      font-size: 14px;
       font-weight: 800;
-      font-size: 15px;
       color: #22364a;
     }
 
     .brand-sub {
-      font-size: 13px;
+      font-size: 12px;
       color: #667085;
-    }
-
-    /* ===== Main ===== */
-    .main {
-      padding: 22px;
-      color: #fff;
-    }
-
-    h3 {
-      margin-top: 0;
     }
   </style>
 </head>
@@ -128,30 +118,25 @@
 <body>
 <div class="container">
 
-  <div class="card">
-    <h3>Check‑List Dashboard</h3>
-  </div>
-
-  <div class="dashboard-board" id="dashboardCapture">
+  <div class="dashboard-board">
     <div class="board-layout">
+
+      <!-- ===== Main Content ===== -->
+      <main class="main">
+        <h2>Overall Assessment</h2>
+        <p style="opacity:.8">لوحة التقييم العامة للأقسام</p>
+      </main>
 
       <!-- ===== Sidebar ===== -->
       <aside class="side">
-        <div class="side-title">Visited Brands</div>
-
-        <div class="side-total">
+        <div class="side-header">
+          <h4>Visited Brands</h4>
           <strong id="sideTotalVisits">0</strong>
           <span>إجمالي الزيارات</span>
         </div>
 
-        <div class="side-list" id="sideBrandList"></div>
+        <div id="sideBrandList" class="side-list"></div>
       </aside>
-
-      <!-- ===== Main Content ===== -->
-      <main class="main">
-        <h3>Overall Assessment</h3>
-        <p>لوحة التقييم العامة (الأقسام كما هي)</p>
-      </main>
 
     </div>
   </div>
@@ -161,86 +146,96 @@
 <script>
 (function(){
 
-  var state = {
+  const state = {
     visits: [],
     brands: []
   };
 
   function escapeHtml(v){
-    return String(v || '').replace(/[&<>"']/g, s => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-    }[s]));
-  }
-
-  /* ===== Date Handler (حل مشكلتك) ===== */
-  function getVisitDate(item){
-    if (item.date && typeof item.date === 'string') {
-      const d = new Date(item.date + 'T00:00:00');
-      return isNaN(d.getTime()) ? null : d;
-    }
-    if (item.createdAt && typeof item.createdAt.toDate === 'function') {
-      return item.createdAt.toDate();
-    }
-    return null;
+    return String(v || '').replace(/[&<>"']/g, s =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])
+    );
   }
 
   function getBrandName(v){
     return v.brand || v.brandName || v.brandKey || 'بدون اسم';
   }
 
-  function aggregateVisitedBrands(visits){
-    const map = new Map();
+  function getBrandLogo(brandName){
+    if (!brandName) return '';
+    const key = brandName.toLowerCase();
 
-    visits.forEach(v => {
-      const name = getBrandName(v);
-      if (!map.has(name)) map.set(name, 0);
-      map.set(name, map.get(name) + 1);
-    });
+    const asset = state.brands.find(b =>
+      (b.brand && b.brand.toLowerCase() === key) ||
+      (b.brandKey && b.brandKey.toLowerCase() === key) ||
+      (b.key && b.key.toLowerCase() === key)
+    );
 
-    return {
-      total: visits.length,
-      items: Array.from(map.entries()).map(([name, count]) => ({
-        name,
-        count
-      }))
-    };
+    if (!asset) return '';
+
+    if (asset.logoUrl) return asset.logoUrl;
+
+    if (asset.logoData) {
+      return asset.logoData.startsWith('data:image')
+        ? asset.logoData
+        : 'data:image/png;base64,' + asset.logoData;
+    }
+
+    return '';
   }
 
   function renderBrands(){
     const list = document.getElementById('sideBrandList');
     const totalBox = document.getElementById('sideTotalVisits');
 
-    const agg = aggregateVisitedBrands(state.visits);
-    totalBox.textContent = agg.total;
+    const map = {};
+    state.visits.forEach(v => {
+      const name = getBrandName(v);
+      map[name] = (map[name] || 0) + 1;
+    });
 
-    if (!agg.items.length) {
-      list.innerHTML =
-        '<div class="brand-item">' +
-        '<div class="brand-name">لا توجد زيارات</div>' +
-        '<div class="brand-sub">ضمن الفترة</div>' +
-        '</div>';
+    const items = Object.entries(map).map(([name, count]) => ({
+      name,
+      count,
+      logo: getBrandLogo(name)
+    }));
+
+    totalBox.textContent = state.visits.length;
+
+    if (!items.length){
+      list.innerHTML = `
+        <div class="brand-item">
+          <div class="brand-name">لا توجد زيارات</div>
+          <div class="brand-sub">ضمن الفترة</div>
+        </div>`;
       return;
     }
 
-    list.innerHTML = agg.items.map(item => `
+    list.innerHTML = items.map(item => `
       <div class="brand-item">
-        <img class="brand-logo" src="" alt="">
+        ${
+          item.logo
+            ? `<img class="brand-logo" src="${item.logo}" alt="${escapeHtml(item.name)};align-items:center;justify-content:center;color:#94a3b8">—</div>`
+        }
         <div class="brand-name">${escapeHtml(item.name)}</div>
         <div class="brand-sub">${item.count} زيارة</div>
       </div>
     `).join('');
   }
 
-  /* ===== Firebase Hook ===== */
   function start(db){
     db.collection('siteVisits').onSnapshot(snap => {
       state.visits = snap.docs.map(d => d.data());
       renderBrands();
     });
+
+    db.collection('brand_assets').onSnapshot(snap => {
+      state.brands = snap.docs.map(d => d.data());
+      renderBrands();
+    });
   }
 
-  /* ===== Bootstrap ===== */
-  if (window.parent && window.parent.firebase) {
+  if (window.parent && window.parent.firebase){
     start(window.parent.firebase.firestore());
   }
 
@@ -249,4 +244,3 @@
 
 </body>
 </html>
-``
