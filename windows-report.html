@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" id="report-html">
 <head>
     <meta charset="UTF-8">
-    <title>تقرير المجدوعي للسيارات — Upgrade Windows</title>
+    <title>تقرير ترقية الأنظمة — Almajdouie Motors</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -12,75 +12,146 @@
 
     <style>
         :root { --primary: #0d4b73; --success: #10b981; --warning: #f59e0b; --bg: #f4f7f9; }
-        body { margin: 0; padding: 40px; font-family: 'Segoe UI', sans-serif; background: #e2e8f0; color: #1e293b; }
+        body { margin: 0; padding: 40px; font-family: 'Segoe UI', Tahoma, sans-serif; background: #e2e8f0; transition: 0.3s; }
         
+        /* الحاوية الأساسية للتقرير */
         .report-paper { 
             max-width: 1100px; margin: auto; background: white; padding: 50px; 
             border-radius: 25px; box-shadow: 0 15px 50px rgba(0,0,0,0.1); 
         }
 
+        /* الهيدر الرسمي */
         .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 3px solid var(--primary); padding-bottom: 20px; }
         .logo-box { display: flex; align-items: center; gap: 20px; }
         .logo-img { height: 65px; }
-        .title-box h1 { margin: 0; font-size: 26px; color: var(--primary); }
+        .title-box h1 { margin: 0; font-size: 26px; color: var(--primary); font-weight: 800; }
         .title-box p { margin: 5px 0 0; font-size: 14px; color: #64748b; }
 
+        /* البطاقات الكبرى */
         .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; margin-bottom: 40px; }
         .stat-card { background: #fff; padding: 25px; border-radius: 20px; text-align: center; border: 1px solid #f1f5f9; }
         .stat-card h2 { font-size: 52px; margin: 10px 0; color: var(--primary); }
+        .stat-card span { font-weight: bold; color: #475569; font-size: 16px; }
 
+        /* القوائم الثلاث */
         .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        .list-card { border: 1px solid #f1f5f9; border-radius: 18px; padding: 20px; }
-        .list-card h4 { margin: 0 0 15px; color: var(--primary); border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
+        .list-card { border: 1px solid #f1f5f9; border-radius: 18px; padding: 20px; background: #fff; }
+        .list-card h4 { margin: 0 0 15px; color: var(--primary); font-size: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; display: flex; align-items: center; gap: 10px; }
         
-        .item { background: #f8fafc; border-radius: 12px; padding: 12px; margin-bottom: 10px; }
-        .mini-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 8px; }
-        .m-box { font-size: 10px; background: white; padding: 4px; border-radius: 6px; text-align: center; border: 1px solid #eee; }
-
+        .item { background: #f8fafc; border-radius: 12px; padding: 12px; margin-bottom: 10px; border: 1px solid #f1f5f9; }
+        .item-top { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 13px; margin-bottom: 8px; }
         .brand-logo { width: 30px; height: 30px; object-fit: contain; margin-left: 8px; }
 
-        .capture-btn { 
-            position: fixed; bottom: 30px; left: 30px; background: var(--success); color: white; 
-            border: none; padding: 15px 30px; border-radius: 50px; cursor: pointer; 
-            font-weight: bold; box-shadow: 0 5px 20px rgba(16, 185, 129, 0.4); z-index: 1000;
+        /* الأزرار العائمة */
+        .controls { position: fixed; bottom: 30px; left: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
+        .btn { 
+            border: none; padding: 15px 25px; border-radius: 50px; cursor: pointer; 
+            font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 10px; transition: 0.3s; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
+        .btn-lang { background: var(--primary); color: white; }
+        .btn-copy { background: var(--success); color: white; }
+
+        /* تحويل الاتجاه */
+        [dir="ltr"] .header, [dir="ltr"] .item-top { flex-direction: row-reverse; }
+        [dir="ltr"] .logo-box { flex-direction: row-reverse; }
+        [dir="ltr"] .title-box { text-align: left; }
     </style>
 </head>
 <body>
 
-<button class="capture-btn" onclick="copyReport()">
-    <i class="fas fa-camera"></i> نسخ التقرير كصورة للإيميل
-</button>
+<div class="controls">
+    <button class="btn btn-lang" onclick="toggleLanguage()">
+        <i class="fas fa-language"></i> <span id="lang-text">English</span>
+    </button>
+    <button class="btn btn-copy" onclick="copyReportImage()">
+        <i class="fas fa-camera"></i> <span data-i18n="btn_capture">نسخ التقرير كصورة للإيميل</span>
+    </button>
+</div>
 
-<div class="report-paper" id="report-area">
+<div class="report-paper" id="report-content">
     <div class="header">
         <div class="logo-box">
-            <img src="LOGO-almajdouie.png" alt="Logo" class="logo-img">
+            <img src="LOGO-almajdouie.png" alt="Almajdouie Logo" class="logo-img">
             <div class="title-box">
-                <h1>شركة المجدوعي للسيارات</h1>
-                <p>إدارة ترقية الأنظمة - Upgrade Windows</p>
+                <h1 data-i18n="comp_name">شركة المجدوعي للسيارات</h1>
+                <p data-i18n="sys_name">نظام متابعة ترقية الأنظمة - Upgrade Windows Management</p>
             </div>
         </div>
         <div style="text-align: left; font-size: 12px; color: #94a3b8;">
-            بتاريخ: <span id="date-now"></span><br>
-            <span id="user-tag" style="color:var(--primary)">جاري المزامنة...</span>
+            <span data-i18n="date_lbl">تاريخ التقرير</span>: <span id="report-date"></span><br>
+            <span id="user-status">...</span>
         </div>
     </div>
 
     <div class="stats-row">
-        <div class="stat-card"><span>إجمالي الأجهزة</span><h2 id="v-total">0</h2></div>
-        <div class="stat-card" style="border-color:var(--warning)"><span>متبقي (Planned)</span><h2 id="v-remain" style="color:var(--warning)">0</h2></div>
-        <div class="stat-card" style="border-color:var(--success)"><span>مكتمل (Completed)</span><h2 id="v-done" style="color:var(--success)">0</h2></div>
+        <div class="stat-card"><span data-i18n="stat_total">إجمالي الأجهزة</span><h2 id="v-total">0</h2></div>
+        <div class="stat-card" style="border-color:var(--warning)"><span data-i18n="stat_remain">متبقي (Planned)</span><h2 id="v-remain" style="color:var(--warning)">0</h2></div>
+        <div class="stat-card" style="border-color:var(--success)"><span data-i18n="stat_done">مكتمل (Completed)</span><h2 id="v-done" style="color:var(--success)">0</h2></div>
     </div>
 
     <div class="details-grid">
-        <div class="list-card"><h4>المناطق</h4><div id="list-reg"></div></div>
-        <div class="list-card"><h4>المدن</h4><div id="list-city"></div></div>
-        <div class="list-card"><h4>البراندات</h4><div id="list-brand"></div></div>
+        <div class="list-card"><h4 data-i18n="sec_reg"><i class="fas fa-map-marker-alt"></i> المناطق</h4><div id="list-reg"></div></div>
+        <div class="list-card"><h4 data-i18n="sec_city"><i class="fas fa-city"></i> المدن</h4><div id="list-city"></div></div>
+        <div class="list-card"><h4 data-i18n="sec_brand"><i class="fas fa-car"></i> البراندات</h4><div id="list-brand"></div></div>
+    </div>
+
+    <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 15px;" data-i18n="footer">
+        هذا التقرير تم إنشاؤه آلياً بواسطة نظام إدارة الترقيات © 2026
     </div>
 </div>
 
 <script>
+    // 1. نظام الترجمة
+    const i18n = {
+        ar: {
+            comp_name: "شركة المجدوعي للسيارات",
+            sys_name: "نظام متابعة ترقية الأنظمة - Upgrade Windows Management",
+            date_lbl: "تاريخ التقرير",
+            stat_total: "إجمالي الأجهزة",
+            stat_remain: "متبقي (Planned)",
+            stat_done: "مكتمل (Completed)",
+            sec_reg: "المناطق",
+            sec_city: "المدن",
+            sec_brand: "البراندات والشعارات",
+            footer: "هذا التقرير تم إنشاؤه آلياً بواسطة نظام إدارة الترقيات © 2026",
+            btn_capture: "نسخ التقرير كصورة للإيميل",
+            txt_total: "إجمالي", txt_remain: "باقي", txt_done: "تم"
+        },
+        en: {
+            comp_name: "Almajdouie Motors Company",
+            sys_name: "Systems Upgrade Tracking - Upgrade Windows Management",
+            date_lbl: "Report Date",
+            stat_total: "Total Devices",
+            stat_remain: "Remaining (Planned)",
+            stat_done: "Completed (Completed)",
+            sec_reg: "Regions",
+            sec_city: "Cities",
+            sec_brand: "Brands & Logos",
+            footer: "This report was auto-generated by the Upgrade Management System © 2026",
+            btn_capture: "Copy Report as Image for Email",
+            txt_total: "Total", txt_remain: "Remain", txt_done: "Done"
+        }
+    };
+
+    let currentLang = 'ar';
+
+    function toggleLanguage() {
+        currentLang = currentLang === 'ar' ? 'en' : 'ar';
+        const d = i18n[currentLang];
+        
+        document.getElementById('report-html').dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+        document.getElementById('lang-text').innerText = currentLang === 'ar' ? 'English' : 'العربية';
+        
+        // تحديث النصوص
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            el.innerText = d[el.getAttribute('data-i18n')];
+        });
+
+        // إعادة تشغيل المزامنة لتحديث القوائم بلغة جديدة
+        startSync();
+    }
+
+    // 2. Firebase Setup (baghethan-ba325)
     const firebaseConfig = {
       apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
       authDomain: "baghethan-ba325.firebaseapp.com",
@@ -90,31 +161,27 @@
       appId: "1:944819735112:web:07315600da39377320667d"
     };
 
-    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const auth = firebase.auth();
     let brandLogos = {};
 
-    document.getElementById('date-now').innerText = new Date().toLocaleDateString('ar-SA');
+    document.getElementById('report-date').innerText = new Date().toLocaleDateString('ar-SA');
 
-    // 💡 الربط بـ login.html: التحقق من الهوية أولاً
     auth.onAuthStateChanged(async user => {
         if (user) {
-            document.getElementById('user-tag').innerText = "متصل: " + user.email;
-            await loadBrandLogos();
-            startReportSync();
-        } else {
-            // إذا لم يكن مسجلاً، اذهب لصفحة الدخول
-            window.location.href = "login.html";
-        }
+            document.getElementById('user-status').innerText = "User: " + user.email;
+            await fetchLogos();
+            startSync();
+        } else { window.location.href = "login.html"; }
     });
 
-    async function loadBrandLogos() {
+    async function fetchLogos() {
         const snap = await db.collection("brand_assets").get();
         snap.forEach(doc => { if(doc.data().brandKey) brandLogos[doc.data().brandKey.toLowerCase()] = doc.data().logoData; });
     }
 
-    function startReportSync() {
+    function startSync() {
         db.collection("windows_upgrades").onSnapshot(snapshot => {
             let total = 0, done = 0;
             const sums = { region: {}, city: {}, brand: {} };
@@ -126,7 +193,7 @@
                 total += c; if(s === 'completed') done += c;
 
                 ['region', 'city', 'brand'].forEach(k => {
-                    let val = d[k] || 'غير محدد';
+                    let val = d[k] || 'N/A';
                     if(!sums[k][val]) sums[k][val] = { t:0, d:0 };
                     sums[k][val].t += c; if(s === 'completed') sums[k][val].d += c;
                 });
@@ -136,39 +203,37 @@
             document.getElementById('v-done').innerText = done;
             document.getElementById('v-remain').innerText = total - done;
 
-            render(sums.region, 'list-reg');
-            render(sums.city, 'list-city');
-            render(sums.brand, 'list-brand', true);
-        }, err => {
-            if(err.code === 'permission-denied') alert("خطأ: لا تملك صلاحية عرض البيانات. تأكد من تفعيل حسابك.");
+            render('list-reg', sums.region);
+            render('list-city', sums.city);
+            render('list-brand', sums.brand, true);
         });
     }
 
-    function render(data, containerId, isBrand = false) {
-        const el = document.getElementById(containerId); el.innerHTML = '';
+    function render(id, data, isBrand = false) {
+        const el = document.getElementById(id); el.innerHTML = '';
+        const d = i18n[currentLang];
         Object.entries(data).sort((a,b)=>b[1].t - a[1].t).forEach(([name, v]) => {
             let logo = (isBrand && brandLogos[name.toLowerCase()]) ? `<img src="${brandLogos[name.toLowerCase()]}" class="brand-logo">` : '';
-            el.innerHTML += `<div class="item">
-                <div style="display:flex; justify-content:space-between; align-items:center; font-weight:bold; font-size:13px; margin-bottom:8px;">
-                    <div>${logo} ${name}</div> <span>${Math.round((v.d/v.t)*100)}%</span>
-                </div>
-                <div class="mini-stats">
-                    <div class="m-box">إجمالي: ${v.t}</div>
-                    <div class="m-box" style="color:orange">باقي: ${v.t-v.d}</div>
-                    <div class="m-box" style="color:green">تم: ${v.d}</div>
-                </div>
-            </div>`;
+            el.innerHTML += `
+                <div class="item">
+                    <div class="item-top"><div>${logo} ${name}</div> <span>${Math.round((v.d/v.t)*100)}%</span></div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; text-align:center; font-size:10px;">
+                        <div style="background:white; border-radius:5px; padding:3px;">${d.txt_total}: ${v.t}</div>
+                        <div style="background:white; border-radius:5px; padding:3px; color:orange;">${d.txt_remain}: ${v.t-v.d}</div>
+                        <div style="background:white; border-radius:5px; padding:3px; color:green;">${d.txt_done}: ${v.d}</div>
+                    </div>
+                </div>`;
         });
     }
 
-    async function copyReport() {
-        const btn = document.querySelector('.capture-btn');
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري النسخ...';
-        const canvas = await html2canvas(document.getElementById('report-area'), { scale: 2, backgroundColor: "#ffffff" });
+    async function copyReportImage() {
+        const btn = document.querySelector('.btn-copy');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+        const canvas = await html2canvas(document.getElementById('report-content'), { scale: 2, backgroundColor: "#ffffff" });
         canvas.toBlob(blob => {
-            navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => {
-                btn.innerHTML = '<i class="fas fa-check"></i> تم النسخ للحافظة!';
-                setTimeout(() => btn.innerHTML = '<i class="fas fa-camera"></i> نسخ التقرير كصورة للإيميل', 2000);
+            navigator.clipboard.write([new ClipboardItem({"image/png": blob})]).then(() => {
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                setTimeout(() => btn.innerHTML = '<i class="fas fa-camera"></i> ' + i18n[currentLang].btn_capture, 2000);
             });
         });
     }
