@@ -3,90 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upgrade Windows — V1.0.9</title>
+    <title>Upgrade Windows — V1.1.1</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
     <style>
-        :root {
-            --primary: #0d4b73;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --glass: rgba(255, 255, 255, 0.85);
-        }
-
-        body {
-            margin: 0; padding: 20px; font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: transparent; color: #1e293b;
-        }
-
-        .container-glass {
-            background: var(--glass); backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 20px;
-            padding: 25px; box-shadow: 0 8px 32px rgba(0,0,0,0.08);
-            position: relative;
-        }
-
-        .info-header {
-            display: flex; justify-content: space-between;
-            font-size: 11px; color: #64748b; font-weight: bold; margin-bottom: 8px;
-        }
-
+        :root { --primary: #0d4b73; --success: #10b981; --warning: #f59e0b; --glass: rgba(255, 255, 255, 0.9); }
+        body { margin: 0; padding: 20px; font-family: 'Segoe UI', sans-serif; background: transparent; color: #1e293b; }
+        
+        .container-glass { background: var(--glass); backdrop-filter: blur(15px); border-radius: 20px; padding: 25px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+        
+        /* القسم 1: الإحصائيات */
         .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 20px 0; }
-        .stat-card {
-            background: #fff; padding: 20px; border-radius: 16px; text-align: center;
-            border-bottom: 5px solid var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.02);
-        }
-        .stat-card.warning { border-bottom-color: var(--warning); }
-        .stat-card.success { border-bottom-color: var(--success); }
+        .stat-card { background: #fff; padding: 20px; border-radius: 16px; text-align: center; border-bottom: 5px solid var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.02); }
         .stat-card h2 { font-size: 38px; margin: 8px 0 0; color: var(--primary); }
 
-        .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        .list-box { max-height: 480px; overflow-y: auto; background: rgba(255,255,255,0.5); border-radius: 15px; padding: 10px; }
-        .item-row { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 10px; border: 1px solid #eee; }
+        /* القسم 2: القوائم الثلاث */
+        .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .list-box { max-height: 400px; overflow-y: auto; background: rgba(255,255,255,0.5); border-radius: 15px; padding: 10px; border: 1px solid #eee; }
+        .item-row { background: #fff; border-radius: 10px; padding: 10px; margin-bottom: 8px; border: 1px solid #f1f5f9; font-size: 13px; }
+
+        /* القسم 3: الجدول الموسع */
+        .table-wrapper { overflow-x: auto; margin-top: 20px; border-radius: 12px; border: 1px solid #eee; background: #fff; }
+        table { width: 100%; border-collapse: collapse; min-width: 1600px; font-size: 11px; }
+        th { background: var(--primary); color: #fff; padding: 10px 5px; text-align: right; position: sticky; top: 0; }
+        td { padding: 8px 5px; border-bottom: 1px solid #f1f5f9; }
+        .search-input { width: 90%; padding: 4px; margin-top: 5px; border-radius: 4px; border: 1px solid #ddd; font-size: 10px; outline: none; }
         
-        #conn-indicator { font-size: 12px; font-weight: bold; }
+        .status-badge { padding: 3px 7px; border-radius: 10px; font-weight: bold; font-size: 9px; }
+        .info-header { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
 <div class="container-glass">
     <div class="info-header">
-        <div id="update-time">توقيت العرض: --:--</div>
-        <div>VERSION 1.0.9</div>
+        <div id="update-time">آخر تحديث: --:--</div>
+        <div>VERSION 1.1.1</div>
     </div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="color: var(--primary); margin: 0;">لوحة متابعة تحديثات ويندوز</h2>
-        <div id="conn-indicator" style="color: var(--warning);">● جاري فحص الصلاحيات...</div>
-    </div>
+    <h2 style="color: var(--primary); margin: 0;">لوحة متابعة تحديثات ويندوز</h2>
 
     <div class="stats-grid">
-        <div class="stat-card">
-            <span>إجمالي الأجهزة</span>
-            <h2 id="total-val">0</h2>
-        </div>
-        <div class="stat-card warning">
-            <span>متبقي</span>
-            <h2 id="remain-val" style="color: var(--warning);">0</h2>
-        </div>
-        <div class="stat-card success">
-            <span>مكتمل</span>
-            <h2 id="done-val" style="color: var(--success);">0</h2>
-        </div>
+        <div class="stat-card"><span>إجمالي الأجهزة</span><h2 id="total-val">0</h2></div>
+        <div class="stat-card" style="border-color:var(--warning)"><span>متبقي</span><h2 id="remain-val" style="color:var(--warning)">0</h2></div>
+        <div class="stat-card" style="border-color:var(--success)"><span>مكتمل</span><h2 id="done-val" style="color:var(--success)">0</h2></div>
     </div>
 
     <div class="details-grid">
-        <div><h4>المناطق</h4> <div id="reg-list" class="list-box"></div></div>
-        <div><h4>المدن</h4> <div id="city-list" class="list-box"></div></div>
-        <div><h4>البراندات</h4> <div id="brand-list" class="list-box"></div></div>
+        <div><h4>المناطق</h4><div id="reg-list" class="list-box"></div></div>
+        <div><h4>المدن</h4><div id="city-list" class="list-box"></div></div>
+        <div><h4>البراندات</h4><div id="brand-list" class="list-box"></div></div>
+    </div>
+
+    <h3 style="color: var(--primary); border-top: 1px solid #eee; pt: 20px;">سجلات الأجهزة التفصيلية</h3>
+    <div class="table-wrapper">
+        <table id="mainTable">
+            <thead>
+                <tr>
+                    <th>Branch ID <br><input type="text" class="search-input" onkeyup="filterTable(0)" placeholder="بحث..."></th>
+                    <th>Branch Name <br><input type="text" class="search-input" onkeyup="filterTable(1)" placeholder="بحث..."></th>
+                    <th>Brand <br><input type="text" class="search-input" onkeyup="filterTable(2)" placeholder="بحث..."></th>
+                    <th>Function <br><input type="text" class="search-input" onkeyup="filterTable(3)" placeholder="بحث..."></th>
+                    <th>City <br><input type="text" class="search-input" onkeyup="filterTable(4)" placeholder="بحث..."></th>
+                    <th>Region <br><input type="text" class="search-input" onkeyup="filterTable(5)" placeholder="بحث..."></th>
+                    <th>Employee ID <br><input type="text" class="search-input" onkeyup="filterTable(6)" placeholder="بحث..."></th>
+                    <th>Employee Name <br><input type="text" class="search-input" onkeyup="filterTable(7)" placeholder="بحث..."></th>
+                    <th>Device Name <br><input type="text" class="search-input" onkeyup="filterTable(8)" placeholder="بحث..."></th>
+                    <th>Visit Date <br><input type="text" class="search-input" onkeyup="filterTable(9)" placeholder="بحث..."></th>
+                    <th>Checklist Saved <br><input type="text" class="search-input" onkeyup="filterTable(10)" placeholder="بحث..."></th>
+                    <th>Status <br><input type="text" class="search-input" onkeyup="filterTable(11)" placeholder="بحث..."></th>
+                    <th style="text-align:center">إجراء</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
     </div>
 </div>
 
 <script>
-    // ✅ بيانات الربط الخاصة بمشروعك baghethan-ba325
     const firebaseConfig = {
       apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
       authDomain: "baghethan-ba325.firebaseapp.com",
@@ -98,104 +96,90 @@
 
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    const auth = firebase.auth();
 
-    function updateDateTime() {
-        const now = new Date();
-        document.getElementById('update-time').innerText = 
-            `آخر تحديث: ${now.toLocaleDateString('ar-SA')} | ${now.toLocaleTimeString('ar-SA')}`;
-    }
+    db.collection("windows_upgrades").onSnapshot(snapshot => {
+        let total = 0, done = 0;
+        const stats = { Region: {}, City: {}, Brand: {} };
+        const tableData = [];
 
-    function listenToData() {
-        // الاستماع لمجموعة windows_upgrades بناءً على صورك وقواعدك
-        db.collection("windows_upgrades").onSnapshot(snapshot => {
-            if (snapshot.empty) {
-                document.getElementById('conn-indicator').innerText = "● لا توجد بيانات حالياً";
-                document.getElementById('conn-indicator').style.color = "red";
-                return;
-            }
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            let count = parseInt(data.devicesCount);
+            if (isNaN(count)) count = 1;
 
-            document.getElementById('conn-indicator').innerText = "● متصل بالسحابة";
-            document.getElementById('conn-indicator').style.color = "var(--success)";
+            const status = String(data.status || '').toLowerCase().trim();
+            const isDone = (status === 'completed');
 
-            let total = 0, done = 0;
-            const stats = { Region: {}, City: {}, Brand: {} };
+            total += count;
+            if (isDone) done += count;
 
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                
-                // ✅ معالجة الحقول: إذا كان devicesCount نل، نفترضه جهازاً واحداً
-                let count = parseInt(data.devicesCount);
-                if (isNaN(count)) count = 1; 
+            // تحديث إحصائيات القوائم الثلاث
+            const updateObj = (obj, key) => {
+                if (!obj[key]) obj[key] = { t: 0, d: 0 };
+                obj[key].t += count;
+                if (isDone) obj[key].d += count;
+            };
+            updateObj(stats.Region, data.region || 'N/A');
+            updateObj(stats.City, data.city || 'N/A');
+            updateObj(stats.Brand, data.brand || 'N/A');
 
-                const status = String(data.status || '').toLowerCase().trim();
-                const isDone = (status === 'completed');
-                
-                total += count;
-                if (isDone) done += count;
-
-                // تصنيف البيانات حسب الحقول الموجودة في الصورة
-                const reg = data.region || 'غير محدد';
-                const cit = data.city || 'غير محدد';
-                const brd = data.brand || 'غير محدد';
-
-                const updateObj = (obj, key) => {
-                    if (!obj[key]) obj[key] = { t: 0, d: 0 };
-                    obj[key].t += count;
-                    if (isDone) obj[key].d += count;
-                };
-
-                updateObj(stats.Region, reg);
-                updateObj(stats.City, cit);
-                updateObj(stats.Brand, brd);
-            });
-
-            document.getElementById('total-val').innerText = total;
-            document.getElementById('done-val').innerText = done;
-            document.getElementById('remain-val').innerText = total - done;
-
-            renderList('reg-list', stats.Region);
-            renderList('city-list', stats.City);
-            renderList('brand-list', stats.Brand);
-            updateDateTime();
-
-        }, error => {
-            console.error(error);
-            // سيظهر هذا الخطأ إذا حاولت فتح الصفحة بدون تسجيل دخول مسبق
-            document.getElementById('conn-indicator').innerText = "● خطأ: " + error.code;
-            document.getElementById('conn-indicator').style.color = "red";
+            tableData.push({ id: doc.id, ...data });
         });
-    }
 
-    function renderList(id, obj) {
-        const container = document.getElementById(id);
-        container.innerHTML = '';
-        Object.entries(obj).sort((a,b) => b[1].t - a[1].t).forEach(([name, s]) => {
-            const pct = Math.round((s.d / s.t) * 100) || 0;
-            container.innerHTML += `
-                <div class="item-row">
-                    <div style="font-weight:bold; font-size:13px;">${name}</div>
-                    <div style="display:flex; justify-content:space-between; font-size:11px; margin:5px 0;">
-                        <span>إجمالي: ${s.t}</span>
-                        <span style="color:var(--warning)">متبقي: ${s.t - s.d}</span>
-                        <span style="color:var(--success)">مكتمل: ${s.d}</span>
-                    </div>
-                    <div style="height:4px; background:#eee; border-radius:10px; overflow:hidden;">
-                        <div style="width:${pct}%; height:100%; background:var(--primary);"></div>
-                    </div>
-                </div>`;
-        });
-    }
+        // عرض الأرقام والبطاقات
+        document.getElementById('total-val').innerText = total;
+        document.getElementById('done-val').innerText = done;
+        document.getElementById('remain-val').innerText = total - done;
 
-    // يجب التحقق من تسجيل الدخول أولاً للسماح بالقراءة
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            listenToData();
-        } else {
-            document.getElementById('conn-indicator').innerText = "● يرجى تسجيل الدخول أولاً";
-            document.getElementById('conn-indicator').style.color = "red";
-        }
+        renderLists(stats);
+        renderTable(tableData);
+        updateTime();
     });
+
+    function renderLists(stats) {
+        const render = (id, obj) => {
+            const cont = document.getElementById(id); cont.innerHTML = '';
+            Object.entries(obj).sort((a,b)=>b[1].t - a[1].t).forEach(([name, s]) => {
+                const pct = Math.round((s.d/s.t)*100) || 0;
+                cont.innerHTML += `<div class="item-row"><b>${name}</b><br><small>إجمالي: ${s.t} | متبقي: ${s.t-s.d}</small>
+                <div style="height:3px;background:#eee;margin-top:5px"><div style="width:${pct}%;height:100%;background:var(--primary)"></div></div></div>`;
+            });
+        };
+        render('reg-list', stats.Region); render('city-list', stats.City); render('brand-list', stats.Brand);
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('tableBody'); tbody.innerHTML = '';
+        data.forEach(item => {
+            const stColor = item.status === 'completed' ? 'background:#d1fae5;color:#065f46' : 'background:#fff3cd;color:#856404';
+            tbody.innerHTML += `<tr>
+                <td>${item.branchId || ''}</td><td>${item.branchName || ''}</td><td>${item.brand || ''}</td>
+                <td>${item.functionName || item.function || ''}</td><td>${item.city || ''}</td><td>${item.region || ''}</td>
+                <td>${item.employeeId || ''}</td><td>${item.employeeName || ''}</td><td>${item.deviceName || ''}</td>
+                <td>${item.technicianVisitDate || ''}</td><td>${item.checklistSavedDate || ''}</td>
+                <td><span class="status-badge" style="${stColor}">${item.status || 'planned'}</span></td>
+                <td style="text-align:center"><i class="fas fa-edit" style="color:var(--primary);cursor:pointer"></i></td>
+            </tr>`;
+        });
+    }
+
+    function filterTable(idx) {
+        const inputs = document.querySelectorAll('.search-input');
+        const rows = document.querySelectorAll('#tableBody tr');
+        rows.forEach(row => {
+            let show = true;
+            inputs.forEach((input, i) => {
+                const val = input.value.toLowerCase();
+                const cell = row.cells[i].innerText.toLowerCase();
+                if (val && !cell.includes(val)) show = false;
+            });
+            row.style.display = show ? '' : 'none';
+        });
+    }
+
+    function updateTime() {
+        const now = new Date(); document.getElementById('update-time').innerText = `آخر تحديث: ${now.toLocaleTimeString('ar-SA')}`;
+    }
 </script>
 </body>
 </html>
