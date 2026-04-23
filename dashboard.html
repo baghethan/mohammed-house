@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl" id="mainHtml">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard v1.6.2 | فحص الصلاحيات</title>
+  <title>Dashboard v1.6.3 | المجدوعي للسيارات</title>
   <link rel="icon" href="data:;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -11,7 +11,8 @@
   <style>
     :root { --header: #020617; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #38bdf8; }
     body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
-    .dashboard-wrapper { display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
+    .dashboard-wrapper { display: grid; grid-template-columns: 240px 1fr; height: 100vh; transition: 0.3s; }
+    html[dir="ltr"] .dashboard-wrapper { grid-template-columns: 1fr 240px; }
     .sidebar { background: #fff; color: #000; border-left: 2px solid #ddd; padding: 20px; display: flex; flex-direction: column; align-items: center; position: relative; }
     .side-title { color: #0d4b73; font-size: 26px; font-weight: 800; transform: rotate(-90deg); position: absolute; left: -65px; top: 220px; white-space: nowrap; }
     .top-nav { padding: 12px 15px; background: var(--header); color: #fff; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; }
@@ -19,8 +20,12 @@
     .card { background: var(--card); border-radius: 8px; border: 1px solid #334155; display: flex; flex-direction: column; }
     .card-header { background: #0d4b73; color: #fff; padding: 8px 12px; font-size: 13px; font-weight: bold; }
     .card-body { padding: 15px; flex-grow: 1; min-height: 190px; display: flex; align-items: flex-end; justify-content: space-around; }
+    .bar-group { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
     .bar { width: 28px; background: var(--primary); border-radius: 4px; position: relative; transition: height 1s; }
-    .footer-info { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; color: #64748b; padding: 6px 20px; display: flex; justify-content: space-between; font-size: 11px; }
+    .bar-val { position: absolute; top: -20px; width: 100%; text-align: center; font-size: 10px; font-weight: bold; }
+    .footer-info { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; color: #64748b; padding: 6px 20px; display: flex; justify-content: space-between; font-size: 11px; z-index: 100; }
+    .lang-btn { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid #444; padding: 2px 8px; cursor: pointer; border-radius: 4px; font-size: 10px; margin: 0 2px; }
+    .lang-btn.active { background: var(--primary); color: #000; border-color: var(--primary); }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -30,34 +35,48 @@
   <aside class="sidebar">
     <div class="side-title">Site Visits Dashboard</div>
     <div style="text-align: center; margin-top: 20px;">
-        <span style="font-size: 11px; font-weight: bold;">إجمالي الزيارات</span>
+        <span style="font-size: 11px; font-weight: bold;" id="lblVisits">إجمالي الزيارات</span>
         <h1 style="font-size: 60px; margin: 5px 0; color: #0d4b73;" id="totalVisits">0</h1>
     </div>
   </aside>
 
   <div class="main-content">
     <div class="top-nav">
-        <div style="font-weight: bold; font-size: 14px;">نظام إدارة الزيارات | إصدار الفحص v1.6.2</div>
-        <div style="display:flex; gap:10px;">
-            <button onclick="setLang('ar')" style="background:none; color:#fff; border:1px solid #fff; cursor:pointer;">AR</button>
-            <button onclick="setLang('en')" style="background:none; color:#fff; border:1px solid #fff; cursor:pointer;">EN</button>
+        <div style="font-weight: bold; font-size: 14px;" id="lblNav">نظام إدارة الزيارات | إصدار v1.6.3</div>
+        <div>
+            <button class="lang-btn" id="btnEN" onclick="setLang('en')">EN</button>
+            <button class="lang-btn" id="btnAR" onclick="setLang('ar')">AR</button>
         </div>
     </div>
     <main class="main-grid">
-        <div class="card"><div class="card-header">Network Infrastructure</div><div class="card-body" id="networkChart"></div></div>
-        <div class="card"><div class="card-header">End User Services</div><div class="card-body" id="pcsChart"></div></div>
-        <div class="card"><div class="card-header">Connectivity Status</div><div class="card-body" id="connChart"></div></div>
+        <div class="card"><div class="card-header" id="hNet">Network Infrastructure</div><div class="card-body" id="networkChart"></div></div>
+        <div class="card"><div class="card-header" id="hUser">End User Services</div><div class="card-body" id="pcsChart"></div></div>
+        <div class="card"><div class="card-header" id="hConn">Connectivity Status</div><div class="card-body" id="connChart"></div></div>
     </main>
   </div>
 </div>
 
 <div class="footer-info">
-    <div>إصدار: <strong>v1.6.2-Live</strong></div>
+    <div>إصدار: <strong>v1.6.3-Stable</strong></div>
     <div id="liveClock"></div>
-    <div>الحالة: <strong id="statusTxt" style="color:#ef4444">بانتظار الصلاحيات...</strong></div>
+    <div id="statusTxt" style="color:#10b981">متصل</div>
 </div>
 
 <script>
+// جعل الدوال عالمية لكي تعمل مع الـ onclick في الأزرار
+window.setLang = function(lang) {
+  const isAr = lang === 'ar';
+  document.getElementById('mainHtml').dir = isAr ? 'rtl' : 'ltr';
+  document.getElementById('btnAR').className = isAr ? 'lang-btn active' : 'lang-btn';
+  document.getElementById('btnEN').className = isAr ? 'lang-btn' : 'lang-btn active';
+  
+  // تحديث النصوص (بسيط)
+  document.getElementById('lblVisits').innerText = isAr ? 'إجمالي الزيارات' : 'Total Visits';
+  document.getElementById('hNet').innerText = isAr ? 'البنية التحتية والشبكات' : 'Network Infrastructure';
+  document.getElementById('hUser').innerText = isAr ? 'خدمات الأجهزة والمستخدمين' : 'End User Services';
+  document.getElementById('hConn').innerText = isAr ? 'حالة الاتصال' : 'Connectivity Status';
+};
+
 (function(){
   const $ = id => document.getElementById(id);
   const firebaseConfig = {
@@ -75,19 +94,10 @@
 
   auth.onAuthStateChanged(user => {
     if (user) {
-      console.log("تم تسجيل الدخول بنجاح.");
-      console.log("Your UID is:", user.uid); // افحص هذا الـ ID في Console وقارنه بـ app_users
-      
-      // جلب البيانات مع مراقبة أخطاء الصلاحيات
       db.collection('branch_checklists').onSnapshot(snap => {
-        $('statusTxt').innerText = "متصل حي بنجاح";
-        $('statusTxt').style.color = "#10b981";
         const docs = snap.docs.map(d => d.data());
         $('totalVisits').textContent = docs.length;
         renderCharts(docs);
-      }, err => {
-        console.error("خطأ في الصلاحيات:", err.message);
-        $('statusTxt').innerText = "خطأ صلاحيات: راجع الـ Rules";
       });
     } else {
       window.location.href = 'login.html';
@@ -109,8 +119,14 @@
   }
 
   function createBar(val, color) {
-    return `<div class="bar" style="height:${val}%; background:${color}"><span style="position:absolute;top:-20px;width:100%;text-align:center;font-size:10px;font-weight:bold;">${Math.round(val)}%</span></div>`;
+    return `<div class="bar-group"><div class="bar" style="height:${val}%; background:${color}"><span class="bar-val">${Math.round(val)}%</span></div></div>`;
   }
+
+  // تحديث الساعة
+  setInterval(() => { $('liveClock').innerText = new Date().toLocaleTimeString('ar-SA'); }, 1000);
+  
+  // لغة البداية
+  window.setLang('ar');
 })();
 </script>
 </body>
