@@ -2,96 +2,57 @@
 <html lang="ar" dir="rtl" id="mainHtml">
 <head>
   <meta charset="UTF-8">
-  <title id="pageTitle">Dashboard v1.7.0 | Almajdouie Motors</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard v1.7.1 | إصلاح الصلاحيات والشعارات</title>
   <link rel="icon" href="data:;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
-  
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
   <style>
-    :root { --header: #020617; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #38bdf8; }
+    :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #38bdf8; }
     body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
-    
-    .dashboard-wrapper { display: grid; grid-template-columns: 280px 1fr; height: 100vh; transition: 0.3s; }
-    html[dir="ltr"] .dashboard-wrapper { grid-template-columns: 1fr 280px; }
-
-    /* الشريط الجانبي المطور */
-    .sidebar { background: #fff; color: #000; border-left: 2px solid #ddd; padding: 15px; display: flex; flex-direction: column; overflow-y: auto; position: relative; }
-    .side-header { text-align: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
-    
-    .brand-list { display: flex; flex-direction: column; gap: 10px; width: 100%; }
-    .brand-card { 
-      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px;
-      display: flex; align-items: center; gap: 12px; transition: 0.2s;
-    }
-    .brand-logo { width: 60px; height: 40px; object-fit: contain; background: #fff; border-radius: 4px; border: 1px solid #eee; }
-    .brand-info { display: flex; flex-direction: column; }
-    .brand-name { font-weight: bold; font-size: 13px; color: #0d4b73; }
-    .brand-count { font-size: 11px; color: #64748b; }
-
-    .main-content { display: flex; flex-direction: column; width: 100%; overflow-y: auto; padding-bottom: 60px; }
-    .top-nav { padding: 12px 15px; background: var(--header); color: #fff; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; }
-
+    .dashboard-wrapper { display: grid; grid-template-columns: 280px 1fr; height: 100vh; }
+    .sidebar { background: #fff; color: #000; border-left: 2px solid #ddd; padding: 15px; overflow-y: auto; }
+    .brand-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .brand-logo { width: 50px; height: 35px; object-fit: contain; background: #fff; border: 1px solid #eee; }
     .main-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 15px; }
     .card { background: var(--card); border-radius: 8px; border: 1px solid #334155; display: flex; flex-direction: column; }
     .card-header { background: #0d4b73; color: #fff; padding: 8px 12px; font-size: 13px; font-weight: bold; }
-    .card-body { padding: 15px; flex-grow: 1; min-height: 190px; display: flex; align-items: flex-end; justify-content: space-around; }
-
-    .footer-info { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; color: #64748b; padding: 6px 20px; display: flex; justify-content: space-between; font-size: 11px; z-index: 100; border-top: 1px solid #ddd; }
-    .lang-btn { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid #444; padding: 4px 12px; cursor: pointer; border-radius: 6px; font-size: 11px; }
-    .lang-btn.active { background: var(--primary); color: #000; border-color: var(--primary); }
+    .card-body { padding: 15px; min-height: 180px; display: flex; align-items: flex-end; justify-content: space-around; }
+    .bar { width: 25px; background: var(--primary); border-radius: 4px; position: relative; transition: 1s; }
+    .footer { position: fixed; bottom: 0; width: 100%; background: #fff; color: #64748b; padding: 5px 20px; font-size: 11px; display: flex; justify-content: space-between; }
   </style>
 </head>
 <body>
 
-<div id="dashboardRoot" class="dashboard-wrapper">
+<div class="dashboard-wrapper">
   <aside class="sidebar">
-    <div class="side-header">
-        <span style="font-size: 12px; font-weight: bold;" id="lblVisits">إجمالي الزيارات</span>
-        <h1 style="font-size: 48px; margin: 5px 0; color: #0d4b73;" id="totalVisits">0</h1>
+    <div style="text-align:center; border-bottom:1px solid #eee; margin-bottom:15px; padding-bottom:10px;">
+        <span style="font-size:12px; font-weight:bold;">إجمالي الزيارات</span>
+        <h1 style="font-size:48px; margin:0; color:#0d4b73;" id="totalVisits">0</h1>
     </div>
-    <div class="brand-list" id="sideBrandList">
-        </div>
+    <div id="sideBrandList"></div>
   </aside>
 
-  <main class="main-content">
-    <div class="top-nav">
-        <div style="font-weight: bold; font-size: 14px;" id="lblNav">نظام إدارة الزيارات | إصدار v1.7.0</div>
-        <div>
-            <button class="lang-btn" id="btnEN" onclick="setLang('en')">EN</button>
-            <button class="lang-btn" id="btnAR" onclick="setLang('ar')">AR</button>
-        </div>
+  <main style="display:flex; flex-direction:column; width:100%;">
+    <div style="padding:12px; background:#020617; color:#fff; display:flex; justify-content:space-between;">
+        <div style="font-weight:bold;">إصدار التحديث v1.7.1 | فحص الشعارات</div>
+        <div id="statusTxt" style="color:#ef4444; font-size:12px;">جاري الاتصال...</div>
     </div>
-    <main class="main-grid">
-        <div class="card"><div class="card-header" id="hNet">Network Infrastructure</div><div class="card-body" id="networkChart"></div></div>
-        <div class="card"><div class="card-header" id="hUser">End User Services</div><div class="card-body" id="pcsChart"></div></div>
-        <div class="card"><div class="card-header" id="hConn">Connectivity Status</div><div class="card-body" id="connChart"></div></div>
-    </main>
+    <div class="main-grid">
+        <div class="card"><div class="card-header">Infrastructure</div><div class="card-body" id="chart1"></div></div>
+        <div class="card"><div class="card-header">Hardware</div><div class="card-body" id="chart2"></div></div>
+        <div class="card"><div class="card-header">Connectivity</div><div class="card-body" id="chart3"></div></div>
+    </div>
   </main>
 </div>
 
-<div class="footer-info">
-    <div>إصدار: <strong>v1.7.0-Brands-Live</strong></div>
+<div class="footer">
+    <div>v1.7.1-Fix</div>
     <div id="liveClock"></div>
-    <div id="statusTxt" style="color:#10b981">متصل</div>
 </div>
 
 <script>
-window.setLang = function(lang) {
-  const isAr = lang === 'ar';
-  document.getElementById('mainHtml').dir = isAr ? 'rtl' : 'ltr';
-  document.getElementById('btnAR').className = isAr ? 'lang-btn active' : 'lang-btn';
-  document.getElementById('btnEN').className = isAr ? 'lang-btn' : 'lang-btn active';
-  document.getElementById('lblVisits').innerText = isAr ? 'إجمالي الزيارات' : 'Total Visits';
-  document.getElementById('hNet').innerText = isAr ? 'البنية التحتية' : 'Network Infrastructure';
-  document.getElementById('hUser').innerText = isAr ? 'خدمات الأجهزة' : 'End User Services';
-  document.getElementById('hConn').innerText = isAr ? 'حالة الاتصال' : 'Connectivity Status';
-  if (window.lastState) renderAll();
-};
-
 (function(){
   const $ = id => document.getElementById(id);
   const firebaseConfig = {
@@ -105,61 +66,59 @@ window.setLang = function(lang) {
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
-  
-  window.lastState = { brands: [], checklists: [] };
+  let state = { brands: [], checklists: [] };
 
-  // الاستماع للبراندات والزيارات
-  db.collection('brand_assets').onSnapshot(s => { 
-    lastState.brands = s.docs.map(d => ({id: d.id, ...d.data()})); 
-    renderAll(); 
-  });
-  
-  db.collection('branch_checklists').onSnapshot(s => { 
-    lastState.checklists = s.docs.map(d => d.data()); 
-    $('totalVisits').textContent = lastState.checklists.length;
-    renderAll(); 
+  firebase.auth().onAuthStateChanged(user => {
+    if (user) {
+      // 1. جلب الشعارات
+      db.collection('brand_assets').onSnapshot(s => {
+        state.brands = s.docs.map(d => ({id: d.id, ...d.data()}));
+        render();
+      }, err => console.error("خطأ شعارات:", err.message));
+
+      // 2. جلب الزيارات
+      db.collection('branch_checklists').onSnapshot(s => {
+        state.checklists = s.docs.map(d => d.data());
+        $('statusTxt').innerText = "متصل بنجاح"; $('statusTxt').style.color = "#10b981";
+        render();
+      }, err => {
+        console.error("خطأ زيارات:", err.message);
+        $('statusTxt').innerText = "خطأ صلاحيات: راجع الـ Rules";
+      });
+    }
   });
 
-  function renderAll() {
-    // 1. عرض البراندات في الشريط الجانبي
-    const isAr = document.getElementById('mainHtml').dir === 'rtl';
-    $('sideBrandList').innerHTML = lastState.brands.map(b => {
-      const count = lastState.checklists.filter(c => c.brand === b.brand || c.brandId === b.id).length;
+  function render() {
+    $('totalVisits').innerText = state.checklists.length;
+    
+    // رسم قائمة البراندات
+    $('sideBrandList').innerHTML = state.brands.map(b => {
+      const count = state.checklists.filter(c => c.brand === b.brand || c.brandId === b.id).length;
       return `
         <div class="brand-card">
-          <img src="${b.logoData || b.logoUrl || 'https://placehold.jp/80x60.png'}" class="brand-logo" alt="logo">
-          <div class="brand-info">
-            <div class="brand-name">${isAr ? (b.nameAr || b.brand) : (b.nameEn || b.brand)}</div>
-            <div class="brand-count">${isAr ? 'زيارات' : 'Visits'}: ${count}</div>
-          </div>
-        </div>
-      `;
+          <img src="${b.logoData || b.logoUrl || ''}" class="brand-logo">
+          <div><div style="font-weight:bold; font-size:12px;">${b.nameAr || b.brand}</div>
+          <div style="font-size:10px; color:#64748b;">زيارات: ${count}</div></div>
+        </div>`;
     }).join('');
 
-    // 2. تحديث الرسوم البيانية (نفس المنطق السابق)
-    renderCharts(lastState.checklists);
-  }
-
-  function renderCharts(docs) {
-    let stats = { infra: 0, pcs: 0, conn: 0 };
-    docs.forEach(doc => {
-      const ans = doc.dynamicAnswers || {};
-      if (ans["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") stats.infra++;
-      if (ans["0NQrLqvsNNYgd0Iyy6by"] === "fully_functioning") stats.pcs++;
-      if (ans["BcjdipZxDmVgodHk9t1B"] === "above_the_range") stats.conn++;
+    // رسم الرسوم البيانية
+    const total = state.checklists.length || 1;
+    let counts = { infra: 0, hardware: 0, conn: 0 };
+    state.checklists.forEach(c => {
+        const a = c.dynamicAnswers || {};
+        if(a["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") counts.infra++;
+        if(a["0NQrLqvsNNYgd0Iyy6by"] === "fully_functioning") counts.hardware++;
+        if(a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") counts.conn++;
     });
-    const total = docs.length || 1;
-    $('networkChart').innerHTML = createBar((stats.infra/total)*100, "#94a3b8", "Infra");
-    $('pcsChart').innerHTML = createBar((stats.pcs/total)*100, "#38bdf8", "PCs");
-    $('connChart').innerHTML = createBar((stats.conn/total)*100, "#f97316", "Temp");
+
+    const bar = (p) => `<div class="bar" style="height:${p}%"><span style="position:absolute;top:-18px;width:100%;text-align:center;font-size:10px;font-weight:bold;">${Math.round(p)}%</span></div>`;
+    $('chart1').innerHTML = bar((counts.infra/total)*100);
+    $('chart2').innerHTML = bar((counts.hardware/total)*100);
+    $('chart3').innerHTML = bar((counts.conn/total)*100);
   }
 
-  function createBar(val, color, label) {
-    return `<div class="bar-group"><div class="bar" style="height:${val}%; background:${color}"><span class="bar-val">${Math.round(val)}%</span></div><div style="font-size:9px; color:#94a3b8">${label}</div></div>`;
-  }
-
-  setInterval(() => { $('liveClock').innerText = new Date().toLocaleTimeString('ar-SA'); }, 1000);
-  window.setLang('ar');
+  setInterval(() => { $('liveClock').innerText = new Date().toLocaleTimeString(); }, 1000);
 })();
 </script>
 </body>
