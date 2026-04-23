@@ -42,42 +42,36 @@
     .btn.upload { background: var(--success); }
     .btn.lang-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); }
 
-    /* الإحصائيات الرئيسية الكبرى */
+    /* الترتيب الجديد للإحصائيات الرئيسية */
     .main-stats{ display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; margin-bottom: 30px; }
     .stat-box{ 
       background:#fff; border:1px solid var(--border); border-radius:16px; padding:25px; 
       text-align: center; border-bottom: 5px solid var(--info);
     }
-    .stat-box.success { border-bottom-color: var(--success); }
     .stat-box.warning { border-bottom-color: var(--warning); }
+    .stat-box.success { border-bottom-color: var(--success); }
     
     .stat-label{ color:var(--muted); font-size:15px; font-weight: 600; margin-bottom: 10px; display: block; }
     .stat-value{ font-size:40px; font-weight:900; color: var(--info); }
-    .success .stat-value { color: var(--success); }
     .warning .stat-value { color: var(--warning); }
+    .success .stat-value { color: var(--success); }
 
-    /* شبكة التفاصيل (المناطق والمدن والبراندات) */
     .details-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; }
     .details-card{ background:#fff; border:1px solid var(--border); border-radius:16px; padding:15px; display: flex; flex-direction: column;}
     .details-card h4{ margin-top:0; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; color: var(--primary); font-size: 18px;}
 
     .scroll-area{ max-height: 600px; overflow-y: auto; padding: 5px; }
     
-    .mini-item{ 
-      border:1px solid var(--border); border-radius:12px; padding:15px; margin-bottom:12px; 
-      background: #fcfdfe; transition: 0.2s;
-    }
-    .mini-item:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-
+    .mini-item{ border:1px solid var(--border); border-radius:12px; padding:15px; margin-bottom:12px; background: #fcfdfe; }
     .item-name{ font-weight: 800; font-size: 15px; margin-bottom: 12px; color: var(--primary); }
     
-    /* توزيع الأرقام الثلاثة داخل كل بطاقة */
+    /* الترتيب الجديد داخل البطاقة: إجمالي، متبقي، مكتمل */
     .item-counts-row{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom: 12px;}
     .count-pill{ background:#fff; border:1px solid #edf2f7; padding:8px 4px; border-radius:10px; text-align: center; font-size: 11px; color: var(--muted); }
     .count-pill b{ display: block; font-size: 16px; margin-top: 4px; }
     .count-pill.total-pill b { color: var(--text); }
-    .count-pill.done-pill b { color: var(--success); }
     .count-pill.wait-pill b { color: var(--warning); }
+    .count-pill.done-pill b { color: var(--success); }
 
     .progress-wrapper { display: flex; align-items: center; gap: 10px; }
     .progress-bar { flex: 1; height: 8px; background: #eee; border-radius: 10px; overflow: hidden; }
@@ -112,13 +106,13 @@
         <span class="stat-label" id="txt-total-main">إجمالي الأجهزة</span>
         <div class="stat-value" id="val-total">0</div>
       </div>
-      <div class="stat-box success">
-        <span class="stat-label" id="txt-done-main">مكتمل</span>
-        <div class="stat-value" id="val-done">0</div>
-      </div>
       <div class="stat-box warning">
         <span class="stat-label" id="txt-remain-main">متبقي</span>
         <div class="stat-value" id="val-remain">0</div>
+      </div>
+      <div class="stat-box success">
+        <span class="stat-label" id="txt-done-main">مكتمل</span>
+        <div class="stat-value" id="val-done">0</div>
       </div>
     </div>
 
@@ -147,14 +141,14 @@
   const labels = {
     ar: { 
       title: "تحديث ويندوز — المجدوعي", upload: "رفع ملف البيانات", 
-      total: "الإجمالي", done: "مكتمل", remain: "متبقي",
-      totalMain: "إجمالي عدد الأجهزة", doneMain: "إجمالي المكتمل", remainMain: "إجمالي المتبقي",
+      total: "الإجمالي", remain: "متبقي", done: "مكتمل", 
+      totalMain: "إجمالي الأجهزة", remainMain: "متبقي", doneMain: "مكتمل",
       reg: "المناطق", city: "المدن", brand: "البراندات", lang: "English" 
     },
     en: { 
       title: "Windows Upgrade — Almajdouie", upload: "Upload Data File", 
-      total: "Total", done: "Done", remain: "Wait",
-      totalMain: "Total Devices", doneMain: "Total Completed", remainMain: "Total Remaining",
+      total: "Total", remain: "Remaining", done: "Completed",
+      totalMain: "Total Devices", remainMain: "Remaining", doneMain: "Completed",
       reg: "Regions", city: "Cities", brand: "Brands", lang: "العربية" 
     }
   };
@@ -191,7 +185,6 @@
     const stats = { region: {}, city: {}, brand: {} };
 
     data.forEach(row => {
-      // قراءة البيانات بناءً على أعمدة ملفك: Devices_Count و Status و Region و City و Brand
       const count = parseInt(row.Devices_Count || row.devicesCount || 1) || 1;
       const status = String(row.Status || row.status || '').toLowerCase().trim();
       const isDone = status === 'completed';
@@ -221,7 +214,6 @@
     const container = $(id);
     container.innerHTML = '';
     
-    // ترتيب تنازلي حسب الإجمالي
     const sorted = Object.entries(obj).sort((a,b) => b[1].total - a[1].total);
     
     sorted.forEach(([name, s]) => {
@@ -233,8 +225,8 @@
           <div class="item-name">${name}</div>
           <div class="item-counts-row">
             <div class="count-pill total-pill">${labels[lang].total}<b>${s.total}</b></div>
-            <div class="count-pill done-pill">${labels[lang].done}<b>${s.done}</b></div>
             <div class="count-pill wait-pill">${labels[lang].remain}<b>${remain}</b></div>
+            <div class="count-pill done-pill">${labels[lang].done}<b>${s.done}</b></div>
           </div>
           <div class="progress-wrapper">
             <div class="progress-bar">
