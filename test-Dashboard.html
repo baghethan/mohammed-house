@@ -2,130 +2,166 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Advanced Site Visits Dashboard</title>
+  <title>PowerBI Style Dashboard | شركة المجدوعي</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+  
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
   <style>
     :root {
-      --bg: #e2e8f0; --header-blue: #0d4b73; --text-dark: #1e293b;
-      --bar-blue: #4f8fdb; --bar-orange: #f97316; --bar-gray: #94a3b8; --bar-green: #57b52b;
+      --bg: #f4f7fa;
+      --header-blue: #0d4b73;
+      --text-dark: #1e293b;
+      --card-bg: #ffffff;
+      --status-green: #10b981;
+      --status-red: #ef4444;
     }
-    body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); color: var(--text-dark); }
-    .dashboard { display: grid; grid-template-columns: 240px 1fr; height: 100vh; overflow: hidden; }
 
-    /* الشريط الجانبي (Visits) */
-    .sidebar { background: #fff; border-left: 3px solid var(--header-blue); padding: 20px; display: flex; flex-direction: column; align-items: center; }
-    .side-num { font-size: 72px; font-weight: 800; color: var(--header-blue); margin: 0; }
+    body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); color: var(--text-dark); overflow: hidden; }
 
-    /* الشبكة الرئيسية (مثل PowerPoint) */
-    .main-grid { display: grid; grid-template-columns: 1.5fr 1fr; grid-template-rows: auto auto; gap: 15px; padding: 20px; overflow-y: auto; }
-    .card { background: #fff; border-radius: 4px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
-    .card-header { background: var(--header-blue); color: #fff; padding: 10px 15px; font-size: 14px; font-weight: bold; }
-    .card-subheader { background: #f1f5f9; padding: 5px 15px; font-size: 12px; border-bottom: 1px solid #ddd; }
-    .card-body { padding: 15px; flex-grow: 1; display: flex; align-items: flex-end; justify-content: space-around; min-height: 180px; }
+    /* الهيكل الرئيسي */
+    .dashboard-container { display: grid; grid-template-columns: 260px 1fr; height: 100vh; }
 
-    /* تنسيق الأعمدة البيانية */
-    .bar-group { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 60px; }
-    .bar-container { display: flex; align-items: flex-end; gap: 4px; height: 120px; width: 100%; justify-content: center; }
-    .bar { width: 18px; border-radius: 2px 2px 0 0; position: relative; transition: 0.5s ease-out; }
-    .bar-val { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; }
-    .bar-label { font-size: 10px; color: #64748b; text-align: center; line-height: 1.2; }
+    /* الشريط الجانبي */
+    .sidebar { background: #fff; border-left: 3px solid var(--header-blue); padding: 20px; display: flex; flex-direction: column; align-items: center; position: relative; }
+    .side-title { color: var(--header-blue); font-size: 32px; font-weight: 800; transform: rotate(-90deg); position: absolute; left: -60px; top: 200px; white-space: nowrap; }
+
+    /* لوحة المعلومات العلوية */
+    .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 25px; background: #fff; border-bottom: 1px solid #ddd; font-size: 13px; }
+    .db-status { display: flex; align-items: center; gap: 8px; font-weight: bold; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--status-red); transition: 0.3s; }
+    .status-dot.connected { background: var(--status-green); box-shadow: 0 0 8px var(--status-green); }
+
+    /* شبكة العرض الرئيسية (Grid) */
+    .main-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: auto auto; gap: 15px; padding: 20px; overflow-y: auto; }
+    .card { background: var(--card-bg); border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column; border: 1px solid #edf2f7; }
+    .card-header { background: var(--header-blue); color: #fff; padding: 10px 15px; font-size: 13px; font-weight: bold; }
+    .card-body { padding: 15px; flex-grow: 1; min-height: 200px; display: flex; align-items: flex-end; justify-content: space-around; }
+
+    /* تذييل الصفحة (Version & Time) */
+    .footer-info { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; border-top: 1px solid #ddd; padding: 8px 25px; display: flex; justify-content: space-between; font-size: 11px; color: #64748b; z-index: 100; }
+    
+    /* الأعمدة البيانية */
+    .bar-group { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    .bar { width: 25px; background: #4f8fdb; border-radius: 2px 2px 0 0; position: relative; transition: height 1s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .bar-val { position: absolute; top: -18px; width: 100%; text-align: center; font-size: 10px; font-weight: bold; }
   </style>
 </head>
 <body>
 
-<div class="dashboard">
+<div class="dashboard-container">
   <aside class="sidebar">
-    <div style="text-align:center; margin-top:20px;">
-        <span style="font-size:14px; font-weight:bold;">Number of Visits</span>
-        <h1 class="side-num" id="totalVisits">0</h1>
+    <div class="side-title">Site Visits Dashboard</div>
+    <div style="text-align: center; margin-top: 40px;">
+        <span style="font-size: 14px; color: #64748b;">Number of Visits</span>
+        <h1 style="font-size: 64px; margin: 0; color: var(--header-blue);" id="totalVisits">0</h1>
     </div>
-    <div id="brandList" style="width:100%; margin-top:30px;"></div>
   </aside>
 
-  <main class="main-grid">
-    <div class="card" style="grid-column: span 1;">
-      <div class="card-header">Network Infrastructure Services</div>
-      <div class="card-subheader">Network Appliances</div>
-      <div class="card-body" id="networkChart"></div>
+  <div style="display: flex; flex-direction: column; width: 100%;">
+    <div class="status-bar">
+        <div class="db-status">
+            <div id="statusDot" class="status-dot"></div>
+            <span id="statusText">جاري الاتصال بقاعدة البيانات...</span>
+        </div>
+        <div style="font-weight: bold; color: var(--header-blue);">ALMAJDOUIE MOTORS | نظام إدارة الزيارات</div>
     </div>
 
-    <div class="card">
-      <div class="card-header">End User Services</div>
-      <div class="card-subheader">PCs & Peripherals</div>
-      <div class="card-body" id="endUserChart"></div>
-    </div>
+    <main class="main-grid">
+        <div class="card" style="grid-column: span 2;">
+            <div class="card-header">Network Infrastructure Services</div>
+            <div class="card-body" id="networkChart"></div>
+        </div>
+        <div class="card">
+            <div class="card-header">End User Services</div>
+            <div class="card-body" id="endUserChart"></div>
+        </div>
+        </main>
+  </div>
+</div>
 
-    <div class="card">
-      <div class="card-header">Network Infrastructure Services</div>
-      <div class="card-subheader">Connectivity Status</div>
-      <div class="card-body" id="connectivityChart"></div>
-    </div>
-  </main>
+<div class="footer-info">
+    <div>إصدار النظام: <strong id="appVersion">v1.2.0-Test</strong></div>
+    <div id="dateTimeDisplay">جاري تحميل الوقت...</div>
+    <div>متصل بـ: <strong id="dbInstance">baghethan-ba325 (Firestore)</strong></div>
 </div>
 
 <script>
 (function(){
-  // محاكي للبيانات القادمة من صورتك لغرض الاختبار
-  // في النسخة الحقيقية، هذه البيانات تأتي من Firestore snapshot
-  const mockData = [
-    { 
-      dynamicAnswers: { 
-        "0NQrLqvsNNYgd0Iyy6by": "fully_functioning", // End User
-        "8LQ9F3Rj4MsNDkTbO5Pi": "in_shape",          // Network
-        "BcjdipZxDmVgodHk9t1B": "above_the_range",   // Connectivity
-        "6fx4HNunJZrYPziv5r02": "no"                 // Requires Service
-      }
-    }
-  ];
+  const $ = id => document.getElementById(id);
 
-  function processData(docs) {
-    let stats = {
-      network: { in_shape: 0, requires: 0 },
-      endUser: { fully: 0, requires: 0 },
-      conn: { above: 0, within: 0, below: 0 }
-    };
+  // إعدادات Firebase من مشروعك
+  const firebaseConfig = {
+    apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
+    authDomain: "baghethan-ba325.firebaseapp.com",
+    projectId: "baghethan-ba325",
+    storageBucket: "baghethan-ba325.firebasestorage.app",
+    messagingSenderId: "944819735112",
+    appId: "1:944819735112:web:07315600da39377320667d"
+  };
 
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // تحديث الوقت والتاريخ لحظياً
+  function updateTime() {
+    const now = new Date();
+    $('dateTimeDisplay').innerText = "التاريخ: " + now.toLocaleDateString('ar-SA') + " | الوقت: " + now.toLocaleTimeString('ar-SA');
+  }
+  setInterval(updateTime, 1000);
+  updateTime();
+
+  // الاستماع للبيانات وتحديث حالة الاتصال
+  function startLiveTracking() {
+    db.collection('branch_checklists').onSnapshot(snapshot => {
+      // تحديث مؤشر الاتصال بنجاح
+      $('statusDot').classList.add('connected');
+      $('statusText').innerText = "قاعدة البيانات متصلة ومزامنة (Live)";
+      
+      const docs = snapshot.docs.map(d => d.data());
+      $('totalVisits').textContent = docs.length;
+      
+      processAndRender(docs);
+    }, error => {
+      // في حال فشل الاتصال
+      $('statusDot').classList.remove('connected');
+      $('statusText').innerText = "خطأ في الاتصال بقاعدة البيانات!";
+      console.error(error);
+    });
+  }
+
+  function processAndRender(docs) {
+    let stats = { network: 0, endUser: 0 };
     docs.forEach(doc => {
       const ans = doc.dynamicAnswers || {};
-      // قراءة القيم بناءً على المعرفات في صورتك
-      if (ans["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") stats.network.in_shape++;
-      if (ans["0NQrLqvsNNYgd0Iyy6by"] === "fully_functioning") stats.endUser.fully++;
-      if (ans["BcjdipZxDmVgodHk9t1B"] === "above_the_range") stats.conn.above++;
-      if (ans["6fx4HNunJZrYPziv5r02"] === "no") stats.endUser.requires++;
+      // قراءة المعرفات بناءً على صورة Firestore
+      if (ans["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") stats.network++;
+      if (ans["0NQrLqvsNNYgd0Iyy6by"] === "fully_functioning") stats.endUser++;
     });
 
-    renderCharts(stats, docs.length);
+    const total = docs.length || 1;
+    renderBarChart('networkChart', [
+        { label: "Infrastructure", val: (stats.network/total)*100, color: "#94a3b8" }
+    ]);
+    renderBarChart('endUserChart', [
+        { label: "PCs & Peripherals", val: (stats.endUser/total)*100, color: "#4f8fdb" }
+    ]);
   }
 
-  function renderCharts(stats, total) {
-    $('totalVisits').textContent = total;
-    
-    // رسم الشبكة (مثال لعمود واحد)
-    $('networkChart').innerHTML = createBarGroup("Infrastructure", (stats.network.in_shape/total)*100, "var(--bar-gray)");
-    $('endUserChart').innerHTML = createBarGroup("PCs", (stats.endUser.fully/total)*100, "var(--bar-blue)") + 
-                                  createBarGroup("Service", (stats.endUser.requires/total)*100, "var(--bar-orange)");
-    $('connectivityChart').innerHTML = createBarGroup("Server Room", (stats.conn.above/total)*100, "var(--bar-orange)");
-  }
-
-  function createBarGroup(label, percent, color) {
-    return `
+  function renderBarChart(containerId, items) {
+    $(containerId).innerHTML = items.map(item => `
       <div class="bar-group">
-        <div class="bar-container">
-          <div class="bar" style="height:${percent}%; background:${color}">
-            <span class="bar-val">${Math.round(percent)}%</span>
-          </div>
+        <div class="bar" style="height:${item.val}%; background:${item.color}">
+          <span class="bar-val">${Math.round(item.val)}%</span>
         </div>
-        <div class="bar-label">${label}</div>
+        <div style="font-size:10px; margin-top:5px;">${item.label}</div>
       </div>
-    `;
+    `).join('');
   }
 
-  const $ = id => document.getElementById(id);
-  
-  // تشغيل المحلل
-  processData(mockData);
-
-  // ملاحظة للمستخدم: اربط هذا الجزء بـ db.collection('branch_checklists').onSnapshot ليعمل بشكل حي
+  startLiveTracking();
 })();
 </script>
 </body>
