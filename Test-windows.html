@@ -2,108 +2,94 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <title>اختبار اتصال Firebase — المجدوعي</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: transparent; color: #1e293b; }
-        .glass-panel { background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 20px; padding: 25px; border: 1px solid rgba(255,255,255,0.3); }
-        
-        /* الترتيب المطلوب: إجمالي -> متبقي -> مكتمل */
-        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
-        .s-box { background: #fff; padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border-bottom: 5px solid #0f5d95; }
-        .s-box h2 { font-size: 35px; margin: 5px 0; color: #0f5d95; }
-        
-        .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
-        .scroll-v { max-height: 500px; overflow-y: auto; background: #fff; border-radius: 12px; padding: 10px; border: 1px solid #eee; }
-        .m-card { background: #fcfdfe; padding: 12px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #edf2f7; }
-        .admin-only { display: none; margin-bottom: 15px; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 40px; background: #f0f2f5; text-align: center; }
+        .status-box { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); display: inline-block; min-width: 400px; }
+        .log-area { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 10px; text-align: left; font-family: monospace; margin-top: 20px; max-height: 300px; overflow-y: auto; font-size: 13px; }
+        .stat-preview { display: flex; justify-content: space-around; margin-top: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="glass-panel">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h2 style="color: #0f5d95; margin:0;">لوحة متابعة تحديثات ويندوز</h2>
-        <div id="adminControls" class="admin-only">
-            <button style="background:#10b981; color:#fff; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:bold;">تحديث البيانات (أدمن)</button>
+    <div class="status-box">
+        <h2 style="color: #0f5d95;">فحص اتصال البيانات الحية</h2>
+        <p id="conn-status" style="color: orange;">جاري محاولة الاتصال بـ Firebase...</p>
+        
+        <div class="stat-preview">
+            <div>الإجمالي: <span id="t-v">0</span></div>
+            <div>المتبقي: <span id="r-v" style="color: orange;">0</span></div>
+            <div>المكتمل: <span id="d-v" style="color: green;">0</span></div>
+        </div>
+
+        <div class="log-area" id="log">
+            > جاري بدء الفحص...
         </div>
     </div>
 
-    <div class="stats-row">
-        <div class="s-box"><span>إجمالي الأجهزة</span> <h2 id="total-v">0</h2></div>
-        <div class="s-box" style="border-color: #f59e0b;"><span>متبقي</span> <h2 id="remain-v" style="color: #f59e0b;">0</h2></div>
-        <div class="s-box" style="border-color: #10b981;"><span>مكتمل</span> <h2 id="done-v" style="color: #10b981;">0</h2></div>
-    </div>
+    <script>
+        // 1. ضع بيانات الـ Config الخاصة بك هنا (مهم جداً)
+        const firebaseConfig = {
+            apiKey: "AIzaSy...",
+            authDomain: "your-app.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-app.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abc123"
+        };
 
-    <div class="details-grid">
-        <div><h4 style="margin-bottom:10px;">المناطق</h4> <div id="reg-list" class="scroll-v"></div></div>
-        <div><h4 style="margin-bottom:10px;">المدن</h4> <div id="city-list" class="scroll-v"></div></div>
-        <div><h4 style="margin-bottom:10px;">البراندات</h4> <div id="brand-list" class="scroll-v"></div></div>
-    </div>
-</div>
-
-<script>
-    const firebaseConfig = { /* ضع إعداداتك هنا من Firebase Console */ };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
-    // فحص الصلاحية للأدمن فقط بناءً على Rules الخاصة بك
-    firebase.auth().onAuthStateChanged(user => {
-        if (user && user.email === 'y.khyar@almajdouie.com') {
-            document.getElementById('adminControls').style.display = 'block'; 
+        function addLog(msg) {
+            const log = document.getElementById('log');
+            log.innerHTML += `<br>> ${msg}`;
+            log.scrollTop = log.scrollHeight;
         }
-    });
 
-    // استماع لحظي للبيانات من مجموعة UpgradeWindows
-    db.collection("UpgradeWindows").onSnapshot(snapshot => {
-        let total = 0, done = 0;
-        const stats = { Region: {}, City: {}, Brand: {} };
+        try {
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+            addLog("تم تهيئة Firebase بنجاح.");
 
-        snapshot.forEach(doc => {
-            const r = doc.data();
-            const count = parseInt(r.Devices_Count || 1);
-            const isDone = String(r.Status || '').toLowerCase() === 'completed';
-            
-            total += count;
-            if (isDone) done += count;
+            // 2. محاولة جلب البيانات من مجموعة UpgradeWindows
+            db.collection("UpgradeWindows").onSnapshot((snapshot) => {
+                if (snapshot.empty) {
+                    addLog("تنبيه: المجموعة 'UpgradeWindows' فارغة أو غير موجودة.");
+                    document.getElementById('conn-status').innerText = "المجموعة فارغة!";
+                    document.getElementById('conn-status').style.color = "red";
+                    return;
+                }
 
-            ['Region', 'City', 'Brand'].forEach(key => {
-                const val = r[key] || 'N/A';
-                if (!stats[key][val]) stats[key][val] = { t: 0, d: 0 };
-                stats[key][val].t += count;
-                if (isDone) stats[key][val].d += count;
+                let total = 0, done = 0;
+                addLog(`تم العثور على ${snapshot.size} سجلات.`);
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const count = parseInt(data.Devices_Count || 1);
+                    const isDone = String(data.Status || '').toLowerCase() === 'completed';
+                    
+                    total += count;
+                    if (isDone) done += count;
+                    
+                    addLog(`سجل مستلم: ${data.Brand || 'N/A'} - الحالة: ${data.Status}`);
+                });
+
+                document.getElementById('t-v').innerText = total;
+                document.getElementById('d-v').innerText = done;
+                document.getElementById('r-v').innerText = total - done;
+                document.getElementById('conn-status').innerText = "تم جلب البيانات بنجاح ✅";
+                document.getElementById('conn-status').style.color = "green";
+                addLog("تم تحديث الواجهة بالبيانات الحية.");
+
+            }, (error) => {
+                addLog("خطأ في القراءة: " + error.message);
+                document.getElementById('conn-status').innerText = "فشل الاتصال (خطأ صلاحيات)";
+                document.getElementById('conn-status').style.color = "red";
             });
-        });
 
-        document.getElementById('total-v').innerText = total;
-        document.getElementById('done-v').innerText = done;
-        document.getElementById('remain-v').innerText = total - done;
-
-        renderSection('reg-list', stats.Region);
-        renderSection('city-list', stats.City);
-        renderSection('brand-list', stats.Brand);
-    });
-
-    function renderSection(id, obj) {
-        const container = document.getElementById(id);
-        container.innerHTML = '';
-        Object.entries(obj).sort((a,b) => b[1].t - a[1].t).forEach(([name, s]) => {
-            const pct = Math.round((s.d / s.t) * 100) || 0;
-            container.innerHTML += `
-                <div class="m-card">
-                    <div style="font-weight:bold; font-size:13px;">${name}</div>
-                    <div style="display:flex; justify-content:space-between; font-size:11px; margin:5px 0;">
-                        <span>إجمالي: ${s.t}</span>
-                        <span style="color:#f59e0b">متبقي: ${s.t - s.d}</span>
-                        <span style="color:#10b981">مكتمل: ${s.d}</span>
-                    </div>
-                    <div style="height:4px; background:#eee; border-radius:10px; overflow:hidden;">
-                        <div style="width:${pct}%; height:100%; background:#0f5d95;"></div>
-                    </div>
-                </div>`;
-        });
-    }
-</script>
+        } catch (e) {
+            addLog("خطأ فني في الكود: " + e.message);
+        }
+    </script>
 </body>
 </html>
