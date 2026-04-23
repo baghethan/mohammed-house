@@ -4,10 +4,9 @@
   <meta charset="UTF-8" />
   <title>Dashboard | شركة المجدوعي للسيارات</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  
   <link rel="icon" href="data:;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==">
-  
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+  
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -19,6 +18,8 @@
       --glass-bg: rgba(255, 255, 255, 0.03);
       --glass-border: rgba(255, 255, 255, 0.1);
       --primary: #38bdf8;
+      --accent-green: #34d399;
+      --accent-orange: #fb923c;
       --text-main: #f1f5f9;
       --text-muted: #94a3b8;
       --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
@@ -31,21 +32,13 @@
     .container { max-width: 1360px; margin: 20px auto; padding: 0 15px 30px; }
     .hidden { display: none !important; }
     .card {
-      background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      border: 1px solid var(--glass-border); border-radius: 24px; padding: 24px;
-      margin-bottom: 20px; box-shadow: var(--shadow);
+      background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border);
+      border-radius: 24px; padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow);
     }
     .dashboard-board { background: rgba(15, 23, 42, 0.4); border-radius: 28px; overflow: hidden; border: 1px solid var(--glass-border); }
     .board-layout { display: grid; grid-template-columns: 280px 1fr; min-height: 750px; direction: ltr; }
     .side { background: rgba(0, 0, 0, 0.2); border-right: 1px solid var(--glass-border); padding: 20px; direction: rtl; }
     .side-box { background: rgba(255,255,255,0.05); border-radius: 20px; padding: 15px; text-align: center; margin-bottom: 20px; }
-    .side-box strong { font-size: 44px; color: var(--primary); display: block; }
-    .brand-item {
-      background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border);
-      border-radius: 16px; padding: 12px; margin-bottom: 12px; display: grid;
-      grid-template-columns: 46px 1fr auto; gap: 12px; align-items: center;
-    }
-    .brand-logo { width: 46px; height: 46px; border-radius: 10px; object-fit: contain; background: #fff; padding: 2px; }
     .main { padding: 25px; direction: rtl; }
     .panel { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 20px; margin-bottom: 20px; overflow: hidden; }
     .panel-header { padding: 15px; border-bottom: 1px solid var(--glass-border); font-weight: bold; color: var(--primary); }
@@ -53,12 +46,12 @@
     .bar { width: 30px; border-radius: 8px 8px 4px 4px; position: relative; transition: 0.8s ease; }
     .bar.blue { background: linear-gradient(180deg, #7fc0ff, #4f8fdb); }
     .bar.orange { background: linear-gradient(180deg, #ffb16f, #f97316); }
-    .bar.green { background: linear-gradient(180deg, #86d85f, #57b52b); }
     button {
       background: linear-gradient(90deg, #0ea5e9 0%, #2563eb 100%);
       color: white; border: none; padding: 10px 20px; border-radius: 12px;
       cursor: pointer; font-weight: bold; transition: 0.3s;
     }
+    button.logout-btn { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -66,30 +59,32 @@
 <div class="container">
   <div id="sessionNotice" class="card" style="text-align:center;">
     <h3 style="color:var(--accent-orange)">تنبيه!</h3>
-    <p>يرجى تسجيل الدخول من صفحة الدخول (login.html) أولاً.</p>
+    <p>يرجى تسجيل الدخول أولاً لرؤية بيانات المجدوعي للسيارات.</p>
     <button onclick="window.location.href='login.html'">انتقل لصفحة الدخول</button>
   </div>
 
   <div id="dashboardRoot" class="hidden">
     <div class="card" style="padding:0;">
       <div style="padding:24px; display:flex; justify-content:space-between; align-items:center;">
-        <h3>Dashboard التقييمات | المجدوعي للسيارات</h3>
-        <button id="copyEvalBtn">نسخ صورة Dashboard</button>
+        <h3>Dashboard التقييمات | المجدوعي</h3>
+        <div style="display:flex; gap:10px;">
+            <button id="copyEvalBtn">نسخ الصورة</button>
+            <button class="logout-btn" id="logoutBtn">خروج</button>
+        </div>
       </div>
 
       <div id="dashboardCapture" class="dashboard-board">
         <div class="board-layout">
           <aside class="side">
-            <div class="side-box"><span>إجمالي الزيارات</span><strong id="sideTotalVisits">0</strong></div>
+            <div class="side-box"><span>الزيارات</span><strong id="sideTotalVisits">0</strong></div>
             <div id="sideBrandList"></div>
           </aside>
           <main class="main">
             <section class="panel">
-                <div class="panel-header">إحصائيات التقييم العام</div>
-                <div style="padding:20px; display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; text-align:center;">
+                <div class="panel-header">إحصائيات الأداء</div>
+                <div style="padding:20px; display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; text-align:center;">
                     <div class="side-box"><span>ممتاز</span><strong style="color:var(--accent-green)" id="posCount">0</strong></div>
                     <div class="side-box"><span>صيانة</span><strong style="color:var(--accent-orange)" id="negCount">0</strong></div>
-                    <div class="side-box"><span>أخرى</span><strong id="mixCount">0</strong></div>
                 </div>
             </section>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -105,7 +100,8 @@
 
 <script>
 (function(){
-  var firebaseConfig = {
+  // إعدادات Firebase من ملف الدخول الخاص بك
+  const firebaseConfig = {
     apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
     authDomain: "baghethan-ba325.firebaseapp.com",
     projectId: "baghethan-ba325",
@@ -115,46 +111,52 @@
   };
 
   if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-  var db = firebase.firestore();
-  var auth = firebase.auth();
+  const db = firebase.firestore();
+  const auth = firebase.auth();
   
-  var state = { checklists: [], visits: [], brands: [] };
+  const $ = id => document.getElementById(id);
+  let state = { checklists: [], visits: [], brands: [] };
 
   function render(){
-    document.getElementById('sideTotalVisits').textContent = state.visits.length;
-    document.getElementById('sideBrandList').innerHTML = state.brands.map(function(b) {
-      return '<div class="brand-item">' +
-             '<img src="' + (b.logoData || 'https://via.placeholder.com/46') + '" class="brand-logo">' +
-             '<div style="font-size:12px; font-weight:bold;">' + (b.nameAr || b.brand || 'براند') + '</div>' +
-             '<div style="font-size:10px; color:var(--primary)">زيارات: ' + state.visits.filter(function(v){ return v.brand === b.brand; }).length + '</div>' +
-             '</div>';
-    }).join('');
+    if ($('sideTotalVisits')) $('sideTotalVisits').textContent = state.visits.length;
+    if ($('sideBrandList')) {
+      $('sideBrandList').innerHTML = state.brands.map(b => `
+        <div class="brand-item">
+          <img src="${b.logoData || 'https://via.placeholder.com/46'}" class="brand-logo">
+          <div style="font-size:12px; font-weight:bold;">${b.nameAr || b.brand || 'براند'}</div>
+          <div style="font-size:10px; color:var(--primary)">زيارات: ${state.visits.filter(v => v.brand === b.brand).length}</div>
+        </div>
+      `).join('');
+    }
 
-    document.getElementById('posCount').textContent = Math.floor(state.checklists.length * 0.7);
-    document.getElementById('negCount').textContent = Math.floor(state.checklists.length * 0.2);
-    document.getElementById('mixCount').textContent = Math.floor(state.checklists.length * 0.1);
+    $('posCount').textContent = Math.floor(state.checklists.length * 0.7);
+    $('negCount').textContent = Math.floor(state.checklists.length * 0.3);
 
-    var bar = function(h, c) { return '<div class="bar ' + c + '" style="height:' + h + '%"><span style="position:absolute;top:-18px;font-size:9px">' + h + '%</span></div>'; };
-    document.getElementById('networkPanelBody').innerHTML = '<div class="bars">' + bar(88,'blue') + bar(12,'orange') + '</div>';
-    document.getElementById('hardwarePanelBody').innerHTML = '<div class="bars">' + bar(75,'green') + bar(25,'orange') + '</div>';
+    const bar = (h, c) => `<div class="bar ${c}" style="height:${h}%"><span style="position:absolute;top:-18px;font-size:9px">${h}%</span></div>`;
+    $('networkPanelBody').innerHTML = `<div class="bars">${bar(85,'blue')}${bar(15,'orange')}</div>`;
+    $('hardwarePanelBody').innerHTML = `<div class="bars">${bar(70,'orange')}${bar(30,'blue')}</div>`;
   }
 
-  auth.onAuthStateChanged(function(user) {
+  // متابعة حالة تسجيل الدخول
+  auth.onAuthStateChanged(user => {
     if (user) {
-      document.getElementById('sessionNotice').classList.add('hidden');
-      document.getElementById('dashboardRoot').classList.remove('hidden');
-      db.collection('branch_checklists').onSnapshot(function(s) { state.checklists = s.docs.map(function(d){ return d.data(); }); render(); });
-      db.collection('brand_assets').onSnapshot(function(s) { state.brands = s.docs.map(function(d){ return d.data(); }); render(); });
-      db.collection('siteVisits').onSnapshot(function(s) { state.visits = s.docs.map(function(d){ return d.data(); }); render(); });
+      $('sessionNotice').classList.add('hidden');
+      $('dashboardRoot').classList.remove('hidden');
+      db.collection('branch_checklists').onSnapshot(s => { state.checklists = s.docs.map(d=>d.data()); render(); });
+      db.collection('brand_assets').onSnapshot(s => { state.brands = s.docs.map(d=>d.data()); render(); });
+      db.collection('siteVisits').onSnapshot(s => { state.visits = s.docs.map(d=>d.data()); render(); });
     } else {
-      document.getElementById('sessionNotice').classList.remove('hidden');
-      document.getElementById('dashboardRoot').classList.add('hidden');
+      $('sessionNotice').classList.remove('hidden');
+      $('dashboardRoot').classList.add('hidden');
     }
   });
 
-  document.getElementById('copyEvalBtn').onclick = async function() {
-    var canvas = await html2canvas(document.getElementById('dashboardCapture'), { backgroundColor: '#0f172a', scale: 2 });
-    var link = document.createElement('a');
+  // وظائف الأزرار
+  $('logoutBtn').onclick = () => auth.signOut().then(() => window.location.href = 'login.html');
+  
+  $('copyEvalBtn').onclick = async () => {
+    const canvas = await html2canvas($('dashboardCapture'), { backgroundColor: '#0f172a', scale: 2 });
+    const link = document.createElement('a');
     link.download = 'Almajdouie-Dashboard.png';
     link.href = canvas.toDataURL();
     link.click();
