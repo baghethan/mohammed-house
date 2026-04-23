@@ -2,48 +2,25 @@
 <html lang="ar" dir="rtl" id="mainHtml">
 <head>
   <meta charset="UTF-8">
-  <title id="pageTitle">Dashboard v1.6.0 | شركة المجدوعي</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard v1.6.2 | فحص الصلاحيات</title>
   <link rel="icon" href="data:;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
-  
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
   <style>
-    :root {
-      --header-blue: #020617; --bg: #0f172a; --card: #1e293b; --text: #f8fafc;
-      --primary: #38bdf8; --orange: #f97316; --gray: #94a3b8;
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; transition: 0.3s; }
-    
+    :root { --header: #020617; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #38bdf8; }
+    body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
     .dashboard-wrapper { display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
-    html[dir="ltr"] .dashboard-wrapper { grid-template-columns: 1fr 240px; }
-
     .sidebar { background: #fff; color: #000; border-left: 2px solid #ddd; padding: 20px; display: flex; flex-direction: column; align-items: center; position: relative; }
     .side-title { color: #0d4b73; font-size: 26px; font-weight: 800; transform: rotate(-90deg); position: absolute; left: -65px; top: 220px; white-space: nowrap; }
-
-    .main-content { display: flex; flex-direction: column; width: 100%; overflow-y: auto; padding-bottom: 60px; }
-    .top-nav { padding: 12px 15px; background: var(--header-blue); color: #fff; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; }
-
-    /* أزرار اللغة */
-    .lang-switcher { display: flex; gap: 5px; background: rgba(255,255,255,0.1); padding: 4px; border-radius: 8px; }
-    .lang-btn { padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 11px; font-weight: bold; border: none; background: transparent; color: #fff; transition: 0.3s; }
-    .lang-btn.active { background: var(--primary); color: #000; }
-
+    .top-nav { padding: 12px 15px; background: var(--header); color: #fff; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; }
     .main-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 15px; }
     .card { background: var(--card); border-radius: 8px; border: 1px solid #334155; display: flex; flex-direction: column; }
     .card-header { background: #0d4b73; color: #fff; padding: 8px 12px; font-size: 13px; font-weight: bold; }
     .card-body { padding: 15px; flex-grow: 1; min-height: 190px; display: flex; align-items: flex-end; justify-content: space-around; }
-
-    .bar-group { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
     .bar { width: 28px; background: var(--primary); border-radius: 4px; position: relative; transition: height 1s; }
-    .bar-val { position: absolute; top: -20px; width: 100%; text-align: center; font-size: 10px; font-weight: bold; }
-
-    .footer-info { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; color: #64748b; padding: 6px 20px; display: flex; justify-content: space-between; font-size: 11px; z-index: 100; }
+    .footer-info { position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; color: #64748b; padding: 6px 20px; display: flex; justify-content: space-between; font-size: 11px; }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -51,97 +28,38 @@
 
 <div id="dashboardRoot" class="dashboard-wrapper">
   <aside class="sidebar">
-    <div class="side-title" data-i18n="sideTitle">Site Visits Dashboard</div>
+    <div class="side-title">Site Visits Dashboard</div>
     <div style="text-align: center; margin-top: 20px;">
-        <span style="font-size: 11px; font-weight: bold;" data-i18n="totalVisitsLabel">إجمالي الزيارات</span>
+        <span style="font-size: 11px; font-weight: bold;">إجمالي الزيارات</span>
         <h1 style="font-size: 60px; margin: 5px 0; color: #0d4b73;" id="totalVisits">0</h1>
     </div>
   </aside>
 
   <div class="main-content">
     <div class="top-nav">
-        <div style="font-weight: bold; font-size: 14px;" data-i18n="navTitle">نظام إدارة الزيارات | شركة المجدوعي للسيارات</div>
-        <div style="display:flex; gap:15px; align-items:center;">
-            <div class="lang-switcher">
-                <button class="lang-btn" onclick="setLang('ar')" id="btnAr">AR</button>
-                <button class="lang-btn" onclick="setLang('en')" id="btnEn">EN</button>
-            </div>
-            <button onclick="logout()" style="background:#ef4444; color:#fff; border:none; padding:5px 10px; border-radius:5px; cursor:pointer; font-size:11px;" data-i18n="logout">خروج</button>
+        <div style="font-weight: bold; font-size: 14px;">نظام إدارة الزيارات | إصدار الفحص v1.6.2</div>
+        <div style="display:flex; gap:10px;">
+            <button onclick="setLang('ar')" style="background:none; color:#fff; border:1px solid #fff; cursor:pointer;">AR</button>
+            <button onclick="setLang('en')" style="background:none; color:#fff; border:1px solid #fff; cursor:pointer;">EN</button>
         </div>
     </div>
-    <main class="main-grid" id="dashboardCapture">
-        <div class="card"><div class="card-header" data-i18n="cardNetwork">Network Infrastructure</div><div class="card-body" id="networkChart"></div></div>
-        <div class="card"><div class="card-header" data-i18n="cardHardware">End User Services</div><div class="card-body" id="pcsChart"></div></div>
-        <div class="card"><div class="card-header" data-i18n="cardConn">Connectivity Status</div><div class="card-body" id="connChart"></div></div>
+    <main class="main-grid">
+        <div class="card"><div class="card-header">Network Infrastructure</div><div class="card-body" id="networkChart"></div></div>
+        <div class="card"><div class="card-header">End User Services</div><div class="card-body" id="pcsChart"></div></div>
+        <div class="card"><div class="card-header">Connectivity Status</div><div class="card-body" id="connChart"></div></div>
     </main>
   </div>
 </div>
 
 <div class="footer-info">
-    <div><span data-i18n="version">إصدار النظام</span>: <strong id="appVer">v1.6.0-MultiLang</strong></div>
+    <div>إصدار: <strong>v1.6.2-Live</strong></div>
     <div id="liveClock"></div>
-    <div><span data-i18n="status">الحالة</span>: <strong id="statusTxt" style="color:#10b981">...</strong></div>
+    <div>الحالة: <strong id="statusTxt" style="color:#ef4444">بانتظار الصلاحيات...</strong></div>
 </div>
 
 <script>
 (function(){
   const $ = id => document.getElementById(id);
-  
-  // قاموس اللغات
-  const i18n = {
-    ar: {
-      sideTitle: "Site Visits Dashboard",
-      totalVisitsLabel: "إجمالي الزيارات",
-      navTitle: "نظام إدارة الزيارات | شركة المجدوعي للسيارات",
-      logout: "خروج",
-      cardNetwork: "البنية التحتية والشبكات",
-      cardHardware: "خدمات المستخدمين والأجهزة",
-      cardConn: "حالة الاتصال",
-      version: "إصدار النظام",
-      status: "الحالة",
-      connected: "متصل حي",
-      infra: "الشبكات", hardware: "الأجهزة", connectivity: "الاتصال"
-    },
-    en: {
-      sideTitle: "Site Visits Dashboard",
-      totalVisitsLabel: "Total Visits",
-      navTitle: "Site Visit System | Almajdouie Motors",
-      logout: "Logout",
-      cardNetwork: "Network Infrastructure Services",
-      cardHardware: "End User Services",
-      cardConn: "Connectivity Status",
-      version: "System Version",
-      status: "Status",
-      connected: "Live Connected",
-      infra: "Network", hardware: "Hardware", connectivity: "Connectivity"
-    }
-  };
-
-  let currentLang = localStorage.getItem('dashLang') || 'ar';
-
-  window.setLang = function(lang) {
-    currentLang = lang;
-    localStorage.setItem('dashLang', lang);
-    const isAr = lang === 'ar';
-    
-    document.getElementById('mainHtml').dir = isAr ? 'rtl' : 'ltr';
-    document.getElementById('mainHtml').lang = lang;
-    
-    // تحديث النصوص
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      el.innerText = i18n[lang][key];
-    });
-
-    // تحديث الأزرار
-    $('btnAr').classList.toggle('active', isAr);
-    $('btnEn').classList.toggle('active', !isAr);
-    
-    // إعادة رسم الأعمدة بالأسماء الجديدة
-    if (window.lastDocs) processData(window.lastDocs);
-  };
-
-  // إعدادات Firebase من ملف login.html
   const firebaseConfig = {
     apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
     authDomain: "baghethan-ba325.firebaseapp.com",
@@ -153,21 +71,30 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
+  const auth = firebase.auth();
 
-  setInterval(() => {
-    const now = new Date();
-    $('liveClock').innerText = now.toLocaleString(currentLang === 'ar' ? 'ar-SA' : 'en-US');
-  }, 1000);
-
-  db.collection('branch_checklists').onSnapshot(snap => {
-    $('statusTxt').innerText = i18n[currentLang].connected;
-    const docs = snap.docs.map(d => d.data());
-    window.lastDocs = docs;
-    $('totalVisits').textContent = docs.length;
-    processData(docs);
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      console.log("تم تسجيل الدخول بنجاح.");
+      console.log("Your UID is:", user.uid); // افحص هذا الـ ID في Console وقارنه بـ app_users
+      
+      // جلب البيانات مع مراقبة أخطاء الصلاحيات
+      db.collection('branch_checklists').onSnapshot(snap => {
+        $('statusTxt').innerText = "متصل حي بنجاح";
+        $('statusTxt').style.color = "#10b981";
+        const docs = snap.docs.map(d => d.data());
+        $('totalVisits').textContent = docs.length;
+        renderCharts(docs);
+      }, err => {
+        console.error("خطأ في الصلاحيات:", err.message);
+        $('statusTxt').innerText = "خطأ صلاحيات: راجع الـ Rules";
+      });
+    } else {
+      window.location.href = 'login.html';
+    }
   });
 
-  function processData(docs) {
+  function renderCharts(docs) {
     let stats = { infra: 0, pcs: 0, conn: 0 };
     docs.forEach(doc => {
       const ans = doc.dynamicAnswers || {};
@@ -175,23 +102,15 @@
       if (ans["0NQrLqvsNNYgd0Iyy6by"] === "fully_functioning") stats.pcs++;
       if (ans["BcjdipZxDmVgodHk9t1B"] === "above_the_range") stats.conn++;
     });
-
     const total = docs.length || 1;
-    const lang = i18n[currentLang];
-    
-    $('networkChart').innerHTML = createBar(lang.infra, (stats.infra/total)*100, "var(--gray)");
-    $('pcsChart').innerHTML = createBar(lang.hardware, (stats.pcs/total)*100, "var(--primary)");
-    $('connChart').innerHTML = createBar(lang.connectivity, (stats.conn/total)*100, "var(--orange)");
+    $('networkChart').innerHTML = createBar((stats.infra/total)*100, "#94a3b8");
+    $('pcsChart').innerHTML = createBar((stats.pcs/total)*100, "#38bdf8");
+    $('connChart').innerHTML = createBar((stats.conn/total)*100, "#f97316");
   }
 
-  function createBar(label, val, color) {
-    return `<div class="bar-group"><div class="bar" style="height:${val}%; background:${color}"><span class="bar-val">${Math.round(val)}%</span></div><div style="font-size:10px">${label}</div></div>`;
+  function createBar(val, color) {
+    return `<div class="bar" style="height:${val}%; background:${color}"><span style="position:absolute;top:-20px;width:100%;text-align:center;font-size:10px;font-weight:bold;">${Math.round(val)}%</span></div>`;
   }
-
-  window.logout = () => firebase.auth().signOut().then(() => window.location.href='login.html');
-
-  // تشغيل اللغة عند البداية
-  setLang(currentLang);
 })();
 </script>
 </body>
