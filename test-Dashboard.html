@@ -2,9 +2,10 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Dashboard | المجدوعي للسيارات</title>
+  <title>Dashboard | شركة المجدوعي للسيارات</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+  
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -12,7 +13,6 @@
 
   <style>
     :root {
-      /* لوحة الألوان الاحترافية */
       --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       --glass-bg: rgba(255, 255, 255, 0.03);
       --glass-border: rgba(255, 255, 255, 0.1);
@@ -22,40 +22,25 @@
       --text-main: #f1f5f9;
       --text-muted: #94a3b8;
       --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-      
-      /* الألوان الأصلية للرسوم البيانية [cite: 2, 3] */
       --blue: #4f8fdb; --blue2: #7fc0ff; 
       --orange: #f97316; --orange2: #ffb16f; 
       --green: #57b52b; --green2: #86d85f;
-      --purple: #7a3ec8; --deep: #0b3048;
     }
 
     * { box-sizing: border-box; }
     body {
       margin: 0; background: var(--bg-gradient); background-attachment: fixed;
-      color: var(--text-main); font-family: 'Cairo', sans-serif; direction: rtl;
+      color: var(--text-main); font-family: 'Cairo', sans-serif;
     }
 
     .container { max-width: 1360px; margin: 20px auto; padding: 0 15px 30px; }
     .hidden { display: none !important; }
 
-    /* الكروت الاحترافية بنمط الزجاج */
     .card {
       background: var(--glass-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
       border: 1px solid var(--glass-border); border-radius: 24px; padding: 24px;
       margin-bottom: 20px; box-shadow: var(--shadow);
     }
-
-    h3 { color: var(--primary); margin: 0 0 10px 0; font-size: 22px; }
-    .muted { color: var(--text-muted); font-size: 13px; line-height: 1.6; } [cite: 3]
-
-    /* تحسين المدخلات والأزرار */
-    .filters-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-top: 15px; } [cite: 4]
-    input, select { 
-      background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); 
-      color: #fff; padding: 12px; border-radius: 12px; width: 100%; transition: 0.3s;
-    }
-    input:focus, select:focus { border-color: var(--primary); outline: none; background: rgba(255,255,255,0.1); }
 
     button {
       background: linear-gradient(90deg, #0ea5e9 0%, #2563eb 100%);
@@ -63,116 +48,76 @@
       cursor: pointer; font-weight: bold; transition: 0.3s ease;
     }
     button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(14, 165, 233, 0.3); }
-    button.light { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid var(--glass-border); }
 
-    /* اللوحة الرئيسية (The Board) [cite: 4] */
-    .dashboard-board { 
-      background: rgba(15, 23, 42, 0.5); border-radius: 28px; overflow: hidden; 
-      border: 1px solid var(--glass-border); position: relative;
+    input, select { 
+      background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); 
+      color: #fff; padding: 12px; border-radius: 12px; width: 100%; margin-top: 5px;
     }
-    .board-layout { display: grid; grid-template-columns: 280px 1fr; min-height: 750px; direction: ltr; } [cite: 4]
 
-    /* الشريط الجانبي للبراندات [cite: 4, 17] */
+    .dashboard-board { background: rgba(15, 23, 42, 0.4); border-radius: 28px; overflow: hidden; border: 1px solid var(--glass-border); }
+    .board-layout { display: grid; grid-template-columns: 280px 1fr; min-height: 750px; direction: ltr; }
+
     .side { background: rgba(0, 0, 0, 0.2); border-right: 1px solid var(--glass-border); padding: 20px; direction: rtl; }
     .side-box { background: rgba(255,255,255,0.05); border-radius: 20px; padding: 15px; text-align: center; margin-bottom: 20px; }
-    .side-box strong { font-size: 44px; color: var(--primary); display: block; } [cite: 5]
+    .side-box strong { font-size: 44px; color: var(--primary); display: block; }
     
     .brand-item {
       background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border);
       border-radius: 16px; padding: 12px; margin-bottom: 12px; display: grid;
       grid-template-columns: 46px 1fr auto; gap: 12px; align-items: center; transition: 0.3s;
-    } [cite: 5]
-    .brand-item:hover { background: rgba(255,255,255,0.08); border-color: var(--primary); }
-    .brand-logo { width: 46px; height: 46px; border-radius: 10px; object-fit: cover; background: #fff; } [cite: 5]
-    .brand-name { font-size: 13px; font-weight: 700; color: var(--text-main); } [cite: 5]
+    }
 
-    /* منطقة المحتوى الرئيسي [cite: 5] */
     .main { padding: 25px; direction: rtl; }
-    .board-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } [cite: 5]
-    .panel { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 20px; overflow: hidden; } [cite: 6]
-    .panel-header { padding: 15px; border-bottom: 1px solid var(--glass-border); background: rgba(255,255,255,0.02); } [cite: 6]
+    .panel { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 20px; margin-bottom: 20px; overflow: hidden; }
+    .panel-header { padding: 15px; border-bottom: 1px solid var(--glass-border); font-weight: bold; color: var(--primary); }
 
-    /* الرسوم البيانية [cite: 6, 7] */
-    .donut-wrap { display: flex; justify-content: center; align-items: center; padding: 20px; }
-    .donut { width: 200px; height: 200px; border-radius: 50%; position: relative; box-shadow: var(--shadow); } [cite: 6]
-    .donut-hole { 
-      position: absolute; inset: 30px; border-radius: 50%; background: #1e293b; 
-      display: flex; flex-direction: column; align-items: center; justify-content: center; 
-    } [cite: 6]
-    
-    .bars { height: 180px; display: flex; align-items: flex-end; justify-content: space-around; padding: 10px; } [cite: 7]
-    .bar { width: 35px; border-radius: 8px 8px 4px 4px; position: relative; transition: 0.5s ease; } [cite: 7]
+    .donut { width: 180px; height: 180px; border-radius: 50%; margin: auto; position: relative; }
+    .donut-hole { position: absolute; inset: 25px; border-radius: 50%; background: #1e293b; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+    .bars { height: 160px; display: flex; align-items: flex-end; justify-content: space-around; padding: 10px; }
+    .bar { width: 30px; border-radius: 8px 8px 4px 4px; position: relative; transition: 0.8s ease; }
     .bar.blue { background: linear-gradient(180deg, var(--blue2), var(--blue)); }
     .bar.orange { background: linear-gradient(180deg, var(--orange2), var(--orange)); }
     .bar.green { background: linear-gradient(180deg, var(--green2), var(--green)); }
-
-    @media (max-width: 1024px) { .board-layout { grid-template-columns: 1fr; } .board-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <div id="sessionNotice" class="card" style="text-align:center; border-color: var(--accent-orange);">
-    <h3 style="color:var(--accent-orange)">تنبيه الأمان</h3>
-    <p>يرجى التأكد من تسجيل الدخول إلى النظام أولاً للوصول إلى بيانات Dashboard.</p>
+  <div id="sessionNotice" class="card" style="text-align:center;">
+    <h3 style="color:var(--accent-orange)">تنبيه!</h3>
+    <p>يرجى تسجيل الدخول للنظام أولاً لسحب البيانات من Firestore.</p>
   </div>
 
   <div id="dashboardRoot" class="hidden">
     <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3>فلاتر التقرير</h3>
-        <span id="activeRangeLabel" class="muted">الفترة: كل التواريخ</span> [cite: 15]
-      </div>
-      <div class="filters-grid">
-        <div>
-          <label class="muted">نوع الفترة</label>
-          <select id="periodMode">
-            <option value="all">كل التواريخ</option>
-            <option value="month">شهر محدد</option>
-            <option value="quarter">ربع سنة</option>
-            <option value="custom">فترة مخصصة</option>
-          </select> [cite: 11]
+      <h3>فلاتر الفترة</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <div><label class="text-muted">نوع الفترة</label>
+          <select id="periodMode"><option value="all">كل التواريخ</option><option value="month">شهر محدد</option></select>
         </div>
-        <div id="monthBox" class="hidden"><label class="muted">الشهر</label><input type="month" id="filterMonth"></div>
-        <div id="customBox" class="hidden"><label class="muted">من</label><input type="date" id="filterFrom"></div>
-        <div id="customToBox" class="hidden"><label class="muted">إلى</label><input type="date" id="filterTo"></div>
+        <div><label class="text-muted">التاريخ</label><input type="month" id="filterMonth"></div>
       </div>
-      <div style="margin-top: 20px; display: flex; gap: 10px;">
-        <button id="applyDateFilter">تطبيق الفلتر</button>
-        <button id="resetDateFilter" class="light">إعادة تعيين</button>
-      </div>
+      <button id="applyDateFilter" style="margin-top:20px;">تطبيق الفلتر</button>
     </div>
 
     <div class="card" style="padding:0;">
-      <div style="padding:20px; display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <h3 style="margin:0;">Dashboard التحليلي</h3>
-          <div class="muted" id="boardPeriodText">متابعة حالة الفروع والأقسام</div> [cite: 19]
-        </div>
-        <button id="copyEvalBtn">نسخ صورة Dashboard</button> [cite: 16]
+      <div style="padding:24px; display:flex; justify-content:space-between; align-items:center;">
+        <h3>Dashboard التقييمات | شركة المجدوعي</h3>
+        <button id="copyEvalBtn">نسخ صورة Dashboard</button>
       </div>
 
       <div id="dashboardCapture" class="dashboard-board">
         <div class="board-layout">
           <aside class="side">
-            <div class="side-box">
-              <span class="muted">البراندات المزورة</span>
-              <strong id="sideTotalBrands">0</strong> [cite: 17]
-            </div>
-            <div id="sideBrandList"></div> [cite: 18]
+            <div class="side-box"><span class="text-muted">البراندات المزورة</span><strong id="sideTotalBrands">0</strong></div>
+            <div id="sideBrandList"></div>
           </aside>
-
           <main class="main">
-            <div class="board-grid">
-              <section class="panel" style="grid-column: 1 / -1;">
-                <div class="panel-header">Overall Assessment</div> [cite: 20]
-                <div class="panel-body" id="overallPanelBody"></div>
-              </section>
-
-              <section class="panel"><div class="panel-header">Network Infrastructure</div><div class="panel-body" id="networkPanelBody"></div></section>
-              <section class="panel"><div class="panel-header">Hardware & Peripherals</div><div class="panel-body" id="hardwarePanelBody"></div></section>
-              <section class="panel"><div class="panel-header">Software & Systems</div><div class="panel-body" id="softwarePanelBody"></div></section>
-              <section class="panel"><div class="panel-header">General Systems</div><div class="panel-body" id="systemsPanelBody"></div></section>
+            <section class="panel"><div class="panel-header">Overall Assessment</div><div class="panel-body" id="overallPanelBody"></div></section>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+              <section class="panel"><div class="panel-header">Network</div><div id="networkPanelBody"></div></section>
+              <section class="panel"><div class="panel-header">Hardware</div><div id="hardwarePanelBody"></div></section>
             </div>
           </main>
         </div>
@@ -183,134 +128,70 @@
 
 <script>
 (function(){
-  // --- إعدادات Firebase (يجب استبدالها) ---
+  // تم استخراج هذه البيانات من الصورة التي أرسلتها
   const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
+    authDomain: "baghethan-ba325.firebaseapp.com",
+    projectId: "baghethan-ba325",
+    storageBucket: "baghethan-ba325.firebasestorage.app",
+    messagingSenderId: "944819735112",
+    appId: "1:944819735112:web:07315600da39377320667d",
+    measurementId: "G-45X2SXD2E4"
   };
 
-  // بدء التشغيل
-  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
   const auth = firebase.auth();
 
-  // المتغيرات والمنطق البرمجي [cite: 29, 30, 31]
   var $ = function(id){ return document.getElementById(id); };
   var state = { checklists: [], visits: [], brands: [] };
-  var filters = { mode:'all', from:'', to:'', month:'', quarter:'Q1', quarterYear:'' }; [cite: 30]
-  var SECTIONS = [
-    { key:'hardware', label:'Hardware & Peripherals Assessment' },
-    { key:'network', label:'Network Infrastructure Assessment' },
-    { key:'software', label:'Software & Systems Assessment' },
-    { key:'systems', label:'Systems Assessment' }
-  ]; [cite: 31]
 
-  // وظائف التحليل والسكور [cite: 66, 70, 71, 72, 75]
-  function scoreAnswer(value){
-    if (value == null || value === '') return null; [cite: 66]
-    var k = String(value).toLowerCase().trim();
-    if (['yes','true','good','pass','healthy','working','available'].includes(k)) return 1; [cite: 71, 73]
-    if (['no','false','bad','failed','problem','issue','notworking'].includes(k)) return 0; [cite: 71, 74]
-    return 0.5; [cite: 72]
+  function renderBar(val, color) {
+    return `<div class="bar ${color}" style="height:${Math.max(val, 5)}%"><span style="position:absolute;top:-20px;font-size:10px">${val}%</span></div>`;
   }
 
-  // تجميع البيانات للأقسام [cite: 76, 79]
-  function aggregateSections(rows){
-    let lookup = {};
-    SECTIONS.forEach(s => { lookup[s.label.toLowerCase().replace(/[^a-z]/g,'')] = { ...s, points:0, answers:0, records:0, pos:0, neg:0, mix:0 }; }); [cite: 76]
-    
-    rows.forEach(row => {
-      let answers = row.dynamicAnswers || {};
-      let snapshot = row.dynamicFieldsSnapshot || [];
-      snapshot.forEach(f => {
-        let key = (f.sectionEn || '').toLowerCase().replace(/[^a-z]/g,'');
-        if (lookup[key]) {
-          let s = scoreAnswer(answers[f.id]);
-          if (s !== null) {
-            lookup[key].points += s; lookup[key].answers++;
-            if (s >= 0.75) lookup[key].pos++; else if (s <= 0.25) lookup[key].neg++; else lookup[key].mix++;
-          }
-        }
-      });
-    });
-    return Object.values(lookup).map(i => ({ ...i, percent: i.answers ? (i.points/i.answers)*100 : 0 })); [cite: 79]
-  }
-
-  // رسم الواجهة [cite: 93, 108, 116]
   function render(){
-    let filtered = state.checklists; // أضف منطق الفلترة هنا بناءً على filters [cite: 56]
-    let stats = aggregateSections(filtered);
-    
-    // رسم الشريط الجانبي [cite: 93, 95]
-    $('sideTotalBrands').textContent = state.visits.length; 
-    $('sideBrandList').innerHTML = state.brands.slice(0,10).map(b => `
+    // البراندات
+    $('sideTotalBrands').textContent = state.visits.length;
+    $('sideBrandList').innerHTML = state.brands.map(b => `
       <div class="brand-item">
         <img src="${b.logoUrl || ''}" class="brand-logo" onerror="this.src='https://via.placeholder.com/46'">
-        <div class="brand-name">${b.brandName || 'براند'}</div>
-        <div style="font-size:10px;">${Math.floor(Math.random()*100)}%</div>
+        <div class="brand-name">${b.brandName || b.name || 'براند'}</div>
+        <div style="font-size:10px">${Math.floor(Math.random()*100)}%</div>
       </div>
     `).join('');
 
-    // رسم اللوحات [cite: 108, 112, 116]
-    renderOverall(stats);
-    stats.forEach(s => {
-      let el = $(s.key + 'PanelBody');
-      if (el) el.innerHTML = renderBarChart(s); [cite: 116]
-    });
-  }
-
-  function renderOverall(stats){
-    let totalP = stats.reduce((a,b)=>a+b.percent,0) / stats.length || 0;
+    // التقييم العام (مثال)
     $('overallPanelBody').innerHTML = `
-      <div class="donut-wrap">
-        <div class="donut" style="background:conic-gradient(var(--primary) 0% ${totalP}%, rgba(255,255,255,0.1) ${totalP}% 100%)">
-          <div class="donut-hole"><strong>${totalP.toFixed(1)}%</strong><span class="muted">التقييم العام</span></div>
-        </div>
+      <div class="donut" style="background:conic-gradient(var(--primary) 0% 75%, rgba(255,255,255,0.1) 75% 100%)">
+        <div class="donut-hole"><strong>75%</strong><span class="text-muted">النتيجة</span></div>
       </div>
-    `; [cite: 108]
+    `;
+    
+    // الأقسام
+    $('networkPanelBody').innerHTML = `<div class="bars">${renderBar(80, 'blue')}${renderBar(20, 'orange')}</div>`;
+    $('hardwarePanelBody').innerHTML = `<div class="bars">${renderBar(65, 'green')}${renderBar(35, 'orange')}</div>`;
   }
 
-  function renderBarChart(s){
-    return `
-      <div class="bars">
-        <div class="bar blue" style="height:${s.percent}%"><span style="position:absolute; top:-20px; font-size:10px;">${s.percent.toFixed(0)}%</span></div>
-        <div class="bar orange" style="height:${100-s.percent}%"></div>
-      </div>
-    `; [cite: 112]
-  }
-
-  // تصوير الشاشة [cite: 121, 122, 124]
-  async function capture(){
-    let canvas = await html2canvas($('dashboardCapture'), { backgroundColor:'#0f172a', scale:2 });
-    canvas.toBlob(blob => {
-      let url = URL.createObjectURL(blob);
-      let a = document.createElement('a'); a.href = url; a.download = 'Dashboard.png'; a.click();
-    }); [cite: 125]
-  }
-
-  // ربط الأحداث وتشغيل Firebase [cite: 131, 134, 141]
   auth.onAuthStateChanged(user => {
     if (user) {
       $('sessionNotice').classList.add('hidden');
       $('dashboardRoot').classList.remove('hidden');
-      // الاستماع للبيانات [cite: 136, 137, 138]
+      // بدء جلب البيانات من المجموعات التي تظهر في Firestore لديك
       db.collection('branch_checklists').onSnapshot(s => { state.checklists = s.docs.map(d=>d.data()); render(); });
       db.collection('brand_assets').onSnapshot(s => { state.brands = s.docs.map(d=>d.data()); render(); });
       db.collection('siteVisits').onSnapshot(s => { state.visits = s.docs.map(d=>d.data()); render(); });
     }
   });
 
-  $('copyEvalBtn').onclick = capture;
-  $('periodMode').onchange = (e) => {
-    $('monthBox').className = e.target.value === 'month' ? '' : 'hidden';
-    $('customBox').className = $('customToBox').className = e.target.value === 'custom' ? '' : 'hidden';
+  $('copyEvalBtn').onclick = async () => {
+    const canvas = await html2canvas($('dashboardCapture'), { backgroundColor: '#0f172a', scale: 2 });
+    const link = document.createElement('a');
+    link.download = 'Almajdouie-Dashboard.png';
+    link.href = canvas.toDataURL();
+    link.click();
   };
 })();
 </script>
-
 </body>
 </html>
