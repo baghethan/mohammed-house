@@ -16,15 +16,15 @@
       --primary:#0f5d95;
       --success:#10b981;
       --warning:#f59e0b;
+      --info:#3b82f6;
       --border:#e2e8f0;
       --radius:16px;
     }
 
     *{box-sizing:border-box;}
     body{ margin:0; padding:20px; background:var(--bg); color:var(--text); font-family:"Segoe UI", Tahoma, sans-serif; }
-    .page{ max-width:1400px; margin:0 auto; }
+    .page{ max-width:1600px; margin:0 auto; }
 
-    /* الهيدر */
     .page-header{
       background: linear-gradient(135deg, #0f5d95, #1e293b);
       color:#fff; padding:25px; border-radius:var(--radius); margin-bottom:20px;
@@ -42,43 +42,52 @@
     .btn.upload { background: var(--success); }
     .btn.lang-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); }
 
-    /* الإحصائيات الرئيسية الثلاثة */
+    /* الإحصائيات الرئيسية الكبرى */
     .main-stats{ display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; margin-bottom: 30px; }
     .stat-box{ 
       background:#fff; border:1px solid var(--border); border-radius:16px; padding:25px; 
-      text-align: center; border-bottom: 5px solid var(--primary);
+      text-align: center; border-bottom: 5px solid var(--info);
     }
     .stat-box.success { border-bottom-color: var(--success); }
     .stat-box.warning { border-bottom-color: var(--warning); }
     
     .stat-label{ color:var(--muted); font-size:15px; font-weight: 600; margin-bottom: 10px; display: block; }
-    .stat-value{ font-size:40px; font-weight:900; color: var(--primary); }
+    .stat-value{ font-size:40px; font-weight:900; color: var(--info); }
     .success .stat-value { color: var(--success); }
     .warning .stat-value { color: var(--warning); }
 
-    /* تفاصيل البطاقات */
+    /* شبكة التفاصيل (المناطق والمدن والبراندات) */
     .details-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; }
-    .details-card{ background:#fff; border:1px solid var(--border); border-radius:16px; padding:15px; }
-    .details-card h4{ margin-top:0; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; color: var(--primary); }
+    .details-card{ background:#fff; border:1px solid var(--border); border-radius:16px; padding:15px; display: flex; flex-direction: column;}
+    .details-card h4{ margin-top:0; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; color: var(--primary); font-size: 18px;}
 
-    .scroll-area{ max-height: 500px; overflow-y: auto; padding: 5px; }
+    .scroll-area{ max-height: 600px; overflow-y: auto; padding: 5px; }
     
     .mini-item{ 
-      border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px; 
-      background: #fcfdfe;
+      border:1px solid var(--border); border-radius:12px; padding:15px; margin-bottom:12px; 
+      background: #fcfdfe; transition: 0.2s;
     }
-    .item-name{ font-weight: 800; font-size: 14px; margin-bottom: 8px; color: var(--primary); }
-    
-    .item-counts{ display:flex; justify-content: space-between; gap:10px; margin-bottom: 10px;}
-    .count-pill{ flex:1; background:#fff; border:1px solid #edf2f7; padding:6px; border-radius:8px; text-align: center; font-size: 12px; }
-    .count-pill b{ display: block; font-size: 15px; }
+    .mini-item:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 
-    .progress-bar { height: 6px; background: #eee; border-radius: 10px; overflow: hidden; }
-    .progress-fill { height: 100%; transition: 0.5s; }
+    .item-name{ font-weight: 800; font-size: 15px; margin-bottom: 12px; color: var(--primary); }
+    
+    /* توزيع الأرقام الثلاثة داخل كل بطاقة */
+    .item-counts-row{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom: 12px;}
+    .count-pill{ background:#fff; border:1px solid #edf2f7; padding:8px 4px; border-radius:10px; text-align: center; font-size: 11px; color: var(--muted); }
+    .count-pill b{ display: block; font-size: 16px; margin-top: 4px; }
+    .count-pill.total-pill b { color: var(--text); }
+    .count-pill.done-pill b { color: var(--success); }
+    .count-pill.wait-pill b { color: var(--warning); }
+
+    .progress-wrapper { display: flex; align-items: center; gap: 10px; }
+    .progress-bar { flex: 1; height: 8px; background: #eee; border-radius: 10px; overflow: hidden; }
+    .progress-fill { height: 100%; transition: 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+    .pct-text { font-size: 12px; font-weight: bold; min-width: 35px; }
 
     #fileInput { display: none; }
 
-    @media (max-width: 900px) { .main-stats, .details-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 1100px) { .details-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) { .main-stats { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -94,20 +103,21 @@
   <section class="card">
     <div class="toolbar">
       <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" />
-      <button class="btn upload" onclick="document.getElementById('fileInput').click()">📁 <span id="txt-upload">رفع الملف</span></button>
+      <button class="btn upload" onclick="document.getElementById('fileInput').click()">📁 <span id="txt-upload">رفع ملف البيانات</span></button>
+      <button class="btn" style="background: var(--muted);" onclick="location.reload()">🔄</button>
     </div>
 
     <div class="main-stats">
       <div class="stat-box">
-        <span class="stat-label" id="txt-total">إجمالي عدد الأجهزة</span>
+        <span class="stat-label" id="txt-total-main">إجمالي الأجهزة</span>
         <div class="stat-value" id="val-total">0</div>
       </div>
       <div class="stat-box success">
-        <span class="stat-label" id="txt-done">مكتمل</span>
+        <span class="stat-label" id="txt-done-main">مكتمل</span>
         <div class="stat-value" id="val-done">0</div>
       </div>
       <div class="stat-box warning">
-        <span class="stat-label" id="txt-remain">متبقي</span>
+        <span class="stat-label" id="txt-remain-main">متبقي</span>
         <div class="stat-value" id="val-remain">0</div>
       </div>
     </div>
@@ -135,8 +145,18 @@
   let rawData = [];
 
   const labels = {
-    ar: { title: "تحديث ويندوز — المجدوعي", upload: "رفع الملف", total: "إجمالي عدد الأجهزة", done: "مكتمل", remain: "متبقي", reg: "المناطق", city: "المدن", brand: "البراندات", lang: "English" },
-    en: { title: "Windows Upgrade — Almajdouie", upload: "Upload File", total: "Total Devices", done: "Completed", remain: "Remaining", reg: "Regions", city: "Cities", brand: "Brands", lang: "العربية" }
+    ar: { 
+      title: "تحديث ويندوز — المجدوعي", upload: "رفع ملف البيانات", 
+      total: "الإجمالي", done: "مكتمل", remain: "متبقي",
+      totalMain: "إجمالي عدد الأجهزة", doneMain: "إجمالي المكتمل", remainMain: "إجمالي المتبقي",
+      reg: "المناطق", city: "المدن", brand: "البراندات", lang: "English" 
+    },
+    en: { 
+      title: "Windows Upgrade — Almajdouie", upload: "Upload Data File", 
+      total: "Total", done: "Done", remain: "Wait",
+      totalMain: "Total Devices", doneMain: "Total Completed", remainMain: "Total Remaining",
+      reg: "Regions", city: "Cities", brand: "Brands", lang: "العربية" 
+    }
   };
 
   function toggleLanguage() {
@@ -144,9 +164,9 @@
     document.getElementById('htmlPage').dir = lang === 'ar' ? 'rtl' : 'ltr';
     $('txt-title').textContent = labels[lang].title;
     $('txt-upload').textContent = labels[lang].upload;
-    $('txt-total').textContent = labels[lang].total;
-    $('txt-done').textContent = labels[lang].done;
-    $('txt-remain').textContent = labels[lang].remain;
+    $('txt-total-main').textContent = labels[lang].totalMain;
+    $('txt-done-main').textContent = labels[lang].doneMain;
+    $('txt-remain-main').textContent = labels[lang].remainMain;
     $('txt-reg').textContent = labels[lang].reg;
     $('txt-city').textContent = labels[lang].city;
     $('txt-brand').textContent = labels[lang].brand;
@@ -156,6 +176,7 @@
 
   $('fileInput').addEventListener('change', (e) => {
     const file = e.target.files[0];
+    if(!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
       const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array'});
@@ -170,15 +191,16 @@
     const stats = { region: {}, city: {}, brand: {} };
 
     data.forEach(row => {
-      // استخدام أسماء الأعمدة من ملفك
+      // قراءة البيانات بناءً على أعمدة ملفك: Devices_Count و Status و Region و City و Brand
       const count = parseInt(row.Devices_Count || row.devicesCount || 1) || 1;
-      const isDone = String(row.Status || '').toLowerCase().trim() === 'completed';
+      const status = String(row.Status || row.status || '').toLowerCase().trim();
+      const isDone = status === 'completed';
       
       total += count;
       if (isDone) done += count;
 
       ['Region', 'City', 'Brand'].forEach(key => {
-        const val = row[key] || 'N/A';
+        let val = row[key] || 'N/A';
         const lowKey = key.toLowerCase();
         if (!stats[lowKey][val]) stats[lowKey][val] = { total: 0, done: 0 };
         stats[lowKey][val].total += count;
@@ -198,17 +220,27 @@
   function renderList(id, obj) {
     const container = $(id);
     container.innerHTML = '';
-    Object.entries(obj).sort((a,b) => b[1].total - a[1].total).forEach(([name, s]) => {
+    
+    // ترتيب تنازلي حسب الإجمالي
+    const sorted = Object.entries(obj).sort((a,b) => b[1].total - a[1].total);
+    
+    sorted.forEach(([name, s]) => {
       const pct = Math.round((s.done / s.total) * 100) || 0;
+      const remain = s.total - s.done;
+      
       container.innerHTML += `
         <div class="mini-item">
           <div class="item-name">${name}</div>
-          <div class="item-counts">
-            <div class="count-pill">${labels[lang].done}: <b>${s.done}</b></div>
-            <div class="count-pill">${labels[lang].remain}: <b>${s.total - s.done}</b></div>
+          <div class="item-counts-row">
+            <div class="count-pill total-pill">${labels[lang].total}<b>${s.total}</b></div>
+            <div class="count-pill done-pill">${labels[lang].done}<b>${s.done}</b></div>
+            <div class="count-pill wait-pill">${labels[lang].remain}<b>${remain}</b></div>
           </div>
-          <div class="progress-bar">
-            <div class="progress-fill" style="width:${pct}%; background:${pct === 100 ? 'var(--success)' : 'var(--primary)'}"></div>
+          <div class="progress-wrapper">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${pct}%; background:${pct === 100 ? 'var(--success)' : 'var(--primary)'}"></div>
+            </div>
+            <div class="pct-text" style="color:${pct === 100 ? 'var(--success)' : 'var(--primary)'}">${pct}%</div>
           </div>
         </div>
       `;
