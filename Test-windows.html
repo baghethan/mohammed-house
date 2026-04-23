@@ -2,94 +2,108 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>اختبار اتصال Firebase — المجدوعي</title>
+    <title>اختبار صلاحيات Firebase — المجدوعي</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 40px; background: #f0f2f5; text-align: center; }
-        .status-box { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); display: inline-block; min-width: 400px; }
-        .log-area { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 10px; text-align: left; font-family: monospace; margin-top: 20px; max-height: 300px; overflow-y: auto; font-size: 13px; }
-        .stat-preview { display: flex; justify-content: space-around; margin-top: 20px; font-weight: bold; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 30px; background: #f4f7f9; text-align: center; }
+        .test-container { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: inline-block; width: 450px; text-align: right; }
+        .status-pill { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .online { background: #d1fae5; color: #065f46; }
+        .offline { background: #fee2e2; color: #991b1b; }
+        .log-box { background: #1e293b; color: #38bdf8; padding: 15px; border-radius: 10px; font-family: monospace; font-size: 12px; margin-top: 15px; max-height: 200px; overflow-y: auto; direction: ltr; }
+        input { width: 100%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #ddd; }
+        button { width: 100%; padding: 12px; background: #0f5d95; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="status-box">
-        <h2 style="color: #0f5d95;">فحص اتصال البيانات الحية</h2>
-        <p id="conn-status" style="color: orange;">جاري محاولة الاتصال بـ Firebase...</p>
-        
-        <div class="stat-preview">
-            <div>الإجمالي: <span id="t-v">0</span></div>
-            <div>المتبقي: <span id="r-v" style="color: orange;">0</span></div>
-            <div>المكتمل: <span id="d-v" style="color: green;">0</span></div>
-        </div>
-
-        <div class="log-area" id="log">
-            > جاري بدء الفحص...
-        </div>
+<div class="test-container">
+    <h2 style="text-align: center; color: #0f5d95;">فحص الاتصال والصلاحيات</h2>
+    
+    <div style="margin-bottom: 20px; text-align: center;">
+        حالة الاتصال: <span id="auth-status" class="status-pill offline">غير متصل</span>
     </div>
 
-    <script>
-        // 1. ضع بيانات الـ Config الخاصة بك هنا (مهم جداً)
-        const firebaseConfig = {
-            apiKey: "AIzaSy...",
-            authDomain: "your-app.firebaseapp.com",
-            projectId: "your-project-id",
-            storageBucket: "your-app.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abc123"
-        };
+    <div id="login-section">
+        <label>الايميل (يجب أن يكون y.khyar@almajdouie.com):</label>
+        <input type="email" id="test-email" placeholder="email@almajdouie.com">
+        <label>كلمة المرور:</label>
+        <input type="password" id="test-pass" placeholder="******">
+        <button onclick="testLogin()">تسجيل دخول واختبار القراءة</button>
+    </div>
 
-        function addLog(msg) {
-            const log = document.getElementById('log');
-            log.innerHTML += `<br>> ${msg}`;
-            log.scrollTop = log.scrollHeight;
-        }
+    <hr>
 
+    <div id="results-section" style="display: none;">
+        <h4 style="color: #10b981;">البيانات المستلمة من السحابة:</h4>
+        <ul id="data-preview" style="font-size: 13px;"></ul>
+    </div>
+
+    <div class="log-box" id="debug-log">> جاري انتظار الأوامر...</div>
+</div>
+
+<script>
+    // 1. ضع هنا بيانات Firebase Config الخاصة بك
+    const firebaseConfig = {
+        apiKey: "AIzaSy...",
+        authDomain: "your-project.firebaseapp.com",
+        projectId: "your-project-id",
+        storageBucket: "your-project.appspot.com",
+        messagingSenderId: "123456789",
+        appId: "1:123456789:web:abc123"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    function log(msg) {
+        const l = document.getElementById('debug-log');
+        l.innerHTML += `<br>> ${msg}`;
+        l.scrollTop = l.scrollHeight;
+    }
+
+    async function testLogin() {
+        const email = document.getElementById('test-email').value;
+        const pass = document.getElementById('test-pass').value;
+
+        log(`محاولة الدخول بـ ${email}...`);
+        
         try {
-            firebase.initializeApp(firebaseConfig);
-            const db = firebase.firestore();
-            addLog("تم تهيئة Firebase بنجاح.");
-
-            // 2. محاولة جلب البيانات من مجموعة UpgradeWindows
-            db.collection("UpgradeWindows").onSnapshot((snapshot) => {
-                if (snapshot.empty) {
-                    addLog("تنبيه: المجموعة 'UpgradeWindows' فارغة أو غير موجودة.");
-                    document.getElementById('conn-status').innerText = "المجموعة فارغة!";
-                    document.getElementById('conn-status').style.color = "red";
-                    return;
-                }
-
-                let total = 0, done = 0;
-                addLog(`تم العثور على ${snapshot.size} سجلات.`);
-
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const count = parseInt(data.Devices_Count || 1);
-                    const isDone = String(data.Status || '').toLowerCase() === 'completed';
-                    
-                    total += count;
-                    if (isDone) done += count;
-                    
-                    addLog(`سجل مستلم: ${data.Brand || 'N/A'} - الحالة: ${data.Status}`);
-                });
-
-                document.getElementById('t-v').innerText = total;
-                document.getElementById('d-v').innerText = done;
-                document.getElementById('r-v').innerText = total - done;
-                document.getElementById('conn-status').innerText = "تم جلب البيانات بنجاح ✅";
-                document.getElementById('conn-status').style.color = "green";
-                addLog("تم تحديث الواجهة بالبيانات الحية.");
-
-            }, (error) => {
-                addLog("خطأ في القراءة: " + error.message);
-                document.getElementById('conn-status').innerText = "فشل الاتصال (خطأ صلاحيات)";
-                document.getElementById('conn-status').style.color = "red";
-            });
-
-        } catch (e) {
-            addLog("خطأ فني في الكود: " + e.message);
+            const userCredential = await auth.signInWithEmailAndPassword(email, pass);
+            log("نجح تسجيل الدخول ✅");
+            document.getElementById('auth-status').innerText = "متصل: " + userCredential.user.email;
+            document.getElementById('auth-status').className = "status-pill online";
+            
+            // البدء باختبار قراءة المجموعة UpgradeWindows
+            testFirestoreRead();
+        } catch (error) {
+            log("فشل الدخول ❌: " + error.message);
         }
-    </script>
+    }
+
+    function testFirestoreRead() {
+        log("محاولة قراءة مجموعة 'UpgradeWindows'...");
+        
+        db.collection("UpgradeWindows").get().then((querySnapshot) => {
+            log(`نجحت القراءة! تم العثور على ${querySnapshot.size} سجلات ✅`);
+            document.getElementById('results-section').style.display = 'block';
+            const list = document.getElementById('data-preview');
+            list.innerHTML = "";
+
+            querySnapshot.forEach((doc) => {
+                const d = doc.data();
+                log(`استلام بيانات: ${d.Brand} - ${d.City}`);
+                list.innerHTML += `<li>${d.Brand} (${d.Region}) - الحالة: ${d.Status}</li>`;
+            });
+        }).catch((error) => {
+            log("فشل القراءة (خطأ صلاحيات/Permissions) ❌: " + error.message);
+            log("تأكد أن الـ Rules تسمح لهذا الإيميل بالقراءة.");
+        });
+    }
+</script>
+
 </body>
 </html>
