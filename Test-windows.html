@@ -1,243 +1,361 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" id="htmlPage">
+<html lang="ar" dir="rtl" id="mainHtml">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>نظام متابعة تحديث الأجهزة — المجدوعي</title>
-  
-  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-
-  <style>
-    :root{
-      --bg:#f8fafc;
-      --card:#ffffff;
-      --text:#1e293b;
-      --muted:#64748b;
-      --primary:#0f5d95;
-      --success:#10b981;
-      --warning:#f59e0b;
-      --info:#3b82f6;
-      --border:#e2e8f0;
-      --radius:16px;
-    }
-
-    *{box-sizing:border-box;}
-    body{ margin:0; padding:20px; background:var(--bg); color:var(--text); font-family:"Segoe UI", Tahoma, sans-serif; }
-    .page{ max-width:1600px; margin:0 auto; }
-
-    .page-header{
-      background: linear-gradient(135deg, #0f5d95, #1e293b);
-      color:#fff; padding:25px; border-radius:var(--radius); margin-bottom:20px;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .header-info h1{ margin:0; font-size:22px; }
-
-    .card{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الإدارة المتكامل — المجدوعي</title>
     
-    .toolbar{ display:flex; gap:12px; margin-bottom:25px; }
-    .btn {
-      border:none; border-radius:10px; padding:12px 20px; background:var(--primary); color:#fff;
-      font-weight:700; cursor:pointer; font-size: 14px;
-    }
-    .btn.upload { background: var(--success); }
-    .btn.lang-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); }
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
-    /* الترتيب الجديد للإحصائيات الرئيسية */
-    .main-stats{ display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; margin-bottom: 30px; }
-    .stat-box{ 
-      background:#fff; border:1px solid var(--border); border-radius:16px; padding:25px; 
-      text-align: center; border-bottom: 5px solid var(--info);
-    }
-    .stat-box.warning { border-bottom-color: var(--warning); }
-    .stat-box.success { border-bottom-color: var(--success); }
-    
-    .stat-label{ color:var(--muted); font-size:15px; font-weight: 600; margin-bottom: 10px; display: block; }
-    .stat-value{ font-size:40px; font-weight:900; color: var(--info); }
-    .warning .stat-value { color: var(--warning); }
-    .success .stat-value { color: var(--success); }
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --primary: #0f5d95;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --text-main: #1e293b;
+        }
 
-    .details-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; }
-    .details-card{ background:#fff; border:1px solid var(--border); border-radius:16px; padding:15px; display: flex; flex-direction: column;}
-    .details-card h4{ margin-top:0; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; color: var(--primary); font-size: 18px;}
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e3ee 100%);
+            min-height: 100vh;
+            display: flex;
+        }
 
-    .scroll-area{ max-height: 600px; overflow-y: auto; padding: 5px; }
-    
-    .mini-item{ border:1px solid var(--border); border-radius:12px; padding:15px; margin-bottom:12px; background: #fcfdfe; }
-    .item-name{ font-weight: 800; font-size: 15px; margin-bottom: 12px; color: var(--primary); }
-    
-    /* الترتيب الجديد داخل البطاقة: إجمالي، متبقي، مكتمل */
-    .item-counts-row{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom: 12px;}
-    .count-pill{ background:#fff; border:1px solid #edf2f7; padding:8px 4px; border-radius:10px; text-align: center; font-size: 11px; color: var(--muted); }
-    .count-pill b{ display: block; font-size: 16px; margin-top: 4px; }
-    .count-pill.total-pill b { color: var(--text); }
-    .count-pill.wait-pill b { color: var(--warning); }
-    .count-pill.done-pill b { color: var(--success); }
+        /* القائمة الجانبية */
+        .sidebar {
+            width: 260px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-left: 1px solid var(--glass-border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+        }
 
-    .progress-wrapper { display: flex; align-items: center; gap: 10px; }
-    .progress-bar { flex: 1; height: 8px; background: #eee; border-radius: 10px; overflow: hidden; }
-    .progress-fill { height: 100%; transition: 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
-    .pct-text { font-size: 12px; font-weight: bold; min-width: 35px; }
+        .sidebar[dir="ltr"] { border-left: none; border-right: 1px solid var(--glass-border); }
 
-    #fileInput { display: none; }
+        .logo-area { text-align: center; padding-bottom: 20px; border-bottom: 1px solid var(--glass-border); margin-bottom: 10px; }
+        .logo-area img { max-width: 150px; }
 
-    @media (max-width: 1100px) { .details-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 700px) { .main-stats { grid-template-columns: 1fr; } }
-  </style>
+        .nav-item {
+            padding: 12px 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-main);
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        .nav-item:hover, .nav-item.active { background: var(--primary); color: #fff; }
+
+        /* المحتوى الرئيسي */
+        .main-content {
+            margin-right: 280px;
+            padding: 30px;
+            width: 100%;
+            transition: 0.3s;
+        }
+        html[lang="en"] .main-content { margin-right: 0; margin-left: 280px; }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+        }
+
+        /* تنسيقات قسم Upgrade Windows */
+        .upgrade-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 25px 0;
+        }
+
+        .stat-widget {
+            padding: 20px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.5);
+            text-align: center;
+            border-bottom: 4px solid var(--primary);
+        }
+        .stat-widget.warning { border-bottom-color: var(--warning); }
+        .stat-widget.success { border-bottom-color: var(--success); }
+
+        .stat-widget span { display: block; font-size: 14px; color: var(--muted); margin-bottom: 8px; font-weight: bold; }
+        .stat-widget h2 { margin: 0; font-size: 32px; color: var(--primary); }
+        .warning h2 { color: var(--warning); }
+        .success h2 { color: var(--success); }
+
+        .details-layout {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .scroll-list { max-height: 500px; overflow-y: auto; padding-right: 5px; }
+
+        .mini-card {
+            background: #fff;
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+        .mini-card h5 { margin: 0 0 10px 0; color: var(--primary); font-size: 15px; }
+
+        .mini-stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 10px; }
+        .p-badge { font-size: 10px; padding: 5px; border-radius: 8px; background: #f8fafc; text-align: center; border: 1px solid #eee; }
+        .p-badge b { display: block; font-size: 14px; margin-top: 3px; }
+
+        .progress-line { height: 6px; background: #eee; border-radius: 10px; overflow: hidden; }
+        .progress-line div { height: 100%; transition: 0.5s; }
+
+        /* الأزرار */
+        .btn-action {
+            border: none; border-radius: 10px; padding: 10px 20px;
+            background: var(--primary); color: #fff; font-weight: bold; cursor: pointer;
+        }
+        .btn-lang { background: transparent; border: 1px solid var(--primary); color: var(--primary); margin-right: auto; }
+
+        @media (max-width: 1024px) {
+            .upgrade-stats-grid, .details-layout { grid-template-columns: 1fr; }
+            .sidebar { width: 70px; }
+            .sidebar span, .logo-area { display: none; }
+            .main-content { margin-right: 90px; }
+        }
+    </style>
 </head>
 <body>
 
-<div class="page">
-  <div class="page-header">
-    <div class="header-info">
-      <h1 id="txt-title">نظام متابعة تحديث الأجهزة — المجدوعي</h1>
+<aside class="sidebar" id="sidebar">
+    <div class="logo-area">
+        <img src="LOGO-almajdouie.png" alt="Logo">
     </div>
-    <button class="btn lang-btn" onclick="toggleLanguage()">🌐 <span id="btn-lang-text">English</span></button>
-  </div>
+    <div class="nav-item active" onclick="switchTab('homeSection')">
+        <i class="fas fa-home"></i> <span>الرئيسية</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('visitSection')">
+        <i class="fas fa-map-marker-alt"></i> <span>زيارة ميدانية</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('upgradeSection')">
+        <i class="fab fa-windows"></i> <span>Upgrade Windows</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('reportSection')">
+        <i class="fas fa-chart-bar"></i> <span>التقارير</span>
+    </div>
+    
+    <div style="margin-top: auto;">
+        <button class="nav-item btn-lang" onclick="toggleAppLanguage()">
+            <i class="fas fa-language"></i> <span id="langText">English</span>
+        </button>
+    </div>
+</aside>
 
-  <section class="card">
-    <div class="toolbar">
-      <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" />
-      <button class="btn upload" onclick="document.getElementById('fileInput').click()">📁 <span id="txt-upload">رفع ملف البيانات</span></button>
-      <button class="btn" style="background: var(--muted);" onclick="location.reload()">🔄</button>
-    </div>
+<main class="main-content">
+    <section id="homeSection" class="tab-content">
+        <div class="glass-card">
+            <h1 id="welcomeTitle">أهلاً بك في نظام الإدارة الموحد</h1>
+            <p>اختر القسم المطلوب من القائمة الجانبية للبدء.</p>
+        </div>
+    </section>
 
-    <div class="main-stats">
-      <div class="stat-box">
-        <span class="stat-label" id="txt-total-main">إجمالي الأجهزة</span>
-        <div class="stat-value" id="val-total">0</div>
-      </div>
-      <div class="stat-box warning">
-        <span class="stat-label" id="txt-remain-main">متبقي</span>
-        <div class="stat-value" id="val-remain">0</div>
-      </div>
-      <div class="stat-box success">
-        <span class="stat-label" id="txt-done-main">مكتمل</span>
-        <div class="stat-value" id="val-done">0</div>
-      </div>
-    </div>
+    <section id="visitSection" class="tab-content" style="display:none;">
+        <div class="glass-card">
+            <h2>قسم الزيارة الميدانية</h2>
+            <p>المحتوى الخاص بالزيارات الميدانية...</p>
+        </div>
+    </section>
 
-    <div class="details-grid">
-      <div class="details-card">
-        <h4 id="txt-reg">المناطق</h4>
-        <div id="grid-reg" class="scroll-area"></div>
-      </div>
-      <div class="details-card">
-        <h4 id="txt-city">المدن</h4>
-        <div id="grid-city" class="scroll-area"></div>
-      </div>
-      <div class="details-card">
-        <h4 id="txt-brand">البراندات</h4>
-        <div id="grid-brand" class="scroll-area"></div>
-      </div>
-    </div>
-  </section>
-</div>
+    <section id="upgradeSection" class="tab-content" style="display:none;">
+        <div class="glass-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 id="u-title">متابعة تحديثات ويندوز</h2>
+                <div>
+                    <input type="file" id="winExcel" accept=".xlsx, .xls, .csv" hidden>
+                    <button class="btn-action" onclick="document.getElementById('winExcel').click()">
+                        <i class="fas fa-file-upload"></i> <span id="u-upload">رفع ملف البيانات</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="upgrade-stats-grid">
+                <div class="stat-widget">
+                    <span id="u-total-label">إجمالي الأجهزة</span>
+                    <h2 id="u-total-val">0</h2>
+                </div>
+                <div class="stat-widget warning">
+                    <span id="u-remain-label">متبقي</span>
+                    <h2 id="u-remain-val">0</h2>
+                </div>
+                <div class="stat-widget success">
+                    <span id="u-done-label">مكتمل</span>
+                    <h2 id="u-done-val">0</h2>
+                </div>
+            </div>
+
+            <div class="details-layout">
+                <div class="details-card">
+                    <h4 id="u-reg-title">المناطق</h4>
+                    <div id="u-reg-list" class="scroll-list"></div>
+                </div>
+                <div class="details-card">
+                    <h4 id="u-city-title">المدن</h4>
+                    <div id="u-city-list" class="scroll-list"></div>
+                </div>
+                <div class="details-card">
+                    <h4 id="u-brand-title">البراندات</h4>
+                    <div id="u-brand-list" class="scroll-list"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="reportSection" class="tab-content" style="display:none;">
+        <div class="glass-card">
+            <h2>التقارير والإحصائيات</h2>
+        </div>
+    </section>
+</main>
 
 <script>
-  const $ = id => document.getElementById(id);
-  let lang = 'ar';
-  let rawData = [];
+    let currentLang = 'ar';
+    let upgradeData = [];
 
-  const labels = {
-    ar: { 
-      title: "تحديث ويندوز — المجدوعي", upload: "رفع ملف البيانات", 
-      total: "الإجمالي", remain: "متبقي", done: "مكتمل", 
-      totalMain: "إجمالي الأجهزة", remainMain: "متبقي", doneMain: "مكتمل",
-      reg: "المناطق", city: "المدن", brand: "البراندات", lang: "English" 
-    },
-    en: { 
-      title: "Windows Upgrade — Almajdouie", upload: "Upload Data File", 
-      total: "Total", remain: "Remaining", done: "Completed",
-      totalMain: "Total Devices", remainMain: "Remaining", doneMain: "Completed",
-      reg: "Regions", city: "Cities", brand: "Brands", lang: "العربية" 
-    }
-  };
-
-  function toggleLanguage() {
-    lang = lang === 'ar' ? 'en' : 'ar';
-    document.getElementById('htmlPage').dir = lang === 'ar' ? 'rtl' : 'ltr';
-    $('txt-title').textContent = labels[lang].title;
-    $('txt-upload').textContent = labels[lang].upload;
-    $('txt-total-main').textContent = labels[lang].totalMain;
-    $('txt-done-main').textContent = labels[lang].doneMain;
-    $('txt-remain-main').textContent = labels[lang].remainMain;
-    $('txt-reg').textContent = labels[lang].reg;
-    $('txt-city').textContent = labels[lang].city;
-    $('txt-brand').textContent = labels[lang].brand;
-    $('btn-lang-text').textContent = labels[lang].lang;
-    if (rawData.length > 0) processData(rawData);
-  }
-
-  $('fileInput').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array'});
-      rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-      processData(rawData);
+    const uiTexts = {
+        ar: {
+            welcome: "أهلاً بك في نظام الإدارة الموحد",
+            uTitle: "متابعة تحديثات ويندوز",
+            uUpload: "رفع ملف البيانات",
+            uTotal: "إجمالي الأجهزة",
+            uRemain: "متبقي",
+            uDone: "مكتمل",
+            uReg: "المناطق",
+            uCity: "المدن",
+            uBrand: "البراندات",
+            lang: "English"
+        },
+        en: {
+            welcome: "Welcome to Unified Management System",
+            uTitle: "Windows Upgrade Tracking",
+            uUpload: "Upload Data File",
+            uTotal: "Total Devices",
+            uRemain: "Remaining",
+            uDone: "Completed",
+            uReg: "Regions",
+            uCity: "Cities",
+            uBrand: "Brands",
+            lang: "العربية"
+        }
     };
-    reader.readAsArrayBuffer(file);
-  });
 
-  function processData(data) {
-    let total = 0, done = 0;
-    const stats = { region: {}, city: {}, brand: {} };
+    function switchTab(id) {
+        document.querySelectorAll('.tab-content').forEach(s => s.style.display = 'none');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById(id).style.display = 'block';
+        event.currentTarget.classList.add('active');
+    }
 
-    data.forEach(row => {
-      const count = parseInt(row.Devices_Count || row.devicesCount || 1) || 1;
-      const status = String(row.Status || row.status || '').toLowerCase().trim();
-      const isDone = status === 'completed';
-      
-      total += count;
-      if (isDone) done += count;
+    function toggleAppLanguage() {
+        currentLang = currentLang === 'ar' ? 'en' : 'ar';
+        const html = document.getElementById('mainHtml');
+        html.lang = currentLang;
+        html.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
 
-      ['Region', 'City', 'Brand'].forEach(key => {
-        let val = row[key] || 'N/A';
-        const lowKey = key.toLowerCase();
-        if (!stats[lowKey][val]) stats[lowKey][val] = { total: 0, done: 0 };
-        stats[lowKey][val].total += count;
-        if (isDone) stats[lowKey][val].done += count;
-      });
+        // تحديث النصوص
+        document.getElementById('welcomeTitle').textContent = uiTexts[currentLang].welcome;
+        document.getElementById('u-title').textContent = uiTexts[currentLang].uTitle;
+        document.getElementById('u-upload').textContent = uiTexts[currentLang].uUpload;
+        document.getElementById('u-total-label').textContent = uiTexts[currentLang].uTotal;
+        document.getElementById('u-remain-label').textContent = uiTexts[currentLang].uRemain;
+        document.getElementById('u-done-label').textContent = uiTexts[currentLang].uDone;
+        document.getElementById('u-reg-title').textContent = uiTexts[currentLang].uReg;
+        document.getElementById('u-city-title').textContent = uiTexts[currentLang].uCity;
+        document.getElementById('u-brand-title').textContent = uiTexts[currentLang].uBrand;
+        document.getElementById('langText').textContent = uiTexts[currentLang].lang;
+
+        if (upgradeData.length > 0) renderUpgradeDashboard(upgradeData);
+    }
+
+    // معالجة ملف الإكسيل المدمج
+    document.getElementById('winExcel').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const wb = XLSX.read(new Uint8Array(ev.target.result), {type: 'array'});
+            const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+            upgradeData = json.map(r => ({
+                region: r.Region || r.region || 'N/A',
+                city: r.City || r.city || 'N/A',
+                brand: r.Brand || r.brand || 'General',
+                count: parseInt(r.Devices_Count || r.devicesCount || 1) || 1,
+                status: String(r.Status || '').toLowerCase().trim()
+            }));
+            renderUpgradeDashboard(upgradeData);
+        };
+        reader.readAsArrayBuffer(file);
     });
 
-    $('val-total').textContent = total;
-    $('val-done').textContent = done;
-    $('val-remain').textContent = total - done;
+    function renderUpgradeDashboard(data) {
+        let t = 0, d = 0;
+        const stats = { region: {}, city: {}, brand: {} };
 
-    renderList('grid-reg', stats.region);
-    renderList('grid-city', stats.city);
-    renderList('grid-brand', stats.brand);
-  }
+        data.forEach(item => {
+            t += item.count;
+            const isDone = item.status === 'completed';
+            if (isDone) d += item.count;
 
-  function renderList(id, obj) {
-    const container = $(id);
-    container.innerHTML = '';
-    
-    const sorted = Object.entries(obj).sort((a,b) => b[1].total - a[1].total);
-    
-    sorted.forEach(([name, s]) => {
-      const pct = Math.round((s.done / s.total) * 100) || 0;
-      const remain = s.total - s.done;
-      
-      container.innerHTML += `
-        <div class="mini-item">
-          <div class="item-name">${name}</div>
-          <div class="item-counts-row">
-            <div class="count-pill total-pill">${labels[lang].total}<b>${s.total}</b></div>
-            <div class="count-pill wait-pill">${labels[lang].remain}<b>${remain}</b></div>
-            <div class="count-pill done-pill">${labels[lang].done}<b>${s.done}</b></div>
-          </div>
-          <div class="progress-wrapper">
-            <div class="progress-bar">
-              <div class="progress-fill" style="width:${pct}%; background:${pct === 100 ? 'var(--success)' : 'var(--primary)'}"></div>
-            </div>
-            <div class="pct-text" style="color:${pct === 100 ? 'var(--success)' : 'var(--primary)'}">${pct}%</div>
-          </div>
-        </div>
-      `;
-    });
-  }
+            ['region', 'city', 'brand'].forEach(key => {
+                if (!stats[key][item[key]]) stats[key][item[key]] = { total: 0, done: 0 };
+                stats[key][item[key]].total += item.count;
+                if (isDone) stats[key][val = item[key]].done += item.count;
+            });
+        });
+
+        document.getElementById('u-total-val').textContent = t;
+        document.getElementById('u-done-val').textContent = d;
+        document.getElementById('u-remain-val').textContent = t - d;
+
+        renderMiniList('u-reg-list', stats.region);
+        renderMiniList('u-city-list', stats.city);
+        renderMiniList('u-brand-list', stats.brand);
+    }
+
+    function renderMiniList(containerId, dataObj) {
+        const list = document.getElementById(containerId);
+        list.innerHTML = '';
+        Object.entries(dataObj).sort((a,b) => b[1].total - a[1].total).forEach(([name, s]) => {
+            const pct = Math.round((s.done / s.total) * 100) || 0;
+            list.innerHTML += `
+                <div class="mini-card">
+                    <h5>${name}</h5>
+                    <div class="mini-stats-row">
+                        <div class="p-badge">إجمالي<b>${s.total}</b></div>
+                        <div class="p-badge" style="color:var(--warning)">متبقي<b>${s.total - s.done}</b></div>
+                        <div class="p-badge" style="color:var(--success)">مكتمل<b>${s.done}</b></div>
+                    </div>
+                    <div class="progress-line">
+                        <div style="width:${pct}%; background:${pct === 100 ? 'var(--success)' : 'var(--primary)'}"></div>
+                    </div>
+                </div>
+            `;
+        });
+    }
 </script>
+
 </body>
 </html>
