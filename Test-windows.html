@@ -1,99 +1,4 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>Upgrade Windows — V1.2.2 (Complete Edition)</title>
-    
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
-    <style>
-        :root { --primary: #0d4b73; --success: #10b981; --warning: #f59e0b; --glass: rgba(255, 255, 255, 0.95); }
-        body { margin: 0; padding: 20px; font-family: 'Segoe UI', sans-serif; background: #eef2f7; direction: rtl; }
-        
-        /* الهيدر العلوي */
-        .info-bar { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-bottom: 10px; }
-
-        /* 1. الإحصائيات العلوية */
-        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
-        .stat-card { background: #fff; padding: 15px; border-radius: 12px; text-align: center; border-bottom: 4px solid var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .stat-card h2 { font-size: 32px; margin: 5px 0; color: var(--primary); }
-
-        /* 2. بطاقات المناطق والمدن والبراندات (المطلوبة) */
-        .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
-        .list-box { max-height: 250px; overflow-y: auto; background: #fff; border-radius: 12px; padding: 10px; border: 1px solid #eee; }
-        .item-row { background: #f8fafc; padding: 8px; border-radius: 8px; margin-bottom: 6px; font-size: 12px; display: flex; justify-content: space-between; }
-
-        /* 3. واجهة إدارة البيانات */
-        .admin-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 25px; }
-        .card-header { background: var(--primary); color: #fff; padding: 12px 20px; font-weight: bold; font-size: 14px; }
-        .form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 15px; }
-        .field-group { display: flex; flex-direction: column; gap: 4px; }
-        label { font-size: 11px; font-weight: bold; color: #64748b; }
-        input, select, textarea { padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; }
-        .btn-row { padding: 12px 20px; display: flex; gap: 10px; border-top: 1px solid #eee; background: #fcfdfe; }
-        
-        /* 4. الجدول */
-        .table-section { background: #fff; border-radius: 12px; padding: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: right; }
-        th { background: #f8fafc; padding: 10px; border-bottom: 2px solid #eee; }
-        td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
-    </style>
-</head>
-<body>
-
-<div class="info-bar">
-    <div><i class="fas fa-database"></i> قاعدة البيانات: <b>baghethan-ba325</b></div>
-    <div id="update-time">جاري المزامنة...</div>
-    <div><b>VERSION 1.2.2</b></div>
-</div>
-
-<div class="stats-row">
-    <div class="stat-card"><span>إجمالي الأجهزة</span><h2 id="total-val">0</h2></div>
-    <div class="stat-card" style="border-color:var(--warning)"><span>المتبقي (Planned)</span><h2 id="remain-val" style="color:var(--warning)">0</h2></div>
-    <div class="stat-card" style="border-color:var(--success)"><span>المكتمل (Completed)</span><h2 id="done-val" style="color:var(--success)">0</h2></div>
-</div>
-
-<div class="details-grid">
-    <div><label><i class="fas fa-map-marked-alt"></i> المناطق</label><div id="reg-list" class="list-box"></div></div>
-    <div><label><i class="fas fa-city"></i> المدن</label><div id="city-list" class="list-box"></div></div>
-    <div><label><i class="fas fa-tags"></i> البراندات</label><div id="brand-list" class="list-box"></div></div>
-</div>
-
-<div class="admin-card">
-    <div class="card-header"><i class="fas fa-tools"></i> إدارة بيانات Upgrade Windows</div>
-    <form id="deviceForm">
-        <div class="form-grid">
-            <div class="field-group"><label>الفرع</label><input type="text" id="branchName"></div>
-            <div class="field-group"><label>Branch ID</label><input type="text" id="branchId"></div>
-            <div class="field-group"><label>المنطقة</label><input type="text" id="region"></div>
-            <div class="field-group"><label>المدينة</label><input type="text" id="city"></div>
-            <div class="field-group"><label>البراند</label><select id="brand"><option value="Hyundai">Hyundai</option><option value="Genesis">Genesis</option><option value="Changan">Changan</option></select></div>
-            <div class="field-group"><label>Employee ID</label><input type="text" id="employeeId"></div>
-            <div class="field-group"><label>الحالة</label><select id="status"><option value="planned">Planned</option><option value="completed">Completed</option></select></div>
-            <div class="field-group"><label>عدد الأجهزة</label><input type="number" id="devicesCount" value="1"></div>
-        </div>
-        <div class="btn-row">
-            <button type="button" style="background:var(--success); color:white;" onclick="saveSingle()">حفظ السجل</button>
-            <div style="flex:1"></div>
-            <button type="button" style="border:1px solid #ddd" onclick="exportData()">تنزيل Excel</button>
-            <input type="file" id="xlIn" style="display:none" onchange="importData(this)">
-            <button type="button" style="background:#b45309; color:white" onclick="document.getElementById('xlIn').click()">رفع Excel (مسح القديم)</button>
-        </div>
-    </form>
-</div>
-
-<div class="table-section">
-    <h4 style="margin:0 0 10px 0"><i class="fas fa-table"></i> سجلات الأجهزة المسجلة</h4>
-    <table>
-        <thead><tr><th>Branch ID</th><th>Branch Name</th><th>Brand</th><th>City</th><th>Employee</th><th>Status</th><th>إجراء</th></tr></thead>
-        <tbody id="tableBody"></tbody>
-    </table>
-</div>
-
+// استبدل قسم الـ <script> في ملفك بهذا الكود المطور
 <script>
     const firebaseConfig = {
       apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
@@ -104,97 +9,102 @@
       appId: "1:944819735112:web:07315600da39377320667d"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+    const auth = firebase.auth();
 
-    // جلب البيانات وتحديث كل الأقسام
-    db.collection("windows_upgrades").onSnapshot(snapshot => {
-        let total = 0, done = 0;
-        const sums = { Region: {}, City: {}, Brand: {} };
-        const tbody = document.getElementById('tableBody');
-        tbody.innerHTML = '';
-
-        snapshot.forEach(doc => {
-            const d = doc.data();
-            let c = parseInt(d.devicesCount) || 1;
-            total += c;
-            if(String(d.status).toLowerCase() === 'completed') done += c;
-
-            // تحديث الإحصائيات التفصيلية
-            ['Region', 'City', 'Brand'].forEach(key => {
-                let val = d[key.toLowerCase()] || 'N/A';
-                if(!sums[key][val]) sums[key][val] = 0;
-                sums[key][val] += c;
-            });
-
-            // تحديث الجدول
-            tbody.innerHTML += `<tr>
-                <td>${d.branchId || ''}</td><td>${d.branchName || ''}</td><td>${d.brand || ''}</td>
-                <td>${d.city || ''}</td><td>${d.employeeId || ''}</td>
-                <td><b style="color:${d.status==='completed'?'green':'orange'}">${d.status}</b></td>
-                <td><i class="fas fa-trash" style="color:red;cursor:pointer" onclick="deleteDoc('${doc.id}')"></i></td>
-            </tr>`;
-        });
-
-        // تحديث الأرقام الكبيرة
-        document.getElementById('total-val').innerText = total;
-        document.getElementById('done-val').innerText = done;
-        document.getElementById('remain-val').innerText = total - done;
-
-        // رسم بطاقات المناطق/المدن/البراندات
-        renderList('reg-list', sums.Region);
-        renderList('city-list', sums.City);
-        renderList('brand-list', sums.Brand);
-        document.getElementById('update-time').innerText = "تحديث: " + new Date().toLocaleTimeString('ar-SA');
+    // التحقق من حالة المستخدم فور تحميل الصفحة
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            console.log("✅ مسجل دخول كـ:", user.email);
+            document.getElementById('update-time').innerHTML = `👤 متصل: ${user.email}`;
+            startDataSync(); // ابدأ المزامنة فقط بعد التأكد من الهوية
+        } else {
+            console.error("❌ غير مسجل دخول!");
+            alert("عذراً، يجب تسجيل الدخول من صفحة login.html أولاً لتظهر البيانات.");
+            window.location.href = "login.html";
+        }
     });
 
-    function renderList(id, obj) {
-        const el = document.getElementById(id); el.innerHTML = '';
-        Object.entries(obj).sort((a,b)=>b[1]-a[1]).forEach(([n, v]) => {
-            el.innerHTML += `<div class="item-row"><span>${n}</span><b>${v}</b></div>`;
+    function startDataSync() {
+        db.collection("windows_upgrades").onSnapshot(snapshot => {
+            let total = 0, done = 0;
+            const sums = { Region: {}, City: {}, Brand: {} };
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            snapshot.forEach(doc => {
+                const d = doc.data();
+                let c = parseInt(d.devicesCount) || 1;
+                total += c;
+                if(String(d.status).toLowerCase() === 'completed') done += c;
+
+                // تحديث البطاقات
+                ['region', 'city', 'brand'].forEach(key => {
+                    let val = d[key] || 'N/A';
+                    let group = key === 'region' ? 'reg-list' : key === 'city' ? 'city-list' : 'brand-list';
+                    if(!sums[key]) sums[key] = {};
+                    if(!sums[key][val]) sums[key][val] = 0;
+                    sums[key][val] += c;
+                });
+
+                tbody.innerHTML += `<tr>
+                    <td>${d.branchId || ''}</td><td>${d.branchName || ''}</td><td>${d.brand || ''}</td>
+                    <td>${d.city || ''}</td><td>${d.employeeId || ''}</td>
+                    <td><b style="color:${d.status==='completed'?'green':'orange'}">${d.status}</b></td>
+                    <td><i class="fas fa-trash" style="color:red;cursor:pointer" onclick="deleteDoc('${doc.id}')"></i></td>
+                </tr>`;
+            });
+
+            document.getElementById('total-val').innerText = total;
+            document.getElementById('done-val').innerText = done;
+            document.getElementById('remain-val').innerText = total - done;
+
+            // رسم البطاقات
+            updateDetailCards(sums);
+        }, error => {
+            if(error.code === 'permission-denied') {
+                alert("خطأ: ليس لديك صلاحية لعرض هذه البيانات. تأكد أن حسابك 'Active' في Firestore.");
+            }
         });
     }
 
-    async function saveSingle() {
-        const data = {
-            branchId: document.getElementById('branchId').value,
-            branchName: document.getElementById('branchName').value,
-            brand: document.getElementById('brand').value,
-            city: document.getElementById('city').value,
-            region: document.getElementById('region').value,
-            status: document.getElementById('status').value,
-            devicesCount: document.getElementById('devicesCount').value,
-            employeeId: document.getElementById('employeeId').value
+    function updateDetailCards(sums) {
+        const render = (id, data) => {
+            const el = document.getElementById(id); if(!el) return;
+            el.innerHTML = '';
+            if(data) {
+                Object.entries(data).sort((a,b)=>b[1]-a[1]).forEach(([n, v]) => {
+                    el.innerHTML += `<div class="item-row"><span>${n}</span><b>${v}</b></div>`;
+                });
+            }
         };
-        await db.collection("windows_upgrades").add(data);
-        alert("تم الحفظ ✅");
+        render('reg-list', sums.region);
+        render('city-list', sums.city);
+        render('brand-list', sums.brand);
     }
 
+    // وظيفة الرفع (تحتاج صلاحية Admin)
     async function importData(input) {
-        if(!confirm("سيتم مسح البيانات الحالية. هل أنت متأكد؟")) return;
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
-            const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-            const old = await db.collection("windows_upgrades").get();
-            const batch = db.batch();
-            old.forEach(d => batch.delete(d.ref));
-            await batch.commit();
-            for(let r of json) { await db.collection("windows_upgrades").add(r); }
-            alert("تم التحديث بنجاح 🚀");
-        };
-        reader.readAsArrayBuffer(input.files[0]);
-    }
+        try {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                
+                // مسح القديم
+                const old = await db.collection("windows_upgrades").get();
+                const batch = db.batch();
+                old.forEach(d => batch.delete(d.ref));
+                await batch.commit();
 
-    async function exportData() {
-        const snap = await db.collection("windows_upgrades").get();
-        const ws = XLSX.utils.json_to_sheet(snap.docs.map(d => d.data()));
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Data");
-        XLSX.writeFile(wb, "Upgrade_Windows.xlsx");
+                // رفع الجديد
+                for(let r of json) { await db.collection("windows_upgrades").add(r); }
+                alert("تم تحديث البيانات بنجاح 🚀");
+            };
+            reader.readAsArrayBuffer(input.files[0]);
+        } catch (err) {
+            alert("فشل الرفع: قد لا تملك صلاحية Admin للقيام بهذه العملية.");
+        }
     }
-
-    async function deleteDoc(id) { if(confirm("حذف؟")) await db.collection("windows_upgrades").doc(id).delete(); }
 </script>
-</body>
-</html>
