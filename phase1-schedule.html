@@ -76,12 +76,17 @@
     .repeat-note{margin-top:8px;font-size:12px;color:var(--muted)}
     .upgrade-summary-board{display:grid;gap:16px;margin-bottom:16px}
     .upgrade-summary-top{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px}
+    .upgrade-summary-top-3{grid-template-columns:repeat(3,minmax(180px,1fr))}
     .upgrade-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .upgrade-meta-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
     .upgrade-meta-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
     .upgrade-meta-card h4{margin:0 0 12px;color:var(--primary);font-size:16px}
     .upgrade-mini-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
     .upgrade-mini-card{border:1px solid var(--border);border-top:5px solid var(--primary);border-radius:14px;padding:12px;background:#fbfdff;box-shadow:0 6px 18px rgba(18,48,74,.05)}
     .upgrade-mini-title{font-weight:800;color:var(--primary);margin-bottom:10px;font-size:14px;word-break:break-word}
+    .upgrade-mini-title-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+    .upgrade-mini-logo{width:40px;height:40px;object-fit:contain;border-radius:10px;background:#fff;border:1px solid var(--border);padding:4px;flex:0 0 40px}
+    .upgrade-mini-logo-fallback{width:40px;height:40px;border-radius:10px;background:#eef4fb;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--primary);padding:4px;flex:0 0 40px;text-align:center;line-height:1.1}
     .upgrade-mini-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
     .upgrade-mini-pill{border:1px solid var(--border);border-radius:12px;padding:8px 10px;background:#fff}
     .upgrade-mini-pill .label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
@@ -264,13 +269,12 @@
     <div class="card" style="margin-bottom:16px">
       <h3>ملخص سريع Upgrade Windows</h3>
       <div class="upgrade-summary-board">
-        <div class="upgrade-summary-top">
-          <div class="stat"><span class="label">إجمالي السجلات</span><div class="value" id="upgradeWindowsStatTotal">0</div></div>
+        <div class="upgrade-summary-top upgrade-summary-top-3">
           <div class="stat"><span class="label">إجمالي الأجهزة</span><div class="value" id="upgradeWindowsStatDevices">0</div></div>
           <div class="stat"><span class="label">قيد التنفيذ</span><div class="value" id="upgradeWindowsStatInProgress">0</div></div>
           <div class="stat"><span class="label">مكتمل</span><div class="value" id="upgradeWindowsStatCompleted">0</div></div>
         </div>
-        <div class="upgrade-meta-grid">
+        <div class="upgrade-meta-grid upgrade-meta-grid-3">
           <div class="upgrade-meta-card">
             <h4>بطاقات المناطق</h4>
             <div class="upgrade-mini-grid" id="upgradeWindowsRegionsGrid"></div>
@@ -278,6 +282,10 @@
           <div class="upgrade-meta-card">
             <h4>بطاقات المدن</h4>
             <div class="upgrade-mini-grid" id="upgradeWindowsCitiesGrid"></div>
+          </div>
+          <div class="upgrade-meta-card">
+            <h4>بطاقات البراندات</h4>
+            <div class="upgrade-mini-grid" id="upgradeWindowsBrandsGrid"></div>
           </div>
         </div>
       </div>
@@ -956,10 +964,7 @@
         let values = answers[field.id];
         if(!Array.isArray(values)) values = values ? [values] : [];
         values = values.map(v => String(v || '').trim()).filter(Boolean);
-        const devicesCountRaw = getDynamicAnswerByPossibleLabels(
-          answers,
-          ['Number of devices (Q29A)', 'Q29A', 'Number of devices', 'عدد الأجهزة', 'عدد الاجهزة']
-        );
+        const devicesCountRaw = getDynamicAnswerByPossibleLabels(answers, ['Number of devices (Q29A)', 'Q29A', 'Number of devices', 'عدد الأجهزة', 'عدد الاجهزة']);
         const integPayload = {
           ...payload,
           q28_serviceReportSummary: getDynamicSummaryAnswer(answers),
@@ -1251,11 +1256,9 @@
       }catch(err){ setAlert('uwError', err.message || String(err)); }
     }
     function renderUpgradeWindowsSummary(){
-      const total = state.windowsUpgrades.length;
-      const devices = state.windowsUpgrades.reduce((s,r)=>s+(Number(r.devicesCount)||0),0);
-      const isPendingStatus = status => ['planned','in progress','pending'].includes(String(status||'').trim().toLowerCase());
-      const progress = state.windowsUpgrades.reduce((sum, r) => sum + (isPendingStatus(r.status) ? (Number(r.devicesCount) || 0) : 0), 0);
-      const completed = state.windowsUpgrades.reduce((sum, r) => sum + (String(r.status||'').trim().toLowerCase()==='completed' ? (Number(r.devicesCount) || 0) : 0), 0);
+      const totalDevices = state.windowsUpgrades.reduce((sum, r) => sum + (Number(r.devicesCount) || 0), 0);
+      const completedDevices = state.windowsUpgrades.reduce((sum, r) => sum + (String(r.status || '').trim().toLowerCase() === 'completed' ? (Number(r.devicesCount) || 0) : 0), 0);
+      const inProgressDevices = Math.max(totalDevices - completedDevices, 0);
       const palette = ['#0d6efd','#20c997','#fd7e14','#6f42c1','#d63384','#198754','#0dcaf0','#ffc107','#dc3545','#6610f2'];
       const colorForKey = key => {
         const str = String(key || '');
@@ -1263,16 +1266,34 @@
         for(let i=0;i<str.length;i++) hash = ((hash << 5) - hash) + str.charCodeAt(i);
         return palette[Math.abs(hash) % palette.length];
       };
-      const buildGroupedCards = (rows, keyName, emptyText) => {
+      const normalizeBrandName = value => String(value || '').trim().toLowerCase();
+      const resolveBrandLogo = brandName => {
+        const normalized = normalizeBrandName(brandName);
+        if(!normalized) return '';
+        const match = (state.brands || []).find(b => {
+          const keys = [
+            b.brand,
+            b.nameEn,
+            b.nameAr,
+            b.key,
+            (typeof getCanonicalBrandDisplay === 'function' ? getCanonicalBrandDisplay(b.nameEn || b.brand || b.key || '') : '')
+          ].map(normalizeBrandName).filter(Boolean);
+          return keys.includes(normalized);
+        });
+        return match?.logoData || match?.logoUrl || match?.logo || '';
+      };
+      const fallbackBrandInitials = brandName => String(brandName || '').trim().split(/\s+/).filter(Boolean).slice(0,2).map(part => part[0]).join('').toUpperCase() || 'BR';
+      const buildGroupedCards = (rows, keyName, emptyText, withLogo = false) => {
         const map = new Map();
         rows.forEach(r => {
           const key = String(r[keyName] || '').trim();
           if(!key) return;
-          if(!map.has(key)) map.set(key, { pending:0, completed:0 });
+          if(!map.has(key)) map.set(key, { pending:0, completed:0, logo:'' });
           const bucket = map.get(key);
           const qty = Number(r.devicesCount) || 0;
-          if(String(r.status||'').trim().toLowerCase() === 'completed') bucket.completed += qty;
-          else if(isPendingStatus(r.status)) bucket.pending += qty;
+          if(String(r.status || '').trim().toLowerCase() === 'completed') bucket.completed += qty;
+          else bucket.pending += qty;
+          if(withLogo && !bucket.logo) bucket.logo = resolveBrandLogo(key);
         });
         const sorted = [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
         if(!sorted.length) return `<div class="upgrade-empty-note">${emptyText}</div>`;
@@ -1280,17 +1301,21 @@
           const totalCount = counts.pending + counts.completed;
           const pct = totalCount ? Math.round((counts.completed / totalCount) * 100) : 0;
           const color = colorForKey(name);
-          return `<div class="upgrade-mini-card" style="border-top-color:${color}"><div class="upgrade-mini-title">${esc(name)}</div><div class="upgrade-mini-stats"><div class="upgrade-mini-pill"><span class="label">معلق</span><span class="value">${counts.pending}</span></div><div class="upgrade-mini-pill"><span class="label">مكتمل</span><span class="value">${counts.completed}</span></div></div><div class="upgrade-progress-row"><div class="upgrade-progress-head"><span>نسبة الإنجاز</span><strong style="color:${color}">${pct}%</strong></div><div class="upgrade-progress-track"><div class="upgrade-progress-fill" style="width:${pct}%;background:${color}"></div></div></div></div>`;
+          const titleHtml = withLogo
+            ? `<div class="upgrade-mini-title-row">${counts.logo ? `<img class="upgrade-mini-logo" src="${esc(counts.logo)}" alt="${esc(name)}" onerror="this.style.display='none'; this.nextElementSibling?.classList.remove('hidden')">` : ''}<div class="upgrade-mini-logo-fallback${counts.logo ? ' hidden' : ''}">${esc(fallbackBrandInitials(name))}</div><div class="upgrade-mini-title">${esc(name)}</div></div>`
+            : `<div class="upgrade-mini-title">${esc(name)}</div>`;
+          return `<div class="upgrade-mini-card" style="border-top-color:${color}">${titleHtml}<div class="upgrade-mini-stats"><div class="upgrade-mini-pill"><span class="label">معلق</span><span class="value">${counts.pending}</span></div><div class="upgrade-mini-pill"><span class="label">مكتمل</span><span class="value">${counts.completed}</span></div></div><div class="upgrade-progress-row"><div class="upgrade-progress-head"><span>نسبة الإنجاز</span><strong style="color:${color}">${pct}%</strong></div><div class="upgrade-progress-track"><div class="upgrade-progress-fill" style="width:${pct}%;background:${color}"></div></div></div></div>`;
         }).join('');
       };
-      $('upgradeWindowsStatTotal').textContent = total;
-      $('upgradeWindowsStatDevices').textContent = devices;
-      $('upgradeWindowsStatInProgress').textContent = progress;
-      $('upgradeWindowsStatCompleted').textContent = completed;
+      if($('upgradeWindowsStatDevices')) $('upgradeWindowsStatDevices').textContent = totalDevices;
+      if($('upgradeWindowsStatInProgress')) $('upgradeWindowsStatInProgress').textContent = inProgressDevices;
+      if($('upgradeWindowsStatCompleted')) $('upgradeWindowsStatCompleted').textContent = completedDevices;
       const regionsGrid = $('upgradeWindowsRegionsGrid');
       if(regionsGrid) regionsGrid.innerHTML = buildGroupedCards(state.windowsUpgrades, 'region', state.currentLang==='ar' ? 'لا توجد مناطق حتى الآن.' : 'No regions yet.');
       const citiesGrid = $('upgradeWindowsCitiesGrid');
       if(citiesGrid) citiesGrid.innerHTML = buildGroupedCards(state.windowsUpgrades, 'city', state.currentLang==='ar' ? 'لا توجد مدن حتى الآن.' : 'No cities yet.');
+      const brandsGrid = $('upgradeWindowsBrandsGrid');
+      if(brandsGrid) brandsGrid.innerHTML = buildGroupedCards(state.windowsUpgrades, 'brand', state.currentLang==='ar' ? 'لا توجد براندات حتى الآن.' : 'No brands yet.', true);
     }
     function renderUpgradeWindowsTable(){
       populateUpgradeWindowsSelectors();
