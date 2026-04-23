@@ -2,112 +2,63 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upgrade Windows — لوحة البيانات</title>
-    
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-
     <style>
-        :root {
-            --primary: #0f5d95;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --glass: rgba(255, 255, 255, 0.7);
-        }
-
-        body {
-            margin: 0; padding: 20px; font-family: 'Segoe UI', Tahoma, sans-serif;
-            background: transparent; color: #1e293b;
-        }
-
-        .glass-panel {
-            background: var(--glass); backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 20px;
-            padding: 25px; box-shadow: 0 8px 32px rgba(0,0,0,0.05);
-        }
-
-        /* الإحصائيات الكلية بالترتيب المطلوب */
-        .main-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 25px 0; }
-        .stat-card {
-            background: #fff; padding: 20px; border-radius: 16px; text-align: center;
-            border-bottom: 5px solid var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.02);
-        }
-        .stat-card.warning { border-bottom-color: var(--warning); }
-        .stat-card.success { border-bottom-color: var(--success); }
-        .stat-card h2 { font-size: 38px; margin: 8px 0 0; color: var(--primary); }
-        .warning h2 { color: var(--warning); }
-        .success h2 { color: var(--success); }
-
-        /* البطاقات التفصيلية */
-        .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        .scroll-v { max-height: 550px; overflow-y: auto; padding-right: 5px; }
-        .item-card { background: #fff; border-radius: 15px; padding: 15px; margin-bottom: 12px; border: 1px solid #eee; }
-        .item-card h5 { margin: 0 0 10px; color: var(--primary); font-size: 15px; }
-
-        .mini-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 10px; }
-        .p-badge { font-size: 10px; padding: 5px; border-radius: 8px; background: #f8fafc; text-align: center; }
-        .p-badge b { display: block; font-size: 14px; margin-top: 3px; }
-
-        .progress-bar { height: 6px; background: #eee; border-radius: 10px; overflow: hidden; }
-        .progress-fill { height: 100%; transition: 0.6s; }
-
-        .admin-controls { display: none; margin-bottom: 20px; }
-        .btn-upload { background: var(--success); color: #fff; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: transparent; color: #1e293b; }
+        .glass-panel { background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); border-radius: 20px; padding: 25px; border: 1px solid rgba(255,255,255,0.3); }
+        
+        /* الترتيب المطلوب: إجمالي -> متبقي -> مكتمل */
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
+        .s-box { background: #fff; padding: 20px; border-radius: 15px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border-bottom: 5px solid #0f5d95; }
+        .s-box h2 { font-size: 35px; margin: 5px 0; color: #0f5d95; }
+        
+        .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .scroll-v { max-height: 500px; overflow-y: auto; background: #fff; border-radius: 12px; padding: 10px; border: 1px solid #eee; }
+        .m-card { background: #fcfdfe; padding: 12px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #edf2f7; }
+        .admin-only { display: none; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
 <div class="glass-panel">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="color: var(--primary); margin: 0;">متابعة تحديثات ويندوز</h2>
-        <div id="adminArea" class="admin-controls">
-            <input type="file" id="excelUp" accept=".xlsx, .xls, .csv" hidden>
-            <button class="btn-upload" onclick="document.getElementById('excelUp').click()">📁 تحديث البيانات من إكسيل</button>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="color: #0f5d95; margin:0;">لوحة متابعة تحديثات ويندوز</h2>
+        <div id="adminControls" class="admin-only">
+            <button style="background:#10b981; color:#fff; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:bold;">تحديث البيانات (أدمن)</button>
         </div>
     </div>
 
-    <div class="main-stats">
-        <div class="stat-card"><span>إجمالي الأجهزة</span> <h2 id="total-val">0</h2></div>
-        <div class="stat-card warning"><span>متبقي</span> <h2 id="remain-val">0</h2></div>
-        <div class="stat-card success"><span>مكتمل</span> <h2 id="done-val">0</h2></div>
+    <div class="stats-row">
+        <div class="s-box"><span>إجمالي الأجهزة</span> <h2 id="total-v">0</h2></div>
+        <div class="s-box" style="border-color: #f59e0b;"><span>متبقي</span> <h2 id="remain-v" style="color: #f59e0b;">0</h2></div>
+        <div class="s-box" style="border-color: #10b981;"><span>مكتمل</span> <h2 id="done-v" style="color: #10b981;">0</h2></div>
     </div>
 
     <div class="details-grid">
-        <div><h4>المناطق</h4> <div id="reg-list" class="scroll-v"></div></div>
-        <div><h4>المدن</h4> <div id="city-list" class="scroll-v"></div></div>
-        <div><h4>البراندات</h4> <div id="brand-list" class="scroll-v"></div></div>
+        <div><h4 style="margin-bottom:10px;">المناطق</h4> <div id="reg-list" class="scroll-v"></div></div>
+        <div><h4 style="margin-bottom:10px;">المدن</h4> <div id="city-list" class="scroll-v"></div></div>
+        <div><h4 style="margin-bottom:10px;">البراندات</h4> <div id="brand-list" class="scroll-v"></div></div>
     </div>
 </div>
 
 <script>
-    // 1. إعدادات Firebase الخاصة بك
-    const firebaseConfig = {
-        apiKey: "AIzaSy...",
-        authDomain: "your-app.firebaseapp.com",
-        projectId: "your-project-id",
-        storageBucket: "your-app.appspot.com",
-        messagingSenderId: "123456789",
-        appId: "1:123456789:web:abc123"
-    };
-
+    const firebaseConfig = { /* ضع إعداداتك هنا من Firebase Console */ };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    const auth = firebase.auth();
 
-    // 2. التحقق من الصلاحيات (أدمن فقط) بناءً على Rules
-    auth.onAuthStateChanged(user => {
+    // فحص الصلاحية للأدمن فقط بناءً على Rules الخاصة بك
+    firebase.auth().onAuthStateChanged(user => {
         if (user && user.email === 'y.khyar@almajdouie.com') {
-            document.getElementById('adminArea').style.display = 'block';
+            document.getElementById('adminControls').style.display = 'block'; 
         }
     });
 
-    // 3. استماع لحظي للبيانات من Firestore
+    // استماع لحظي للبيانات من مجموعة UpgradeWindows
     db.collection("UpgradeWindows").onSnapshot(snapshot => {
         let total = 0, done = 0;
-        const groups = { Region: {}, City: {}, Brand: {} };
+        const stats = { Region: {}, City: {}, Brand: {} };
 
         snapshot.forEach(doc => {
             const r = doc.data();
@@ -119,65 +70,40 @@
 
             ['Region', 'City', 'Brand'].forEach(key => {
                 const val = r[key] || 'N/A';
-                if (!groups[key][val]) groups[key][val] = { t: 0, d: 0 };
-                groups[key][val].t += count;
-                if (isDone) groups[key][val].d += count;
+                if (!stats[key][val]) stats[key][val] = { t: 0, d: 0 };
+                stats[key][val].t += count;
+                if (isDone) stats[key][val].d += count;
             });
         });
 
-        document.getElementById('total-val').innerText = total;
-        document.getElementById('done-val').innerText = done;
-        document.getElementById('remain-val').innerText = total - done;
+        document.getElementById('total-v').innerText = total;
+        document.getElementById('done-v').innerText = done;
+        document.getElementById('remain-v').innerText = total - done;
 
-        renderCards('reg-list', groups.Region);
-        renderCards('city-list', groups.City);
-        renderCards('brand-list', groups.Brand);
+        renderSection('reg-list', stats.Region);
+        renderSection('city-list', stats.City);
+        renderSection('brand-list', stats.Brand);
     });
 
-    function renderCards(id, obj) {
+    function renderSection(id, obj) {
         const container = document.getElementById(id);
         container.innerHTML = '';
         Object.entries(obj).sort((a,b) => b[1].t - a[1].t).forEach(([name, s]) => {
             const pct = Math.round((s.d / s.t) * 100) || 0;
             container.innerHTML += `
-                <div class="item-card">
-                    <h5>${name}</h5>
-                    <div class="mini-stats">
-                        <div class="p-badge">إجمالي<b>${s.t}</b></div>
-                        <div class="p-badge" style="color:var(--warning)">متبقي<b>${s.t - s.d}</b></div>
-                        <div class="p-badge" style="color:var(--success)">مكتمل<b>${s.d}</b></div>
+                <div class="m-card">
+                    <div style="font-weight:bold; font-size:13px;">${name}</div>
+                    <div style="display:flex; justify-content:space-between; font-size:11px; margin:5px 0;">
+                        <span>إجمالي: ${s.t}</span>
+                        <span style="color:#f59e0b">متبقي: ${s.t - s.d}</span>
+                        <span style="color:#10b981">مكتمل: ${s.d}</span>
                     </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width:${pct}%; background:${pct === 100 ? 'var(--success)' : 'var(--primary)'}"></div>
+                    <div style="height:4px; background:#eee; border-radius:10px; overflow:hidden;">
+                        <div style="width:${pct}%; height:100%; background:#0f5d95;"></div>
                     </div>
                 </div>`;
         });
     }
-
-    // 4. دالة رفع ملف إكسيل وتحديث Firebase (للأدمن فقط)
-    document.getElementById('excelUp').addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-            const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array'});
-            const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-            
-            if(confirm("هل أنت متأكد من رغبتك في استبدال البيانات الحالية ببيانات الملف الجديد؟")) {
-                const batch = db.batch();
-                // ملاحظة: هذا الكود يحتاج لآلية مسح السجلات القديمة إذا كنت تريد استبدالاً كاملاً
-                data.forEach(row => {
-                    const docRef = db.collection("UpgradeWindows").doc();
-                    batch.set(docRef, {
-                        Region: row.Region, City: row.City, Brand: row.Brand,
-                        Devices_Count: row.Devices_Count, Status: row.Status
-                    });
-                });
-                await batch.commit();
-                alert("تم تحديث البيانات بنجاح!");
-            }
-        };
-        reader.readAsArrayBuffer(file);
-    });
 </script>
 </body>
 </html>
