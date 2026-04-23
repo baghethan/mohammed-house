@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upgrade Windows — V1.0.6</title>
+    <title>Upgrade Windows — V1.0.7</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
@@ -29,11 +29,9 @@
             position: relative;
         }
 
-        /* تنسيق معلومات الإصدار والوقت */
         .info-header {
             display: flex; justify-content: space-between;
-            font-size: 11px; color: #64748b; font-weight: bold;
-            margin-bottom: 5px;
+            font-size: 11px; color: #64748b; font-weight: bold; margin-bottom: 5px;
         }
 
         .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 25px 0; }
@@ -48,6 +46,8 @@
         .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
         .list-box { max-height: 500px; overflow-y: auto; background: rgba(255,255,255,0.4); border-radius: 15px; padding: 10px; }
         .item-row { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 10px; border: 1px solid #eee; }
+        
+        #conn-indicator { font-size: 12px; transition: 0.3s; }
     </style>
 </head>
 <body>
@@ -55,12 +55,12 @@
 <div class="container-glass">
     <div class="info-header">
         <div id="update-time">توقيت العرض: --:--</div>
-        <div>VERSION 1.0.6</div>
+        <div>VERSION 1.0.7</div>
     </div>
 
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <h2 style="color: var(--primary); margin: 0;">لوحة متابعة تحديثات ويندوز</h2>
-        <div id="conn-indicator" style="font-size: 12px; color: var(--success);">● متصل بالسحابة</div>
+        <div id="conn-indicator" style="color: var(--warning);">● جاري الاتصال...</div>
     </div>
 
     <div class="stats-grid">
@@ -86,9 +86,9 @@
 </div>
 
 <script>
-    // بيانات الـ Config الخاصة بمشروع Almajdouie site-visit-87724
+    // ✅ بيانات الربط الخاصة بمشروعك (مأخوذة من صورتك eb4544)
     const firebaseConfig = {
-        apiKey: "AIzaSyCzH9tL_y0iXk...", // استكمل المفتاح من صورتك
+        apiKey: "AIzaSyCzH9tL_y0iXk9p0U6...", // تأكد من وضع المفتاح كاملاً من الصورة
         authDomain: "site-visit-87724.firebaseapp.com",
         projectId: "site-visit-87724",
         storageBucket: "site-visit-87724.appspot.com",
@@ -96,49 +96,70 @@
         appId: "1:367252877543:web:9f0007e99996d91f4682ba"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    // تهيئة Firebase
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
     const db = firebase.firestore();
 
-    // وظيفة لعرض التاريخ والوقت الحاليين
     function updateDateTime() {
         const now = new Date();
         const dateStr = now.toLocaleDateString('ar-SA');
-        const timeStr = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        document.getElementById('update-time').innerText = `وقت التحديث: ${dateStr} | ${timeStr}`;
+        const timeStr = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('update-time').innerText = `توقيت التحديث: ${dateStr} | ${timeStr}`;
     }
 
-    // جلب البيانات من Firestore
-    db.collection("UpgradeWindows").onSnapshot(snapshot => {
-        let total = 0, done = 0;
-        const stats = { Region: {}, City: {}, Brand: {} };
+    // ✅ جلب البيانات وفحص الأخطاء
+    function listenToData() {
+        db.collection("UpgradeWindows").onSnapshot(snapshot => {
+            if (snapshot.empty) {
+                console.warn("المجموعة فارغة أو غير موجودة.");
+                document.getElementById('conn-indicator').innerText = "● لا توجد بيانات";
+                document.getElementById('conn-indicator').style.color = "red";
+                return;
+            }
 
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const count = parseInt(data.Devices_Count || 1);
-            const isDone = String(data.Status || '').toLowerCase().trim() === 'completed';
-            
-            total += count;
-            if (isDone) done += count;
+            document.getElementById('conn-indicator').innerText = "● متصل أونلاين";
+            document.getElementById('conn-indicator').style.color = "var(--success)";
 
-            ['Region', 'City', 'Brand'].forEach(key => {
-                const val = data[key] || 'N/A';
-                if (!stats[key][val]) stats[key][val] = { t: 0, d: 0 };
-                stats[key][val].t += count;
-                if (isDone) stats[key][val].d += count;
+            let total = 0, done = 0;
+            const stats = { Region: {}, City: {}, Brand: {} };
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                // ✅ استخدام الحقول كما في صورتك (Devices_Count و Status)
+                const count = parseInt(data.Devices_Count || 0); 
+                const status = String(data.Status || '').toLowerCase().trim();
+                const isDone = (status === 'completed');
+                
+                total += count;
+                if (isDone) done += count;
+
+                ['Region', 'City', 'Brand'].forEach(key => {
+                    const val = data[key] || 'غير محدد';
+                    if (!stats[key][val]) stats[key][val] = { t: 0, d: 0 };
+                    stats[key][val].t += count;
+                    if (isDone) stats[key][val].d += count;
+                });
             });
+
+            // تحديث الأرقام
+            document.getElementById('total-val').innerText = total;
+            document.getElementById('done-val').innerText = done;
+            document.getElementById('remain-val').innerText = total - done;
+
+            render('reg-list', stats.Region);
+            render('city-list', stats.City);
+            render('brand-list', stats.Brand);
+            updateDateTime();
+
+        }, error => {
+            console.error("خطأ Firebase:", error);
+            document.getElementById('conn-indicator').innerText = "● خطأ في الصلاحيات";
+            document.getElementById('conn-indicator').style.color = "red";
+            // إذا ظهر هذا الخطأ، فهذا يعني أن المستخدم لم يسجل دخوله
         });
-
-        document.getElementById('total-val').innerText = total;
-        document.getElementById('done-val').innerText = done;
-        document.getElementById('remain-val').innerText = total - done;
-
-        render('reg-list', stats.Region);
-        render('city-list', stats.City);
-        render('brand-list', stats.Brand);
-        
-        // تحديث الوقت عند كل تحديث للبيانات
-        updateDateTime();
-    });
+    }
 
     function render(id, obj) {
         const container = document.getElementById(id);
@@ -160,8 +181,11 @@
         });
     }
 
-    // تحديث الوقت عند تحميل الصفحة لأول مرة
-    window.onload = updateDateTime;
+    // البدء عند التحميل
+    window.onload = () => {
+        updateDateTime();
+        listenToData();
+    };
 </script>
 </body>
 </html>
