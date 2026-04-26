@@ -15,8 +15,7 @@
     
     header { background: var(--primary); color: #fff; padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100; }
     .header-left { display: flex; align-items: center; gap: 15px; }
-    /* تعديل كود الشعار لضمان الظهور */
-    .logo { height: 40px; filter: brightness(0) invert(1); } 
+    .logo { height: 42px; } /* شعار المجدوعي */
     .user-area { display: flex; align-items: center; gap: 15px; font-size: 13px; }
     .user-avatar { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; }
 
@@ -46,7 +45,7 @@
 
 <header>
   <div class="header-left">
-    <img src="https://www.almajdouie.com/assets/images/logo.png" class="logo" alt="Almajdouie Logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/10008/10008436.png'">
+    <img src="https://www.almajdouie.com/assets/images/logo.png" class="logo" alt="Almajdouie Logo" onerror="this.src='https://placehold.jp/150x50/0d4b73/ffffff?text=ALMAJDOUIE'">
     <div>
       <div id="shellTitle" style="font-weight: bold; font-size: 14px;">نظام إدارة الزيارات - المجدوعي</div>
     </div>
@@ -67,12 +66,12 @@
 <nav id="mainNav">
   <button data-page="dashboard" onclick="loadPage('dashboard', this)">لوحة البيانات</button>
   <button data-page="checklist" onclick="loadPage('checklist', this)">Check-List</button>
-  <button data-page="dynamic" onclick="loadPage('dynamic', this)">نماذج ديناميكية (Admin)</button>
+  <button data-page="dynamicChecklistAdmin" onclick="loadPage('dynamicChecklistAdmin', this)">النماذج الديناميكية</button>
   <button data-page="visits" onclick="loadPage('visits', this)">الزيارات</button>
   <button data-page="branches" onclick="loadPage('branches', this)">الفروع</button>
   <button data-page="technicians" onclick="loadPage('technicians', this)">الفنيين</button>
   <button data-page="brands" onclick="loadPage('brands', this)">البراندات</button>
-  <button data-page="upgrade" onclick="loadPage('upgrade', this)">Upgrade Windows</button>
+  <button data-page="upgradeWindows" onclick="loadPage('upgradeWindows', this)">Upgrade Windows</button>
   <button data-page="permissions" onclick="loadPage('permissions', this)">الصلاحيات</button>
 </nav>
 
@@ -83,7 +82,7 @@
 <div class="update-footer">
   <div>
     <span class="status-dot"></span>
-    إصدار النظام: <b id="sysVersion">v2.8.6</b> | 
+    إصدار النظام: <b id="sysVersion">v2.8.7</b> | 
     تاريخ التحديث: <b id="lastUpdate">2026-04-26</b>
   </div>
   <div>
@@ -112,22 +111,23 @@
   window.appAuth = auth;
   window.appDb = db;
 
+  // 1. إعادة الأسماء الأصلية لضمان التطابق مع قاعدة البيانات
   const PAGES = {
-    dashboard:  { file: 'dashboard.html', ar: 'لوحة التحكم', en: 'Dashboard' },
+    dashboard:  { file: 'dashboard.html', ar: 'لوحة البيانات', en: 'Dashboard' },
     checklist:  { file: 'check-list.html', ar: 'Check-List', en: 'Check-List' },
-    dynamic:    { file: 'dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html', ar: 'نماذج ديناميكية', en: 'Dynamic Forms' },
+    dynamicChecklistAdmin: { file: 'dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html', ar: 'نماذج ديناميكية', en: 'Dynamic Forms' },
     visits:     { file: 'visits.html', ar: 'الزيارات', en: 'Visits' },
     branches:   { file: 'branches.html', ar: 'إدارة الفروع', en: 'Branches' },
     technicians:{ file: 'technicians.html', ar: 'الفنيين', en: 'Technicians' },
     brands:     { file: 'brands.html', ar: 'البراندات', en: 'Brands' },
-    upgrade:    { file: 'upgrade-windows.html', ar: 'ترقية Windows', en: 'Windows Upgrade' },
+    upgradeWindows: { file: 'upgrade-windows.html', ar: 'ترقية Windows', en: 'Windows Upgrade' },
     permissions:{ file: 'permissions.html', ar: 'الصلاحيات', en: 'Permissions' }
   };
 
-  // ✅ تم إضافة الصفحات المختفية لجميع الأدوار الإدارية
+  // 2. تحديث صلاحيات الـ Supervisor بالمفاتيح الأصلية
   const ROLE_DEFAULTS = {
     admin: Object.keys(PAGES),
-    supervisor: ['dashboard', 'checklist', 'dynamic', 'visits', 'branches', 'technicians', 'brands', 'upgrade', 'permissions'],
+    supervisor: ['dashboard', 'checklist', 'dynamicChecklistAdmin', 'visits', 'branches', 'technicians', 'brands', 'upgradeWindows', 'permissions'],
     technician: ['dashboard', 'checklist'],
     user: ['dashboard']
   };
@@ -170,15 +170,18 @@
       $('userName').textContent = profile.name || user.email;
       if (profile.photoURL) $('userAvatar').src = profile.photoURL;
 
-      // ✅ تطبيق الصلاحيات الكاملة
-      const allowed = profile.pages || ROLE_DEFAULTS[profile.role || 'user'];
+      // ✅ تصحيح منطق الصلاحيات: إذا كانت القائمة فارغة في Firestore، استخدم الافتراضي للدور
+      let userRole = (profile.role || 'user').toLowerCase();
+      let allowed = (profile.pages && profile.pages.length > 0) ? profile.pages : ROLE_DEFAULTS[userRole];
       
+      console.log("Current User Role:", userRole); // للتأكد من الرتبة في الكونسول
+
       document.querySelectorAll('nav button[data-page]').forEach(btn => {
         btn.classList.toggle('hidden', !allowed.includes(btn.dataset.page));
       });
 
       setLang(currentLang);
-      const defaultPage = allowed.includes('dashboard') ? 'dashboard' : allowed[0];
+      const defaultPage = allowed.includes('checklist') ? 'checklist' : allowed[0];
       loadPage(defaultPage, document.querySelector(`button[data-page="${defaultPage}"]`));
     } catch (err) {
       console.error(err);
