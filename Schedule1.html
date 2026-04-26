@@ -38,8 +38,6 @@
     .NationalDay { @apply bg-green-800 text-white; }
     .editable { cursor: pointer; transition: transform 0.1s; }
     .editable:hover { transform: scale(1.05); }
-    
-    /* Overlay Styles */
     .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 50; display: none; align-items: center; justify-content: center; }
   </style>
 </head>
@@ -113,10 +111,10 @@
       </button>
     </nav>
   </div>
-  <div class="mt-auto p-6 border-t border-slate-100">
+  <div class="mt-auto p-6 border-t border-slate-100 text-right">
     <button id="btnLang" class="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 rounded-lg transition-all mb-2">
       <span class="material-symbols-outlined">language</span>
-      <span class="text-sm">English</span>
+      <span class="text-sm">English / العربية</span>
     </button>
     <button id="btnLogout" class="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-lg transition-all">
       <span class="material-symbols-outlined">logout</span>
@@ -129,13 +127,13 @@
   <div class="flex items-center gap-4 flex-1">
     <div class="relative w-full max-w-md">
       <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-      <input class="w-full bg-slate-100 border-none rounded-full py-2 pr-10 pl-4 text-sm" placeholder="بحث عن موظف، وردية..." type="text"/>
+      <input class="w-full bg-slate-100 border-none rounded-full py-2 pr-10 pl-4 text-sm" placeholder="بحث..." type="text"/>
     </div>
   </div>
   <div class="flex items-center gap-6">
     <div class="text-left border-l pl-4">
-      <p class="text-xs font-bold text-primary" id="userChipName">Admin User</p>
-      <p class="text-[10px] text-slate-400 uppercase tracking-widest" id="userChipRole">Fleet Operations</p>
+      <p class="text-xs font-bold text-primary" id="userChip">Admin User</p>
+      <p class="text-[10px] text-slate-400 uppercase tracking-widest">Administrator</p>
     </div>
     <img src="LOGO-almajdouie.png" class="h-8 w-auto object-contain" alt="Logo" />
   </div>
@@ -143,15 +141,14 @@
 
 <main class="mr-[280px] pt-24 p-8">
   <div class="max-w-7xl mx-auto">
-    
     <div class="mb-8 space-y-4">
       <div class="bg-blue-600 text-white p-4 rounded-2xl shadow-lg shadow-blue-100 flex items-center justify-between">
         <div class="flex items-center gap-3">
           <span class="material-symbols-outlined">info</span>
-          <span class="text-sm font-bold leading-none">v10.4.3 — نسخة مستقرة جديدة مع تحسينات Vacation Plan.</span>
+          <span class="text-sm font-bold leading-none">v10.4.3 — نسخة مستقرة مع تحسينات Vacation Plan.</span>
         </div>
       </div>
-      <div id="vacationAlertsBox" class="hidden space-y-2"></div>
+      <div id="vacationAlertsBox" class="hidden"></div>
     </div>
 
     <section id="schedule" class="tab-content active">
@@ -169,7 +166,6 @@
           </button>
         </div>
       </div>
-
       <div class="bg-white p-4 rounded-2xl border border-slate-200 mb-6 flex items-center justify-between shadow-sm">
         <div class="flex gap-2">
           <button class="p-2 hover:bg-slate-100 rounded-lg text-primary" id="btnPrevWeek"><span class="material-symbols-outlined">chevron_right</span></button>
@@ -178,13 +174,10 @@
         </div>
         <input type="date" id="datePicker" class="rounded-xl border-slate-200 text-sm" />
       </div>
-
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" id="scheduleCapture">
         <div class="overflow-x-auto">
           <table class="w-full text-right border-collapse">
-            <thead>
-              <tr id="headerDates" class="bg-slate-50/50 border-b border-slate-100 text-slate-500"></tr>
-            </thead>
+            <thead><tr id="headerDates" class="bg-slate-50/50 border-b border-slate-100 text-slate-500"></tr></thead>
             <tbody id="scheduleBody" class="divide-y divide-slate-50"></tbody>
           </table>
         </div>
@@ -199,81 +192,45 @@
           <input type="text" id="newEmpName" class="flex-1 rounded-xl border-slate-200" placeholder="اسم الموظف الجديد" />
           <button class="bg-primary text-white px-8 py-3 rounded-xl font-bold" id="btnAddEmployee">+ إضافة</button>
         </div>
-        <table class="w-full text-right">
-          <thead>
-            <tr class="text-slate-400 text-sm border-b">
-              <th class="pb-4 font-medium" id="thAdminName">الاسم</th>
-              <th class="pb-4 font-medium" id="thAdminShift">الوردية</th>
-              <th class="pb-4 font-medium">التناوب</th>
-              <th class="pb-4 font-medium">الحالة</th>
-              <th class="pb-4 font-medium text-left">الإجراء</th>
-            </tr>
-          </thead>
+        <table class="w-full text-right border-collapse">
+          <thead><tr class="text-slate-400 text-sm border-b pb-4"><th id="thAdminName">الاسم</th><th id="thAdminShift">الوردية</th><th>التناوب</th><th>الحالة</th><th class="text-left" id="thAdminAction">الإجراء</th></tr></thead>
           <tbody id="adminBody" class="divide-y divide-slate-50"></tbody>
         </table>
       </div>
     </section>
 
     <section id="holidays" class="tab-content">
-        <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 class="text-xl font-bold text-primary mb-6">العطل الرسمية</h3>
-          <div class="grid grid-cols-4 gap-4 mb-8">
-            <select id="hEmp" class="rounded-xl border-slate-200"></select>
-            <input type="text" id="hName" class="rounded-xl border-slate-200" placeholder="اسم العطلة" />
-            <input type="date" id="hStart" class="rounded-xl border-slate-200" />
-            <input type="date" id="hEnd" class="rounded-xl border-slate-200" />
-          </div>
-          <button class="w-full bg-primary text-white py-3 rounded-xl font-bold" id="btnAddHoliday">إضافة التكليف</button>
-          <table class="w-full mt-8 text-right divide-y divide-slate-50">
-            <thead><tr class="text-slate-400 text-sm border-b pb-2"><th>العطلة</th><th>الموظف</th><th>الفترة</th><th></th></tr></thead>
-            <tbody id="holidayBody"></tbody>
-          </table>
-        </div>
+      <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+        <h3 class="font-bold text-primary mb-4">العطل الرسمية</h3>
+        <div class="grid grid-cols-4 gap-3 mb-4"><select id="hEmp" class="rounded-lg"></select><input type="text" id="hName" class="rounded-lg"/><input type="date" id="hStart" class="rounded-lg"/><input type="date" id="hEnd" class="rounded-lg"/></div>
+        <button id="btnAddHoliday" class="bg-primary text-white px-4 py-2 rounded-lg w-full">إضافة</button>
+        <table class="w-full mt-6 text-right"><tbody id="holidayBody"></tbody></table>
+      </div>
     </section>
 
     <section id="planning" class="tab-content">
-        <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm mb-8">
-          <h3 class="text-xl font-bold text-primary mb-6">مخطط الإجازات السنوي</h3>
-          <div class="grid grid-cols-4 gap-3 mb-6">
-            <select id="pEmp" class="rounded-xl border-slate-200"></select>
-            <input type="date" id="pStart" class="rounded-xl border-slate-200" />
-            <input type="date" id="pEnd" class="rounded-xl border-slate-200" />
-            <button class="bg-primary text-white rounded-xl font-bold" id="btnAddPlan">إضافة للخطة</button>
-          </div>
-          <div id="ganttWrap" class="overflow-x-auto p-4 bg-slate-50 rounded-xl border">
-            <div class="min-w-[1000px]" id="gantt">
-                </div>
-          </div>
-        </div>
-        <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 class="text-lg font-bold mb-4">قائمة الطلبات</h3>
-            <table class="w-full text-right"><tbody id="planningBody"></tbody></table>
-        </div>
+      <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+        <h3 class="font-bold text-primary mb-4">خطة الإجازات</h3>
+        <div class="grid grid-cols-4 gap-3 mb-6"><select id="pEmp" class="rounded-lg"></select><input type="date" id="pStart" class="rounded-lg"/><input type="date" id="pEnd" class="rounded-lg"/><button id="btnAddPlan" class="bg-primary text-white rounded-lg">إضافة</button></div>
+        <div id="ganttWrap" class="overflow-x-auto p-4 bg-slate-50 rounded-xl"><div class="min-w-[800px]" id="gantt"></div></div>
+        <table class="w-full mt-8 text-right"><tbody id="planningBody"></tbody></table>
+      </div>
     </section>
 
     <section id="shiftSettings" class="tab-content">
-        <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm max-w-2xl">
-          <h3 class="text-xl font-bold text-primary mb-6">إعدادات أوقات الدوام</h3>
-          <div id="shiftTimesPermissionMsg" class="hidden p-3 bg-amber-50 text-amber-700 rounded-lg mb-6"></div>
-          <div class="space-y-6">
-            <div class="flex items-center justify-between">
-              <label class="font-bold text-slate-600">الوردية الصباحية</label>
-              <div class="flex gap-2"><input type="time" id="morningStart" class="rounded-lg"/><input type="time" id="morningEnd" class="rounded-lg"/></div>
-            </div>
-            <div class="flex items-center justify-between">
-              <label class="font-bold text-slate-600">الوردية المسائية</label>
-              <div class="flex gap-2"><input type="time" id="nightStart" class="rounded-lg"/><input type="time" id="nightEnd" class="rounded-lg"/></div>
-            </div>
-            <button class="w-full bg-primary text-white py-3 rounded-xl font-bold" id="btnSaveShiftTimes">حفظ التغييرات</button>
-          </div>
+      <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 max-w-md">
+        <h3 class="font-bold text-primary mb-4">إعدادات الوقت</h3>
+        <div class="space-y-4">
+          <div><label>صباحي</label><div class="flex gap-2"><input type="time" id="morningStart" class="w-full"/><input type="time" id="morningEnd" class="w-full"/></div></div>
+          <div><label>ليلي</label><div class="flex gap-2"><input type="time" id="nightStart" class="w-full"/><input type="time" id="nightEnd" class="w-full"/></div></div>
+          <button id="btnSaveShiftTimes" class="w-full bg-primary text-white py-2 rounded-lg">حفظ</button>
         </div>
+      </div>
     </section>
-
   </div>
 </main>
 
 <script type="module">
-// [نفس كود الجافا سكريبت الأصلي من Schedule.html مع تعديل بسيط في أسماء الكلاسات والمبدلات]
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { getFirestore, doc, getDoc, collection, onSnapshot, setDoc, deleteDoc, addDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
@@ -281,28 +238,67 @@ import { getFirestore, doc, getDoc, collection, onSnapshot, setDoc, deleteDoc, a
 const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d', measurementId:'G-45X2SXD2E4' };
 const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
-// ... [تكملة الدوال البرمجية من الكود الأول] ...
-// ملاحظة: تم الاحتفاظ بكل منطق Firebase والمصفوفات كما هي لضمان عمل النظام
-// تم فقط تحديث دالة renderAll و renderAdmin لتناسب التصميم الجديد
+const LANG_KEY='almajdouie_schedule_lang_db_login_1043';
+const SHIFT_OPTIONS=[{key:'Morning',icon:'☀️'},{key:'Night',icon:'🌙'},{key:'Annual',icon:''},{key:'OnCall',icon:'📞'},{key:'Work',icon:'🏢'},{key:'Off',icon:''}];
+const i18n={ ar:{title:'لوحة جدول المناوبات',prev:'الأسبوع السابق',curr:'الأسبوع الحالي',next:'الأسبوع التالي',schedule:'🗓️ الجدول',days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'],months:['ينا','فبر','مار','أبر','ماي','يون','يول','أغس','سبت','أكت','نوف','ديس'],morning:'صباحي',night:'ليلي',off:'أوف',work:'تغطية',onCall:'أون كول',annualLeave:'إجازة',h:'عطلة',national:'الوطني'}, en:{title:'Schedule Dashboard',prev:'Prev',curr:'Today',next:'Next',schedule:'Schedule',days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],morning:'Morning',night:'Night',off:'Off',work:'Work',onCall:'OnCall',annualLeave:'Leave',h:'Holiday',national:'National'} };
 
-// منطق التبديل بين الأقسام (Tabs)
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const target = btn.dataset.tab;
-    document.querySelectorAll('.tab-btn').forEach(b => {
-      b.classList.remove('active', 'bg-blue-50', 'text-primary', 'border-primary');
-      b.classList.add('text-slate-500');
-    });
-    btn.classList.add('active', 'bg-blue-50', 'text-primary', 'border-primary');
-    
-    document.querySelectorAll('.tab-content').forEach(panel => panel.classList.remove('active'));
-    document.getElementById(target).classList.add('active');
-  });
+let employees=[], holidayDuties=[], vacationsList=[], planList=[], manualOverrides={}, shiftSettings={morningStart:'08:00',morningEnd:'17:00',nightStart:'17:00',nightEnd:'00:00',workStart:'09:00',workEnd:'18:00'};
+let currentLang=localStorage.getItem(LANG_KEY)||'ar', currentUser=null, selectedShiftOption=null, selectedShiftTarget=null, unsubs=[];
+
+const $=id=>document.getElementById(id), tr=()=>i18n[currentLang];
+function formatLocal(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function show(id){ $(id).style.display='flex'; } function hide(id){ $(id).style.display='none'; }
+
+function shiftMeta(k){ const t=tr(); if(k==='Morning') return {text:t.morning,cls:'Morning',icon:'☀️'}; if(k==='Night') return {text:t.night,cls:'Night',icon:'🌙'}; if(k==='Annual') return {text:t.annualLeave,cls:'Annual',icon:''}; if(k==='OnCall') return {text:t.onCall,cls:'OnCall',icon:'📞'}; if(k==='Work') return {text:t.work,cls:'Work',icon:'🏢'}; if(k==='Off') return {text:t.off,cls:'Off',icon:''}; return {text:t.morning,cls:'Morning',icon:'☀️'}; }
+
+async function bindSnapshots(){ unsubs.forEach(f=>f()); unsubs=[]; unsubs.push(onSnapshot(doc(db,'schedule','jadwal_v6'), s=>{ employees=s.exists()?s.data().data?.emps:[], updateSelectors(), renderAll(); })); unsubs.push(onSnapshot(doc(db,'schedule','jadwal_holidays'), s=>{ holidayDuties=s.exists()?s.data().duties:[], renderAll(); })); unsubs.push(onSnapshot(doc(db,'schedule','jadwal_annual_leave'), s=>{ vacationsList=s.exists()?s.data().vacations:[], renderAll(); })); unsubs.push(onSnapshot(doc(db,'schedule','manual_overrides'), s=>{ manualOverrides=s.exists()?s.data():{}, renderAll(); })); unsubs.push(onSnapshot(collection(db,'vacations'), s=>{ planList=s.docs.map(d=>({id:d.id,...d.data()})), renderAll(); })); unsubs.push(onSnapshot(doc(db,'schedule','shift_settings'), s=>{ shiftSettings={...shiftSettings,...s.data()}, renderAll(); })); }
+
+function updateSelectors(){ const opts=employees.filter(e=>e.active).map(e=>`<option value="${e.id}">${e.name}</option>`).join(''); $('hEmp').innerHTML=opts; $('pEmp').innerHTML=opts; }
+
+function renderAll(){ 
+    const dp=$('datePicker'); if(!dp.value) return; 
+    const t=tr(), start=new Date(dp.value.replace(/-/g,'/')), end=new Date(start.getTime()); end.setDate(start.getDate()+6);
+    $('capRange').textContent=`${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+    let h=`<th class="p-4 text-primary font-bold">الموظف</th>`; for(let i=0;i<7;i++){ let d=new Date(start.getTime()); d.setDate(start.getDate()+i); h+=`<th class="p-4 text-center font-bold">${t.days[i]}<br><small>${d.getDate()}/${d.getMonth()+1}</small></th>`; } $('headerDates').innerHTML=h;
+    $('scheduleBody').innerHTML = employees.filter(e=>e.active).map(emp=>{
+        let row=`<tr class="hover:bg-slate-50/50"><td class="p-4 font-bold text-primary">${emp.name}</td>`;
+        for(let d=0;d<7;d++){
+            let cell=new Date(start.getTime()); cell.setDate(start.getDate()+d); cell.setHours(0,0,0,0);
+            let dateKey=formatLocal(cell), shift=manualOverrides[`${emp.id}_${dateKey}`] || (emp.fixed?'Night':'Morning');
+            let meta=shiftMeta(shift);
+            row+=`<td class="p-2 text-center editable" onclick="window.promptOverride('${emp.id}','${dateKey}','${emp.name}')"><span class="badge ${meta.cls} mx-auto">${meta.icon} ${meta.text}</span></td>`;
+        } return row+'</tr>';
+    }).join('');
+    renderAdmin();
+}
+
+function renderAdmin(){
+    $('adminBody').innerHTML = employees.map((e,i)=>`<tr><td class="p-4 font-bold text-primary">${e.name}</td><td>${e.fixed?'ليلي':'صباحي'}</td><td>${e.rotType||'none'}</td><td>${e.active?'نشط':'مخفي'}</td><td class="text-left p-4"><button class="text-red-500 font-bold" onclick="window.delEmp('${i}')">X</button></td></tr>`).join('');
+}
+
+window.promptOverride=(id,d,n)=>{ selectedShiftTarget={empId:id,date:d}; $('shiftTarget').textContent=`${n} - ${d}`; show('shiftOverlay'); renderShiftOptions(); };
+function renderShiftOptions(){ $('shiftOptions').innerHTML=SHIFT_OPTIONS.map(o=>`<button class="p-2 bg-slate-50 border rounded-lg text-xs font-bold ${selectedShiftOption===o.key?'bg-primary text-white':''}" onclick="window.selShift('${o.key}')">${o.icon} ${o.key}</button>`).join(''); }
+window.selShift=k=>{ selectedShiftOption=k; renderShiftOptions(); };
+$('saveShiftBtn').onclick=async()=>{ if(!selectedShiftOption) return; let up={...manualOverrides}; up[`${selectedShiftTarget.empId}_${selectedShiftTarget.date}`]=selectedShiftOption; await setDoc(doc(db,'schedule','manual_overrides'), up); hide('shiftOverlay'); };
+$('resetShiftBtn').onclick=async()=>{ let up={...manualOverrides}; delete up[`${selectedShiftTarget.empId}_${selectedShiftTarget.date}`]; await setDoc(doc(db,'schedule','manual_overrides'), up); hide('shiftOverlay'); };
+$('closeShiftBtn').onclick=()=>hide('shiftOverlay');
+
+$('loginForm').onsubmit=async e=>{ e.preventDefault(); const err=$('loginErr'), btn=$('loginBtn'); err.classList.add('hidden'); btn.disabled=true;
+    try{ const cred=await signInWithEmailAndPassword(auth,$('loginEmail').value,$('loginPassword').value);
+        const snap=await getDoc(doc(db,'app_users',cred.user.uid));
+        if(!snap.exists() || snap.data().active!==true) throw new Error('ليس لديك صلاحية');
+    }catch(e){ err.textContent=e.message; err.classList.remove('hidden'); btn.disabled=false; }
+};
+
+onAuthStateChanged(auth, u=>{ if(!u){ currentUser=null; show('loginOverlay'); } else { hide('loginOverlay'); bindSnapshots(); $('userChip').textContent=u.email; window.setCurrentWeek(); } });
+window.setCurrentWeek=()=>{ let n=new Date(); n.setDate(n.getDate()-n.getDay()); $('datePicker').value=formatLocal(n); renderAll(); };
+$('btnLang').onclick=()=>{ currentLang=currentLang==='ar'?'en':'ar'; localStorage.setItem(LANG_KEY,currentLang); renderAll(); };
+$('btnLogout').onclick=()=>signOut(auth);
+document.querySelectorAll('.tab-btn').forEach(b=>b.onclick=()=>{ 
+    document.querySelectorAll('.tab-btn, .tab-content').forEach(x=>x.classList.remove('active','bg-blue-50','text-primary','border-primary'));
+    b.classList.add('active','bg-blue-50','text-primary','border-primary'); $(b.dataset.tab).classList.add('active');
 });
-
-// [هنا تضع باقي أكواد JS من ملف Schedule.html الأصلي]
-// ملاحظة: تأكد من تحديث أسماء الكلاسات في دالة renderAll مثل (cls='Morning') لتتوافق مع الـ CSS العلوي
+window.addEventListener('DOMContentLoaded', ()=>window.setCurrentWeek());
 </script>
-
 </body>
 </html>
