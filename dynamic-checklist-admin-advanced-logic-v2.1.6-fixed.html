@@ -127,7 +127,8 @@
     const db = getFirestore(app);
     const $ = id => document.getElementById(id);
     let unsubFields = null;
-    const state = { fields: [], currentUser: null, currentUserProfile: null };
+    let previewRenderTimeout = null;
+    const state = { fields: [], currentUser: null, currentUserProfile: null, lastAnswers: {} };
 
     function esc(v){ return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;'); }
     function norm(v){ return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g,''); }
@@ -279,10 +280,22 @@
       }
       return `<div class="field"><label>${esc(field.label)}</label><input type="text" id="${id}" value="${esc(value||'')}"></div>`;
     }
-    function bindPreview(){ document.querySelectorAll('#dynamicChecklistSections input, #dynamicChecklistSections select, #dynamicChecklistSections textarea').forEach(el=>{ el.oninput=()=>renderPreview(); }); }
+    
+    function bindPreview(){ 
+      document.querySelectorAll('#dynamicChecklistSections input, #dynamicChecklistSections select, #dynamicChecklistSections textarea').forEach(el=>{ 
+        el.oninput=()=>{ 
+          clearTimeout(previewRenderTimeout); 
+          previewRenderTimeout = setTimeout(()=>{ 
+            renderPreview(); 
+          }, 500); 
+        }; 
+      }); 
+    }
+    
     function renderPreview(values={}){
       const container = $('dynamicChecklistSections');
       const answers = Object.keys(values || {}).length ? collectAnswers(values) : collectAnswers();
+      state.lastAnswers = answers;
       container.innerHTML='';
       const grouped = {};
       state.fields.filter(f=>f.active!==false).sort(bySectionOrder).forEach(field=>{ if(!shouldShow(field, answers)) return; const section=field.section||'General'; (grouped[section] ||= []).push(field); });
