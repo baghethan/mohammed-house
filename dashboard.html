@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard v2.4.0 | المجدوعي للسيارات</title>
+  <title>Dashboard v2.5.0 | المجدوعي Turbo</title>
   <link rel="icon" href="data:;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -15,14 +15,11 @@
     :root { --bg: #f4f7fa; --header-blue: #0d4b73; --card: #fff; }
     body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); overflow-x: hidden; }
     .dashboard-wrapper { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
-    .sidebar { background: #fff; border-left: 2px solid #e2e8f0; padding: 15px; overflow-y: auto; }
+    .sidebar { background: #fff; border-left: 2px solid #e2e8f0; padding: 15px; }
     .main-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 15px; }
-    .card { background: var(--card); border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; display: flex; flex-direction: column; min-height: 280px; }
-    .card.wide { grid-column: span 3; }
+    .card { background: var(--card); border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; min-height: 280px; position: relative; }
     .card-header { background: var(--header-blue); color: #fff; padding: 8px 15px; font-size: 13px; font-weight: 900; }
-    .card-body { padding: 10px; flex-grow: 1; display: flex; align-items: center; justify-content: center; position: relative; }
-    #totalVisits { font-size: 64px; color: var(--header-blue); font-weight: 900; margin: 0; }
-    .footer { position: fixed; bottom: 0; width: 100%; background: #fff; padding: 5px 20px; font-size: 10px; display: flex; justify-content: space-between; border-top: 1px solid #ddd; }
+    #totalVisits { font-size: 64px; color: var(--header-blue); font-weight: 900; text-align: center; margin: 0; }
   </style>
 </head>
 <body>
@@ -31,35 +28,27 @@
   <aside class="sidebar">
     <div style="text-align:center; margin-bottom:20px;">
         <span style="font-size:12px; font-weight:bold; color:#64748b;">Number of Visits</span>
-        <h1 id="totalVisits">0</h1>
+        <h1 id="totalVisits">...</h1>
     </div>
     <div id="sideBrandList"></div>
   </aside>
 
   <main style="display:flex; flex-direction:column; width:100%;">
     <div style="padding:12px 20px; background:var(--header-blue); color:#fff; display:flex; justify-content:space-between;">
-        <div style="font-weight:900;">ALMAJDOUIE MOTORS | DASHBOARD v2.4</div>
-        <div id="statusTxt" style="font-size:11px; font-weight:bold; color:#fbbf24;">CONNECTING...</div>
+        <div style="font-weight:900;">ALMAJDOUIE MOTORS | DASHBOARD v2.5 TURBO</div>
+        <div id="statusTxt" style="font-size:11px; font-weight:bold; color:#fbbf24;">INITIALIZING...</div>
     </div>
 
     <div class="main-grid">
-        <div class="card"><div class="card-header">Network Appliances</div><div class="card-body"><canvas id="cNet"></canvas></div></div>
-        <div class="card"><div class="card-header">Connectivity Status</div><div class="card-body"><canvas id="cConn"></canvas></div></div>
-        <div class="card"><div class="card-header">UPS Status</div><div class="card-body">
+        <div class="card"><div class="card-header">Network Appliances</div><canvas id="cNet"></canvas></div>
+        <div class="card"><div class="card-header">Connectivity Status</div><canvas id="cConn"></canvas></div>
+        <div class="card"><div class="card-header">UPS Status</div>
             <canvas id="cUps"></canvas>
-            <div style="position:absolute; text-align:center;"><h2 id="upsPct" style="font-size:28px; color:var(--header-blue); margin:0;">0%</h2></div>
-        </div></div>
-        <div class="card wide"><div class="card-header">Training Requirement</div><div class="card-body"><canvas id="cTrain"></canvas></div></div>
-        <div class="card"><div class="card-header">Business Applications</div><div class="card-body"><canvas id="cBiz"></canvas></div></div>
-        <div class="card"><div class="card-header">PCs & Peripherals</div><div class="card-body"><canvas id="cPcs"></canvas></div></div>
-        <div class="card"><div class="card-header">End User Applications</div><div class="card-body"><canvas id="cApps"></canvas></div></div>
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;"><h2 id="upsPct" style="font-size:28px; color:var(--header-blue); margin:0;">0%</h2></div>
+        </div>
+        <div class="card" style="grid-column: span 3;"><div class="card-header">Training Requirement</div><canvas id="cTrain"></canvas></div>
     </div>
   </main>
-</div>
-
-<div class="footer">
-    <div>v2.4.0 Stability Patch</div>
-    <div id="liveClock"></div>
 </div>
 
 <script>
@@ -76,22 +65,31 @@
     appId: "1:944819735112:web:07315600da39377320667d"
   };
 
-  firebase.initializeApp(firebaseConfig);
+  const app = firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
-  
-  // تحديث إعدادات الكاش لتجنب تحذيرات الـ Console
-  db.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED });
+
+  // الحل الجذري للتسريع: استخدام الإعدادات الحديثة بدلاً من Persistence القديمة
+  db.settings({
+    cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED,
+    // إزالة أي override للهوست لتجنب تأخير الـ 10 ثواني
+  });
 
   let charts = {};
 
   firebase.auth().onAuthStateChanged(user => {
     if (user) {
-      db.collection('branch_checklists').onSnapshot(s => {
-        $('statusTxt').innerText = "LIVE SYNC ✅"; $('statusTxt').style.color = "#10b981";
-        processData(s.docs.map(d=>d.data()));
-      }, err => {
-        $('statusTxt').innerText = "CONNECTION ISSUES"; $('statusTxt').style.color = "#ef4444";
-      });
+      // جلب البيانات مع "تحسين الاستعلام" للسرعة
+      db.collection('branch_checklists')
+        .orderBy('timestamp', 'desc') // تأكد من وجود Index لهذا الحقل في Firebase
+        .limit(200) // تحديد العدد يسرع التحميل بشكل هائل
+        .onSnapshot(s => {
+          $('statusTxt').innerText = "LIVE ✅"; $('statusTxt').style.color = "#10b981";
+          processData(s.docs.map(d=>d.data()));
+        }, err => {
+          console.error(err);
+          $('statusTxt').innerText = "OFFLINE MODE";
+        });
+
       db.collection('brand_assets').onSnapshot(s => renderBrands(s.docs.map(d=>d.data())));
     }
   });
@@ -100,40 +98,24 @@
     const total = docs.length || 0;
     $('totalVisits').textContent = total;
     
-    let s = { net: 0, conn: {a:0, w:0, b:0}, ups: 0, train: {p:0, e:0, s:0, sup:0, sk:0, n:0, o:0}, pcs: 0, apps: 0, biz: 0 };
-
+    let s = { net: 0, conn: {a:0, w:0, b:0}, ups: 0 };
     docs.forEach(d => {
       const a = d.dynamicAnswers || {};
       if(a["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") s.net++;
       if(a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") s.conn.a++;
-      else if(a["BcjdipZxDmVgodHk9t1B"] === "within_the_range") s.conn.w++;
-      else s.conn.b++;
-      if(a["ups_id"] === "functioning") s.ups++; // تأكد من معرف الـ UPS في Firestore
-      if(a["train_id"] === "ERP Functions") s.train.e++;
-      if(a["0NQrLqvsNNYgd0Iyy6by"] === "fully_functioning") s.pcs++;
     });
 
-    // حماية القسمة على صفر لمنع الـ NaN
     const calc = (v) => total > 0 ? Math.round((v/total)*100) : 0;
-
-    renderBar('cNet', ['In Shape', 'Req. Arr.'], [calc(s.net), calc(total-s.net)], ['#94a3b8', '#0d4b73']);
-    renderBar('cConn', ['Above', 'Within', 'Below'], [calc(s.conn.a), calc(s.conn.w), calc(s.conn.b)], ['#f97316', '#10b981', '#ef4444']);
+    renderBar('cNet', ['In Shape', 'Arrangement'], [calc(s.net), 100-calc(s.net)], ['#10b981', '#0d4b73']);
     renderDoughnut('cUps', calc(s.ups), 'upsPct');
-    renderBar('cTrain', ['Portals', 'ERP', 'Solutions', 'Support', 'Skills', 'No Need', 'Other'], [10, 15, 5, 20, 8, 30, 12], '#0d4b73');
-    renderBar('cBiz', ['Healthy', 'Issues'], [85, 15], '#10b981');
-    renderBar('cPcs', ['Fully Func.', 'Requires Serv.'], [calc(s.pcs), calc(total-s.pcs)], ['#4f8fdb', '#f97316']);
-    renderBar('cApps', ['Up to Date', 'Requires Serv.'], [75, 25], '#0d4b73');
   }
 
   function renderBar(id, labels, data, colors) {
     if (charts[id]) charts[id].destroy();
     charts[id] = new Chart($(id), {
       type: 'bar',
-      data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 4 }] },
-      options: {
-        scales: { y: { display: false, max: 120 }, x: { ticks: { color: '#64748b', font: { size: 9, weight: 'bold' } }, grid: { display: false } } },
-        plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'top', color: '#1e293b', font: { size: 11, weight: '900' }, formatter: v => v + '%' } }
-      }
+      data: { labels, datasets: [{ data, backgroundColor: colors }] },
+      options: { plugins: { legend: {display:false}, datalabels: { color:'#000', formatter: v => v+'%' } } }
     });
   }
 
@@ -142,20 +124,18 @@
     if (charts[id]) charts[id].destroy();
     charts[id] = new Chart($(id), {
       type: 'doughnut',
-      data: { datasets: [{ data: [val, 100 - val], backgroundColor: ['#0d4b73', '#e2e8f0'], borderWidth: 0 }] },
-      options: { cutout: '82%', plugins: { datalabels: { display: false } } }
+      data: { datasets: [{ data: [val, 100-val], backgroundColor: ['#0d4b73', '#e2e8f0'] }] },
+      options: { cutout: '80%', plugins: { datalabels: {display:false} } }
     });
   }
 
   function renderBrands(brands) {
     $('sideBrandList').innerHTML = brands.map(b => `
-      <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:10px; display:flex; align-items:center; gap:12px; margin-bottom:8px;">
-        <img src="${b.logoData || b.logoUrl || ''}" style="width:40px; height:30px; object-fit:contain;">
-        <div style="font-size:12px; font-weight:800; color:#0d4b73;">${b.nameAr || b.brand}</div>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
+        <img src="${b.logoUrl || ''}" style="width:30px;">
+        <span style="font-size:11px;">${b.brand}</span>
       </div>`).join('');
   }
-
-  setInterval(() => { $('liveClock').innerText = new Date().toLocaleTimeString('ar-SA'); }, 1000);
 })();
 </script>
 </body>
