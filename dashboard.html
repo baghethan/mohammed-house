@@ -77,22 +77,29 @@
   let charts = {};
 
   firebase.auth().onAuthStateChanged(async (user) => {
-    if (user) {
-      // استخدام getDocs مع المصدر 'cache' أولاً للتحميل الفوري
-      try {
-        const snapshot = await db.collection('branch_checklists').get({ source: 'server' });
-        $('statusTxt').innerText = "متصل مباشر ✅"; $('statusTxt').style.color = "#10b981";
-        processData(snapshot.docs.map(d=>d.data()));
-      } catch (e) {
-        // إذا فشل السيرفر، حمل من الكاش فوراً
-        const cacheSnap = await db.collection('branch_checklists').get({ source: 'cache' });
-        processData(cacheSnap.docs.map(d=>d.data()));
-        $('statusTxt').innerText = "وضع الأوفلاين (كاش)";
+  if (user) {
+    // 1. التحميل الفوري من الذاكرة المحلية (تظهر الأرقام في 0.1 ثانية)
+    try {
+      const cacheSnap = await db.collection('branch_checklists').get({ source: 'cache' });
+      if (!cacheSnap.empty) {
+          processData(cacheSnap.docs.map(d => d.data()));
+          console.log("تم عرض بيانات الكاش بنجاح");
       }
+    } catch (e) { /* الكاش فارغ أول مرة */ }
 
-      db.collection('brand_assets').onSnapshot(s => renderBrands(s.docs.map(d=>d.data())));
-    }
-  });
+    // 2. التحديث الحي من السيرفر (SnapShot) في الخلفية
+    db.collection('branch_checklists').onSnapshot(s => {
+      $('statusTxt').innerText = "متصل مباشر ✅";
+      $('statusTxt').style.color = "#10b981";
+      processData(s.docs.map(d => d.data()));
+    }, err => {
+      $('statusTxt').innerText = "وضع الأوفلاين";
+      $('statusTxt').style.color = "#f97316";
+    });
+  } else {
+    window.location.href = 'login.html';
+  }
+});
 
   function processData(docs) {
     const total = docs.length || 0;
