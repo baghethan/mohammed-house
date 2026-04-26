@@ -3,10 +3,10 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>IT Assessment v9.1.0 | Almajdouie Motors</title>
+    <title>IT Analytics v9.2.0 | Almajdouie Final Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght=400;600;700;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Cairo', sans-serif; background-color: #f1f5f9; }
@@ -26,24 +26,24 @@
         <div class="bg-[#001e40] text-white p-8 rounded-[45px] shadow-2xl border-b-8 border-blue-900">
             <div class="flex items-center justify-between mb-8">
                 <div class="flex items-center gap-4">
-                    <div class="bg-white/10 p-3 rounded-2xl text-2xl">⚙️</div>
+                    <div class="bg-white/10 p-3 rounded-2xl text-2xl">⚡</div>
                     <div>
-                        <h2 class="text-xl font-black italic">IT DASHBOARD MASTER v9.1.0</h2>
-                        <p class="text-[9px] font-bold opacity-50 uppercase tracking-widest">Fixed Database Field Mapping</p>
+                        <h2 class="text-xl font-black italic uppercase">IT Dashboard Master v9.2.0</h2>
+                        <p class="text-[9px] font-bold opacity-50 uppercase tracking-widest">Grouped Network Analytics & Auto-Sync</p>
                     </div>
                 </div>
                 <div class="flex gap-4 text-[9px] font-black uppercase bg-white/5 p-3 rounded-2xl border border-white/5">
-                    <div class="flex items-center"><span class="w-2 h-2 rounded-full bg-[#10b981] ml-2"></span> ممتاز</div>
-                    <div class="flex items-center"><span class="w-2 h-2 rounded-full bg-[#f59e0b] ml-2"></span> تنبيه</div>
-                    <div class="flex items-center"><span class="w-2 h-2 rounded-full bg-[#f43f5e] ml-2"></span> صيانة</div>
+                    <div class="flex items-center"><span class="w-2 h-2 rounded-full bg-[#10b981] ml-2"></span> ممتاز (In Shape)</div>
+                    <div class="flex items-center"><span class="w-2 h-2 rounded-full bg-[#f43f5e] ml-2"></span> صيانة (Arrangement)</div>
                 </div>
             </div>
 
-            <div id="configGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
+            <div id="configGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                </div>
             
             <div class="mt-8 pt-6 border-t border-white/5 flex justify-between items-center text-[10px] font-black">
-                <span class="text-blue-300 uppercase tracking-widest">Database Sync: 100% FIXED ✅</span>
-                <button onclick="window.renderCharts()" class="bg-[#10b981] hover:bg-green-600 text-white px-10 py-3 rounded-2xl transition shadow-lg">تحديث وحل مشكلة الشارتات 🔃</button>
+                <span class="text-blue-300 uppercase tracking-widest" id="syncStatus">Status: Synchronizing... ⏳</span>
+                <button onclick="window.renderCharts()" class="bg-[#10b981] hover:bg-green-600 text-white px-10 py-3 rounded-2xl transition shadow-lg">Refresh Analytics 🔃</button>
             </div>
         </div>
     </div>
@@ -61,19 +61,20 @@
                     <span class="text-[10px] font-black text-slate-400">To</span>
                     <input type="date" id="dateTo" onchange="window.filterData()">
                 </div>
-                <button onclick="window.copyFullDashboard()" class="bg-[#0d4b73] text-white px-8 py-3 rounded-2xl text-sm font-black shadow-xl">نسخ التقرير 📷</button>
+                <button onclick="window.copyFullDashboard()" class="bg-[#0d4b73] text-white px-8 py-3 rounded-2xl text-sm font-black shadow-xl">Copy Image 📷</button>
             </div>
         </header>
 
-        <div class="grid grid-cols-12 gap-8 items-stretch">
+        <div id="topStats" class="grid grid-cols-12 gap-8 items-stretch">
             <div class="col-span-12 lg:col-span-4 bg-white rounded-[55px] p-12 card-shadow border border-slate-50 flex flex-col justify-center text-center">
-                <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">إجمالي الزيارات</h2>
+                <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Total Execution | إجمالي الزيارات</h2>
                 <span class="text-9xl font-black text-[#0d4b73] leading-none tracking-tighter" id="totalVisits">0</span>
             </div>
             <div id="sideBrandList" class="col-span-12 lg:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-6"></div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10" id="reportsGrid"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10" id="reportsGrid">
+            </div>
     </div>
 
 <script>
@@ -81,46 +82,24 @@
     const $ = id => document.getElementById(id);
     let charts = {}, state = { allVisits: [], filteredVisits: [], brands: [] };
 
-    // الألوان حسب نوع الرد
-    const COLOR_LOGIC = {
-        "fully_functioning": "#10b981", "above_the_range": "#10b981", "yes": "#10b981", "in_shape": "#10b981",
-        "within_the_range": "#f59e0b", "partially": "#f59e0b", "up_to_date": "#f59e0b",
-        "requires_service": "#f43f5e", "below_the_range": "#f43f5e", "no": "#f43f5e", "requires_arrangement": "#f43f5e", "requires_maintenance": "#f43f5e"
-    };
-
     // 🕵️ الربط النهائي مع الرموز الحقيقية في قاعدة بياناتك 🕵️
     const SCHEMA = {
         hardware: { 
-            title: "1. Hardware Assessment", 
-            opts: ["fully_functioning", "requires_service", "in_shape"],
-            items: { 
-                "8LQ9F3Rj4MsNDkTbO5Pi": "PCs Condition", 
-                "EyypXJo6RgtxIhcVVfzk": "Printers Condition", 
-                "9EozMBKysmOoajPkgUTh": "Unified Communication" 
-            } 
+            title: "1. Hardware Assessment", color: "#3b82f6",
+            items: { "8LQ9F3Rj4MsNDkTbO5Pi": "PCs Condition", "EyypXJo6RgtxIhcVVfzk": "Printers Condition", "9EozMBKysmOoajPkgUTh": "Unified Communication" } 
         },
         network: { 
-            title: "2. Network Infrastructure", 
-            opts: ["in_shape", "requires_arrangement", "above_the_range", "within_the_range", "below_the_range"],
-            items: { 
-                "BcjdipZxDmVgodHk9t1B": "Cabinets Condition", 
-                "E8Gvjsh8fJ0rkZX7PPaK": "Upload 4-6 Mbps", 
-                "9OHHSM4ossstUSNe2q0S": "Download 6-9 Mbps" 
-            } 
+            title: "2. Network Infrastructure", color: "#10b981",
+            isGrouped: true, // تفعيل نظام الشارت المجمع لهذا القسم
+            items: { "BcjdipZxDmVgodHk9t1B": "Cabinets Condition", "E8Gvjsh8fJ0rkZX7PPaK": "Upload Performance", "9OHHSM4ossstUSNe2q0S": "Download Performance" } 
         },
         software: { 
-            title: "3. Software & Systems", 
-            opts: ["yes", "no", "partially", "fully_functioning"],
-            items: { 
-                "6fx4HNunJZRyPziv5r02": "OS Up to Date", 
-                "0NQrLQvsNNYgd0Iyy6by": "OneDrive Backup", 
-                "L0V0F4wSuQe7ukfLoPjG": "Training Need" 
-            } 
+            title: "3. Software & Systems", color: "#f59e0b",
+            items: { "6fx4HNunJZRyPziv5r02": "OS Status", "0NQrLQvsNNYgd0Iyy6by": "OneDrive Backup", "L0V0F4wSuQe7ukfLoPjG": "Training Requirement" } 
         },
         systems: { 
-            title: "4. Systems Assessment", 
-            opts: ["yes", "no", "fully_functioning", "in_shape"],
-            items: { "EcfiAfRlykxLot8a913E": "Windows 11 Upgrades" } 
+            title: "4. Systems Assessment", color: "#0d4b73",
+            items: { "EcfiAfRlykxLot8a913E": "Windows 11 Upgrade Status" } 
         }
     };
 
@@ -128,13 +107,14 @@
         const db = window.parent.appDb;
         if (!db) { setTimeout(boot, 1000); return; }
 
+        // بناء لوحة التحكم فوراً لضمان عدم بقاء الصفحة فارغة
         $('configGrid').innerHTML = Object.keys(SCHEMA).map(key => `
             <div class="bg-white/5 p-5 rounded-[30px] border border-white/10">
                 <h3 class="text-[10px] font-black text-blue-300 uppercase mb-4">${SCHEMA[key].title}</h3>
-                <select id="type-${key}" onchange="window.renderCharts()" class="w-full mb-4">
-                    <option value="bar">📊 شارت بار ملون</option>
-                    <option value="doughnut">🍩 شارت دونات</option>
-                    <option value="stats">🔢 ملخص رقمي</option>
+                <select id="view-${key}" onchange="window.renderCharts()" class="w-full mb-4">
+                    <option value="bar">📊 Grouped Bars (مثل الصورة)</option>
+                    <option value="doughnut">🍩 Doughnut Chart</option>
+                    <option value="stats">🔢 Numbers Summary</option>
                 </select>
                 <div class="space-y-1 max-h-[80px] overflow-y-auto custom-scroll">
                     ${Object.keys(SCHEMA[key].items).map(fId => `<label class="flex items-center gap-2 py-0.5 opacity-70"><input type="checkbox" value="${fId}" data-cat="${key}" checked class="custom-checkbox" onchange="window.renderCharts()"><span class="text-[9px] font-bold">${SCHEMA[key].items[fId]}</span></label>`).join('')}
@@ -145,15 +125,93 @@
             <div class="bg-white rounded-[55px] p-10 card-shadow min-h-[480px] flex flex-col">
                 <h3 class="text-sm font-black text-[#0d4b73] mb-8 uppercase border-b pb-4">${SCHEMA[key].title}</h3>
                 <div class="flex-1 relative flex flex-col items-center justify-center">
-                    <canvas id="chart-${key}" style="max-height: 300px;"></canvas>
-                    <div id="stats-${key}" class="hidden text-center"><div class="stat-huge" id="val-${key}">0</div><p class="font-bold text-slate-400 mt-2 uppercase tracking-widest">System Count</p></div>
+                    <canvas id="chart-${key}" style="max-height: 320px;"></canvas>
+                    <div id="stats-${key}" class="hidden text-center"><div class="stat-huge" id="val-${key}">0</div><p class="font-bold text-slate-400 mt-2 uppercase tracking-widest">Completed</p></div>
                 </div>
             </div>`).join('');
 
+        $('syncStatus').innerText = "Status: Connected ✅";
         db.collection('brand_assets').onSnapshot(snap => { state.brands = snap.docs.map(d => d.data()); window.updateUI(); });
         db.collection('branch_checklists').onSnapshot(snap => { state.allVisits = snap.docs.map(d => d.data()); window.filterData(); });
     }
 
     window.filterData = function() {
         const from = $('dateFrom').value, to = $('dateTo').value;
-        const dFrom = fromتعديل قسم الشبكة (Network Infrastructure) بنفس أسلوب شارت الأعمدة الملون.
+        const dFrom = from ? new Date(from).setHours(0,0,0,0) : 0;
+        const dTo = to ? new Date(to).setHours(23,59,59,999) : Infinity;
+        state.filteredVisits = state.allVisits.filter(v => (v.timestamp?.toDate().getTime() || 0) >= dFrom && (v.timestamp?.toDate().getTime() || Infinity) <= dTo);
+        $('totalVisits').textContent = state.filteredVisits.length;
+        window.updateUI();
+    };
+
+    window.updateUI = function() {
+        const counts = {}; state.filteredVisits.forEach(v => { const b = v.brand || 'Other'; counts[b] = (counts[b] || 0) + 1; });
+        const activeBrands = state.brands.filter(b => (counts[b.brand] || 0) > 0);
+        $('sideBrandList').innerHTML = activeBrands.map(b => `<div class="bg-white rounded-[35px] p-8 shadow-sm border border-slate-50 flex items-center justify-between"><span class="text-7xl font-black text-[#0d4b73]">${counts[b.brand]}</span><div class="flex flex-col items-center gap-1"><img src="${b.logoData || b.logoUrl}" class="w-16 h-10 object-contain"><span class="text-[10px] font-black text-slate-400 uppercase">${b.brand}</span></div></div>`).join('');
+        window.renderCharts();
+    };
+
+    // ✅ محرك الشارتات المطور لدعم "الأعمدة المجمعة" لقسم الشبكة ✅
+    window.renderCharts = function() {
+        Object.keys(SCHEMA).forEach(catKey => {
+            const viewType = $(`view-${catKey}`).value;
+            const selectedFields = Array.from(document.querySelectorAll(`input[data-cat="${catKey}"]:checked`)).map(i => i.value);
+            
+            let datasetOK = [], datasetRequires = [], labels = [], sumTotal = 0;
+
+            selectedFields.forEach(fId => {
+                let okCount = 0, reqCount = 0;
+                state.filteredVisits.forEach(v => {
+                    const ans = (v.dynamicAnswers || {})[fId];
+                    if (["in_shape", "fully_functioning", "yes", "above_the_range", "within_the_range"].includes(ans)) okCount++;
+                    else if (["requires_arrangement", "requires_service", "no", "below_the_range"].includes(ans)) reqCount++;
+                });
+                labels.push(SCHEMA[catKey].items[fId]);
+                datasetOK.push(okCount);
+                datasetRequires.push(reqCount);
+                sumTotal += okCount;
+            });
+
+            $(`chart-${catKey}`).style.display = (viewType === 'stats') ? 'none' : 'block';
+            $(`stats-${catKey}`).style.display = (viewType === 'stats') ? 'block' : 'none';
+
+            if (viewType === 'stats') { $(`val-${catKey}`).innerText = sumTotal; }
+            else {
+                if (charts[catKey]) charts[catKey].destroy();
+                charts[catKey] = new Chart($(`chart-${catKey}`), {
+                    type: (viewType === 'doughnut' ? 'doughnut' : 'bar'),
+                    data: {
+                        labels: labels,
+                        datasets: viewType === 'doughnut' ? [{ data: [sumTotal, 5], backgroundColor: [SCHEMA[catKey].color, '#eff6ff'] }] : [
+                            { label: 'In Shape / OK', data: datasetOK, backgroundColor: '#10b981', borderRadius: 8 },
+                            { label: 'Requires Action', data: datasetRequires, backgroundColor: '#f43f5e', borderRadius: 8 }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y', // أعمدة طولية احترافية
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: true, position: 'bottom', labels: { font: { weight: 'bold', size: 10 } } } },
+                        scales: viewType === 'bar' ? { 
+                            x: { grid: { display: false }, ticks: { stepSize: 1 } }, 
+                            y: { grid: { display: false }, ticks: { font: { weight: 'bold', size: 10 }, color: '#0d4b73' } } 
+                        } : { display: false }
+                    }
+                });
+            }
+        });
+    };
+
+    window.copyFullDashboard = async function() {
+        const area = $('captureArea');
+        const excluded = document.querySelectorAll('.exclude-from-capture');
+        excluded.forEach(el => el.style.opacity = '0');
+        const canvas = await html2canvas(area, { backgroundColor: '#f1f5f9', scale: 2, useCORS: true });
+        excluded.forEach(el => el.style.opacity = '1');
+        canvas.toBlob(async (blob) => { await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]); alert("Report Copied ✅"); });
+    };
+
+    boot();
+})();
+</script>
+</body>
+</html>
