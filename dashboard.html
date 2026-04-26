@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Dashboard v5.1.0 | Almajdouie</title>
+    <title>Dashboard v5.2.0 | Almajdouie</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
@@ -11,6 +11,8 @@
     <style>
         body { font-family: 'Cairo', sans-serif; background-color: #f8f9ff; }
         .card-shadow { box-shadow: 0 4px 20px rgba(0, 30, 64, 0.05); }
+        /* التحكم في ارتفاع الرسم البياني لمنع التمدد البشع */
+        .chart-box { position: relative; height: 180px; width: 100%; }
     </style>
 </head>
 <body class="p-4 lg:p-6 overflow-x-hidden">
@@ -33,37 +35,41 @@
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div class="bg-[#3b82f6] p-6 rounded-2xl text-white flex justify-between items-center shadow-lg">
-                <div><h3 class="font-black text-lg">Branch Visits</h3><p class="text-[11px] opacity-80">Track activity</p></div>
-                <div class="bg-white/20 p-2 rounded-full">📍</div>
+            <div class="bg-[#3b82f6] p-6 rounded-2xl text-white flex justify-between items-center shadow-lg transform transition hover:scale-[1.01]">
+                <div><h3 class="font-black text-lg">Branch Visits</h3><p class="text-[11px] opacity-80">Track field activities</p></div>
+                <div class="bg-white/20 p-3 rounded-full text-xl">📍</div>
             </div>
-            <div class="bg-[#10b981] p-6 rounded-2xl text-white flex justify-between items-center shadow-lg">
-                <div><h3 class="font-black text-lg">Check-List</h3><p class="text-[11px] opacity-80">Quality forms</p></div>
-                <div class="bg-white/20 p-2 rounded-full">📋</div>
+            <div class="bg-[#10b981] p-6 rounded-2xl text-white flex justify-between items-center shadow-lg transform transition hover:scale-[1.01]">
+                <div><h3 class="font-black text-lg">Check-List</h3><p class="text-[11px] opacity-80">Quality assessments</p></div>
+                <div class="bg-white/20 p-3 rounded-full text-xl">📋</div>
             </div>
-            <div class="bg-[#a855f7] p-6 rounded-2xl text-white flex justify-between items-center shadow-lg">
-                <div><h3 class="font-black text-lg">Reports</h3><p class="text-[11px] opacity-80">Data Analysis</p></div>
-                <div class="bg-white/20 p-2 rounded-full">📊</div>
+            <div class="bg-[#a855f7] p-6 rounded-2xl text-white flex justify-between items-center shadow-lg transform transition hover:scale-[1.01]">
+                <div><h3 class="font-black text-lg">Reports</h3><p class="text-[11px] opacity-80">System Analytics</p></div>
+                <div class="bg-white/20 p-3 rounded-full text-xl">📊</div>
             </div>
         </div>
 
         <div class="grid grid-cols-12 gap-5">
-            <div class="col-span-12 lg:col-span-4 bg-white rounded-2xl p-6 card-shadow min-h-[400px]">
+            <div class="col-span-12 lg:col-span-4 bg-white rounded-2xl p-6 card-shadow flex flex-col h-[420px]">
                 <h2 class="text-sm font-bold text-slate-400 mb-2 uppercase">Total Visits</h2>
-                <span class="text-5xl font-black text-[#0d4b73]" id="totalVisits">0</span>
-                <div class="mt-6 space-y-3" id="sideBrandList"></div>
+                <span class="text-6xl font-black text-[#0d4b73]" id="totalVisits">0</span>
+                <div class="flex-1 overflow-y-auto mt-6 space-y-2 pr-1 custom-scroll" id="sideBrandList"></div>
             </div>
 
-            <div class="col-span-12 lg:col-span-8 bg-white rounded-2xl p-6 card-shadow grid grid-cols-2 gap-4">
-                <div class="relative flex flex-col items-center">
-                    <h3 class="text-xs font-black text-[#0d4b73] self-start">UPS Status</h3>
-                    <canvas id="cUps" class="max-h-[180px]"></canvas>
-                    <div class="absolute inset-0 flex items-center justify-center pt-6">
-                        <span class="text-2xl font-black text-[#0d4b73]" id="upsPct">0%</span>
+            <div class="col-span-12 lg:col-span-4 bg-white rounded-2xl p-6 card-shadow flex flex-col items-center justify-center relative h-[420px]">
+                <h2 class="text-sm font-black text-[#0d4b73] absolute top-6 right-6">UPS Status</h2>
+                <div class="w-48 h-48 relative">
+                    <canvas id="cUps"></canvas>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center pt-8">
+                        <span class="text-3xl font-black text-[#0d4b73]" id="upsPct">0%</span>
+                        <span class="text-[10px] font-bold text-slate-400">Healthy</span>
                     </div>
                 </div>
-                <div>
-                    <h3 class="text-xs font-black text-[#0d4b73] mb-4">Connectivity</h3>
+            </div>
+
+            <div class="col-span-12 lg:col-span-4 bg-white rounded-2xl p-6 card-shadow h-[420px]">
+                <h2 class="text-sm font-black text-[#0d4b73] mb-6">Connectivity Status</h2>
+                <div class="chart-box">
                     <canvas id="cConn"></canvas>
                 </div>
             </div>
@@ -71,37 +77,22 @@
     </div>
 
 <script>
-// --- منطق نسخ الصورة ---
+// --- دالة نسخ الصورة ---
 async function copyAsImage() {
     const btn = document.getElementById('copyBtnTxt');
-    const originalTxt = btn.innerText;
-    
+    const area = document.getElementById('captureArea');
     try {
-        btn.innerText = "جاري التقاط الصورة...";
-        
-        // التقاط منطقة الحاوية
-        const canvas = await html2canvas(document.getElementById('captureArea'), {
-            backgroundColor: '#f8f9ff',
-            scale: 2, // جودة عالية
-            useCORS: true // للسماح بنسخ الصور الخارجية (الشعارات)
-        });
-
-        // تحويل الكانفاس إلى Blob (صورة)
+        btn.innerText = "جاري الحفظ...";
+        const canvas = await html2canvas(area, { backgroundColor: '#f8f9ff', scale: 2, useCORS: true });
         canvas.toBlob(async (blob) => {
-            const item = new ClipboardItem({ "image/png": blob });
-            await navigator.clipboard.write([item]);
-            
-            btn.innerText = "✅ تم النسخ للحافظة!";
-            setTimeout(() => { btn.innerText = originalTxt; }, 2000);
+            await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+            btn.innerText = "✅ تم النسخ!";
+            setTimeout(() => { btn.innerText = "نسخ اللوحة كصورة"; }, 2000);
         });
-    } catch (err) {
-        console.error(err);
-        btn.innerText = "❌ فشل النسخ";
-        setTimeout(() => { btn.innerText = originalTxt; }, 2000);
-    }
+    } catch (err) { btn.innerText = "❌ خطأ"; }
 }
 
-// --- بقية أكواد Firebase و Chart.js المستعارة من v5.0.0 ---
+// --- الربط مع الداتابيس والرسوم البيانية ---
 (function(){
     const $ = id => document.getElementById(id);
     let charts = {}, state = { visits: [], brands: [] };
@@ -129,10 +120,10 @@ async function copyAsImage() {
         $('sideBrandList').innerHTML = activeBrands.map(b => {
             const c = counts[b.brand], logo = b.logoData || b.logoUrl || '';
             return `
-                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-xl border border-slate-100">
-                    <div class="flex items-center gap-2">
-                        <img src="${logo}" class="w-8 h-5 object-contain">
-                        <span class="text-[10px] font-bold text-slate-700">${b.brand}</span>
+                <div class="flex items-center justify-between p-2.5 bg-slate-50/50 rounded-xl border border-slate-100">
+                    <div class="flex items-center gap-3">
+                        <img src="${logo}" class="w-9 h-6 object-contain rounded bg-white p-0.5 border border-slate-100">
+                        <span class="text-[11px] font-bold text-slate-700">${b.brand}</span>
                     </div>
                     <span class="text-sm font-black text-[#0d4b73]">${c}</span>
                 </div>`;
@@ -142,25 +133,47 @@ async function copyAsImage() {
 
     function renderCharts() {
         const total = state.visits.length;
-        let s = { conn: {a:0, w:0} };
+        let s = { conn: {a:0, w:0, b:0} };
         state.visits.forEach(v => {
             const a = v.dynamicAnswers || {};
+            // مطابقة الحقول من الداتابيس
             if(a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") s.conn.a++;
             if(a["BcjdipZxDmVgodHk9t1B"] === "within_the_range") s.conn.w++;
+            if(a["BcjdipZxDmVgodHk9t1B"] === "below_the_range") s.conn.b++;
         });
 
+        // ❌ إصلاح الرسم البياني البشع (Connectivity) ❌
         if (charts.conn) charts.conn.destroy();
         charts.conn = new Chart($('cConn'), {
             type: 'bar',
-            data: { labels: ['Above', 'Within'], datasets: [{ data: [s.conn.a, s.conn.w], backgroundColor: ['#0d4b73', '#ffd54f'], borderRadius: 5 }] },
-            options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: {display:false} } }
+            data: { 
+                labels: ['Online', 'Offline', 'Mainten.'], 
+                datasets: [{ 
+                    data: [s.conn.a, s.conn.w, s.conn.b], 
+                    backgroundColor: ['#0d4b73', '#ffd54f', '#cbd5e1'], 
+                    borderRadius: 20,
+                    maxBarThickness: 8, // ✅ جعل الأعمدة نحيفة وأنيقة
+                }] 
+            },
+            options: { 
+                indexAxis: 'y', 
+                maintainAspectRatio: false, // ✅ السماح بالتحكم في الارتفاع يدوياً
+                plugins: { legend: {display:false} },
+                scales: { 
+                    x: { display: false, max: total || 10 }, 
+                    y: { 
+                        grid: { display:false }, 
+                        ticks: { font:{weight:'bold', size:11}, color: '#64748b' } 
+                    } 
+                } 
+            }
         });
 
         if (charts.ups) charts.ups.destroy();
         charts.ups = new Chart($('cUps'), {
             type: 'doughnut',
             data: { datasets: [{ data: [85, 15], backgroundColor: ['#0d4b73', '#eff4ff'], borderWidth: 0 }] },
-            options: { cutout: '80%', plugins: { legend: {display:false} } }
+            options: { cutout: '82%', maintainAspectRatio: false, plugins: { legend: {display:false} } }
         });
         $('upsPct').innerText = "85%";
     }
