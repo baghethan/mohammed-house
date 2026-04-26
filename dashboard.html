@@ -2,151 +2,37 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard v2.6.0 | المجدوعي للسيارات</title>
-  <link rel="icon" href="data:;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==">
+  <title>Dashboard Turbo</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
   <style>
-    :root { --bg: #f4f7fa; --header-blue: #0d4b73; --card: #fff; }
-    body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); overflow-x: hidden; }
-    .dashboard-wrapper { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
-    .sidebar { background: #fff; border-left: 1px solid #e2e8f0; padding: 15px; }
-    .main-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 15px; }
-    .card { background: var(--card); border-radius: 4px; border: 1px solid #e2e8f0; min-height: 260px; position: relative; }
-    .card-header { background: var(--header-blue); color: #fff; padding: 6px 12px; font-size: 13px; font-weight: 900; }
-    #totalVisits { font-size: 58px; color: var(--header-blue); font-weight: 900; text-align: center; margin: 0; }
+    body { font-family: 'Cairo', sans-serif; background: #f4f7fa; padding: 20px; }
+    .stat-card { background: #fff; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .big-num { font-size: 60px; color: #0d4b73; font-weight: 900; margin: 10px 0; }
   </style>
 </head>
 <body>
 
-<div class="dashboard-wrapper">
-  <aside class="sidebar">
-    <div style="text-align:center; margin-bottom:20px;">
-        <span style="font-size:12px; font-weight:bold; color:#64748b;">Number of Visits</span>
-        <h1 id="totalVisits">...</h1>
-    </div>
-    <div id="sideBrandList"></div>
-  </aside>
+  <div class="stat-card">
+    <h3>إجمالي الزيارات (Visits)</h3>
+    <div class="big-num" id="totalNum">...</div>
+    <div id="status">جاري جلب البيانات من المحرك الرئيسي...</div>
+  </div>
 
-  <main style="display:flex; flex-direction:column; width:100%;">
-    <div style="padding:10px 20px; background:var(--header-blue); color:#fff; display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-weight:900; font-size:14px;">ALMAJDOUIE MOTORS | DASHBOARD v2.6 FAST-LOAD</div>
-        <div id="statusTxt" style="font-size:11px; font-weight:bold; color:#fbbf24;">جارِ التحميل السريع...</div>
-    </div>
+  <script>
+    // ✅ استعارة المحرك من الصفحة الرئيسية فوراً وبدون انتظار
+    const db = window.parent.appDb;
+    const auth = window.parent.appAuth;
 
-    <div class="main-grid">
-        <div class="card"><div class="card-header">Network Appliances</div><canvas id="cNet"></canvas></div>
-        <div class="card"><div class="card-header">Connectivity Status</div><canvas id="cConn"></canvas></div>
-        <div class="card"><div class="card-header">UPS Status</div>
-            <canvas id="cUps"></canvas>
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;"><h2 id="upsPct" style="font-size:24px; color:var(--header-blue); margin:0;">0%</h2></div>
-        </div>
-        <div class="card" style="grid-column: span 3;"><div class="card-header">Training Requirement</div><canvas id="cTrain"></canvas></div>
-    </div>
-  </main>
-</div>
-
-<script>
-(function(){
-  const $ = id => document.getElementById(id);
-  Chart.register(ChartDataLabels);
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
-    authDomain: "baghethan-ba325.firebaseapp.com",
-    projectId: "baghethan-ba325",
-    storageBucket: "baghethan-ba325.firebasestorage.app",
-    messagingSenderId: "944819735112",
-    appId: "1:944819735112:web:07315600da39377320667d"
-  };
-
-  const app = firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-
-  // تحسين إعداداتFirestore للسرعة القصوى
-  db.settings({
-    cacheSizeBytes: 1048576, // تحديد حجم الكاش (1MB) يسرع البحث بدلاً من الـ Unlimited
-    experimentalForceLongPolling: true // يساعد في تخطي مشاكل الجدران النارية والبطء في الشبكات المحلية
-  });
-
-  let charts = {};
-
-  firebase.auth().onAuthStateChanged(async (user) => {
-  if (user) {
-    // 1. التحميل الفوري من الذاكرة المحلية (تظهر الأرقام في 0.1 ثانية)
-    try {
-      const cacheSnap = await db.collection('branch_checklists').get({ source: 'cache' });
-      if (!cacheSnap.empty) {
-          processData(cacheSnap.docs.map(d => d.data()));
-          console.log("تم عرض بيانات الكاش بنجاح");
-      }
-    } catch (e) { /* الكاش فارغ أول مرة */ }
-
-    // 2. التحديث الحي من السيرفر (SnapShot) في الخلفية
-    db.collection('branch_checklists').onSnapshot(s => {
-      $('statusTxt').innerText = "متصل مباشر ✅";
-      $('statusTxt').style.color = "#10b981";
-      processData(s.docs.map(d => d.data()));
-    }, err => {
-      $('statusTxt').innerText = "وضع الأوفلاين";
-      $('statusTxt').style.color = "#f97316";
-    });
-  } else {
-    window.location.href = 'login.html';
-  }
-});
-
-  function processData(docs) {
-    const total = docs.length || 0;
-    $('totalVisits').textContent = total;
-    
-    let s = { net: 0, conn: {a:0, w:0, b:0}, ups: 0 };
-    docs.forEach(d => {
-      const a = d.dynamicAnswers || {};
-      if(a["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") s.net++;
-      if(a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") s.conn.a++;
-    });
-
-    const calc = (v) => total > 0 ? Math.round((v/total)*100) : 0;
-    renderBar('cNet', ['In Shape', 'Arrangement'], [calc(s.net), 100-calc(s.net)], ['#10b981', '#0d4b73']);
-    renderDoughnut('cUps', calc(s.ups), 'upsPct');
-  }
-
-  function renderBar(id, labels, data, colors) {
-    if (charts[id]) charts[id].destroy();
-    charts[id] = new Chart($(id), {
-      type: 'bar',
-      data: { labels, datasets: [{ data, backgroundColor: colors }] },
-      options: { 
-        animation: false, // إيقاف التحريك يسرع الظهور الأول
-        plugins: { legend: {display:false}, datalabels: { color:'#000', formatter: v => v+'%' } } 
-      }
-    });
-  }
-
-  function renderDoughnut(id, val, textId) {
-    $(textId).innerText = val + "%";
-    if (charts[id]) charts[id].destroy();
-    charts[id] = new Chart($(id), {
-      type: 'doughnut',
-      data: { datasets: [{ data: [val, 100-val], backgroundColor: ['#0d4b73', '#e2e8f0'] }] },
-      options: { animation: false, cutout: '80%', plugins: { datalabels: {display:false} } }
-    });
-  }
-
-  function renderBrands(brands) {
-    $('sideBrandList').innerHTML = brands.map(b => `
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px; border-bottom:1px solid #f0f0f0; padding-bottom:3px;">
-        <img src="${b.logoUrl || ''}" style="width:25px; height:15px; object-fit:contain;">
-        <span style="font-size:10px; font-weight:bold;">${b.brand}</span>
-      </div>`).join('');
-  }
-})();
-</script>
+    if (!db) {
+        document.getElementById('status').innerHTML = "⚠️ خطأ: لا يمكن الوصول للمحرك الرئيسي";
+    } else {
+        // الاتصال هنا فوري (Zero Latency)
+        db.collection('branch_checklists').onSnapshot(snap => {
+            document.getElementById('totalNum').innerText = snap.size;
+            document.getElementById('status').innerText = "متصل مباشر ✅";
+        });
+    }
+  </script>
 </body>
 </html>
