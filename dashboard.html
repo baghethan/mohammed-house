@@ -3,30 +3,30 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Dashboard v5.5.0 | Almajdouie Motors</title>
+    <title>Almajdouie Dashboard v6.0.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #f8f9ff; }
+        body { font-family: 'Cairo', sans-serif; background-color: #f4f7fa; }
         .card-shadow { box-shadow: 0 10px 30px rgba(0, 30, 64, 0.05); }
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        input[type="date"] { border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: bold; color: #0d4b73; outline: none; }
+        /* تصميم البطاقة الموحد لضمان ظهورها كاملة عند النسخ */
+        .brand-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        input[type="date"] { border: 1px solid #e2e8f0; border-radius: 10px; padding: 5px 12px; font-size: 12px; font-weight: bold; color: #0d4b73; outline: none; }
     </style>
 </head>
-<body class="p-4 lg:p-8 overflow-x-hidden">
+<body class="p-4 lg:p-8">
 
-    <div id="captureArea" class="max-w-[1440px] mx-auto space-y-8 bg-[#f8f9ff] p-6 rounded-[40px]">
+    <div id="captureArea" class="max-w-[1440px] mx-auto space-y-8 bg-[#f4f7fa] p-8 rounded-[40px]">
         
         <header class="flex flex-wrap items-center justify-between gap-6 px-4">
             <div class="flex items-center gap-4">
                 <img src="https://www.almajdouie.com/assets/images/logo.png" class="h-10 object-contain" alt="Logo">
-                <h1 class="text-2xl font-black text-[#0d4b73]" id="t-welcome">ALMAJDOUIE MOTORS</h1>
+                <h1 class="text-2xl font-black text-[#0d4b73]">ALMAJDOUIE MOTORS</h1>
             </div>
             
-            <div class="flex flex-wrap items-center gap-4">
+            <div class="flex flex-wrap items-center gap-4 no-print">
                 <div class="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
                     <span class="text-xs font-black text-slate-400">من</span>
                     <input type="date" id="dateFrom" onchange="filterData()">
@@ -34,8 +34,8 @@
                     <input type="date" id="dateTo" onchange="filterData()">
                 </div>
 
-                <button onclick="copyAsImage()" class="flex items-center gap-2 bg-[#0d4b73] hover:bg-blue-800 text-white px-6 py-2.5 rounded-2xl text-sm font-black transition shadow-lg active:scale-95">
-                    <span id="copyBtnTxt">نسخ كصورة</span>
+                <button onclick="copyFullDashboard()" class="flex items-center gap-2 bg-[#0d4b73] hover:bg-blue-800 text-white px-6 py-2.5 rounded-2xl text-sm font-black transition shadow-lg active:scale-95">
+                    <span id="copyBtnTxt">نسخ التقرير كصورة</span>
                     <span class="text-xl">📷</span>
                 </button>
             </div>
@@ -43,69 +43,66 @@
 
         <div class="grid grid-cols-12 gap-8">
             
-            <div class="col-span-12 lg:col-span-5 space-y-6">
-                <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 text-center">
-                    <h2 class="text-sm font-black text-slate-400 mb-2 uppercase tracking-widest">Total Visits | الإجمالي</h2>
-                    <span class="text-8xl font-black text-[#0d4b73] leading-none" id="totalVisits">0</span>
-                    <div id="filterLabel" class="mt-4 inline-block bg-blue-50 text-[#0d4b73] text-xs font-black px-4 py-1 rounded-full">كل الأوقات</div>
+            <div class="col-span-12 space-y-6">
+                <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest">إجمالي الزيارات الميدانية</h2>
+                        <span class="text-8xl font-black text-[#0d4b73] leading-none" id="totalVisits">0</span>
+                    </div>
+                    <div id="filterLabel" class="bg-blue-50 text-[#0d4b73] text-xs font-black px-5 py-2 rounded-full h-fit">كل الأوقات</div>
                 </div>
 
-                <div class="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scroll" id="sideBrandList">
+                <div id="sideBrandList" class="brand-grid">
                     </div>
             </div>
 
-            <div class="col-span-12 lg:col-span-7 space-y-8">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 flex flex-col items-center justify-center relative h-[400px]">
-                        <h3 class="text-lg font-black text-[#0d4b73] absolute top-8 right-8">UPS Status</h3>
-                        <div class="w-60 h-60 relative">
-                            <canvas id="cUps"></canvas>
-                            <div class="absolute inset-0 flex flex-col items-center justify-center pt-10">
-                                <span class="text-5xl font-black text-[#0d4b73]" id="upsPct">0%</span>
-                                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Healthy</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 h-[400px] flex flex-col">
-                        <h3 class="text-lg font-black text-[#0d4b73] mb-8">Connectivity</h3>
-                        <div class="flex-1 flex items-center">
-                            <canvas id="cConn"></canvas>
-                        </div>
+            <div class="col-span-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 relative flex flex-col items-center">
+                    <h3 class="text-sm font-black text-[#0d4b73] self-start mb-10">UPS Status</h3>
+                    <canvas id="cUps" style="max-height: 200px;"></canvas>
+                    <div class="absolute inset-0 flex items-center justify-center pt-10">
+                        <span class="text-4xl font-black text-[#0d4b73]" id="upsPct">0%</span>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50">
-                    <h3 class="text-lg font-black text-[#0d4b73] mb-6">Network Appliances Status</h3>
-                    <div class="h-64">
-                        <canvas id="cNet"></canvas>
-                    </div>
+                <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 md:col-span-2">
+                    <h3 class="text-sm font-black text-[#0d4b73] mb-6">Connectivity & Network Appliances</h3>
+                    <div class="h-48"><canvas id="cConn"></canvas></div>
                 </div>
             </div>
         </div>
     </div>
 
 <script>
-// --- دالة نسخ الصورة بجودة عالية ---
-async function copyAsImage() {
+// --- دالة النسخ المطورة (تلتقط كل الفروع حتى لو كانت طويلة) ---
+async function copyFullDashboard() {
     const btn = document.getElementById('copyBtnTxt');
+    const area = document.getElementById('captureArea');
     try {
-        btn.innerText = "جاري الحفظ...";
-        const canvas = await html2canvas(document.getElementById('captureArea'), { 
-            backgroundColor: '#f8f9ff', 
+        btn.innerText = "جاري معالجة التقرير...";
+        
+        // التقاط الحاوية بالكامل مع جودة عالية جداً
+        const canvas = await html2canvas(area, { 
+            backgroundColor: '#f4f7fa', 
             scale: 2, 
             useCORS: true,
-            borderRadius: 40
+            windowWidth: area.scrollWidth,
+            windowHeight: area.scrollHeight
         });
+
         canvas.toBlob(async (blob) => {
-            await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-            btn.innerText = "✅ تم النسخ!";
-            setTimeout(() => { btn.innerText = "نسخ كصورة"; }, 2000);
+            const item = new ClipboardItem({ "image/png": blob });
+            await navigator.clipboard.write([item]);
+            btn.innerText = "✅ تم النسخ كصورة!";
+            setTimeout(() => { btn.innerText = "نسخ التقرير كصورة"; }, 3000);
         });
-    } catch (err) { btn.innerText = "❌ خطأ"; }
+    } catch (err) {
+        btn.innerText = "❌ فشل النسخ";
+        console.error(err);
+    }
 }
 
-// --- الربط البرمجي مع Firestore ---
+// --- الربط مع الداتابيس والتنسيق الجديد ---
 (function(){
     const $ = id => document.getElementById(id);
     let charts = {}; 
@@ -127,11 +124,10 @@ async function copyAsImage() {
     }
 
     window.filterData = function() {
-        const from = $('dateFrom').value;
-        const to = $('dateTo').value;
+        const from = $('dateFrom').value, to = $('dateTo').value;
         if (!from && !to) {
             state.filteredVisits = [...state.allVisits];
-            $('filterLabel').innerText = "كل الأوقات";
+            $('filterLabel').innerText = "إحصائيات كل الأوقات";
         } else {
             const dFrom = from ? new Date(from).setHours(0,0,0,0) : 0;
             const dTo = to ? new Date(to).setHours(23,59,59,999) : Infinity;
@@ -139,7 +135,7 @@ async function copyAsImage() {
                 const vDate = v.timestamp ? v.timestamp.toDate().getTime() : 0;
                 return vDate >= dFrom && vDate <= dTo;
             });
-            $('filterLabel').innerText = "فترة مخصصة";
+            $('filterLabel').innerText = "نتائج الفترة المحددة";
         }
         $('totalVisits').textContent = state.filteredVisits.length;
         updateUI();
@@ -151,15 +147,16 @@ async function copyAsImage() {
         
         const activeBrands = state.brands.filter(b => (counts[b.brand] || 0) > 0);
         
-        // توليد بطاقات البراندات الضخمة كما طلبت
+        // ❌ التصميم المطلوب: رقم بجانب (شعار تحته اسم) ❌
         $('sideBrandList').innerHTML = activeBrands.map(b => {
             const c = counts[b.brand], logo = b.logoData || b.logoUrl || '';
             return `
-                <div class="bg-white rounded-[28px] p-8 card-shadow border border-slate-50 flex flex-col items-center text-center transition hover:scale-[1.02]">
-                    <img src="${logo}" class="w-24 h-14 object-contain mb-4">
-                    <h3 class="text-2xl font-black text-slate-700 mb-2">${b.brand}</h3>
-                    <span class="text-7xl font-black text-[#0d4b73] leading-none">${c}</span>
-                    <div class="mt-4 text-[10px] font-black text-slate-300 uppercase tracking-widest">Total Branch Visits</div>
+                <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex items-center justify-between transition hover:shadow-md">
+                    <span class="text-6xl font-black text-[#0d4b73] leading-none">${c}</span>
+                    <div class="flex flex-col items-center gap-2">
+                        <img src="${logo}" class="w-16 h-10 object-contain">
+                        <span class="text-sm font-black text-slate-500 uppercase">${b.brand}</span>
+                    </div>
                 </div>`;
         }).join('');
         renderCharts();
@@ -167,28 +164,27 @@ async function copyAsImage() {
 
     function renderCharts() {
         const total = state.filteredVisits.length;
-        let s = { conn: {a:0, w:0}, net: 0 };
+        let s = { conn: {a:0, w:0}, ups: 85 }; // UPS قيمة تجريبية
         state.filteredVisits.forEach(v => {
             const a = v.dynamicAnswers || {};
             if(a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") s.conn.a++;
             if(a["BcjdipZxDmVgodHk9t1B"] === "within_the_range") s.conn.w++;
-            if(a["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") s.net++;
         });
 
         if (charts.conn) charts.conn.destroy();
         charts.conn = new Chart($('cConn'), {
             type: 'bar',
-            data: { labels: ['Online', 'Offline'], datasets: [{ data: [s.conn.a, s.conn.w], backgroundColor: ['#0d4b73', '#ffd54f'], borderRadius: 12, barThickness: 10 }] },
-            options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { x: { display: false }, y: { grid: { display:false }, ticks: { font:{weight:'bold', size:14}, color:'#0d4b73' } } } }
+            data: { labels: ['Online', 'Offline'], datasets: [{ data: [s.conn.a, s.conn.w], backgroundColor: ['#10b981', '#fbbf24'], borderRadius: 10, barThickness: 8 }] },
+            options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { x: { display: false }, y: { grid: { display:false }, ticks: { font:{weight:'bold', size:12}, color:'#0d4b73' } } } }
         });
 
         if (charts.ups) charts.ups.destroy();
         charts.ups = new Chart($('cUps'), {
             type: 'doughnut',
-            data: { datasets: [{ data: [85, 15], backgroundColor: ['#0d4b73', '#eff4ff'], borderWidth: 0 }] },
-            options: { cutout: '85%', maintainAspectRatio: false, plugins: { legend: {display:false} } }
+            data: { datasets: [{ data: [s.ups, 100-s.ups], backgroundColor: ['#0d4b73', '#eff4ff'], borderWidth: 0 }] },
+            options: { cutout: '82%', maintainAspectRatio: false, plugins: { legend: {display:false} } }
         });
-        $('upsPct').innerText = "85%";
+        $('upsPct').innerText = s.ups + "%";
     }
 
     boot();
