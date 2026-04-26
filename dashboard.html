@@ -3,106 +3,113 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Dashboard v5.3.0 | Almajdouie</title>
+    <title>Dashboard v5.5.0 | Almajdouie Motors</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Cairo', sans-serif; background-color: #f8f9ff; }
-        .card-shadow { box-shadow: 0 4px 20px rgba(0, 30, 64, 0.04); }
-        /* حاويات الرسوم لضبط الارتفاع ومنع التمدد البشع */
-        .conn-chart-box { height: 160px; width: 100%; margin-top: 20px; }
-        .ups-chart-box { height: 200px; width: 100%; position: relative; }
-        /* شريط التمرير للبراندات */
-        .custom-scroll::-webkit-scrollbar { width: 3px; }
+        .card-shadow { box-shadow: 0 10px 30px rgba(0, 30, 64, 0.05); }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        input[type="date"] { border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: bold; color: #0d4b73; outline: none; }
     </style>
 </head>
-<body class="p-4 lg:p-6 overflow-x-hidden">
+<body class="p-4 lg:p-8 overflow-x-hidden">
 
-    <div id="captureArea" class="max-w-[1400px] mx-auto space-y-6 bg-[#f8f9ff] p-4 rounded-3xl">
+    <div id="captureArea" class="max-w-[1440px] mx-auto space-y-8 bg-[#f8f9ff] p-6 rounded-[40px]">
         
-        <header class="flex flex-wrap items-center justify-between gap-4 px-2">
-            <div class="flex items-center gap-3">
-                <img src="https://www.almajdouie.com/assets/images/logo.png" class="h-8 object-contain" alt="Logo">
-                <h1 class="text-lg font-black text-[#0d4b73]" id="t-welcome">ALMAJDOUIE MOTORS</h1>
+        <header class="flex flex-wrap items-center justify-between gap-6 px-4">
+            <div class="flex items-center gap-4">
+                <img src="https://www.almajdouie.com/assets/images/logo.png" class="h-10 object-contain" alt="Logo">
+                <h1 class="text-2xl font-black text-[#0d4b73]" id="t-welcome">ALMAJDOUIE MOTORS</h1>
             </div>
             
-            <div class="flex items-center gap-4">
-                <button onclick="copyAsImage()" class="flex items-center gap-2 bg-[#0d4b73] hover:bg-blue-800 text-white px-5 py-2 rounded-xl text-xs font-black transition shadow-md active:scale-95">
-                    <span id="copyBtnTxt">نسخ اللوحة كصورة</span>
-                    <span class="text-lg">📷</span>
+            <div class="flex flex-wrap items-center gap-4">
+                <div class="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
+                    <span class="text-xs font-black text-slate-400">من</span>
+                    <input type="date" id="dateFrom" onchange="filterData()">
+                    <span class="text-xs font-black text-slate-400">إلى</span>
+                    <input type="date" id="dateTo" onchange="filterData()">
+                </div>
+
+                <button onclick="copyAsImage()" class="flex items-center gap-2 bg-[#0d4b73] hover:bg-blue-800 text-white px-6 py-2.5 rounded-2xl text-sm font-black transition shadow-lg active:scale-95">
+                    <span id="copyBtnTxt">نسخ كصورة</span>
+                    <span class="text-xl">📷</span>
                 </button>
-                <div id="statusTxt" class="text-[10px] font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">LIVE SYNC ✅</div>
             </div>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div class="bg-[#3b82f6] p-6 rounded-2xl text-white flex justify-between items-center shadow-lg transform transition hover:scale-[1.01]">
-                <div><h3 class="font-black text-lg">Branch Visits</h3><p class="text-[11px] opacity-85">Manage and track visits</p></div>
-                <div class="bg-white/20 p-3 rounded-full text-xl">📍</div>
-            </div>
-            <div class="bg-[#10b981] p-6 rounded-2xl text-white flex justify-between items-center shadow-lg transform transition hover:scale-[1.01]">
-                <div><h3 class="font-black text-lg">Check-List</h3><p class="text-[11px] opacity-85">Quality assessment forms</p></div>
-                <div class="bg-white/20 p-3 rounded-full text-xl">📋</div>
-            </div>
-            <div class="bg-[#a855f7] p-6 rounded-2xl text-white flex justify-between items-center shadow-lg transform transition hover:scale-[1.01]">
-                <div><h3 class="font-black text-lg">Reports</h3><p class="text-[11px] opacity-85">View analytics</p></div>
-                <div class="bg-white/20 p-3 rounded-full text-xl">📊</div>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-12 gap-5">
-            <div class="col-span-12 lg:col-span-4 bg-white rounded-2xl p-6 card-shadow flex flex-col h-[450px]">
-                <h2 class="text-sm font-bold text-slate-400 mb-2 uppercase">Total Visits</h2>
-                <div class="flex items-center gap-3 mb-6">
-                    <span class="text-6xl font-black text-[#0d4b73]" id="totalVisits">0</span>
-                    <span class="bg-blue-50 text-[#0d4b73] text-[10px] font-black px-2 py-1 rounded-full">+12%</span>
+        <div class="grid grid-cols-12 gap-8">
+            
+            <div class="col-span-12 lg:col-span-5 space-y-6">
+                <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 text-center">
+                    <h2 class="text-sm font-black text-slate-400 mb-2 uppercase tracking-widest">Total Visits | الإجمالي</h2>
+                    <span class="text-8xl font-black text-[#0d4b73] leading-none" id="totalVisits">0</span>
+                    <div id="filterLabel" class="mt-4 inline-block bg-blue-50 text-[#0d4b73] text-xs font-black px-4 py-1 rounded-full">كل الأوقات</div>
                 </div>
-                <div class="flex-1 overflow-y-auto space-y-2 pr-1 custom-scroll" id="sideBrandList"></div>
+
+                <div class="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scroll" id="sideBrandList">
+                    </div>
             </div>
 
-            <div class="col-span-12 lg:col-span-4 bg-white rounded-2xl p-6 card-shadow flex flex-col items-center justify-center relative h-[450px]">
-                <h2 class="text-sm font-black text-[#0d4b73] absolute top-6 right-6">UPS Status</h2>
-                <div class="ups-chart-box">
-                    <canvas id="cUps"></canvas>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center pt-8">
-                        <span class="text-3xl font-black text-[#0d4b73]" id="upsPct">0%</span>
-                        <span class="text-[10px] font-bold text-slate-400">Healthy</span>
+            <div class="col-span-12 lg:col-span-7 space-y-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 flex flex-col items-center justify-center relative h-[400px]">
+                        <h3 class="text-lg font-black text-[#0d4b73] absolute top-8 right-8">UPS Status</h3>
+                        <div class="w-60 h-60 relative">
+                            <canvas id="cUps"></canvas>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center pt-10">
+                                <span class="text-5xl font-black text-[#0d4b73]" id="upsPct">0%</span>
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Healthy</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 h-[400px] flex flex-col">
+                        <h3 class="text-lg font-black text-[#0d4b73] mb-8">Connectivity</h3>
+                        <div class="flex-1 flex items-center">
+                            <canvas id="cConn"></canvas>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-span-12 lg:col-span-4 bg-white rounded-2xl p-6 card-shadow h-[450px]">
-                <h2 class="text-sm font-black text-[#0d4b73] mb-2">Connectivity Status</h2>
-                <div class="conn-chart-box">
-                    <canvas id="cConn"></canvas>
+                <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50">
+                    <h3 class="text-lg font-black text-[#0d4b73] mb-6">Network Appliances Status</h3>
+                    <div class="h-64">
+                        <canvas id="cNet"></canvas>
+                    </div>
                 </div>
-                <div class="mt-4 text-[10px] text-slate-400 font-bold border-t pt-4">Real-time connectivity tracking</div>
             </div>
         </div>
     </div>
 
 <script>
-// --- دالة نسخ الصورة ---
+// --- دالة نسخ الصورة بجودة عالية ---
 async function copyAsImage() {
     const btn = document.getElementById('copyBtnTxt');
     try {
         btn.innerText = "جاري الحفظ...";
-        const canvas = await html2canvas(document.getElementById('captureArea'), { backgroundColor: '#f8f9ff', scale: 2, useCORS: true });
+        const canvas = await html2canvas(document.getElementById('captureArea'), { 
+            backgroundColor: '#f8f9ff', 
+            scale: 2, 
+            useCORS: true,
+            borderRadius: 40
+        });
         canvas.toBlob(async (blob) => {
             await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
             btn.innerText = "✅ تم النسخ!";
-            setTimeout(() => { btn.innerText = "نسخ اللوحة كصورة"; }, 2000);
+            setTimeout(() => { btn.innerText = "نسخ كصورة"; }, 2000);
         });
     } catch (err) { btn.innerText = "❌ خطأ"; }
 }
 
-// --- ربط البيانات والرسوم ---
+// --- الربط البرمجي مع Firestore ---
 (function(){
     const $ = id => document.getElementById(id);
-    let charts = {}, state = { visits: [], brands: [] };
+    let charts = {}; 
+    window.state = { allVisits: [], filteredVisits: [], brands: [] };
 
     function boot(){
         const db = window.parent.appDb;
@@ -114,73 +121,72 @@ async function copyAsImage() {
         });
 
         db.collection('branch_checklists').onSnapshot(snap => {
-            state.visits = snap.docs.map(d => d.data());
-            $('totalVisits').textContent = state.visits.length;
-            updateUI();
+            state.allVisits = snap.docs.map(d => d.data());
+            filterData();
         });
     }
 
-    function updateUI() {
-        const counts = {}; state.visits.forEach(v => { const b = v.brand || 'Other'; counts[b] = (counts[b] || 0) + 1; });
+    window.filterData = function() {
+        const from = $('dateFrom').value;
+        const to = $('dateTo').value;
+        if (!from && !to) {
+            state.filteredVisits = [...state.allVisits];
+            $('filterLabel').innerText = "كل الأوقات";
+        } else {
+            const dFrom = from ? new Date(from).setHours(0,0,0,0) : 0;
+            const dTo = to ? new Date(to).setHours(23,59,59,999) : Infinity;
+            state.filteredVisits = state.allVisits.filter(v => {
+                const vDate = v.timestamp ? v.timestamp.toDate().getTime() : 0;
+                return vDate >= dFrom && vDate <= dTo;
+            });
+            $('filterLabel').innerText = "فترة مخصصة";
+        }
+        $('totalVisits').textContent = state.filteredVisits.length;
+        updateUI();
+    }
+
+    window.updateUI = function() {
+        const counts = {}; 
+        state.filteredVisits.forEach(v => { const b = v.brand || 'Other'; counts[b] = (counts[b] || 0) + 1; });
+        
         const activeBrands = state.brands.filter(b => (counts[b.brand] || 0) > 0);
         
+        // توليد بطاقات البراندات الضخمة كما طلبت
         $('sideBrandList').innerHTML = activeBrands.map(b => {
             const c = counts[b.brand], logo = b.logoData || b.logoUrl || '';
             return `
-                <div class="flex items-center justify-between p-2.5 bg-slate-50/50 rounded-xl border border-slate-100">
-                    <div class="flex items-center gap-3">
-                        <img src="${logo}" class="w-15 h-18 object-contain rounded bg-white p-0.5 border border-slate-200">
-                        <span class="text-[11px] font-bold text-slate-700">${b.brand}</span>
-                    </div>
-                    <span class="text-sm font-black text-[#0d4b73]">${c}</span>
+                <div class="bg-white rounded-[28px] p-8 card-shadow border border-slate-50 flex flex-col items-center text-center transition hover:scale-[1.02]">
+                    <img src="${logo}" class="w-24 h-14 object-contain mb-4">
+                    <h3 class="text-2xl font-black text-slate-700 mb-2">${b.brand}</h3>
+                    <span class="text-7xl font-black text-[#0d4b73] leading-none">${c}</span>
+                    <div class="mt-4 text-[10px] font-black text-slate-300 uppercase tracking-widest">Total Branch Visits</div>
                 </div>`;
         }).join('');
         renderCharts();
     }
 
     function renderCharts() {
-        const total = state.visits.length;
-        let s = { conn: {a:0, w:0, b:0} };
-        state.visits.forEach(v => {
+        const total = state.filteredVisits.length;
+        let s = { conn: {a:0, w:0}, net: 0 };
+        state.filteredVisits.forEach(v => {
             const a = v.dynamicAnswers || {};
-            // قراءة حقل جودة الاتصال
             if(a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") s.conn.a++;
             if(a["BcjdipZxDmVgodHk9t1B"] === "within_the_range") s.conn.w++;
-            if(a["BcjdipZxDmVgodHk9t1B"] === "below_the_range") s.conn.b++;
+            if(a["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") s.net++;
         });
 
-        // ❌ الإصلاح: جعل Connectivity ملموماً ونحيفاً ❌
         if (charts.conn) charts.conn.destroy();
         charts.conn = new Chart($('cConn'), {
             type: 'bar',
-            data: { 
-                labels: ['Online', 'Offline', 'Mainten.'], 
-                datasets: [{ 
-                    data: [s.conn.a, s.conn.w, s.conn.b], 
-                    backgroundColor: ['#0d4b73', '#ffd54f', '#cbd5e1'], 
-                    borderRadius: 20,
-                    barThickness: 6, // ✅ تحديد سمك ثابت ونحيف للعمود
-                }] 
-            },
-            options: { 
-                indexAxis: 'y', 
-                maintainAspectRatio: false, // ✅ لضمان احترام الارتفاع الملموم
-                plugins: { legend: {display:false} },
-                scales: { 
-                    x: { display: false }, 
-                    y: { 
-                        grid: { display:false, drawBorder: false }, // ✅ حذف الخطوط البشعة
-                        ticks: { font:{weight:'bold', size:11}, color: '#64748b' } 
-                    } 
-                } 
-            }
+            data: { labels: ['Online', 'Offline'], datasets: [{ data: [s.conn.a, s.conn.w], backgroundColor: ['#0d4b73', '#ffd54f'], borderRadius: 12, barThickness: 10 }] },
+            options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { x: { display: false }, y: { grid: { display:false }, ticks: { font:{weight:'bold', size:14}, color:'#0d4b73' } } } }
         });
 
         if (charts.ups) charts.ups.destroy();
         charts.ups = new Chart($('cUps'), {
             type: 'doughnut',
             data: { datasets: [{ data: [85, 15], backgroundColor: ['#0d4b73', '#eff4ff'], borderWidth: 0 }] },
-            options: { cutout: '82%', maintainAspectRatio: false, plugins: { legend: {display:false} } }
+            options: { cutout: '85%', maintainAspectRatio: false, plugins: { legend: {display:false} } }
         });
         $('upsPct').innerText = "85%";
     }
