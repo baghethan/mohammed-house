@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Dashboard v6.3.0 | Custom Selector</title>
+    <title>Dashboard v6.5.0 | Auto-Discovery Engine</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
@@ -12,59 +12,52 @@
     <style>
         body { font-family: 'Cairo', sans-serif; background-color: #f4f7fa; }
         .card-shadow { box-shadow: 0 10px 30px rgba(0, 30, 64, 0.05); }
-        input[type="date"], select { border: 1px solid #e2e8f0; border-radius: 10px; padding: 5px 12px; font-size: 12px; color: #0d4b73; outline: none; }
-        .config-panel { transition: all 0.3s ease; }
-        /* علامة ✅ المخصصة */
-        .check-active { color: #10b981; font-weight: bold; margin-left: 5px; }
+        .exclude-from-capture { transition: opacity 0.3s ease; }
+        .custom-checkbox {
+            width: 16px; height: 16px; border-radius: 4px; border: 2px solid rgba(255,255,255,0.3);
+            background: transparent; cursor: pointer; appearance: none; position: relative;
+        }
+        .custom-checkbox:checked { background-color: #10b981; border-color: #10b981; }
+        .custom-checkbox:checked::after { content: '✓'; position: absolute; color: white; font-size: 10px; top: -2px; left: 2px; }
+        .field-tag { font-size: 9px; background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 4px; margin-left: 4px; }
     </style>
 </head>
 <body class="p-4 lg:p-8">
 
     <div class="max-w-[1440px] mx-auto mb-8 exclude-from-capture">
-        <div class="bg-[#0d4b73] text-white p-6 rounded-[32px] shadow-xl">
-            <div class="flex items-center gap-3 mb-4">
-                <span class="text-2xl">⚙️</span>
-                <h2 class="text-lg font-black">إعدادات تخصيص التقرير (حسب نموذج Check-List)</h2>
+        <div class="bg-[#0d4b73] text-white p-8 rounded-[40px] shadow-2xl border-b-8 border-blue-900">
+            <div class="flex items-center justify-between mb-8">
+                <div class="flex items-center gap-4">
+                    <div class="bg-white/20 p-3 rounded-2xl text-2xl">🧩</div>
+                    <div>
+                        <h2 class="text-xl font-black">مدير حقول الـ Check-List الذكي</h2>
+                        <p class="text-[10px] font-bold opacity-70 uppercase">Auto-detected fields from your database</p>
+                    </div>
+                </div>
+                <div id="scanStatus" class="text-[10px] bg-blue-500/30 px-3 py-1 rounded-full font-bold italic">جاري جلب الأقسام...</div>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-white/10 p-4 rounded-2xl border border-white/20">
-                    <label class="block text-xs font-bold mb-2">رسم "جودة الاتصال":</label>
-                    <select id="connField" class="w-full text-black mb-2" onchange="updateUI()">
-                        <option value="BcjdipZxDmVgodHk9t1B">حقل جودة الاتصال (الافتراضي) ✅</option>
-                        <option value="custom_field_1">حقل مخصص 1</option>
-                        <option value="custom_field_2">حقل مخصص 2</option>
-                    </select>
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="showConn" checked onchange="toggleSection('connCard', this.checked)">
-                        <span class="text-[11px] font-bold">تضمين في التقرير</span>
-                    </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white/10 p-6 rounded-[24px] border border-white/10">
+                    <h3 class="text-sm font-black mb-4 flex items-center gap-2 text-blue-300">
+                        <span>📡</span> ربط حقول "جودة الاتصال":
+                    </h3>
+                    <div class="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scroll" id="connDiscovery">
+                        </div>
                 </div>
 
-                <div class="bg-white/10 p-4 rounded-2xl border border-white/20">
-                    <label class="block text-xs font-bold mb-2">رسم "حالة الـ UPS":</label>
-                    <select id="upsField" class="w-full text-black mb-2" onchange="updateUI()">
-                        <option value="ups_status">حقل حالة الـ UPS (الافتراضي) ✅</option>
-                        <option value="ups_battery">حقل بطارية الـ UPS</option>
-                    </select>
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="showUps" checked onchange="toggleSection('upsCard', this.checked)">
-                        <span class="text-[11px] font-bold">تضمين في التقرير</span>
-                    </div>
-                </div>
-
-                <div class="bg-white/10 p-4 rounded-2xl border border-white/20">
-                    <label class="block text-xs font-bold mb-2">خيارات العرض:</label>
-                    <div class="space-y-2">
-                        <div class="flex items-center gap-2">
-                            <input type="checkbox" checked onchange="toggleSection('sideBrandList', this.checked)">
-                            <span class="text-[11px] font-bold">إحصائيات البراندات</span>
+                <div class="bg-white/10 p-6 rounded-[24px] border border-white/10">
+                    <h3 class="text-sm font-black mb-4 flex items-center gap-2 text-yellow-400">
+                        <span>⚡</span> ربط حقول "حالة الـ UPS":
+                    </h3>
+                    <div class="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scroll" id="upsDiscovery">
                         </div>
-                        <div class="flex items-center gap-2 text-yellow-300 font-black text-[10px]">
-                            <span>* التغييرات تظهر حياً في الأسفل</span>
-                        </div>
-                    </div>
                 </div>
+            </div>
+            
+            <div class="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
+                <p class="text-[9px] text-blue-200 font-bold">* تم فحص قاعدة البيانات واكتشاف جميع الأقسام النشطة في نماذج الفحص الخاصة بك.</p>
+                <button onclick="filterData()" class="bg-green-500 hover:bg-green-600 text-white text-[10px] font-black px-4 py-1.5 rounded-lg transition">تحديث الرسوم الآن</button>
             </div>
         </div>
     </div>
@@ -76,39 +69,36 @@
                 <img src="https://www.almajdouie.com/assets/images/logo.png" class="h-10 object-contain" alt="Logo">
                 <h1 class="text-2xl font-black text-[#0d4b73]" id="t-welcome">ALMAJDOUIE MOTORS</h1>
             </div>
-            
-            <div class="flex flex-wrap items-center gap-4 exclude-from-capture">
-                <div class="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex items-center gap-4 exclude-from-capture">
+                <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200">
                     <input type="date" id="dateFrom" onchange="filterData()">
-                    <span class="text-xs font-black text-slate-400">إلى</span>
+                    <span class="text-[10px] font-black text-slate-400">إلى</span>
                     <input type="date" id="dateTo" onchange="filterData()">
                 </div>
-                <button onclick="copyFullDashboard()" class="bg-[#0d4b73] text-white px-6 py-2.5 rounded-2xl text-sm font-black transition shadow-lg">
-                    <span id="copyBtnTxt">نسخ التقرير</span> 📷
-                </button>
+                <button onclick="copyFullDashboard()" class="bg-[#0d4b73] text-white px-6 py-2.5 rounded-2xl text-sm font-black shadow-lg">نسخ التقرير 📷</button>
             </div>
         </header>
 
         <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 flex items-center justify-between">
             <div>
-                <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest" id="t-total-label">إجمالي الزيارات</h2>
+                <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest">إجمالي الزيارات</h2>
                 <span class="text-8xl font-black text-[#0d4b73] leading-none" id="totalVisits">0</span>
             </div>
-            <div id="filterLabel" class="bg-blue-50 text-[#0d4b73] text-xs font-black px-5 py-2 rounded-full">كل الأوقات</div>
+            <div id="filterLabel" class="bg-blue-50 text-[#0d4b73] text-xs font-black px-5 py-2 rounded-full h-fit">كل الأوقات</div>
         </div>
 
         <div id="sideBrandList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div id="upsCard" class="bg-white rounded-[32px] p-8 card-shadow relative flex flex-col items-center">
-                <h3 class="text-sm font-black text-[#0d4b73] self-start" id="t-ups">UPS Status</h3>
+            <div class="bg-white rounded-[32px] p-8 card-shadow relative flex flex-col items-center">
+                <h3 class="text-sm font-black text-[#0d4b73] self-start mb-6">الوضع العام للأجهزة (UPS)</h3>
                 <canvas id="cUps" style="max-height: 200px;"></canvas>
                 <div class="absolute inset-0 flex items-center justify-center pt-10">
                     <span class="text-4xl font-black text-[#0d4b73]" id="upsPct">0%</span>
                 </div>
             </div>
-            <div id="connCard" class="bg-white rounded-[32px] p-8 card-shadow md:col-span-2">
-                <h3 class="text-sm font-black text-[#0d4b73] mb-6" id="t-conn">Connectivity Status</h3>
+            <div class="bg-white rounded-[32px] p-8 card-shadow md:col-span-2">
+                <h3 class="text-sm font-black text-[#0d4b73] mb-6">جودة الاتصال والشبكة (Connectivity)</h3>
                 <div class="h-48"><canvas id="cConn"></canvas></div>
             </div>
         </div>
@@ -117,54 +107,99 @@
 <script>
 (function(){
     const $ = id => document.getElementById(id);
-    let charts = {}, state = { allVisits: [], filteredVisits: [], brands: [], lang: 'ar' };
+    let charts = {}, state = { allVisits: [], filteredVisits: [], brands: [], discoveredFields: [] };
 
-    // استقبال اللغة
-    window.addEventListener('message', e => { if (e.data.type === 'LANG_CHANGE') applyLanguage(e.data.lang); });
+    // القاموس لترجمة الحقول المعروفة (يمكنك إضافة المزيد هنا)
+    const fieldMapping = {
+        "BcjdipZxDmVgodHk9t1B": "جودة اتصال الفروع",
+        "8LQ9F3Rj4MsNDkTbO5Pi": "حالة أجهزة الشبكة",
+        "ups_status": "كفاءة أجهزة الـ UPS",
+        "ups_battery": "فحص بطاريات الـ UPS"
+    };
 
     function boot(){
         const db = window.parent.appDb;
         if (!db) { setTimeout(boot, 500); return; }
         db.collection('brand_assets').onSnapshot(snap => { state.brands = snap.docs.map(d => d.data()); updateUI(); });
-        db.collection('branch_checklists').onSnapshot(snap => { state.allVisits = snap.docs.map(d => d.data()); filterData(); });
+        db.collection('branch_checklists').onSnapshot(snap => { 
+            state.allVisits = snap.docs.map(d => d.data());
+            discoverAllFields(); // فحص الحقول الجديدة فور وصول البيانات
+            filterData(); 
+        });
     }
 
-    // وظيفة إخفاء/إظهار الأقسام حسب رغبتك
-    window.toggleSection = function(id, isVisible) {
-        $(id).style.display = isVisible ? '' : 'none';
-    };
+    // 🕵️ محرك اكتشاف الحقول (سحب كل الأقسام من التشيك ليست) 🕵️
+    function discoverAllFields() {
+        const allKeys = new Set();
+        state.allVisits.forEach(v => {
+            if (v.dynamicAnswers) {
+                Object.keys(v.dynamicAnswers).forEach(key => allKeys.add(key));
+            }
+        });
+
+        state.discoveredFields = Array.from(allKeys);
+        $('scanStatus').innerText = `تم اكتشاف (${state.discoveredFields.length}) حقل نشط ✅`;
+        renderDiscoveryCheckboxes();
+    }
+
+    // توليد الشيك بوكس للأقسام المكتشفة
+    function renderDiscoveryCheckboxes() {
+        const createHTML = (prefix) => state.discoveredFields.map(field => {
+            const label = fieldMapping[field] || `حقل غير معرف (${field.substring(0,6)}...)`;
+            const isChecked = (field === "BcjdipZxDmVgodHk9t1B" && prefix === "conn") || (field === "ups_status" && prefix === "ups");
+            return `
+                <label class="flex items-center gap-3 cursor-pointer group p-1 hover:bg-white/5 rounded">
+                    <input type="checkbox" value="${field}" ${isChecked?'checked':''} class="custom-checkbox discovery-${prefix}" onchange="renderCharts()">
+                    <div class="flex flex-col">
+                        <span class="text-[11px] font-bold group-hover:text-white transition">${label}</span>
+                        <span class="field-tag text-[8px] opacity-50">${field}</span>
+                    </div>
+                </label>`;
+        }).join('');
+
+        $('connDiscovery').innerHTML = createHTML('conn');
+        $('upsDiscovery').innerHTML = createHTML('ups');
+    }
+
+    window.filterData = function() {
+        const from = $('dateFrom').value, to = $('dateTo').value;
+        const dFrom = from ? new Date(from).setHours(0,0,0,0) : 0;
+        const dTo = to ? new Date(to).setHours(23,59,59,999) : Infinity;
+        state.filteredVisits = state.allVisits.filter(v => {
+            const vDate = v.timestamp ? v.timestamp.toDate().getTime() : 0;
+            return vDate >= dFrom && vDate <= dTo;
+        });
+        $('totalVisits').textContent = state.filteredVisits.length;
+        updateUI();
+    }
 
     window.updateUI = function() {
-        const counts = {}; 
-        state.filteredVisits.forEach(v => { const b = v.brand || 'Other'; counts[b] = (counts[b] || 0) + 1; });
+        const counts = {}; state.filteredVisits.forEach(v => { const b = v.brand || 'Other'; counts[b] = (counts[b] || 0) + 1; });
         const activeBrands = state.brands.filter(b => (counts[b.brand] || 0) > 0);
-        
         $('sideBrandList').innerHTML = activeBrands.map(b => {
             const c = counts[b.brand], logo = b.logoData || b.logoUrl || '';
-            return `
-                <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex items-center justify-between transition">
-                    <span class="text-6xl font-black text-[#0d4b73] leading-none">${c}</span>
-                    <div class="flex flex-col items-center gap-2">
-                        <img src="${logo}" class="w-16 h-10 object-contain">
-                        <span class="text-sm font-black text-slate-500 uppercase">${b.brand}</span>
-                    </div>
-                </div>`;
+            return `<div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex items-center justify-between"><span class="text-6xl font-black text-[#0d4b73]">${c}</span><div class="flex flex-col items-center gap-2"><img src="${logo}" class="w-16 h-10 object-contain"><span class="text-sm font-black text-slate-500 uppercase">${b.brand}</span></div></div>`;
         }).join('');
         renderCharts();
     }
 
     function renderCharts() {
-        const total = state.filteredVisits.length;
-        // قراءة الحقل المختار من لوحة التحكم
-        const selectedConnField = $('connField').value;
-        const selectedUpsField = $('upsField').value;
+        const selectedConn = Array.from(document.querySelectorAll('.discovery-conn:checked')).map(i => i.value);
+        const selectedUps = Array.from(document.querySelectorAll('.discovery-ups:checked')).map(i => i.value);
 
-        let s = { conn: {a:0, w:0}, ups: 85 };
+        let s = { conn: {a:0, w:0}, ups: {ok:0, total:0} };
         state.filteredVisits.forEach(v => {
             const a = v.dynamicAnswers || {};
-            if(a[selectedConnField] === "above_the_range") s.conn.a++;
-            if(a[selectedConnField] === "within_the_range") s.conn.w++;
+            selectedConn.forEach(f => {
+                if(a[f] === "above_the_range") s.conn.a++;
+                if(a[f] === "within_the_range") s.conn.w++;
+            });
+            selectedUps.forEach(f => {
+                if(a[f]) { s.ups.total++; if(a[f] === "in_shape") s.ups.ok++; }
+            });
         });
+
+        const upsFinal = s.ups.total > 0 ? Math.round((s.ups.ok/s.ups.total)*100) : 0;
 
         if (charts.conn) charts.conn.destroy();
         charts.conn = new Chart($('cConn'), {
@@ -176,30 +211,21 @@
         if (charts.ups) charts.ups.destroy();
         charts.ups = new Chart($('cUps'), {
             type: 'doughnut',
-            data: { datasets: [{ data: [s.ups, 100-s.ups], backgroundColor: ['#0d4b73', '#eff4ff'], borderWidth: 0 }] },
+            data: { datasets: [{ data: [upsFinal, 100-upsFinal], backgroundColor: ['#0d4b73', '#eff4ff'], borderWidth: 0 }] },
             options: { cutout: '82%', maintainAspectRatio: false, plugins: { legend: {display:false} } }
         });
-        $('upsPct').innerText = s.ups + "%";
+        $('upsPct').innerText = upsFinal + "%";
     }
 
-    // دالة النسخ التي تخفي لوحة التحكم تلقائياً
     window.copyFullDashboard = async function() {
-        const btn = $('copyBtnTxt');
+        const area = $('captureArea');
         const excluded = document.querySelectorAll('.exclude-from-capture');
         try {
-            btn.innerText = "...";
-            excluded.forEach(el => el.style.opacity = '0'); // إخفاء لوحة الإعدادات وأزرار التاريخ
-
-            const canvas = await html2canvas($('captureArea'), { backgroundColor: '#f4f7fa', scale: 2, useCORS: true });
-            
-            excluded.forEach(el => el.style.opacity = '1'); // إعادتها بعد النسخ
-
-            canvas.toBlob(async (blob) => {
-                await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-                btn.innerText = "✅";
-                setTimeout(() => { btn.innerText = "نسخ التقرير"; }, 2000);
-            });
-        } catch (err) { btn.innerText = "❌"; excluded.forEach(el => el.style.opacity = '1'); }
+            excluded.forEach(el => el.style.opacity = '0');
+            const canvas = await html2canvas(area, { backgroundColor: '#f4f7fa', scale: 2, useCORS: true });
+            excluded.forEach(el => el.style.opacity = '1');
+            canvas.toBlob(async (blob) => { await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]); alert("تم النسخ!"); });
+        } catch (err) { excluded.forEach(el => el.style.opacity = '1'); }
     }
 
     boot();
