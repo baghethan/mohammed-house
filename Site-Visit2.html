@@ -3,33 +3,42 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>نظام إدارة زيارات الفروع | Almajdouie Motors</title>
+  <title>نظام إدارة الزيارات | Almajdouie Motors</title>
   
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    :root { --primary: #0d4b73; --bg: #f8fafc; --nav-text: #64748b; }
+    :root { --primary: #0d4b73; --bg: #f8fafc; --nav-text: #64748b; --success: #10b981; }
     body { margin: 0; font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
     
-    header { background: var(--primary); color: #fff; padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100; }
+    header { background: var(--primary); color: #fff; padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100; }
     .header-left { display: flex; align-items: center; gap: 15px; }
-    .logo { height: 38px; filter: brightness(0) invert(1); }
+    .logo { height: 35px; filter: brightness(0) invert(1); }
     .user-area { display: flex; align-items: center; gap: 15px; font-size: 13px; }
     .user-avatar { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; }
 
     nav { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 0 15px; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
     nav::-webkit-scrollbar { display: none; }
-    nav button { background: none; border: none; padding: 12px 18px; font-size: 13px; cursor: pointer; color: var(--nav-text); border-bottom: 3px solid transparent; transition: 0.2s; white-space: nowrap; font-weight: 500; }
+    nav button { background: none; border: none; padding: 12px 18px; font-size: 13px; cursor: pointer; color: var(--nav-text); border-bottom: 3px solid transparent; transition: 0.2s; white-space: nowrap; font-weight: 500; font-family: inherit; }
     nav button:hover { color: var(--primary); background: #f1f5f9; }
     nav button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: bold; }
     .hidden { display: none !important; }
 
-    main { flex-grow: 1; background: #fff; position: relative; }
+    main { flex-grow: 1; background: #fff; position: relative; padding-bottom: 30px; }
     iframe { width: 100%; height: 100%; border: none; display: block; }
 
-    .lang-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 11px; }
+    /* شريط التحديث والوقت السفلي */
+    .update-footer {
+      position: fixed; bottom: 0; left: 0; width: 100%; background: #ffffff; color: #475569;
+      border-top: 1px solid #e2e8f0; padding: 4px 20px; display: flex; justify-content: space-between;
+      align-items: center; font-size: 10.5px; z-index: 9999; box-sizing: border-box;
+    }
+    .status-dot { height: 7px; width: 7px; background-color: var(--success); border-radius: 50%; display: inline-block; margin-left: 6px; }
+    .update-footer b { color: var(--primary); }
+
+    .lang-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 3px 10px; border-radius: 5px; cursor: pointer; font-size: 11px; }
     .lang-btn.active { background: #fff; color: var(--primary); font-weight: bold; }
   </style>
 </head>
@@ -39,8 +48,7 @@
   <div class="header-left">
     <img src="https://www.almajdouie.com/assets/images/logo.png" class="logo" alt="Almajdouie">
     <div>
-      <div id="shellTitle" style="font-weight: bold; font-size: 15px;">نظام زيارات الفروع</div>
-      <div style="font-size: 10px; opacity: 0.7;">Turbo Edition v2.8.5</div>
+      <div id="shellTitle" style="font-weight: bold; font-size: 14px;">نظام إدارة الزيارات</div>
     </div>
   </div>
 
@@ -49,10 +57,10 @@
       <button class="lang-btn" id="btnAr" onclick="setLang('ar')">AR</button>
       <button class="lang-btn" id="btnEn" onclick="setLang('en')">EN</button>
     </div>
-    <div style="height: 20px; width: 1px; background: rgba(255,255,255,0.3);"></div>
+    <div style="height: 15px; width: 1px; background: rgba(255,255,255,0.3);"></div>
     <span id="userName">...</span>
     <img id="userAvatar" class="user-avatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
-    <button onclick="logout()" style="background: #ef4444; color: #fff; border: none; padding: 4px 12px; border-radius: 5px; cursor: pointer; font-size: 11px; font-weight: bold;">خروج</button>
+    <button onclick="logout()" style="background: #ef4444; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;">خروج</button>
   </div>
 </header>
 
@@ -72,6 +80,18 @@
   <iframe id="appFrame" name="appFrame" src=""></iframe>
 </main>
 
+<div class="update-footer">
+  <div>
+    <span class="status-dot"></span>
+    إصدار النظام: <b id="sysVersion">v2.8.5</b> | 
+    تاريخ التحديث: <b id="lastUpdate">2026-04-26</b>
+  </div>
+  <div>
+    <span id="connectionStatus" style="margin-left: 15px; color: var(--success);">متصل ✅</span>
+    الوقت: <b id="currentTime">--:--:--</b>
+  </div>
+</div>
+
 <script>
   // 1. إعدادات Firebase الموحدة
   const firebaseConfig = {
@@ -83,16 +103,16 @@
     appId: "1:944819735112:web:07315600da39377320667d"
   };
 
-  // 2. التهيئة الذكية - تعريف واحد فقط لمنع خطأ "already declared"
+  // 2. التهيئة (تعريف واحد فقط لمنع الأخطاء)
   if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
 
-  // تفعيل السرعة القصوى وإزالة تأخير الـ 10 ثوانٍ
+  // إعدادات السرعة وإلغاء البطء
   db.settings({ cacheSizeBytes: 1048576, experimentalForceLongPolling: true });
   db.enablePersistence().catch(() => {});
 
-  // تصدير الأدوات لفتحها داخل الـ iframes دون إعادة تحميل
+  // تصدير للـ iframes
   window.appAuth = auth;
   window.appDb = db;
 
@@ -139,12 +159,19 @@
     $('appFrame').src = PAGES[key].file;
   }
 
-  // 4. مراقبة الدخول وتوزيع الصلاحيات
+  // 4. إدارة الوقت والحالة
+  function updateClock() {
+    const now = new Date();
+    $('currentTime').textContent = now.toLocaleTimeString('en-US', { hour12: true });
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // 5. مراقبة الدخول والصلاحيات
   auth.onAuthStateChanged(async user => {
     if (!user) { window.location.href = 'login.html'; return; }
     
     try {
-      // قراءة البروفايل (الأولوية للسرعة)
       const snap = await db.collection('app_users').doc(user.uid).get();
       const profile = snap.exists ? snap.data() : { role: 'user' };
 
@@ -159,7 +186,7 @@
 
       setLang(currentLang);
       
-      // فتح أول صفحة مصرح بها تلقائياً
+      // فتح أول صفحة مصرح بها
       const defaultPage = allowed.includes('dashboard') ? 'dashboard' : allowed[0];
       const defaultBtn = document.querySelector(`button[data-page="${defaultPage}"]`);
       loadPage(defaultPage, defaultBtn);
