@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Dashboard v6.5.0 | Auto-Discovery Engine</title>
+    <title>Dashboard v6.6.0 | Structured Discovery</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
@@ -13,93 +13,106 @@
         body { font-family: 'Cairo', sans-serif; background-color: #f4f7fa; }
         .card-shadow { box-shadow: 0 10px 30px rgba(0, 30, 64, 0.05); }
         .exclude-from-capture { transition: opacity 0.3s ease; }
+        
+        /* تنسيق الشيك بوكس الاحترافي */
         .custom-checkbox {
             width: 16px; height: 16px; border-radius: 4px; border: 2px solid rgba(255,255,255,0.3);
             background: transparent; cursor: pointer; appearance: none; position: relative;
         }
         .custom-checkbox:checked { background-color: #10b981; border-color: #10b981; }
         .custom-checkbox:checked::after { content: '✓'; position: absolute; color: white; font-size: 10px; top: -2px; left: 2px; }
-        .field-tag { font-size: 9px; background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 4px; margin-left: 4px; }
+        
+        .section-header { background: rgba(255,255,255,0.05); padding: 4px 12px; border-radius: 8px; margin-top: 15px; margin-bottom: 8px; border-right: 3px solid #10b981; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
     </style>
 </head>
 <body class="p-4 lg:p-8">
 
     <div class="max-w-[1440px] mx-auto mb-8 exclude-from-capture">
-        <div class="bg-[#0d4b73] text-white p-8 rounded-[40px] shadow-2xl border-b-8 border-blue-900">
+        <div class="bg-[#001e40] text-white p-8 rounded-[40px] shadow-2xl border-b-8 border-blue-900">
             <div class="flex items-center justify-between mb-8">
                 <div class="flex items-center gap-4">
-                    <div class="bg-white/20 p-3 rounded-2xl text-2xl">🧩</div>
+                    <div class="bg-white/10 p-3 rounded-2xl text-2xl">🧩</div>
                     <div>
                         <h2 class="text-xl font-black">مدير حقول الـ Check-List الذكي</h2>
-                        <p class="text-[10px] font-bold opacity-70 uppercase">Auto-detected fields from your database</p>
+                        <p class="text-[10px] font-bold opacity-60 uppercase tracking-widest">Organized by Section & Item Name</p>
                     </div>
                 </div>
-                <div id="scanStatus" class="text-[10px] bg-blue-500/30 px-3 py-1 rounded-full font-bold italic">جاري جلب الأقسام...</div>
+                <div class="text-[10px] bg-green-500/20 text-green-400 px-4 py-1.5 rounded-full font-black border border-green-500/30">
+                    AUTO-DETECTED SYNC ✅
+                </div>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="bg-white/10 p-6 rounded-[24px] border border-white/10">
-                    <h3 class="text-sm font-black mb-4 flex items-center gap-2 text-blue-300">
-                        <span>📡</span> ربط حقول "جودة الاتصال":
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                
+                <div class="space-y-2">
+                    <h3 class="text-sm font-black flex items-center gap-2 text-blue-300 mb-4 px-2">
+                        <span>📡</span> تخصيص بيانات "جودة الاتصال":
                     </h3>
-                    <div class="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scroll" id="connDiscovery">
+                    <div id="connStructured" class="max-h-[350px] overflow-y-auto pr-4 custom-scroll">
                         </div>
                 </div>
 
-                <div class="bg-white/10 p-6 rounded-[24px] border border-white/10">
-                    <h3 class="text-sm font-black mb-4 flex items-center gap-2 text-yellow-400">
-                        <span>⚡</span> ربط حقول "حالة الـ UPS":
+                <div class="space-y-2">
+                    <h3 class="text-sm font-black flex items-center gap-2 text-yellow-400 mb-4 px-2">
+                        <span>⚡</span> تخصيص بيانات "حالة الـ UPS":
                     </h3>
-                    <div class="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scroll" id="upsDiscovery">
+                    <div id="upsStructured" class="max-h-[350px] overflow-y-auto pr-4 custom-scroll">
                         </div>
                 </div>
+
             </div>
             
-            <div class="mt-6 flex items-center justify-between border-t border-white/10 pt-4">
-                <p class="text-[9px] text-blue-200 font-bold">* تم فحص قاعدة البيانات واكتشاف جميع الأقسام النشطة في نماذج الفحص الخاصة بك.</p>
-                <button onclick="filterData()" class="bg-green-500 hover:bg-green-600 text-white text-[10px] font-black px-4 py-1.5 rounded-lg transition">تحديث الرسوم الآن</button>
+            <div class="mt-8 pt-6 border-t border-white/5 flex justify-between items-center">
+                <p class="text-[9px] text-blue-200 font-bold">* ملاحظة: يمكنك اختيار بنود من أقسام مختلفة لدمجها في رسم بياني واحد.</p>
+                <button onclick="updateUI()" class="bg-[#10b981] hover:bg-green-600 text-white text-[11px] font-black px-6 py-2 rounded-xl transition shadow-lg">تحديث التقرير الآن</button>
             </div>
         </div>
     </div>
 
-    <div id="captureArea" class="max-w-[1440px] mx-auto space-y-8 bg-[#f4f7fa] p-8 rounded-[40px]">
+    <div id="captureArea" class="max-w-[1440px] mx-auto space-y-8 bg-[#f4f7fa] p-10 rounded-[50px]">
         
         <header class="flex flex-wrap items-center justify-between gap-6 px-4">
             <div class="flex items-center gap-4">
-                <img src="https://www.almajdouie.com/assets/images/logo.png" class="h-10 object-contain" alt="Logo">
-                <h1 class="text-2xl font-black text-[#0d4b73]" id="t-welcome">ALMAJDOUIE MOTORS</h1>
+                <img src="https://www.almajdouie.com/assets/images/logo.png" class="h-10 object-contain">
+                <h1 class="text-2xl font-black text-[#0d4b73]">ALMAJDOUIE MOTORS</h1>
             </div>
             <div class="flex items-center gap-4 exclude-from-capture">
-                <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200">
+                <div class="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border border-slate-200">
                     <input type="date" id="dateFrom" onchange="filterData()">
-                    <span class="text-[10px] font-black text-slate-400">إلى</span>
+                    <span class="text-xs font-bold text-slate-400">إلى</span>
                     <input type="date" id="dateTo" onchange="filterData()">
                 </div>
-                <button onclick="copyFullDashboard()" class="bg-[#0d4b73] text-white px-6 py-2.5 rounded-2xl text-sm font-black shadow-lg">نسخ التقرير 📷</button>
+                <button onclick="copyFullDashboard()" class="bg-[#0d4b73] text-white px-8 py-3 rounded-[20px] text-sm font-black shadow-xl transition active:scale-95">نسخ التقرير 📷</button>
             </div>
         </header>
 
-        <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 flex items-center justify-between">
+        <div class="bg-white rounded-[40px] p-10 card-shadow border border-slate-50 flex items-center justify-between">
             <div>
-                <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest">إجمالي الزيارات</h2>
-                <span class="text-8xl font-black text-[#0d4b73] leading-none" id="totalVisits">0</span>
+                <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-2">إجمالي الزيارات الميدانية</h2>
+                <span class="text-9xl font-black text-[#0d4b73] leading-none" id="totalVisits">0</span>
             </div>
-            <div id="filterLabel" class="bg-blue-50 text-[#0d4b73] text-xs font-black px-5 py-2 rounded-full h-fit">كل الأوقات</div>
+            <div id="filterLabel" class="bg-blue-50 text-[#0d4b73] text-xs font-black px-6 py-2 rounded-full">كل الأوقات</div>
         </div>
 
-        <div id="sideBrandList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        <div id="sideBrandList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="bg-white rounded-[32px] p-8 card-shadow relative flex flex-col items-center">
-                <h3 class="text-sm font-black text-[#0d4b73] self-start mb-6">الوضع العام للأجهزة (UPS)</h3>
-                <canvas id="cUps" style="max-height: 200px;"></canvas>
-                <div class="absolute inset-0 flex items-center justify-center pt-10">
-                    <span class="text-4xl font-black text-[#0d4b73]" id="upsPct">0%</span>
+            <div class="bg-white rounded-[40px] p-10 card-shadow relative flex flex-col items-center">
+                <h3 class="text-sm font-black text-[#0d4b73] self-start mb-10">UPS Status</h3>
+                <div class="w-56 h-56 relative">
+                    <canvas id="cUps"></canvas>
+                    <div class="absolute inset-0 flex items-center justify-center pt-10">
+                        <span class="text-5xl font-black text-[#0d4b73]" id="upsPct">0%</span>
+                    </div>
                 </div>
             </div>
-            <div class="bg-white rounded-[32px] p-8 card-shadow md:col-span-2">
-                <h3 class="text-sm font-black text-[#0d4b73] mb-6">جودة الاتصال والشبكة (Connectivity)</h3>
-                <div class="h-48"><canvas id="cConn"></canvas></div>
+            <div class="bg-white rounded-[40px] p-10 card-shadow md:col-span-2 flex flex-col">
+                <h3 class="text-sm font-black text-[#0d4b73] mb-10">Connectivity & Networks</h3>
+                <div class="flex-1 min-h-[220px]">
+                    <canvas id="cConn"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -107,14 +120,20 @@
 <script>
 (function(){
     const $ = id => document.getElementById(id);
-    let charts = {}, state = { allVisits: [], filteredVisits: [], brands: [], discoveredFields: [] };
+    let charts = {}, state = { allVisits: [], filteredVisits: [], brands: [], sections: {} };
 
-    // القاموس لترجمة الحقول المعروفة (يمكنك إضافة المزيد هنا)
-    const fieldMapping = {
-        "BcjdipZxDmVgodHk9t1B": "جودة اتصال الفروع",
-        "8LQ9F3Rj4MsNDkTbO5Pi": "حالة أجهزة الشبكة",
-        "ups_status": "كفاءة أجهزة الـ UPS",
-        "ups_battery": "فحص بطاريات الـ UPS"
+    // 🕵️ خريطة تعريف الأقسام والبنود (يمكنك تعديل المسميات هنا) 🕵️
+    const SCHEMA = {
+        "قسم أجهزة الشبكة": {
+            "BcjdipZxDmVgodHk9t1B": "جودة اتصال الفروع الرئيسية",
+            "8LQ9F3Rj4MsNDkTbO5Pi": "حالة الروترات والسويتشات",
+            "field_id_3": "أجهزة الوايفاي"
+        },
+        "قسم الطاقة والـ UPS": {
+            "ups_status": "كفاءة أجهزة الـ UPS",
+            "ups_battery": "فحص بطاريات الـ UPS",
+            "field_id_4": "وحدات توزيع الطاقة (PDU)"
+        }
     };
 
     function boot(){
@@ -123,42 +142,41 @@
         db.collection('brand_assets').onSnapshot(snap => { state.brands = snap.docs.map(d => d.data()); updateUI(); });
         db.collection('branch_checklists').onSnapshot(snap => { 
             state.allVisits = snap.docs.map(d => d.data());
-            discoverAllFields(); // فحص الحقول الجديدة فور وصول البيانات
+            renderDiscoveryPanels();
             filterData(); 
         });
     }
 
-    // 🕵️ محرك اكتشاف الحقول (سحب كل الأقسام من التشيك ليست) 🕵️
-    function discoverAllFields() {
-        const allKeys = new Set();
-        state.allVisits.forEach(v => {
-            if (v.dynamicAnswers) {
-                Object.keys(v.dynamicAnswers).forEach(key => allKeys.add(key));
-            }
-        });
+    // توليد لوحات الاختيار المنظمة بالأقسام والبنود
+    function renderDiscoveryPanels() {
+        const createSectionHTML = (prefix) => {
+            return Object.keys(SCHEMA).map(sectionName => {
+                const items = SCHEMA[sectionName];
+                const itemsHTML = Object.keys(items).map(fieldId => {
+                    // افتراضياً، نقوم بتفعيل الحقول الأساسية
+                    const isChecked = (fieldId === "BcjdipZxDmVgodHk9t1B" && prefix === "conn") || (fieldId === "ups_status" && prefix === "ups");
+                    return `
+                        <label class="flex items-center gap-3 cursor-pointer group py-1.5 px-2 hover:bg-white/5 rounded-lg transition">
+                            <input type="checkbox" value="${fieldId}" ${isChecked?'checked':''} class="custom-checkbox discovery-${prefix}" onchange="renderCharts()">
+                            <div class="flex flex-col leading-tight">
+                                <span class="text-[12px] font-bold group-hover:text-white transition">${items[fieldId]}</span>
+                                <span class="text-[8px] opacity-40 font-mono tracking-tighter">${fieldId}</span>
+                            </div>
+                        </label>`;
+                }).join('');
 
-        state.discoveredFields = Array.from(allKeys);
-        $('scanStatus').innerText = `تم اكتشاف (${state.discoveredFields.length}) حقل نشط ✅`;
-        renderDiscoveryCheckboxes();
-    }
+                return `
+                    <div class="mb-6">
+                        <div class="section-header">
+                            <span class="text-[10px] font-black uppercase text-blue-300 tracking-widest">${sectionName}</span>
+                        </div>
+                        <div class="space-y-1 mt-2">${itemsHTML}</div>
+                    </div>`;
+            }).join('');
+        };
 
-    // توليد الشيك بوكس للأقسام المكتشفة
-    function renderDiscoveryCheckboxes() {
-        const createHTML = (prefix) => state.discoveredFields.map(field => {
-            const label = fieldMapping[field] || `حقل غير معرف (${field.substring(0,6)}...)`;
-            const isChecked = (field === "BcjdipZxDmVgodHk9t1B" && prefix === "conn") || (field === "ups_status" && prefix === "ups");
-            return `
-                <label class="flex items-center gap-3 cursor-pointer group p-1 hover:bg-white/5 rounded">
-                    <input type="checkbox" value="${field}" ${isChecked?'checked':''} class="custom-checkbox discovery-${prefix}" onchange="renderCharts()">
-                    <div class="flex flex-col">
-                        <span class="text-[11px] font-bold group-hover:text-white transition">${label}</span>
-                        <span class="field-tag text-[8px] opacity-50">${field}</span>
-                    </div>
-                </label>`;
-        }).join('');
-
-        $('connDiscovery').innerHTML = createHTML('conn');
-        $('upsDiscovery').innerHTML = createHTML('ups');
+        $('connStructured').innerHTML = createSectionHTML('conn');
+        $('upsStructured').innerHTML = createSectionHTML('ups');
     }
 
     window.filterData = function() {
@@ -178,7 +196,14 @@
         const activeBrands = state.brands.filter(b => (counts[b.brand] || 0) > 0);
         $('sideBrandList').innerHTML = activeBrands.map(b => {
             const c = counts[b.brand], logo = b.logoData || b.logoUrl || '';
-            return `<div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex items-center justify-between"><span class="text-6xl font-black text-[#0d4b73]">${c}</span><div class="flex flex-col items-center gap-2"><img src="${logo}" class="w-16 h-10 object-contain"><span class="text-sm font-black text-slate-500 uppercase">${b.brand}</span></div></div>`;
+            return `
+                <div class="bg-white rounded-[32px] p-8 shadow-sm border border-slate-100 flex items-center justify-between transition hover:shadow-lg">
+                    <span class="text-7xl font-black text-[#0d4b73] leading-none">${c}</span>
+                    <div class="flex flex-col items-center gap-2">
+                        <img src="${logo}" class="w-20 h-12 object-contain">
+                        <span class="text-[12px] font-black text-slate-400 uppercase tracking-tight">${b.brand}</span>
+                    </div>
+                </div>`;
         }).join('');
         renderCharts();
     }
@@ -204,8 +229,8 @@
         if (charts.conn) charts.conn.destroy();
         charts.conn = new Chart($('cConn'), {
             type: 'bar',
-            data: { labels: ['Online', 'Offline'], datasets: [{ data: [s.conn.a, s.conn.w], backgroundColor: ['#10b981', '#fbbf24'], borderRadius: 10, barThickness: 8 }] },
-            options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { x: { display: false }, y: { grid: { display:false }, ticks: { font:{weight:'bold', size:12}, color:'#0d4b73' } } } }
+            data: { labels: ['Online', 'Offline'], datasets: [{ data: [s.conn.a, s.conn.w], backgroundColor: ['#10b981', '#fbbf24'], borderRadius: 15, barThickness: 10 }] },
+            options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { x: { display: false }, y: { grid: { display:false }, ticks: { font:{weight:'bold', size:14}, color:'#0d4b73' } } } }
         });
 
         if (charts.ups) charts.ups.destroy();
@@ -224,7 +249,10 @@
             excluded.forEach(el => el.style.opacity = '0');
             const canvas = await html2canvas(area, { backgroundColor: '#f4f7fa', scale: 2, useCORS: true });
             excluded.forEach(el => el.style.opacity = '1');
-            canvas.toBlob(async (blob) => { await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]); alert("تم النسخ!"); });
+            canvas.toBlob(async (blob) => { 
+                await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]); 
+                alert("تم نسخ التقرير الملموم بنجاح! ✅"); 
+            });
         } catch (err) { excluded.forEach(el => el.style.opacity = '1'); }
     }
 
