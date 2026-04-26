@@ -426,6 +426,12 @@
       values = values || {};
       var container = $('dynamicChecklistSections'); if (!container) return;
 
+      var savedScrollY = window.scrollY;
+      var oldHeight = container.getBoundingClientRect().height;
+      if (oldHeight > 0) {
+        container.style.minHeight = oldHeight + 'px';
+      }
+
       var activeId = document.activeElement ? document.activeElement.id : null;
       var activeStart = null;
       var activeEnd = null;
@@ -478,14 +484,24 @@
       if (activeId) {
         var elToFocus = document.getElementById(activeId);
         if (elToFocus) {
-          elToFocus.focus();
-          if (activeStart !== null && activeEnd !== null && elToFocus.tagName === 'INPUT' && (elToFocus.type === 'text' || elToFocus.type === 'number' || elToFocus.type === 'search' || elToFocus.type === 'password' || elToFocus.type === 'tel' || elToFocus.type === 'url')) {
+          elToFocus.focus({ preventScroll: true });
+          if (activeStart !== null && activeEnd !== null && elToFocus.tagName === 'INPUT' && (elToFocus.type === 'text' || elToFocus.type === 'search' || elToFocus.type === 'password' || elToFocus.type === 'tel' || elToFocus.type === 'url')) {
             try {
               elToFocus.setSelectionRange(activeStart, activeEnd);
             } catch(e) {}
+          } else if (elToFocus.tagName === 'INPUT' && elToFocus.type === 'number') {
+            // Ensure cursor goes to the end for number inputs
+            var tempVal = elToFocus.value;
+            elToFocus.value = '';
+            elToFocus.value = tempVal;
           }
         }
       }
+
+      window.scrollTo(0, savedScrollY);
+      setTimeout(function() {
+        container.style.minHeight = '';
+      }, 0);
     }
 
     function renderBrandsDatalist(){ $('brandsDatalist').innerHTML = state.brands.map(function(brand){ return '<option value="' + esc(brand.brand || brand.nameEn || brand.nameAr || brand.key || '') + '"></option>'; }).join(''); }
