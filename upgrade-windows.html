@@ -2,142 +2,140 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Windows 11 Upgrade Tracking</title>
+  <title>Windows 11 Upgrade Management</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
-    :root { --primary: #0d4b73; --bg: #f8fafc; --card: #ffffff; }
-    body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); padding: 20px; color: #334155; }
+    :root { --primary: #0d4b73; --bg: #f8fafc; --card: #ffffff; --success: #10b981; }
+    body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); padding: 20px; }
+    .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; max-width: 1200px; margin: 0 auto; }
+    .card { background: var(--card); border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+    .card-header { font-weight: 900; color: var(--primary); border-bottom: 2px solid var(--bg); padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; }
     
-    .container { max-width: 900px; margin: 0 auto; }
-    .card { background: var(--card); border-radius: 12px; border: 1px solid #e2e8f0; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--bg); padding-bottom: 15px; margin-bottom: 20px; }
-    h2 { color: var(--primary); margin: 0; font-weight: 900; }
+    /* تنسيق النموذج */
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: 800; margin-bottom: 5px; font-size: 13px; }
+    select, input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; }
+    button { background: var(--primary); color: #fff; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: 900; width: 100%; margin-top: 10px; }
     
-    .form-group { margin-bottom: 20px; }
-    label { display: block; font-weight: 800; margin-bottom: 8px; font-size: 14px; }
-    select, input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; }
-    
-    .emp-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-top: 15px; }
-    .emp-input { border: 1px solid var(--primary); background: #f0f7ff; }
+    /* تنسيق الجدول */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+    th { background: #f1f5f9; padding: 10px; text-align: right; color: var(--primary); }
+    td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
+    .badge { padding: 2px 8px; border-radius: 10px; color: #fff; font-size: 10px; }
 
-    button { 
-      background: var(--primary); color: #fff; border: none; padding: 12px 30px; 
-      border-radius: 8px; cursor: pointer; font-weight: 900; width: 100%; font-size: 16px; 
-      transition: 0.3s; margin-top: 10px;
-    }
-    button:hover { opacity: 0.9; transform: translateY(-2px); }
-    
-    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; background: #10b981; color: #fff; }
+    .status-online { color: var(--success); font-size: 11px; font-weight: bold; }
+    .emp-tag { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; margin: 2px; font-size: 10px; }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <div class="card">
-    <div class="header">
-      <h2 id="t-title">ترقية ويندوز 11 | Windows 11 Upgrade</h2>
-      <div id="status" class="status-badge">متصل بالمحرك ✅</div>
+<div class="grid">
+  <aside class="card">
+    <div class="card-header">
+      <span id="t-form-title">إضافة تحديث جديد</span>
+      <span class="status-online">Online v2.6</span>
     </div>
-
     <form id="upgradeForm">
       <div class="form-group">
-        <label id="t-question">هل تم ترقية أجهزة الفرع؟</label>
+        <label id="t-q">هل تم ترقية أجهزة الفرع؟</label>
         <select id="isUpgraded" onchange="toggleInputs()">
           <option value="no">لا / No</option>
           <option value="yes">نعم / Yes</option>
         </select>
       </div>
-
       <div id="extraInputs" style="display: none;">
         <div class="form-group">
-          <label id="t-count">كم عدد الأجهزة التي تمت ترقيتها؟</label>
-          <input type="number" id="deviceCount" min="1" placeholder="مثلاً: 5" oninput="generateEmpFields()">
+          <label id="t-cnt">عدد الأجهزة</label>
+          <input type="number" id="deviceCount" min="1" oninput="genFields()">
         </div>
-        
-        <div id="empNumbersContainer">
-            <label id="t-emp-label">أدخل الأرقام الوظيفية للأجهزة:</label>
-            <div class="emp-list" id="empList"></div>
-        </div>
+        <div id="empList" style="display:grid; gap:5px; grid-template-columns: 1fr 1fr;"></div>
       </div>
-
-      <button type="submit" id="t-save">حفظ البيانات | Save Data</button>
+      <button type="submit" id="t-btn">حفظ البيانات | Save</button>
     </form>
-  </div>
+  </aside>
+
+  <main class="card">
+    <div class="card-header">
+      <span id="t-list-title">سجل ترقيات ويندوز 11 (History)</span>
+      <div style="font-size: 11px; color: #64748b;">إجمالي الترقيات: <b id="totalBadge">0</b></div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>التاريخ</th>
+          <th>المسؤول</th>
+          <th>الحالة</th>
+          <th>الأجهزة</th>
+          <th>الأرقام الوظيفية</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        <tr><td colspan="5" style="text-align:center; padding:40px; color:#94a3b8;">جاري جلب المعلومات من قاعدة البيانات...</td></tr>
+      </tbody>
+    </table>
+  </main>
 </div>
 
 <script>
 (function(){
   const $ = id => document.getElementById(id);
-  let state = { lang: 'ar' };
-
-  // 1. استعارة المحرك من الصفحة الرئيسية (السر هنا!)
   const db = window.parent.appDb;
   const auth = window.parent.appAuth;
 
   function boot() {
-    if (!db) {
-        console.warn("في انتظار المحرك الرئيسي...");
-        setTimeout(boot, 500);
-        return;
-    }
-    applyLanguage(window.parent.currentLang || 'ar');
+    if (!db) { setTimeout(boot, 500); return; }
+    loadHistory();
+    applyLang(window.parent.currentLang || 'ar');
   }
 
-  // 2. مزامنة اللغة مع الصفحة الرئيسية
-  const i18n = {
-    ar: { title: "ترقية ويندوز 11", question: "هل تم ترقية أجهزة الفرع؟", count: "عدد الأجهزة المرتقاة", save: "حفظ البيانات", emp: "الأرقام الوظيفية" },
-    en: { title: "Windows 11 Upgrade", question: "Have the branch devices been upgraded?", count: "Number of upgraded devices", save: "Save Data", emp: "Employee IDs" }
-  };
-
-  function applyLanguage(lang) {
-    state.lang = lang;
-    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-    const d = i18n[lang];
-    $('t-title').innerText = d.title;
-    $('t-question').innerText = d.question;
-    $('t-count').innerText = d.count;
-    $('t-save').innerText = d.save;
-    $('t-emp-label').innerText = d.emp;
+  // جلب سجل البيانات التاريخية
+  function loadHistory() {
+    db.collection('windows_upgrades').orderBy('timestamp', 'desc').limit(15).onSnapshot(snap => {
+      $('totalBadge').textContent = snap.size;
+      $('historyBody').innerHTML = snap.docs.map(doc => {
+        const d = doc.data();
+        const date = d.timestamp ? d.timestamp.toDate().toLocaleDateString('ar-SA') : '-';
+        const emps = (d.employeeIds || []).map(id => `<span class="emp-tag">${id}</span>`).join('');
+        return `
+          <tr>
+            <td>${date}</td>
+            <td style="font-weight:bold;">${d.userEmail || 'System'}</td>
+            <td><span class="badge" style="background:${d.isUpgraded==='yes'?'#10b981':'#ef4444'}">${d.isUpgraded}</span></td>
+            <td>${d.deviceCount || 0}</td>
+            <td>${emps}</td>
+          </tr>`;
+      }).join('');
+    });
   }
 
-  window.addEventListener('message', e => {
-    if (e.data.type === 'LANG_CHANGE') applyLanguage(e.data.lang);
-  });
-
-  // 3. منطق النموذج (Logic)
-  window.toggleInputs = () => {
-    const isYes = $('isUpgraded').value === 'yes';
-    $('extraInputs').style.display = isYes ? 'block' : 'none';
-  };
-
-  window.generateEmpFields = () => {
-    const count = parseInt($('deviceCount').value) || 0;
-    const container = $('empList');
-    container.innerHTML = '';
-    for (let i = 1; i <= count; i++) {
-        container.innerHTML += `<input type="text" class="emp-input" placeholder="ID ${i}" required>`;
-    }
+  window.toggleInputs = () => { $('extraInputs').style.display = ($('isUpgraded').value === 'yes') ? 'block' : 'none'; };
+  window.genFields = () => {
+    const c = parseInt($('deviceCount').value) || 0;
+    $('empList').innerHTML = Array.from({length:c}).map((_,i)=> `<input type="text" class="emp-in" placeholder="ID ${i+1}" required style="font-size:11px; padding:6px;">`).join('');
   };
 
   $('upgradeForm').onsubmit = async (e) => {
     e.preventDefault();
-    const empIds = Array.from(document.querySelectorAll('.emp-input')).map(input => input.value);
-    
+    const emps = Array.from(document.querySelectorAll('.emp-in')).map(i => i.value);
     try {
       await db.collection('windows_upgrades').add({
         isUpgraded: $('isUpgraded').value,
         deviceCount: $('deviceCount').value || 0,
-        employeeIds: empIds,
+        employeeIds: emps,
         timestamp: new Date(),
         userEmail: auth.currentUser.email
       });
-      alert(state.lang === 'ar' ? "تم الحفظ بنجاح!" : "Saved Successfully!");
-      $('upgradeForm').reset();
-      toggleInputs();
-    } catch (err) {
-      alert("Error: " + err.message);
-    }
+      $('upgradeForm').reset(); toggleInputs();
+    } catch (err) { alert(err.message); }
   };
+
+  function applyLang(l) {
+    document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
+    const i = { ar: {f:"إضافة تحديث", l:"سجل الترقيات", q:"هل تم الترقية؟", c:"العدد", b:"حفظ"}, en: {f:"Add Upgrade", l:"Upgrade History", q:"Upgraded?", c:"Count", b:"Save"} };
+    const d = i[l] || i.ar;
+    $('t-form-title').innerText = d.f; $('t-list-title').innerText = d.l;
+    $('t-q').innerText = d.q; $('t-cnt').innerText = d.c; $('t-btn').innerText = d.b;
+  }
 
   boot();
 })();
