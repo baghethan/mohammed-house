@@ -2,169 +2,103 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard v3.4.0 | Almajdouie Motors</title>
+  <title>Dashboard v3.4.5</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
   <style>
-    :root { --bg: #f4f7fa; --header-blue: #0d4b73; --card: #fff; }
+    :root { --bg: #f4f7fa; --primary: #0d4b73; --card: #fff; }
     body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
-    .sidebar { width: 300px; background: #fff; border-left: 1px solid #e2e8f0; padding: 20px; display: flex; flex-direction: column; overflow-y: auto; }
-    .sidebar-title { font-size: 15px; font-weight: 900; color: var(--header-blue); margin-bottom: 20px; text-align: center; border-bottom: 2px solid var(--bg); padding-bottom: 15px; }
-    .brand-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid #f1f5f9; }
-    .brand-logo { width: 50px; height: 30px; object-fit: contain; background: #f9fafb; border-radius: 4px; }
-    .brand-name { font-size: 14px; font-weight: 800; color: #475569; }
-    .brand-count { background: var(--header-blue); color: #fff; font-size: 12px; padding: 3px 10px; border-radius: 12px; font-weight: 900; }
-    .main-wrapper { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
-    .stats-hero { text-align: center; padding: 30px; background: #fff; border-bottom: 2px solid #e2e8f0; }
-    #totalVisits { font-size: 85px; color: var(--header-blue); font-weight: 900; margin: 0; }
-    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; padding: 20px; }
-    .card { background: var(--card); border-radius: 10px; border: 1px solid #e2e8f0; min-height: 300px; position: relative; }
-    .card-header { background: var(--header-blue); color: #fff; padding: 10px 18px; font-size: 14px; font-weight: 800; border-radius: 10px 10px 0 0; }
+    .sidebar { width: 280px; background: #fff; border-left: 2px solid #e2e8f0; padding: 15px; overflow-y: auto; }
+    .brand-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #f1f5f9; }
+    .brand-logo { width: 45px; height: 28px; object-fit: contain; background: #f9fafb; border-radius: 4px; }
+    .brand-count { background: var(--primary); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 900; }
+    .main { flex: 1; padding: 20px; overflow-y: auto; text-align: center; }
+    #totalVisits { font-size: 80px; font-weight: 900; color: var(--primary); margin: 0; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; text-align: right; }
+    .card { background: var(--card); border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; min-height: 280px; position: relative; }
+    .card-header { background: var(--primary); color: #fff; padding: 8px 15px; font-size: 13px; font-weight: 800; border-radius: 10px 10px 0 0; }
+    canvas { padding: 10px; max-height: 230px; }
   </style>
 </head>
 <body>
-
 <aside class="sidebar">
-    <div class="sidebar-title" id="t-brands">إحصائيات البراندات</div>
-    <div id="sideBrandList"></div>
+  <div style="font-weight:900; color:var(--primary); margin-bottom:15px; text-align:center;" id="t-brands">إحصائيات البراندات</div>
+  <div id="sideBrandList"></div>
 </aside>
-
-<main class="main-wrapper">
-    <div class="stats-hero">
-        <h1 id="totalVisits">0</h1>
-        <div style="font-size:18px; font-weight:bold; color:#64748b;" id="t-total-label">إجمالي الزيارات الميدانية</div>
+<main class="main">
+  <div style="font-weight:900; font-size:14px; color:var(--primary); opacity:0.7;">ALMAJDOUIE MOTORS | DASHBOARD v3.4.5</div>
+  <h1 id="totalVisits">0</h1>
+  <div style="font-weight:bold; color:#64748b;" id="t-total-label">إجمالي الزيارات الميدانية</div>
+  <div class="grid">
+    <div class="card"><div class="card-header" id="t-net">حالة الأجهزة (Network)</div><canvas id="cNet"></canvas></div>
+    <div class="card"><div class="card-header" id="t-conn">جودة الاتصال (Connectivity)</div><canvas id="cConn"></canvas></div>
+    <div class="card">
+      <div class="card-header" id="t-ups">حالة الـ UPS</div>
+      <canvas id="cUps"></canvas>
+      <div style="position:absolute; top:55%; left:50%; transform:translate(-50%,-50%); text-align:center;"><h2 id="upsPct" style="font-size:32px; color:var(--primary); margin:0;">0%</h2></div>
     </div>
-
-    <div class="grid">
-        <div class="card"><div class="card-header" id="t-net">أجهزة الشبكة (Network)</div><canvas id="cNet"></canvas></div>
-        <div class="card"><div class="card-header" id="t-conn">حالة الاتصال (Connectivity)</div><canvas id="cConn"></canvas></div>
-        <div class="card">
-            <div class="card-header" id="t-ups">حالة الـ UPS</div>
-            <canvas id="cUps"></canvas>
-            <div style="position:absolute; top:55%; left:50%; transform:translate(-50%,-50%); text-align:center;"><h2 id="upsPct" style="font-size:38px; color:var(--header-blue); margin:0;">0%</h2></div>
-        </div>
-        <div class="card" style="grid-column: span 3;"><div class="card-header" id="t-train">المتطلبات التدريبية</div><canvas id="cTrain"></canvas></div>
-    </div>
+  </div>
 </main>
-
 <script>
 (function(){
-  const $ = id => document.getElementById(id);
-  Chart.register(ChartDataLabels);
-
-  let charts = {};
-  let state = { visits: [], brands: [], currentLang: 'ar' };
-
-  // قاموس الترجمة
+  const $ = id => document.getElementById(id); Chart.register(ChartDataLabels);
+  let charts = {}, state = { visits: [], brands: [], lang: 'ar' };
   const i18n = {
-    ar: {
-      brands: "إحصائيات البراندات",
-      totalLabel: "إجمالي الزيارات الميدانية",
-      net: "حالة أجهزة الشبكة",
-      conn: "جودة الاتصال",
-      ups: "حالة الـ UPS",
-      train: "نظرة عامة على المتطلبات التدريبية",
-      inShape: "ممتاز",
-      needArr: "يحتاج ترتيب"
-    },
-    en: {
-      brands: "Brand Statistics",
-      totalLabel: "Total Field Visits",
-      net: "Network Appliances",
-      conn: "Connectivity Status",
-      ups: "UPS Status",
-      train: "Training Requirements Overview",
-      inShape: "In Shape",
-      needArr: "Need Arr."
-    }
+    ar: { brands: "إحصائيات البراندات", totalLabel: "إجمالي الزيارات الميدانية", net: "حالة أجهزة الشبكة", conn: "جودة الاتصال", ups: "حالة الـ UPS", inShape: "ممتاز", needArr: "يحتاج ترتيب" },
+    en: { brands: "Brand Statistics", totalLabel: "Total Field Visits", net: "Network Appliances", conn: "Connectivity Status", ups: "UPS Status", inShape: "In Shape", needArr: "Need Arr." }
   };
 
   function applyLanguage(lang) {
-    state.currentLang = lang;
-    const d = i18n[lang];
-    $('t-brands').innerText = d.brands;
-    $('t-total-label').innerText = d.totalLabel;
-    $('t-net').innerText = d.net;
-    $('t-conn').innerText = d.conn;
-    $('t-ups').innerText = d.ups;
-    $('t-train').innerText = d.train;
-    updateUI(); // إعادة رسم الرسوم باللغة الجديدة
+    state.lang = lang; document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    const d = i18n[lang]; $('t-brands').innerText = d.brands; $('t-total-label').innerText = d.totalLabel;
+    $('t-net').innerText = d.net; $('t-conn').innerText = d.conn; $('t-ups').innerText = d.ups;
+    updateUI();
   }
 
-  // ✅ الاستماع لرسالة تغيير اللغة من الصفحة الرئيسية
-  window.addEventListener('message', (e) => {
-    if (e.data.type === 'LANG_CHANGE') {
-      applyLanguage(e.data.lang);
-    }
-  });
+  window.addEventListener('message', e => { if (e.data.type === 'LANG_CHANGE') applyLanguage(e.data.lang); });
 
   function boot(){
-    const db = window.parent.appDb;
-    if (!db) { setTimeout(boot, 500); return; }
-
-    // جلب اللغة الابتدائية من الأب
+    const db = window.parent.appDb; if (!db) { setTimeout(boot, 500); return; }
     applyLanguage(window.parent.currentLang || 'ar');
-
-    db.collection('brand_assets').onSnapshot(snap => {
-        state.brands = snap.docs.map(d => ({id: d.id, ...d.data()}));
-        updateUI();
-    });
-
-    db.collection('branch_checklists').onSnapshot(snap => {
-        state.visits = snap.docs.map(d => d.data());
-        $('totalVisits').textContent = state.visits.length;
-        updateUI();
-    });
+    db.collection('brand_assets').onSnapshot(snap => { state.brands = snap.docs.map(d => d.data()); updateUI(); });
+    db.collection('branch_checklists').onSnapshot(snap => { state.visits = snap.docs.map(d => d.data()); $('totalVisits').textContent = state.visits.length; updateUI(); });
   }
 
   function updateUI() {
-    const counts = {};
-    state.visits.forEach(v => {
-        const b = v.brand || 'Other';
-        counts[b] = (counts[b] || 0) + 1;
-    });
-
+    const counts = {}; state.visits.forEach(v => { const b = v.brand || 'Other'; counts[b] = (counts[b] || 0) + 1; });
     $('sideBrandList').innerHTML = state.brands.map(b => {
-        const c = counts[b.brand] || 0;
-        const logoSrc = b.logoData || b.logoUrl || 'https://placehold.jp/50x30.png';
-        return `
-          <div class="brand-item">
-            <div class="brand-info">
-              <img src="${logoSrc}" class="brand-logo">
-              <span class="brand-name">${b.brand}</span>
-            </div>
-            <span class="brand-count">${c}</span>
-          </div>`;
+      const c = counts[b.brand] || 0;
+      const logo = b.logoData || b.logoUrl || 'https://placehold.jp/45x28.png';
+      return `<div class="brand-item"><div><img src="${logo}" class="brand-logo"><span style="font-size:12px; font-weight:800; margin-right:10px;">${b.brand}</span></div><span class="brand-count">${c}</span></div>`;
     }).join('');
-
-    processChartsData(state.visits);
+    renderCharts();
   }
 
-  function processChartsData(docs) {
-    const total = docs.length || 0;
-    const d = i18n[state.currentLang];
-    let s = { net: 0 };
-    docs.forEach(v => { if(v.dynamicAnswers?.["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") s.net++; });
-    
-    const valNet = total > 0 ? Math.round((s.net/total)*100) : 0;
-    renderBar('cNet', [d.inShape, d.needArr], [valNet, 100-valNet], ['#10b981', '#cbd5e1']);
-    // ... بقية الرسوم البيانية بنفس الطريقة
-  }
-
-  function renderBar(id, labels, data, colors) {
-    if (charts[id]) charts[id].destroy();
-    charts[id] = new Chart($(id), {
-      type: 'bar',
-      data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 6 }] },
-      options: { 
-        indexAxis: 'y',
-        plugins: { legend: {display:false}, datalabels: { color:'#fff', font:{weight:'bold'}, formatter: v => v+'%' } },
-        scales: { x: { max: 100, display: false }, y: { ticks: { font: { weight: 'bold' } } } }
-      }
+  function renderCharts() {
+    const total = state.visits.length, d = i18n[state.lang];
+    let s = { net: 0, conn: {a:0, w:0, b:0} };
+    state.visits.forEach(v => {
+      const a = v.dynamicAnswers || {};
+      if(a["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") s.net++;
+      if(a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") s.conn.a++;
+      if(a["BcjdipZxDmVgodHk9t1B"] === "within_the_range") s.conn.w++;
     });
+    const calc = v => total > 0 ? Math.round((v/total)*100) : 0;
+    drawBar('cNet', [d.inShape, d.needArr], [calc(s.net), 100-calc(s.net)], ['#10b981', '#cbd5e1']);
+    drawBar('cConn', ['Above', 'Within'], [calc(s.conn.a), calc(s.conn.w)], ['#10b981', '#f59e0b']);
+    drawDoughnut('cUps', 0);
   }
 
+  function drawBar(id, labels, data, colors) {
+    if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart($(id), { type: 'bar', data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 5 }] }, options: { indexAxis: 'y', plugins: { legend: {display:false}, datalabels: { color:'#fff', formatter: v => v+'%' } }, scales: { x: { max: 100, display: false }, y: { grid: { display:false } } } } });
+  }
+
+  function drawDoughnut(id, val) {
+    $('upsPct').innerText = val + "%"; if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart($(id), { type: 'doughnut', data: { datasets: [{ data: [val, 100-val], backgroundColor: ['#0d4b73', '#e2e8f0'] }] }, options: { cutout: '80%', plugins: { datalabels: {display:false} } } });
+  }
   boot();
 })();
 </script>
