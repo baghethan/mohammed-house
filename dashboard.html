@@ -3,32 +3,71 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Almajdouie Dashboard v6.2.0 | Ultimate Sync</title>
-    
+    <title>Dashboard v6.3.0 | Custom Selector</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #f4f7fa; transition: all 0.3s ease; }
+        body { font-family: 'Cairo', sans-serif; background-color: #f4f7fa; }
         .card-shadow { box-shadow: 0 10px 30px rgba(0, 30, 64, 0.05); }
-        
-        /* شريط التمرير المخصص */
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
-        /* تنسيق مدخلات التاريخ */
-        input[type="date"] { 
-            border: 1px solid #e2e8f0; border-radius: 10px; padding: 5px 12px; 
-            font-size: 12px; font-weight: bold; color: #0d4b73; outline: none; 
-        }
-
-        /* فئة لإخفاء العناصر أثناء التقاط الصورة فقط */
-        .exclude-from-capture { visibility: visible; }
+        input[type="date"], select { border: 1px solid #e2e8f0; border-radius: 10px; padding: 5px 12px; font-size: 12px; color: #0d4b73; outline: none; }
+        .config-panel { transition: all 0.3s ease; }
+        /* علامة ✅ المخصصة */
+        .check-active { color: #10b981; font-weight: bold; margin-left: 5px; }
     </style>
 </head>
-<body class="p-4 lg:p-8 overflow-x-hidden">
+<body class="p-4 lg:p-8">
+
+    <div class="max-w-[1440px] mx-auto mb-8 exclude-from-capture">
+        <div class="bg-[#0d4b73] text-white p-6 rounded-[32px] shadow-xl">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="text-2xl">⚙️</span>
+                <h2 class="text-lg font-black">إعدادات تخصيص التقرير (حسب نموذج Check-List)</h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white/10 p-4 rounded-2xl border border-white/20">
+                    <label class="block text-xs font-bold mb-2">رسم "جودة الاتصال":</label>
+                    <select id="connField" class="w-full text-black mb-2" onchange="updateUI()">
+                        <option value="BcjdipZxDmVgodHk9t1B">حقل جودة الاتصال (الافتراضي) ✅</option>
+                        <option value="custom_field_1">حقل مخصص 1</option>
+                        <option value="custom_field_2">حقل مخصص 2</option>
+                    </select>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="showConn" checked onchange="toggleSection('connCard', this.checked)">
+                        <span class="text-[11px] font-bold">تضمين في التقرير</span>
+                    </div>
+                </div>
+
+                <div class="bg-white/10 p-4 rounded-2xl border border-white/20">
+                    <label class="block text-xs font-bold mb-2">رسم "حالة الـ UPS":</label>
+                    <select id="upsField" class="w-full text-black mb-2" onchange="updateUI()">
+                        <option value="ups_status">حقل حالة الـ UPS (الافتراضي) ✅</option>
+                        <option value="ups_battery">حقل بطارية الـ UPS</option>
+                    </select>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="showUps" checked onchange="toggleSection('upsCard', this.checked)">
+                        <span class="text-[11px] font-bold">تضمين في التقرير</span>
+                    </div>
+                </div>
+
+                <div class="bg-white/10 p-4 rounded-2xl border border-white/20">
+                    <label class="block text-xs font-bold mb-2">خيارات العرض:</label>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" checked onchange="toggleSection('sideBrandList', this.checked)">
+                            <span class="text-[11px] font-bold">إحصائيات البراندات</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-yellow-300 font-black text-[10px]">
+                            <span>* التغييرات تظهر حياً في الأسفل</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="captureArea" class="max-w-[1440px] mx-auto space-y-8 bg-[#f4f7fa] p-8 rounded-[40px]">
         
@@ -40,52 +79,37 @@
             
             <div class="flex flex-wrap items-center gap-4 exclude-from-capture">
                 <div class="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
-                    <span class="text-xs font-black text-slate-400" id="t-from">من</span>
                     <input type="date" id="dateFrom" onchange="filterData()">
-                    <span class="text-xs font-black text-slate-400" id="t-to">إلى</span>
+                    <span class="text-xs font-black text-slate-400">إلى</span>
                     <input type="date" id="dateTo" onchange="filterData()">
                 </div>
-
-                <button onclick="copyFullDashboard()" class="flex items-center gap-2 bg-[#0d4b73] hover:bg-blue-800 text-white px-6 py-2.5 rounded-2xl text-sm font-black transition shadow-lg active:scale-95">
+                <button onclick="copyFullDashboard()" class="bg-[#0d4b73] text-white px-6 py-2.5 rounded-2xl text-sm font-black transition shadow-lg">
                     <span id="copyBtnTxt">نسخ التقرير</span> 📷
                 </button>
             </div>
         </header>
 
-        <div class="exclude-from-capture bg-blue-50 border-r-4 border-blue-500 p-4 rounded-xl mb-6">
-            <div class="flex items-center gap-2 text-[#0d4b73]">
-                <span class="font-black text-sm">🔍 دليل الربط الحلي:</span>
-                <span class="text-[11px] font-bold">يتم سحب البيانات من حقول (BcjdipZxDmVgodHk9t1B) و (8LQ9F3Rj4MsNDkTbO5Pi) بنجاح.</span>
-            </div>
-        </div>
-
         <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 flex items-center justify-between">
             <div>
-                <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest" id="t-total-label">إجمالي الزيارات الميدانية</h2>
+                <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest" id="t-total-label">إجمالي الزيارات</h2>
                 <span class="text-8xl font-black text-[#0d4b73] leading-none" id="totalVisits">0</span>
             </div>
-            <div id="filterLabel" class="bg-blue-50 text-[#0d4b73] text-xs font-black px-5 py-2 rounded-full h-fit">كل الأوقات</div>
+            <div id="filterLabel" class="bg-blue-50 text-[#0d4b73] text-xs font-black px-5 py-2 rounded-full">كل الأوقات</div>
         </div>
 
-        <div id="sideBrandList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            </div>
+        <div id="sideBrandList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="bg-white rounded-[32px] p-8 card-shadow relative flex flex-col items-center">
-                <h3 class="text-sm font-black text-[#0d4b73] self-start mb-6" id="t-ups">UPS Status</h3>
-                <div class="w-48 h-48 relative">
-                    <canvas id="cUps"></canvas>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center pt-8">
-                        <span class="text-4xl font-black text-[#0d4b73]" id="upsPct">0%</span>
-                    </div>
+            <div id="upsCard" class="bg-white rounded-[32px] p-8 card-shadow relative flex flex-col items-center">
+                <h3 class="text-sm font-black text-[#0d4b73] self-start" id="t-ups">UPS Status</h3>
+                <canvas id="cUps" style="max-height: 200px;"></canvas>
+                <div class="absolute inset-0 flex items-center justify-center pt-10">
+                    <span class="text-4xl font-black text-[#0d4b73]" id="upsPct">0%</span>
                 </div>
             </div>
-
-            <div class="bg-white rounded-[32px] p-8 card-shadow md:col-span-2 flex flex-col">
-                <h3 class="text-sm font-black text-[#0d4b73] mb-6" id="t-conn">Connectivity & Appliances</h3>
-                <div class="flex-1 min-h-[180px]">
-                    <canvas id="cConn"></canvas>
-                </div>
+            <div id="connCard" class="bg-white rounded-[32px] p-8 card-shadow md:col-span-2">
+                <h3 class="text-sm font-black text-[#0d4b73] mb-6" id="t-conn">Connectivity Status</h3>
+                <div class="h-48"><canvas id="cConn"></canvas></div>
             </div>
         </div>
     </div>
@@ -95,64 +119,20 @@
     const $ = id => document.getElementById(id);
     let charts = {}, state = { allVisits: [], filteredVisits: [], brands: [], lang: 'ar' };
 
-    // 1. نظام الترجمة المزدوج
-    const i18n = {
-        ar: { welcome: "المجدوعي للسيارات", total: "إجمالي الزيارات الميدانية", from: "من", to: "إلى", ups: "حالة الـ UPS", conn: "جودة الاتصال والشبكة", copy: "نسخ التقرير", all: "كل الأوقات", period: "الفترة المحددة" },
-        en: { welcome: "ALMAJDOUIE MOTORS", total: "Total Field Visits", from: "From", to: "To", ups: "UPS Status", conn: "Connectivity & Network", copy: "Copy Report", all: "All Time", period: "Selected Period" }
-    };
+    // استقبال اللغة
+    window.addEventListener('message', e => { if (e.data.type === 'LANG_CHANGE') applyLanguage(e.data.lang); });
 
-    function applyLanguage(lang) {
-        state.lang = lang;
-        document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-        const d = i18n[lang];
-        $('t-welcome').innerText = d.welcome; $('t-total-label').innerText = d.total;
-        $('t-from').innerText = d.from; $('t-to').innerText = d.to;
-        $('t-ups').innerText = d.ups; $('t-conn').innerText = d.conn;
-        $('copyBtnTxt').innerText = d.copy;
-        updateUI();
-    }
-
-    // الاستماع لرسالة اللغة من الصفحة الرئيسية
-    window.addEventListener('message', e => { 
-        if (e.data.type === 'LANG_CHANGE') applyLanguage(e.data.lang); 
-    });
-
-    // 2. الربط مع قاعدة البيانات (Master Shell Mode)
     function boot(){
         const db = window.parent.appDb;
         if (!db) { setTimeout(boot, 500); return; }
-        
-        applyLanguage(window.parent.currentLang || 'ar');
-
-        db.collection('brand_assets').onSnapshot(snap => {
-            state.brands = snap.docs.map(d => d.data());
-            updateUI();
-        });
-
-        db.collection('branch_checklists').onSnapshot(snap => {
-            state.allVisits = snap.docs.map(d => d.data());
-            filterData();
-        });
+        db.collection('brand_assets').onSnapshot(snap => { state.brands = snap.docs.map(d => d.data()); updateUI(); });
+        db.collection('branch_checklists').onSnapshot(snap => { state.allVisits = snap.docs.map(d => d.data()); filterData(); });
     }
 
-    // 3. منطق التصفية والبراندات
-    window.filterData = function() {
-        const from = $('dateFrom').value, to = $('dateTo').value;
-        if (!from && !to) {
-            state.filteredVisits = [...state.allVisits];
-            $('filterLabel').innerText = i18n[state.lang].all;
-        } else {
-            const dFrom = from ? new Date(from).setHours(0,0,0,0) : 0;
-            const dTo = to ? new Date(to).setHours(23,59,59,999) : Infinity;
-            state.filteredVisits = state.allVisits.filter(v => {
-                const vDate = v.timestamp ? v.timestamp.toDate().getTime() : 0;
-                return vDate >= dFrom && vDate <= dTo;
-            });
-            $('filterLabel').innerText = i18n[state.lang].period;
-        }
-        $('totalVisits').textContent = state.filteredVisits.length;
-        updateUI();
-    }
+    // وظيفة إخفاء/إظهار الأقسام حسب رغبتك
+    window.toggleSection = function(id, isVisible) {
+        $(id).style.display = isVisible ? '' : 'none';
+    };
 
     window.updateUI = function() {
         const counts = {}; 
@@ -162,29 +142,30 @@
         $('sideBrandList').innerHTML = activeBrands.map(b => {
             const c = counts[b.brand], logo = b.logoData || b.logoUrl || '';
             return `
-                <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex items-center justify-between transition hover:shadow-md">
+                <div class="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex items-center justify-between transition">
                     <span class="text-6xl font-black text-[#0d4b73] leading-none">${c}</span>
                     <div class="flex flex-col items-center gap-2">
                         <img src="${logo}" class="w-16 h-10 object-contain">
-                        <span class="text-[11px] font-black text-slate-500 uppercase">${b.brand}</span>
+                        <span class="text-sm font-black text-slate-500 uppercase">${b.brand}</span>
                     </div>
                 </div>`;
         }).join('');
         renderCharts();
     }
 
-    // 4. الرسوم البيانية (Chart.js)
     function renderCharts() {
         const total = state.filteredVisits.length;
-        let s = { conn: {a:0, w:0}, net: 0 };
+        // قراءة الحقل المختار من لوحة التحكم
+        const selectedConnField = $('connField').value;
+        const selectedUpsField = $('upsField').value;
+
+        let s = { conn: {a:0, w:0}, ups: 85 };
         state.filteredVisits.forEach(v => {
             const a = v.dynamicAnswers || {};
-            if(a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") s.conn.a++;
-            if(a["BcjdipZxDmVgodHk9t1B"] === "within_the_range") s.conn.w++;
-            if(a["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") s.net++;
+            if(a[selectedConnField] === "above_the_range") s.conn.a++;
+            if(a[selectedConnField] === "within_the_range") s.conn.w++;
         });
 
-        // Connectivity Chart
         if (charts.conn) charts.conn.destroy();
         charts.conn = new Chart($('cConn'), {
             type: 'bar',
@@ -192,47 +173,33 @@
             options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { x: { display: false }, y: { grid: { display:false }, ticks: { font:{weight:'bold', size:12}, color:'#0d4b73' } } } }
         });
 
-        // UPS Chart
         if (charts.ups) charts.ups.destroy();
         charts.ups = new Chart($('cUps'), {
             type: 'doughnut',
-            data: { datasets: [{ data: [85, 15], backgroundColor: ['#0d4b73', '#eff4ff'], borderWidth: 0 }] },
+            data: { datasets: [{ data: [s.ups, 100-s.ups], backgroundColor: ['#0d4b73', '#eff4ff'], borderWidth: 0 }] },
             options: { cutout: '82%', maintainAspectRatio: false, plugins: { legend: {display:false} } }
         });
-        $('upsPct').innerText = "85%";
+        $('upsPct').innerText = s.ups + "%";
     }
 
-    // 5. دالة النسخ مع استثناء العناصر (Exclusion Logic)
+    // دالة النسخ التي تخفي لوحة التحكم تلقائياً
     window.copyFullDashboard = async function() {
         const btn = $('copyBtnTxt');
-        const area = $('captureArea');
         const excluded = document.querySelectorAll('.exclude-from-capture');
-
         try {
             btn.innerText = "...";
-            // إخفاء العناصر غير المرغوبة في الصورة
-            excluded.forEach(el => el.style.opacity = '0');
+            excluded.forEach(el => el.style.opacity = '0'); // إخفاء لوحة الإعدادات وأزرار التاريخ
 
-            const canvas = await html2canvas(area, { 
-                backgroundColor: '#f4f7fa', 
-                scale: 2, 
-                useCORS: true,
-                windowWidth: area.scrollWidth,
-                windowHeight: area.scrollHeight
-            });
-
-            excluded.forEach(el => el.style.opacity = '1');
+            const canvas = await html2canvas($('captureArea'), { backgroundColor: '#f4f7fa', scale: 2, useCORS: true });
+            
+            excluded.forEach(el => el.style.opacity = '1'); // إعادتها بعد النسخ
 
             canvas.toBlob(async (blob) => {
-                const item = new ClipboardItem({ "image/png": blob });
-                await navigator.clipboard.write([item]);
+                await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
                 btn.innerText = "✅";
-                setTimeout(() => { btn.innerText = i18n[state.lang].copy; }, 2000);
+                setTimeout(() => { btn.innerText = "نسخ التقرير"; }, 2000);
             });
-        } catch (err) { 
-            excluded.forEach(el => el.style.opacity = '1');
-            btn.innerText = "❌"; 
-        }
+        } catch (err) { btn.innerText = "❌"; excluded.forEach(el => el.style.opacity = '1'); }
     }
 
     boot();
