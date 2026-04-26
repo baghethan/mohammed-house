@@ -2,37 +2,118 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard Turbo</title>
+  <title>Dashboard Turbo | المجدوعي</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: 'Cairo', sans-serif; background: #f4f7fa; padding: 20px; }
-    .stat-card { background: #fff; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .big-num { font-size: 60px; color: #0d4b73; font-weight: 900; margin: 10px 0; }
+    :root { --primary: #0d4b73; --bg: #f4f7fa; --card: #ffffff; }
+    body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
+    
+    /* الشريط الجانبي للبراندات */
+    .sidebar { width: 260px; background: #fff; border-left: 1px solid #e2e8f0; padding: 15px; display: flex; flex-direction: column; }
+    .brand-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #f1f5f9; transition: 0.2s; }
+    .brand-info { display: flex; align-items: center; gap: 10px; }
+    .brand-logo { width: 40px; height: 25px; object-fit: contain; }
+    .brand-name { font-size: 12px; font-weight: bold; color: #475569; }
+    .brand-count { background: var(--primary); color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+
+    /* المنطقة الرئيسية */
+    .main-content { flex: 1; padding: 20px; overflow-y: auto; }
+    .top-stats { text-align: center; margin-bottom: 25px; }
+    #totalVisits { font-size: 64px; font-weight: 900; color: var(--primary); margin: 0; line-height: 1; }
+    
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
+    .card { background: var(--card); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+    .card-header { background: var(--primary); color: #fff; padding: 8px 15px; font-size: 13px; font-weight: bold; }
+    canvas { padding: 15px; max-height: 250px; }
   </style>
 </head>
 <body>
 
-  <div class="stat-card">
-    <h3>إجمالي الزيارات (Visits)</h3>
-    <div class="big-num" id="totalNum">...</div>
-    <div id="status">جاري جلب البيانات من المحرك الرئيسي...</div>
-  </div>
+  <aside class="sidebar">
+    <div style="text-align: center; margin-bottom: 15px;">
+      <span style="font-size: 11px; color: #94a3b8; font-weight: bold;">إحصائيات البراندات</span>
+    </div>
+    <div id="sideBrandList">
+      </div>
+  </aside>
 
-  <script>
-    // ✅ استعارة المحرك من الصفحة الرئيسية فوراً وبدون انتظار
-    const db = window.parent.appDb;
-    const auth = window.parent.appAuth;
+  <main class="main-content">
+    <div class="top-stats">
+      <h1 id="totalVisits">0</h1>
+      <div style="font-size: 14px; font-weight: bold; color: #64748b;">إجمالي الزيارات الميدانية</div>
+      <div id="statusTxt" style="font-size: 10px; color: #10b981; margin-top: 5px;">جاري المزامنة...</div>
+    </div>
 
-    if (!db) {
-        document.getElementById('status').innerHTML = "⚠️ خطأ: لا يمكن الوصول للمحرك الرئيسي";
-    } else {
-        // الاتصال هنا فوري (Zero Latency)
-        db.collection('branch_checklists').onSnapshot(snap => {
-            document.getElementById('totalNum').innerText = snap.size;
-            document.getElementById('status').innerText = "متصل مباشر ✅";
-        });
-    }
-  </script>
+    <div class="grid">
+      <div class="card"><div class="card-header">Network Appliances Status</div><canvas id="cNet"></canvas></div>
+      <div class="card"><div class="card-header">Connectivity Level</div><canvas id="cConn"></canvas></div>
+    </div>
+  </main>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+
+  // ✅ الخطوة الذهبية: استعارة الاتصال من الصفحة الرئيسية فوراً
+  // هذا يمنع تأخير الـ 10 ثوانٍ ويمنع اختفاء البيانات
+  const db = window.parent.appDb;
+  const auth = window.parent.appAuth;
+
+  if (!db) {
+    $('statusTxt').innerText = "⚠️ خطأ: يرجى فتح الصفحة من النظام الرئيسي";
+    $('statusTxt').style.color = "red";
+    return;
+  }
+
+  let state = { visits: [], brands: [] };
+
+  // جلب البراندات والشعارات
+  db.collection('brand_assets').onSnapshot(snap => {
+    state.brands = snap.docs.map(d => d.data());
+    updateUI();
+  });
+
+  // جلب الزيارات الميدانية
+  db.collection('branch_checklists').onSnapshot(snap => {
+    state.visits = snap.docs.map(d => d.data());
+    $('statusTxt').innerText = "متصل مباشر ✅";
+    updateUI();
+  });
+
+  function updateUI() {
+    const total = state.visits.length;
+    $('totalVisits').innerText = total;
+
+    // 1. حساب عدد زيارات كل براند
+    const brandCounts = {};
+    state.visits.forEach(v => {
+      const bName = v.brand || 'Other';
+      brandCounts[bName] = (brandCounts[bName] || 0) + 1;
+    });
+
+    // 2. تحديث قائمة البراندات في السايدبار (مع الشعار والعدد)
+    $('sideBrandList').innerHTML = state.brands.map(b => {
+      const count = brandCounts[b.brand] || 0;
+      return `
+        <div class="brand-item">
+          <div class="brand-info">
+            <img src="${b.logoUrl || 'https://placehold.jp/40x25.png'}" class="brand-logo">
+            <span class="brand-name">${b.brand}</span>
+          </div>
+          <span class="brand-count">${count}</span>
+        </div>
+      `;
+    }).join('');
+
+    // 3. تحديث الرسوم البيانية (اختياري حسب بياناتك)
+    renderCharts(state.visits);
+  }
+
+  function renderCharts(data) {
+    // منطق الرسوم البيانية كما في نسختك السابقة...
+  }
+})();
+</script>
 </body>
 </html>
