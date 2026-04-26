@@ -1,301 +1,146 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <title>Almajdouie Motors — Control Center V1.3.3</title>
+  <meta charset="UTF-8">
+  <title>Windows 11 Upgrade Tracking</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root { --primary: #0d4b73; --bg: #f8fafc; --card: #ffffff; }
+    body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); padding: 20px; color: #334155; }
     
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    .container { max-width: 900px; margin: 0 auto; }
+    .card { background: var(--card); border-radius: 12px; border: 1px solid #e2e8f0; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--bg); padding-bottom: 15px; margin-bottom: 20px; }
+    h2 { color: var(--primary); margin: 0; font-weight: 900; }
+    
+    .form-group { margin-bottom: 20px; }
+    label { display: block; font-weight: 800; margin-bottom: 8px; font-size: 14px; }
+    select, input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; }
+    
+    .emp-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-top: 15px; }
+    .emp-input { border: 1px solid var(--primary); background: #f0f7ff; }
 
-    <style>
-        :root { --primary: #0d4b73; --dark: #072d46; --success: #10b981; --warning: #f59e0b; --danger: #d64545; --bg: #f0f4f8; }
-        body { margin: 0; display: flex; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #1e293b; height: 100vh; overflow: hidden; }
-
-        /* 1. الشريط الجانبي (Sidebar) */
-        .sidebar { width: 260px; background: var(--dark); color: white; display: flex; flex-direction: column; transition: 0.3s; }
-        .sidebar-header { padding: 30px 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar-header img { width: 140px; margin-bottom: 15px; }
-        
-        .nav-menu { flex: 1; padding: 20px 10px; list-style: none; margin: 0; }
-        .nav-item { 
-            padding: 12px 20px; border-radius: 10px; margin-bottom: 8px; cursor: pointer; 
-            display: flex; align-items: center; gap: 15px; transition: 0.3s; color: #cbd5e1; text-decoration: none;
-        }
-        .nav-item:hover { background: rgba(255,255,255,0.1); color: white; }
-        .nav-item.active { background: var(--primary); color: white; }
-
-        /* 2. المحتوى الرئيسي */
-        .main-content { flex: 1; overflow-y: auto; padding: 30px; position: relative; }
-        .top-info { display: flex; justify-content: space-between; margin-bottom: 25px; align-items: center; }
-
-        /* البطاقات الإحصائية */
-        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 15px; text-align: center; border-bottom: 5px solid var(--primary); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .stat-card h2 { font-size: 38px; margin: 10px 0; color: var(--primary); }
-
-        /* الأقسام الثلاثة في المنتصف */
-        .middle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
-        .list-card { background: white; border-radius: 15px; padding: 15px; border: 1px solid #e2e8f0; }
-        .item-row { background: #f8fafc; border-radius: 10px; padding: 10px; margin-bottom: 8px; }
-        .brand-logo { width: 30px; height: 30px; object-fit: contain; margin-left: 10px; }
-
-        /* الفورم المطور (15 حقل) */
-        .admin-box { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 30px; }
-        .form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 20px; }
-        .field { display: flex; flex-direction: column; gap: 5px; }
-        label { font-size: 11px; font-weight: bold; color: #64748b; }
-        input, select { padding: 9px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; }
-
-        /* الجدول الشامل */
-        .table-section { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .table-wrapper { overflow-x: auto; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; min-width: 1500px; text-align: center; font-size: 12px; }
-        th { background: #f8fafc; padding: 12px; border-bottom: 2px solid #eee; color: var(--primary); }
-        td { padding: 10px; border-bottom: 1px solid #f1f5f9; }
-        
-        .action-icon { cursor: pointer; margin: 0 8px; font-size: 15px; }
-    </style>
+    button { 
+      background: var(--primary); color: #fff; border: none; padding: 12px 30px; 
+      border-radius: 8px; cursor: pointer; font-weight: 900; width: 100%; font-size: 16px; 
+      transition: 0.3s; margin-top: 10px;
+    }
+    button:hover { opacity: 0.9; transform: translateY(-2px); }
+    
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; background: #10b981; color: #fff; }
+  </style>
 </head>
 <body>
 
-<div class="sidebar">
-    <div class="sidebar-header">
-        <img src="LOGO-almajdouie.png" alt="Logo">
-        <div style="font-size: 14px; font-weight: bold; margin-top: 10px;">نظام ترقية ويندوز</div>
-    </div>
-    
-    <ul class="nav-menu">
-        <li class="nav-item active">
-            <i class="fas fa-tasks"></i> <span>إدارة البيانات (Control)</span>
-        </li>
-        <a href="windows-report.html" class="nav-item">
-            <i class="fas fa-print"></i> <span>صفحة التقارير (Print)</span>
-        </a>
-        <li class="nav-item" onclick="logout()">
-            <i class="fas fa-sign-out-alt"></i> <span>تسجيل الخروج</span>
-        </li>
-    </ul>
-    
-    <div style="padding: 20px; font-size: 10px; color: rgba(255,255,255,0.3); text-align: center;">
-        V 1.3.3 | Project: baghethan-ba325
-    </div>
-</div>
-
-<div class="main-content">
-    <div class="top-info">
-        <h2 style="margin:0">لوحة التحكم المركزية</h2>
-        <div id="user-display" style="font-size: 12px; color: #64748b;">● جاري الاتصال...</div>
+<div class="container">
+  <div class="card">
+    <div class="header">
+      <h2 id="t-title">ترقية ويندوز 11 | Windows 11 Upgrade</h2>
+      <div id="status" class="status-badge">متصل بالمحرك ✅</div>
     </div>
 
-    <div class="stats-grid">
-        <div class="stat-card"><span>إجمالي الأجهزة</span><h2 id="v-total">0</h2></div>
-        <div class="stat-card" style="border-color:var(--warning)"><span>متبقي (Planned)</span><h2 id="v-remain" style="color:var(--warning)">0</h2></div>
-        <div class="stat-card" style="border-color:var(--success)"><span>مكتمل (Completed)</span><h2 id="v-done" style="color:var(--success)">0</h2></div>
-    </div>
+    <form id="upgradeForm">
+      <div class="form-group">
+        <label id="t-question">هل تم ترقية أجهزة الفرع؟</label>
+        <select id="isUpgraded" onchange="toggleInputs()">
+          <option value="no">لا / No</option>
+          <option value="yes">نعم / Yes</option>
+        </select>
+      </div>
 
-    <div class="middle-grid">
-        <div class="list-card"><b><i class="fas fa-map-marker-alt"></i> المناطق</b> <div id="list-reg" style="max-height:220px; overflow-y:auto; margin-top:10px;"></div></div>
-        <div class="list-card"><b><i class="fas fa-city"></i> المدن</b> <div id="list-city" style="max-height:220px; overflow-y:auto; margin-top:10px;"></div></div>
-        <div class="list-card"><b><i class="fas fa-car"></i> البراندات</b> <div id="list-brand" style="max-height:220px; overflow-y:auto; margin-top:10px;"></div></div>
-    </div>
-
-    <div class="admin-box">
-        <div style="background:var(--primary); color:white; padding:12px 20px; font-weight:bold; display:flex; justify-content:space-between;">
-            <span id="form-title">إضافة سجل جديد</span>
-            <i class="fas fa-edit"></i>
+      <div id="extraInputs" style="display: none;">
+        <div class="form-group">
+          <label id="t-count">كم عدد الأجهزة التي تمت ترقيتها؟</label>
+          <input type="number" id="deviceCount" min="1" placeholder="مثلاً: 5" oninput="generateEmpFields()">
         </div>
-        <form id="mainForm">
-            <input type="hidden" id="edit-id">
-            <div class="form-grid">
-                <div class="field"><label>Branch ID</label><input type="text" id="in-branchId"></div>
-                <div class="field"><label>Branch Name</label><input type="text" id="in-branchName"></div>
-                <div class="field"><label>Brand</label><select id="in-brand"><option>Hyundai</option><option>Genesis</option><option>Changan</option><option>Stellantis</option></select></div>
-                <div class="field"><label>Function</label><input type="text" id="in-function"></div>
-                <div class="field"><label>City</label><input type="text" id="in-city"></div>
-                <div class="field"><label>Region</label><input type="text" id="in-region"></div>
-                <div class="field"><label>Employee ID</label><input type="text" id="in-employeeId"></div>
-                <div class="field"><label>اسم الموظف</label><input type="text" id="in-employeeName"></div>
-                <div class="field"><label>اسم الجهاز</label><input type="text" id="in-deviceName"></div>
-                <div class="field"><label>تاريخ الزيارة</label><input type="date" id="in-visitDate"></div>
-                <div class="field"><label>تاريخ التشيك</label><input type="date" id="in-checkDate"></div>
-                <div class="field"><label>تاريخ الحفظ</label><input type="date" id="in-savedDate"></div>
-                <div class="field" style="grid-column: span 2;"><label>الحالة</label><select id="in-status"><option value="planned">Planned</option><option value="completed">Completed</option></select></div>
-            </div>
-            <div style="padding:15px 20px; border-top:1px solid #eee; background:#fff; display:flex; gap:10px">
-                <button type="button" style="background:var(--success); color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;" onclick="saveData()">حفظ السجل</button>
-                <button type="button" style="background:#e2e8f0; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;" onclick="clearForm()">تنظيف</button>
-                <div style="flex:1"></div>
-                <input type="file" id="xlInput" style="display:none" onchange="uploadXL(this)">
-                <button type="button" style="background:#b45309; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;" onclick="document.getElementById('xlInput').click()">رفع Excel (مسح القديم)</button>
-            </div>
-        </form>
-    </div>
-
-    <div class="table-section">
-        <h4 style="margin:0 0 15px 0">سجلات البيانات التفصيلية</h4>
-        <div class="table-wrapper">
-            <table id="mainTable">
-                <thead>
-                    <tr>
-                        <th>Branch ID</th><th>Name</th><th>Brand</th><th>Function</th><th>City</th><th>Region</th>
-                        <th>Emp ID</th><th>Employee</th><th>Device</th><th>Visit</th><th>Checklist</th><th>Saved</th><th>Status</th><th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody"></tbody>
-            </table>
+        
+        <div id="empNumbersContainer">
+            <label id="t-emp-label">أدخل الأرقام الوظيفية للأجهزة:</label>
+            <div class="emp-list" id="empList"></div>
         </div>
-    </div>
+      </div>
+
+      <button type="submit" id="t-save">حفظ البيانات | Save Data</button>
+    </form>
+  </div>
 </div>
 
 <script>
-    // --- Firebase Configuration ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
-      authDomain: "baghethan-ba325.firebaseapp.com",
-      projectId: "baghethan-ba325",
-      storageBucket: "baghethan-ba325.firebasestorage.app",
-      messagingSenderId: "944819735112",
-      appId: "1:944819735112:web:07315600da39377320667d"
-    };
+(function(){
+  const $ = id => document.getElementById(id);
+  let state = { lang: 'ar' };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const auth = firebase.auth();
-    let brandLogos = {};
+  // 1. استعارة المحرك من الصفحة الرئيسية (السر هنا!)
+  const db = window.parent.appDb;
+  const auth = window.parent.appAuth;
 
-    auth.onAuthStateChanged(async user => {
-        if (user) {
-            document.getElementById('user-display').innerText = "● المستخدم: " + user.email;
-            await loadLogos();
-            startSync();
-        } else { window.location.href = "login.html"; }
-    });
-
-    async function loadLogos() {
-        const snap = await db.collection("brand_assets").get();
-        snap.forEach(doc => { if(doc.data().brandKey) brandLogos[doc.data().brandKey.toLowerCase()] = doc.data().logoData; });
+  function boot() {
+    if (!db) {
+        console.warn("في انتظار المحرك الرئيسي...");
+        setTimeout(boot, 500);
+        return;
     }
+    applyLanguage(window.parent.currentLang || 'ar');
+  }
 
-    function startSync() {
-        db.collection("windows_upgrades").onSnapshot(snapshot => {
-            let total = 0, done = 0;
-            const sums = { region: {}, city: {}, brand: {} };
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '';
+  // 2. مزامنة اللغة مع الصفحة الرئيسية
+  const i18n = {
+    ar: { title: "ترقية ويندوز 11", question: "هل تم ترقية أجهزة الفرع؟", count: "عدد الأجهزة المرتقاة", save: "حفظ البيانات", emp: "الأرقام الوظيفية" },
+    en: { title: "Windows 11 Upgrade", question: "Have the branch devices been upgraded?", count: "Number of upgraded devices", save: "Save Data", emp: "Employee IDs" }
+  };
 
-            snapshot.forEach(doc => {
-                const d = doc.data();
-                let c = parseInt(d.devicesCount || 1);
-                let s = String(d.status || '').toLowerCase().trim();
-                total += c; if(s === 'completed') done += c;
+  function applyLanguage(lang) {
+    state.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    const d = i18n[lang];
+    $('t-title').innerText = d.title;
+    $('t-question').innerText = d.question;
+    $('t-count').innerText = d.count;
+    $('t-save').innerText = d.save;
+    $('t-emp-label').innerText = d.emp;
+  }
 
-                ['region', 'city', 'brand'].forEach(k => {
-                    let val = d[k] || 'N/A';
-                    if(!sums[k][val]) sums[k][val] = { t:0, d:0 };
-                    sums[k][val].t += c; if(s === 'completed') sums[k][val].d += c;
-                });
+  window.addEventListener('message', e => {
+    if (e.data.type === 'LANG_CHANGE') applyLanguage(e.data.lang);
+  });
 
-                tbody.innerHTML += `<tr>
-                    <td>${d.branchId || '-'}</td><td>${d.branchName || '-'}</td><td>${d.brand || '-'}</td>
-                    <td>${d.function || '-'}</td><td>${d.city || '-'}</td><td>${d.region || '-'}</td>
-                    <td>${d.employeeId || '-'}</td><td>${d.employeeName || '-'}</td><td>${d.deviceName || '-'}</td>
-                    <td>${d.technicianVisitDate || '-'}</td><td>${d.checklistDate || '-'}</td><td>${d.savedDate || '-'}</td>
-                    <td><b style="color:${s==='completed'?'green':'orange'}">${d.status}</b></td>
-                    <td>
-                        <i class="fas fa-edit action-icon" style="color:var(--primary)" onclick="editDoc('${doc.id}')"></i>
-                        <i class="fas fa-trash action-icon" style="color:var(--danger)" onclick="deleteDoc('${doc.id}')"></i>
-                    </td>
-                </tr>`;
-            });
+  // 3. منطق النموذج (Logic)
+  window.toggleInputs = () => {
+    const isYes = $('isUpgraded').value === 'yes';
+    $('extraInputs').style.display = isYes ? 'block' : 'none';
+  };
 
-            document.getElementById('v-total').innerText = total;
-            document.getElementById('v-done').innerText = done;
-            document.getElementById('v-remain').innerText = total - done;
-            renderAllStats(sums);
-        });
+  window.generateEmpFields = () => {
+    const count = parseInt($('deviceCount').value) || 0;
+    const container = $('empList');
+    container.innerHTML = '';
+    for (let i = 1; i <= count; i++) {
+        container.innerHTML += `<input type="text" class="emp-input" placeholder="ID ${i}" required>`;
     }
+  };
 
-    function renderAllStats(sums) {
-        const draw = (id, data, isBrand = false) => {
-            const el = document.getElementById(id); el.innerHTML = '';
-            Object.entries(data).sort((a,b)=>b[1].t - a[1].t).forEach(([name, v]) => {
-                let logo = (isBrand && brandLogos[name.toLowerCase()]) ? `<img src="${brandLogos[name.toLowerCase()]}" class="brand-logo">` : '';
-                el.innerHTML += `<div class="item-row">
-                    <div style="display:flex; align-items:center; margin-bottom:5px">${logo}<b>${name}</b></div>
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; text-align:center; font-size:10px;">
-                        <div style="background:white; border-radius:4px; padding:3px;">إجمالي: ${v.t}</div>
-                        <div style="background:white; border-radius:4px; padding:3px; color:orange;">باقي: ${v.t-v.d}</div>
-                        <div style="background:white; border-radius:4px; padding:3px; color:green;">تم: ${v.d}</div>
-                    </div>
-                </div>`;
-            });
-        };
-        draw('list-reg', sums.region); draw('list-city', sums.city); draw('list-brand', sums.brand, true);
+  $('upgradeForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const empIds = Array.from(document.querySelectorAll('.emp-input')).map(input => input.value);
+    
+    try {
+      await db.collection('windows_upgrades').add({
+        isUpgraded: $('isUpgraded').value,
+        deviceCount: $('deviceCount').value || 0,
+        employeeIds: empIds,
+        timestamp: new Date(),
+        userEmail: auth.currentUser.email
+      });
+      alert(state.lang === 'ar' ? "تم الحفظ بنجاح!" : "Saved Successfully!");
+      $('upgradeForm').reset();
+      toggleInputs();
+    } catch (err) {
+      alert("Error: " + err.message);
     }
+  };
 
-    async function saveData() {
-        const id = document.getElementById('edit-id').value;
-        const data = {
-            branchId: document.getElementById('in-branchId').value,
-            branchName: document.getElementById('in-branchName').value,
-            brand: document.getElementById('in-brand').value,
-            function: document.getElementById('in-function').value,
-            city: document.getElementById('in-city').value,
-            region: document.getElementById('in-region').value,
-            employeeId: document.getElementById('in-employeeId').value,
-            employeeName: document.getElementById('in-employeeName').value,
-            deviceName: document.getElementById('in-deviceName').value,
-            technicianVisitDate: document.getElementById('in-visitDate').value,
-            checklistDate: document.getElementById('in-checkDate').value,
-            savedDate: document.getElementById('in-savedDate').value,
-            status: document.getElementById('in-status').value
-        };
-        if(id) await db.collection("windows_upgrades").doc(id).update(data);
-        else await db.collection("windows_upgrades").add(data);
-        alert("تم الحفظ بنجاح ✅"); clearForm();
-    }
-
-    async function editDoc(id) {
-        const d = (await db.collection("windows_upgrades").doc(id).get()).data();
-        document.getElementById('edit-id').value = id;
-        document.getElementById('in-branchId').value = d.branchId || '';
-        document.getElementById('in-branchName').value = d.branchName || '';
-        document.getElementById('in-brand').value = d.brand || 'Hyundai';
-        document.getElementById('in-function').value = d.function || '';
-        document.getElementById('in-city').value = d.city || '';
-        document.getElementById('in-region').value = d.region || '';
-        document.getElementById('in-employeeId').value = d.employeeId || '';
-        document.getElementById('in-employeeName').value = d.employeeName || '';
-        document.getElementById('in-deviceName').value = d.deviceName || '';
-        document.getElementById('in-visitDate').value = d.technicianVisitDate || '';
-        document.getElementById('in-checkDate').value = d.checklistDate || '';
-        document.getElementById('in-savedDate').value = d.savedDate || '';
-        document.getElementById('in-status').value = d.status || 'planned';
-        document.getElementById('form-title').innerText = "تعديل سجل: " + (d.employeeName || d.branchId);
-        window.scrollTo({top: 400, behavior: 'smooth'});
-    }
-
-    async function uploadXL(input) {
-        if(!confirm("سيتم مسح البيانات القديمة. هل أنت متأكد؟")) return;
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const json = XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(e.target.result), {type:'array'}).Sheets[XLSX.read(new Uint8Array(e.target.result), {type:'array'}).SheetNames[0]]);
-            const old = await db.collection("windows_upgrades").get();
-            const batch = db.batch();
-            old.forEach(d => batch.delete(d.ref));
-            await batch.commit();
-            for(let r of json) { await db.collection("windows_upgrades").add(r); }
-            alert("تم التحديث بنجاح 🚀");
-        };
-        reader.readAsArrayBuffer(input.files[0]);
-    }
-
-    function clearForm() { document.getElementById('mainForm').reset(); document.getElementById('edit-id').value = ''; document.getElementById('form-title').innerText = "إضافة سجل جديد"; }
-    async function deleteDoc(id) { if(confirm("حذف؟")) await db.collection("windows_upgrades").doc(id).delete(); }
-    function logout() { auth.signOut().then(() => window.location.href = "login.html"); }
+  boot();
+})();
 </script>
 </body>
 </html>
