@@ -2,92 +2,51 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard v3.0 | المجدوعي للسيارات</title>
+  <title>Dashboard v3.1</title>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    :root { --bg: #f4f7fa; --header-blue: #0d4b73; --card: #fff; }
-    body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
-    
-    .sidebar { width: 280px; background: #fff; border-left: 2px solid #e2e8f0; padding: 15px; display: flex; flex-direction: column; }
-    .main-grid { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 15px; overflow-y: auto; }
-    
-    .card { background: var(--card); border-radius: 4px; border: 1px solid #e2e8f0; min-height: 260px; position: relative; }
-    .card-header { background: var(--header-blue); color: #fff; padding: 6px 12px; font-size: 13px; font-weight: 900; }
-    
-    #totalVisits { font-size: 58px; color: var(--header-blue); font-weight: 900; text-align: center; margin: 0; }
-    .brand-item { display: flex; align-items: center; gap: 8px; padding: 5px; border-bottom: 1px solid #f0f0f0; }
-    .brand-logo { width: 30px; height: 20px; object-fit: contain; }
+    body { margin: 0; font-family: 'Cairo', sans-serif; background: #f4f7fa; display: flex; height: 100vh; overflow: hidden; }
+    .sidebar { width: 260px; background: #fff; border-left: 1px solid #e2e8f0; padding: 15px; }
+    .main { flex: 1; padding: 20px; overflow-y: auto; text-align: center; }
+    .big-num { font-size: 80px; color: #0d4b73; font-weight: 900; margin: 10px 0; }
+    .brand-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-bottom: 1px solid #eee; }
+    .brand-logo { width: 35px; height: 20px; object-fit: contain; }
   </style>
 </head>
 <body>
 
-<div class="sidebar">
-    <div style="text-align:center; margin-bottom:20px;">
-        <span style="font-size:12px; font-weight:bold; color:#64748b;">Number of Visits</span>
-        <h1 id="totalVisits">0</h1>
-    </div>
-    <div id="sideBrandList"></div>
-</div>
+<aside class="sidebar">
+  <h4 style="font-size: 12px; color: #64748b;">إحصائيات البراندات</h4>
+  <div id="brandList"></div>
+</aside>
 
-<main style="display:flex; flex-direction:column; width:100%;">
-    <div style="padding:10px 20px; background:var(--header-blue); color:#fff; display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-weight:900; font-size:14px;">ALMAJDOUIE MOTORS | DASHBOARD v3.0 TURBO</div>
-        <div id="statusTxt" style="font-size:11px; font-weight:bold; color:#10b981;">متصل عبر المحرك الرئيسي ✅</div>
-    </div>
-
-    <div class="main-grid">
-        <div class="card"><div class="card-header">Network Appliances</div><canvas id="cNet"></canvas></div>
-        <div class="card"><div class="card-header">Connectivity Status</div><canvas id="cConn"></canvas></div>
-        <div class="card"><div class="card-header">UPS Status</div>
-            <canvas id="cUps"></canvas>
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;">
-                <h2 id="upsPct" style="font-size:24px; color:var(--header-blue); margin:0;">0%</h2>
-            </div>
-        </div>
-        <div class="card" style="grid-column: span 3;"><div class="card-header">Training Requirement</div><canvas id="cTrain"></canvas></div>
-    </div>
+<main class="main">
+  <div style="font-weight: 900; color: #0d4b73; margin-bottom: 20px;">ALMAJDOUIE DASHBOARD v3.1 TURBO</div>
+  <h1 class="big-num" id="visitCount">0</h1>
+  <p style="color: #64748b; font-weight: bold;">إجمالي الزيارات الميدانية</p>
+  <div id="status" style="font-size: 11px; color: #10b981;">متصل بالمحرك الرئيسي...</div>
 </main>
 
 <script>
-(function(){
-  const $ = id => document.getElementById(id);
+  (function boot(){
+    const db = window.parent.appDb;
+    if (!db) { setTimeout(boot, 500); return; } // محاولة إعادة الاتصال بالأب
 
-  // جلب قاعدة البيانات من الصفحة الأب (Site-Visit2.html)
-  const db = window.parent.appDb;
-  
-  if (!db) {
-      $('statusTxt').innerText = "⚠️ خطأ: المحرك الرئيسي غير جاهز";
-      $('statusTxt').style.color = "red";
-      return;
-  }
+    // جلب الزيارات فوراً (بدون تأخير الـ 10 ثوانٍ)
+    db.collection('branch_checklists').onSnapshot(snap => {
+      document.getElementById('visitCount').innerText = snap.size;
+      document.getElementById('status').innerText = "بيانات حية ✅";
+    });
 
-  // المراقبة المباشرة للبيانات بدون تأخير الـ 10 ثوانٍ
-  db.collection('branch_checklists').onSnapshot(snap => {
-      const docs = snap.docs.map(d => d.data());
-      $('totalVisits').textContent = docs.length;
-      processData(docs);
-  });
-
-  db.collection('brand_assets').onSnapshot(snap => {
-      const brands = snap.docs.map(d => d.data());
-      renderBrands(brands);
-  });
-
-  function processData(docs) {
-      const total = docs.length || 0;
-      let s = { net: 0, conn: {a:0, w:0, b:0}, ups: 0 };
-      // منطق معالجة الرسوم البيانية هنا...
-  }
-
-  function renderBrands(brands) {
-      $('sideBrandList').innerHTML = brands.map(b => `
-        <div class="brand-item">
-          <img src="${b.logoUrl || ''}" class="brand-logo">
-          <span style="font-size:10px; font-weight:bold;">${b.brand}</span>
-        </div>`).join('');
-  }
-})();
+    // جلب الشعارات
+    db.collection('brand_assets').onSnapshot(snap => {
+      document.getElementById('brandList').innerHTML = snap.docs.map(d => {
+        const b = d.data();
+        return `<div class="brand-item"><img src="${b.logoUrl}" class="brand-logo"> <span style="font-size:11px;">${b.brand}</span></div>`;
+      }).join('');
+    });
+  })();
 </script>
 </body>
 </html>
