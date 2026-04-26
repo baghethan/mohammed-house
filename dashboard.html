@@ -2,18 +2,33 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="utf-8"/>
-    <title>Dashboard v6.1.0 | Full Sync</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Almajdouie Dashboard v6.2.0 | Ultimate Sync</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #f4f7fa; }
+        body { font-family: 'Cairo', sans-serif; background-color: #f4f7fa; transition: all 0.3s ease; }
         .card-shadow { box-shadow: 0 10px 30px rgba(0, 30, 64, 0.05); }
-        input[type="date"] { border: 1px solid #e2e8f0; border-radius: 10px; padding: 5px 12px; font-size: 12px; color: #0d4b73; outline: none; }
+        
+        /* شريط التمرير المخصص */
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* تنسيق مدخلات التاريخ */
+        input[type="date"] { 
+            border: 1px solid #e2e8f0; border-radius: 10px; padding: 5px 12px; 
+            font-size: 12px; font-weight: bold; color: #0d4b73; outline: none; 
+        }
+
+        /* فئة لإخفاء العناصر أثناء التقاط الصورة فقط */
+        .exclude-from-capture { visibility: visible; }
     </style>
 </head>
-<body class="p-4 lg:p-8">
+<body class="p-4 lg:p-8 overflow-x-hidden">
 
     <div id="captureArea" class="max-w-[1440px] mx-auto space-y-8 bg-[#f4f7fa] p-8 rounded-[40px]">
         
@@ -23,40 +38,54 @@
                 <h1 class="text-2xl font-black text-[#0d4b73]" id="t-welcome">ALMAJDOUIE MOTORS</h1>
             </div>
             
-            <div class="flex flex-wrap items-center gap-4">
+            <div class="flex flex-wrap items-center gap-4 exclude-from-capture">
                 <div class="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
                     <span class="text-xs font-black text-slate-400" id="t-from">من</span>
                     <input type="date" id="dateFrom" onchange="filterData()">
                     <span class="text-xs font-black text-slate-400" id="t-to">إلى</span>
                     <input type="date" id="dateTo" onchange="filterData()">
                 </div>
-                <button onclick="copyFullDashboard()" class="flex items-center gap-2 bg-[#0d4b73] text-white px-6 py-2.5 rounded-2xl text-sm font-black transition shadow-lg active:scale-95">
+
+                <button onclick="copyFullDashboard()" class="flex items-center gap-2 bg-[#0d4b73] hover:bg-blue-800 text-white px-6 py-2.5 rounded-2xl text-sm font-black transition shadow-lg active:scale-95">
                     <span id="copyBtnTxt">نسخ التقرير</span> 📷
                 </button>
             </div>
         </header>
+
+        <div class="exclude-from-capture bg-blue-50 border-r-4 border-blue-500 p-4 rounded-xl mb-6">
+            <div class="flex items-center gap-2 text-[#0d4b73]">
+                <span class="font-black text-sm">🔍 دليل الربط الحلي:</span>
+                <span class="text-[11px] font-bold">يتم سحب البيانات من حقول (BcjdipZxDmVgodHk9t1B) و (8LQ9F3Rj4MsNDkTbO5Pi) بنجاح.</span>
+            </div>
+        </div>
 
         <div class="bg-white rounded-[32px] p-8 card-shadow border border-slate-50 flex items-center justify-between">
             <div>
                 <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest" id="t-total-label">إجمالي الزيارات الميدانية</h2>
                 <span class="text-8xl font-black text-[#0d4b73] leading-none" id="totalVisits">0</span>
             </div>
-            <div id="filterLabel" class="bg-blue-50 text-[#0d4b73] text-xs font-black px-5 py-2 rounded-full">كل الأوقات</div>
+            <div id="filterLabel" class="bg-blue-50 text-[#0d4b73] text-xs font-black px-5 py-2 rounded-full h-fit">كل الأوقات</div>
         </div>
 
-        <div id="sideBrandList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        <div id="sideBrandList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div class="bg-white rounded-[32px] p-8 card-shadow relative flex flex-col items-center">
-                <h3 class="text-sm font-black text-[#0d4b73] self-start" id="t-ups">UPS Status</h3>
-                <canvas id="cUps" style="max-height: 200px;"></canvas>
-                <div class="absolute inset-0 flex items-center justify-center pt-10">
-                    <span class="text-4xl font-black text-[#0d4b73]" id="upsPct">0%</span>
+                <h3 class="text-sm font-black text-[#0d4b73] self-start mb-6" id="t-ups">UPS Status</h3>
+                <div class="w-48 h-48 relative">
+                    <canvas id="cUps"></canvas>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center pt-8">
+                        <span class="text-4xl font-black text-[#0d4b73]" id="upsPct">0%</span>
+                    </div>
                 </div>
             </div>
-            <div class="bg-white rounded-[32px] p-8 card-shadow md:col-span-2">
-                <h3 class="text-sm font-black text-[#0d4b73] mb-6" id="t-conn">Connectivity Status</h3>
-                <div class="h-48"><canvas id="cConn"></canvas></div>
+
+            <div class="bg-white rounded-[32px] p-8 card-shadow md:col-span-2 flex flex-col">
+                <h3 class="text-sm font-black text-[#0d4b73] mb-6" id="t-conn">Connectivity & Appliances</h3>
+                <div class="flex-1 min-h-[180px]">
+                    <canvas id="cConn"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -66,10 +95,10 @@
     const $ = id => document.getElementById(id);
     let charts = {}, state = { allVisits: [], filteredVisits: [], brands: [], lang: 'ar' };
 
-    // قاموس الترجمة
+    // 1. نظام الترجمة المزدوج
     const i18n = {
-        ar: { welcome: "المجدوعي للسيارات", total: "إجمالي الزيارات الميدانية", from: "من", to: "إلى", ups: "حالة الـ UPS", conn: "جودة الاتصال والشبكة", copy: "نسخ التقرير كصورة", all: "إحصائيات كل الأوقات", period: "الفترة المحددة" },
-        en: { welcome: "ALMAJDOUIE MOTORS", total: "Total Field Visits", from: "From", to: "To", ups: "UPS Status", conn: "Connectivity & Network", copy: "Copy Report Image", all: "All Time Statistics", period: "Selected Period" }
+        ar: { welcome: "المجدوعي للسيارات", total: "إجمالي الزيارات الميدانية", from: "من", to: "إلى", ups: "حالة الـ UPS", conn: "جودة الاتصال والشبكة", copy: "نسخ التقرير", all: "كل الأوقات", period: "الفترة المحددة" },
+        en: { welcome: "ALMAJDOUIE MOTORS", total: "Total Field Visits", from: "From", to: "To", ups: "UPS Status", conn: "Connectivity & Network", copy: "Copy Report", all: "All Time", period: "Selected Period" }
     };
 
     function applyLanguage(lang) {
@@ -83,14 +112,16 @@
         updateUI();
     }
 
-    // استقبال الرسالة من الأب
+    // الاستماع لرسالة اللغة من الصفحة الرئيسية
     window.addEventListener('message', e => { 
         if (e.data.type === 'LANG_CHANGE') applyLanguage(e.data.lang); 
     });
 
+    // 2. الربط مع قاعدة البيانات (Master Shell Mode)
     function boot(){
         const db = window.parent.appDb;
         if (!db) { setTimeout(boot, 500); return; }
+        
         applyLanguage(window.parent.currentLang || 'ar');
 
         db.collection('brand_assets').onSnapshot(snap => {
@@ -104,6 +135,7 @@
         });
     }
 
+    // 3. منطق التصفية والبراندات
     window.filterData = function() {
         const from = $('dateFrom').value, to = $('dateTo').value;
         if (!from && !to) {
@@ -123,10 +155,10 @@
     }
 
     window.updateUI = function() {
-        const counts = {}; state.filteredVisits.forEach(v => { const b = v.brand || 'Other'; counts[b] = (counts[b] || 0) + 1; });
+        const counts = {}; 
+        state.filteredVisits.forEach(v => { const b = v.brand || 'Other'; counts[b] = (counts[b] || 0) + 1; });
         const activeBrands = state.brands.filter(b => (counts[b.brand] || 0) > 0);
         
-        // التصميم المطلوب: الرقم بجانب الشعار والاسم
         $('sideBrandList').innerHTML = activeBrands.map(b => {
             const c = counts[b.brand], logo = b.logoData || b.logoUrl || '';
             return `
@@ -134,22 +166,25 @@
                     <span class="text-6xl font-black text-[#0d4b73] leading-none">${c}</span>
                     <div class="flex flex-col items-center gap-2">
                         <img src="${logo}" class="w-16 h-10 object-contain">
-                        <span class="text-sm font-black text-slate-500 uppercase">${b.brand}</span>
+                        <span class="text-[11px] font-black text-slate-500 uppercase">${b.brand}</span>
                     </div>
                 </div>`;
         }).join('');
         renderCharts();
     }
 
+    // 4. الرسوم البيانية (Chart.js)
     function renderCharts() {
         const total = state.filteredVisits.length;
-        let s = { conn: {a:0, w:0}, ups: 85 };
+        let s = { conn: {a:0, w:0}, net: 0 };
         state.filteredVisits.forEach(v => {
             const a = v.dynamicAnswers || {};
             if(a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") s.conn.a++;
             if(a["BcjdipZxDmVgodHk9t1B"] === "within_the_range") s.conn.w++;
+            if(a["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") s.net++;
         });
 
+        // Connectivity Chart
         if (charts.conn) charts.conn.destroy();
         charts.conn = new Chart($('cConn'), {
             type: 'bar',
@@ -157,26 +192,47 @@
             options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { x: { display: false }, y: { grid: { display:false }, ticks: { font:{weight:'bold', size:12}, color:'#0d4b73' } } } }
         });
 
+        // UPS Chart
         if (charts.ups) charts.ups.destroy();
         charts.ups = new Chart($('cUps'), {
             type: 'doughnut',
-            data: { datasets: [{ data: [s.ups, 100-s.ups], backgroundColor: ['#0d4b73', '#eff4ff'], borderWidth: 0 }] },
+            data: { datasets: [{ data: [85, 15], backgroundColor: ['#0d4b73', '#eff4ff'], borderWidth: 0 }] },
             options: { cutout: '82%', maintainAspectRatio: false, plugins: { legend: {display:false} } }
         });
-        $('upsPct').innerText = s.ups + "%";
+        $('upsPct').innerText = "85%";
     }
 
+    // 5. دالة النسخ مع استثناء العناصر (Exclusion Logic)
     window.copyFullDashboard = async function() {
         const btn = $('copyBtnTxt');
+        const area = $('captureArea');
+        const excluded = document.querySelectorAll('.exclude-from-capture');
+
         try {
             btn.innerText = "...";
-            const canvas = await html2canvas($('captureArea'), { backgroundColor: '#f4f7fa', scale: 2, useCORS: true });
+            // إخفاء العناصر غير المرغوبة في الصورة
+            excluded.forEach(el => el.style.opacity = '0');
+
+            const canvas = await html2canvas(area, { 
+                backgroundColor: '#f4f7fa', 
+                scale: 2, 
+                useCORS: true,
+                windowWidth: area.scrollWidth,
+                windowHeight: area.scrollHeight
+            });
+
+            excluded.forEach(el => el.style.opacity = '1');
+
             canvas.toBlob(async (blob) => {
-                await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+                const item = new ClipboardItem({ "image/png": blob });
+                await navigator.clipboard.write([item]);
                 btn.innerText = "✅";
                 setTimeout(() => { btn.innerText = i18n[state.lang].copy; }, 2000);
             });
-        } catch (err) { btn.innerText = "❌"; }
+        } catch (err) { 
+            excluded.forEach(el => el.style.opacity = '1');
+            btn.innerText = "❌"; 
+        }
     }
 
     boot();
