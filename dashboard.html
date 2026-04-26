@@ -1,190 +1,358 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <title>Dashboard v3.6.0 | Almajdouie Motors</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-  <style>
-    :root { --bg: #f8fafc; --primary: #0d4b73; --accent: #ffd54f; --card: #ffffff; }
-    body { margin: 0; font-family: 'Cairo', sans-serif; background: var(--bg); display: flex; height: 100vh; overflow: hidden; }
-    
-    /* الشريط الجانبي المطور */
-    .sidebar { 
-      width: 320px; background: #fff; border-inline-start: 2px solid #e2e8f0; 
-      padding: 20px; display: flex; flex-direction: column; overflow-y: auto;
-      box-shadow: 0 0 15px rgba(0,0,0,0.05); z-index: 10;
-    }
-    
-    .total-section { text-align: center; margin-bottom: 25px; padding-bottom: 20px; border-bottom: 2px solid var(--bg); }
-    #totalVisits { font-size: 80px; font-weight: 900; color: var(--primary); margin: 0; line-height: 1; }
-    .total-label { font-size: 14px; font-weight: 800; color: #64748b; margin-top: 10px; }
 
-    .sidebar-title { font-size: 16px; font-weight: 900; color: var(--primary); margin-bottom: 20px; text-align: center; }
-    
-    /* تصميم بطاقة البراند الجديد (عمودي) */
-    .brand-item { 
-      display: flex; flex-direction: column; align-items: center; 
-      padding: 15px; background: #f9fafb; border-radius: 12px; 
-      margin-bottom: 15px; border: 1px solid #edf2f7; transition: 0.3s;
-    }
-    .brand-logo { width: 70px; height: 40px; object-fit: contain; margin-bottom: 8px; }
-    .brand-name { font-size: 15px; font-weight: 900; color: #334155; margin-bottom: 5px; }
-    .brand-count { 
-      background: var(--primary); color: #fff; font-size: 18px; 
-      padding: 2px 15px; border-radius: 20px; font-weight: 900; 
-      box-shadow: 0 2px 5px rgba(13, 75, 115, 0.2);
-    }
-
-    /* المنطقة الرئيسية للرسوم */
-    .main-content { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
-    .top-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-    .card { background: var(--card); border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; }
-    .card-header { background: var(--primary); color: #fff; padding: 12px 20px; font-size: 14px; font-weight: 800; }
-    .card-body { padding: 15px; position: relative; min-height: 240px; flex: 1; display: flex; align-items: center; justify-content: center; }
-    #upsPct { position: absolute; font-size: 35px; font-weight: 900; color: var(--primary); }
-  </style>
-</head>
-<body>
-
-  <aside class="sidebar">
-    <div class="total-section">
-      <h1 id="totalVisits">0</h1>
-      <div id="t-total-label" class="total-label">إجمالي الزيارات الميدانية</div>
-    </div>
-    <div class="sidebar-title" id="t-brands">البراندات التي تمت زيارتها</div>
-    <div id="sideBrandList">
-      </div>
-  </aside>
-
-  <main class="main-content">
-    <div class="top-row">
-      <div class="card">
-        <div class="card-header" id="t-ups">حالة الـ UPS</div>
-        <div class="card-body">
-          <canvas id="cUps"></canvas>
-          <div id="upsPct">0%</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header" id="t-conn">جودة الاتصال</div>
-        <div class="card-body"><canvas id="cConn"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-header" id="t-net">أجهزة الشبكة</div>
-        <div class="card-body"><canvas id="cNet"></canvas></div>
-      </div>
-    </div>
-
-    <div class="card" style="flex:1;">
-      <div class="card-header" id="t-train">المتطلبات التدريبية</div>
-      <div class="card-body" style="min-height: 300px;"><canvas id="cTrain"></canvas></div>
-    </div>
-  </main>
-
-<script>
-(function(){
-  const $ = id => document.getElementById(id);
-  Chart.register(ChartDataLabels);
-  let charts = {}, state = { visits: [], brands: [], lang: 'ar' };
-
-  const i18n = {
-    ar: { brands: "البراندات النشطة", totalLabel: "إجمالي الزيارات", net: "أجهزة الشبكة", conn: "جودة الاتصال", ups: "حالة الـ UPS", train: "المتطلبات التدريبية", inShape: "ممتاز", needArr: "ترتيب" },
-    en: { brands: "Active Brands", totalLabel: "Total Visits", net: "Network", conn: "Connection", ups: "UPS Status", train: "Training Needs", inShape: "In Shape", needArr: "Needs Arr." }
-  };
-
-  function applyLanguage(lang) {
-    state.lang = lang;
-    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-    const d = i18n[lang];
-    $('t-brands').innerText = d.brands; $('t-total-label').innerText = d.totalLabel;
-    $('t-net').innerText = d.net; $('t-conn').innerText = d.conn;
-    $('t-ups').innerText = d.ups; $('t-train').innerText = d.train;
-    updateUI();
-  }
-
-  window.addEventListener('message', e => { if (e.data.type === 'LANG_CHANGE') applyLanguage(e.data.lang); });
-
-  function boot(){
-    const db = window.parent.appDb;
-    if (!db) { setTimeout(boot, 500); return; }
-    applyLanguage(window.parent.currentLang || 'ar');
-
-    db.collection('brand_assets').onSnapshot(snap => {
-        state.brands = snap.docs.map(d => d.data());
-        updateUI();
-    });
-
-    db.collection('branch_checklists').onSnapshot(snap => {
-        state.visits = snap.docs.map(d => d.data());
-        $('totalVisits').textContent = state.visits.length;
-        updateUI();
-    });
-  }
-
-  function updateUI() {
-    const counts = {};
-    state.visits.forEach(v => { const b = v.brand || 'Other'; counts[b] = (counts[b] || 0) + 1; });
-
-    // فلترة البراندات لعرض النشطة فقط (> 0 زيارة)
-    const activeBrands = state.brands.filter(b => (counts[b.brand] || 0) > 0);
-
-    $('sideBrandList').innerHTML = activeBrands.map(b => {
-        const c = counts[b.brand];
-        const logo = b.logoData || b.logoUrl || 'https://placehold.jp/70x40.png';
-        return `
-          <div class="brand-item">
-            <img src="${logo}" class="brand-logo">
-            <span class="brand-name">${b.brand}</span>
-            <span class="brand-count">${c}</span>
-          </div>`;
-    }).join('');
-
-    renderCharts();
-  }
-
-  function renderCharts() {
-    const total = state.visits.length, d = i18n[state.lang];
-    let s = { net: 0, conn: {a:0, w:0}, train: {} };
-    state.visits.forEach(v => {
-      const a = v.dynamicAnswers || {};
-      if(a["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") s.net++;
-      if(a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") s.conn.a++;
-      if(a["BcjdipZxDmVgodHk9t1B"] === "within_the_range") s.conn.w++;
-      Object.keys(a).forEach(k => { if(k.toLowerCase().includes('train')) { let t = a[k]; if(t) s.train[t] = (s.train[t]||0)+1; }});
-    });
-
-    const calc = v => total > 0 ? Math.round((v/total)*100) : 0;
-    drawBar('cNet', [d.inShape, d.needArr], [calc(s.net), 100-calc(s.net)], ['#10b981', '#cbd5e1']);
-    drawBar('cConn', ['Above', 'Within'], [calc(s.conn.a), calc(s.conn.w)], ['#10b981', '#f59e0b']);
-    drawDoughnut('cUps', 0);
-    
-    const tL = Object.keys(s.train), tD = Object.values(s.train);
-    drawBar('cTrain', tL.length ? tL : ['-'], tD.length ? tD : [0], ['#0d4b73'], true);
-  }
-
-  function drawBar(id, labels, data, colors, horiz = false) {
-    if (charts[id]) charts[id].destroy();
-    charts[id] = new Chart($(id), {
-      type: 'bar', data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 6 }] },
-      options: { 
-        indexAxis: horiz ? 'x' : 'y', maintainAspectRatio: false,
-        plugins: { legend: {display:false}, datalabels: { color: horiz?'#475569':'#fff', font:{weight:'bold'} } },
-        scales: { x: { grid:{display:false} }, y: { grid:{display:false} } }
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Almajdouie Motors Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error-container": "#93000a",
+                    "secondary-fixed-dim": "#c2c7ce",
+                    "surface-dim": "#cbdbf5",
+                    "on-primary": "#ffffff",
+                    "primary-fixed": "#d5e3ff",
+                    "surface-container-low": "#eff4ff",
+                    "on-tertiary": "#ffffff",
+                    "on-primary-container": "#799dd6",
+                    "background": "#f8f9ff",
+                    "on-secondary-fixed": "#171c21",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary-fixed-variant": "#42474d",
+                    "inverse-on-surface": "#eaf1ff",
+                    "error-container": "#ffdad6",
+                    "on-secondary": "#ffffff",
+                    "primary": "#001e40",
+                    "on-primary-fixed-variant": "#1f477b",
+                    "on-error": "#ffffff",
+                    "tertiary-fixed": "#7df4ff",
+                    "surface-tint": "#3a5f94",
+                    "surface-bright": "#f8f9ff",
+                    "outline-variant": "#c3c6d1",
+                    "on-tertiary-fixed": "#002022",
+                    "on-secondary-container": "#5f656b",
+                    "on-primary-fixed": "#001b3c",
+                    "inverse-primary": "#a7c8ff",
+                    "on-surface": "#0b1c30",
+                    "tertiary-container": "#003a3e",
+                    "surface-variant": "#d3e4fe",
+                    "secondary-container": "#dee3ea",
+                    "primary-container": "#003366",
+                    "surface-container-high": "#dce9ff",
+                    "surface": "#f8f9ff",
+                    "on-tertiary-fixed-variant": "#004f54",
+                    "secondary": "#595f65",
+                    "error": "#ba1a1a",
+                    "on-tertiary-container": "#1facb6",
+                    "surface-container-highest": "#d3e4fe",
+                    "on-surface-variant": "#43474f",
+                    "tertiary-fixed-dim": "#5dd8e2",
+                    "tertiary": "#002326",
+                    "on-background": "#0b1c30",
+                    "primary-fixed-dim": "#a7c8ff",
+                    "secondary-fixed": "#dee3ea",
+                    "outline": "#737780",
+                    "surface-container": "#e5eeff",
+                    "inverse-surface": "#213145"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "12px",
+                    "xl": "64px",
+                    "lg": "40px",
+                    "xs": "4px",
+                    "base": "8px",
+                    "md": "24px",
+                    "margin": "32px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "body-md": ["Cairo"],
+                    "label-md": ["Cairo"],
+                    "headline-md": ["Cairo"],
+                    "body-lg": ["Cairo"],
+                    "label-sm": ["Cairo"],
+                    "headline-sm": ["Cairo"],
+                    "headline-lg": ["Cairo"]
+            },
+            "fontSize": {
+                    "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "label-sm": ["11px", {"lineHeight": "1", "fontWeight": "500"}],
+                    "headline-sm": ["20px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}]
+            }
+          }
+        }
       }
-    });
-  }
-
-  function drawDoughnut(id, val) {
-    $('upsPct').innerText = val + "%"; if (charts[id]) charts[id].destroy();
-    charts[id] = new Chart($(id), {
-      type: 'doughnut', data: { datasets: [{ data: [val, 100-val], backgroundColor: ['#0d4b73', '#e2e8f0'] }] },
-      options: { cutout: '80%', maintainAspectRatio: false, plugins: { datalabels: {display:false} } }
-    });
-  }
-  boot();
-})();
-</script>
-</body>
-</html>
+    </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .shadow-ambient {
+            box-shadow: 0 4px 12px rgba(0, 30, 64, 0.04);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex">
+<!-- SideNavBar -->
+<nav class="bg-white dark:bg-slate-900 text-blue-900 dark:text-blue-400 font-sans text-sm font-medium docked left-0 top-0 h-full w-72 border-r border-slate-200 dark:border-slate-800 shadow-lg dark:shadow-none fixed left-0 top-0 h-full flex flex-col z-40 bg-white dark:bg-slate-900 hidden md:flex">
+<div class="p-6 border-b border-secondary-container">
+<div class="flex items-center gap-3">
+<img alt="Almajdouie Motors Logo" class="w-10 h-10 rounded-lg object-cover" data-alt="minimalist modern corporate logo design with geometric shapes in navy blue" src="https://lh3.googleusercontent.com/aida-public/AB6AXuARY5XmnlNrYWi4COyvpNKLEvbGLtpNFFTv_6JtpvH-Bgpdn-G1ZVyKrAUXligH-8VUWQ9veQWCHIlmZEyaDpfGm57-2mzfOrAfsm78eiQpIljs81pfFldEHRgxsmpwbHHR7zN6k1NhoccKtLWHaY1jUDEJbdG2MySBj68bwZQfXf-jvrzBeR_MAXEUTmeuNDxPwbwP4ZYicWY9rq_lvzpYGyuX5x0ulC_AdZeUsibtw3IdMxmObR3WEtatG6Q-RmVfjxyPykjEtVQ"/>
+<div>
+<h1 class="font-headline-sm text-headline-sm text-blue-900 dark:text-white">Motor Group</h1>
+<p class="font-label-md text-label-md text-secondary">Management Portal</p>
+</div>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto py-4">
+<ul class="space-y-1">
+<li>
+<a class="flex items-center gap-3 px-4 py-3 border-l-4 border-blue-900 bg-blue-50 text-blue-900 dark:bg-blue-900/20 dark:text-blue-300 font-semibold cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+                        Executive Overview
+                    </a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-900 dark:hover:text-blue-300 transition-all duration-200 cursor-pointer active:scale-95 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined">directions_car</span>
+                        Brand Performance
+                    </a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-900 dark:hover:text-blue-300 transition-all duration-200 cursor-pointer active:scale-95 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined">lan</span>
+                        Network Health
+                    </a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-900 dark:hover:text-blue-300 transition-all duration-200 cursor-pointer active:scale-95 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined">local_shipping</span>
+                        Logistics
+                    </a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-900 dark:hover:text-blue-300 transition-all duration-200 cursor-pointer active:scale-95 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined">school</span>
+                        Training Stats
+                    </a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-900 dark:hover:text-blue-300 transition-all duration-200 cursor-pointer active:scale-95 border-l-4 border-transparent" href="#">
+<span class="material-symbols-outlined">settings</span>
+                        Settings
+                    </a>
+</li>
+</ul>
+</div>
+<div class="p-4 border-t border-secondary-container">
+<button class="w-full py-2 px-4 bg-primary text-on-primary font-label-md text-label-md rounded hover:bg-primary-container transition-colors duration-200 mb-4 cursor-pointer active:scale-95">
+                Export Reports
+            </button>
+<ul class="space-y-1">
+<li>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-900 dark:hover:text-blue-300 transition-all duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">headset_mic</span>
+                        Support
+                    </a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-900 dark:hover:text-blue-300 transition-all duration-200 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined">logout</span>
+                        Logout
+                    </a>
+</li>
+</ul>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="flex-1 flex flex-col md:ml-72 min-h-screen overflow-hidden">
+<!-- TopNavBar -->
+<header class="bg-white dark:bg-slate-900 text-blue-900 dark:text-blue-400 font-sans antialiased text-sm font-medium docked full-width top-0 h-16 border-b border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none fixed top-0 right-0 left-0 z-50 flex items-center justify-between px-6 bg-white dark:bg-slate-900 md:left-72">
+<div class="flex items-center gap-4">
+<span class="text-lg font-bold tracking-tight text-blue-900 dark:text-blue-100 uppercase block md:hidden">Almajdouie Motors</span>
+<div class="hidden md:flex items-center bg-surface px-4 py-2 rounded-full border border-outline-variant">
+<span class="material-symbols-outlined text-secondary mr-2">calendar_month</span>
+<span class="font-label-md text-label-md text-on-surface">Jan 01, 2024 - Jan 31, 2024</span>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="hidden lg:flex items-center text-secondary">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed-dim mr-2"></span>
+<span class="font-label-md text-label-md">System Status: Healthy</span>
+</div>
+<div class="flex items-center gap-2 border-l border-secondary-container pl-md">
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-200 rounded-full cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-200 rounded-full cursor-pointer active:opacity-80 hidden sm:block">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-200 rounded-full cursor-pointer active:opacity-80 hidden sm:block">
+<span class="material-symbols-outlined">help</span>
+</button>
+<img alt="User Profile" class="w-8 h-8 rounded-full border-2 border-primary-fixed ml-2 cursor-pointer" data-alt="professional headshot of a businessman in a suit against a neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvqzCqS3Joae-xJot1rPTxPcaJFjIBVn5kynOCpU-uEXk5jsP1QxZOeba8qqHxyhXysgikMHwMK-GsPIWD3z3V8cPhNJgW21LU8Aj78jnZqEkojVEna_-WbSuUmEPNzVLJGotxtp0WLBLtXYXjNxJxhIVmg7it-rVV8G_MYlY8VaIek0TCV6RRkfZXyPBNlKaEl96srJWhvC0mJ0a-O_-TL95DIMoUqp3LJS0qaaYXqMih9_6HLgIgZVoVm8-A9Ly9RWEaNh2hTwk"/>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 overflow-y-auto mt-16 p-margin bg-background">
+<div class="grid grid-cols-12 gap-gutter max-w-7xl mx-auto">
+<!-- Total Visits Card -->
+<div class="col-span-12 lg:col-span-4 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-ambient p-6 flex flex-col h-full">
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-2">Total Visits</h2>
+<div class="flex items-end gap-3 mb-6">
+<span class="font-headline-lg text-headline-lg text-primary">14,285</span>
+<span class="font-label-md text-label-md text-tertiary-container bg-tertiary-fixed px-2 py-1 rounded-full flex items-center mb-1">
+<span class="material-symbols-outlined text-[14px] mr-1">trending_up</span> +12%
+                        </span>
+</div>
+<div class="mt-auto pt-4 border-t border-surface-container-high">
+<label class="font-label-sm text-label-sm text-secondary block mb-2 uppercase">Analyst Notes</label>
+<textarea class="w-full bg-surface border border-outline-variant rounded-lg p-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-colors resize-none h-24" placeholder="Enter notes here..."></textarea>
+</div>
+</div>
+<!-- UPS Status Card -->
+<div class="col-span-12 lg:col-span-4 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-ambient p-6 flex flex-col h-full">
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-6">UPS Status</h2>
+<div class="flex-1 flex items-center justify-center relative mb-6">
+<!-- Simulated Donut Chart -->
+<div class="w-32 h-32 rounded-full border-[12px] border-surface-container flex items-center justify-center relative">
+<div class="absolute inset-[-12px] rounded-full border-[12px] border-primary" style="clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 80%);"></div>
+<div class="text-center z-10">
+<span class="font-headline-md text-headline-md text-on-surface block">85%</span>
+<span class="font-label-sm text-label-sm text-secondary">Healthy</span>
+</div>
+</div>
+</div>
+<div class="mt-auto pt-4 border-t border-surface-container-high">
+<label class="font-label-sm text-label-sm text-secondary block mb-2 uppercase">Comments</label>
+<input class="w-full bg-surface border border-outline-variant rounded-lg p-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="Add comment..." type="text"/>
+</div>
+</div>
+<!-- Connectivity Status Card -->
+<div class="col-span-12 lg:col-span-4 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-ambient p-6 flex flex-col h-full">
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-6">Connectivity Status</h2>
+<div class="flex-1 flex flex-col justify-center space-y-4 mb-6">
+<!-- Bar 1 -->
+<div>
+<div class="flex justify-between font-label-md text-label-md mb-1">
+<span class="text-on-surface">Online</span>
+<span class="text-primary">92%</span>
+</div>
+<div class="h-2 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 92%"></div>
+</div>
+</div>
+<!-- Bar 2 -->
+<div>
+<div class="flex justify-between font-label-md text-label-md mb-1">
+<span class="text-on-surface">Offline</span>
+<span class="text-error">5%</span>
+</div>
+<div class="h-2 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-error rounded-full" style="width: 5%"></div>
+</div>
+</div>
+<!-- Bar 3 -->
+<div>
+<div class="flex justify-between font-label-md text-label-md mb-1">
+<span class="text-on-surface">Maintenance</span>
+<span class="text-tertiary-fixed-dim">3%</span>
+</div>
+<div class="h-2 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-tertiary-fixed-dim rounded-full" style="width: 3%"></div>
+</div>
+</div>
+</div>
+<div class="mt-auto pt-4 border-t border-surface-container-high">
+<label class="font-label-sm text-label-sm text-secondary block mb-2 uppercase">Network Notes</label>
+<input class="w-full bg-surface border border-outline-variant rounded-lg p-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-colors" placeholder="Enter notes..." type="text"/>
+</div>
+</div>
+<!-- Network Appliances Multi-Bar Chart -->
+<div class="col-span-12 lg:col-span-6 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-ambient p-6 flex flex-col h-full">
+<div class="flex justify-between items-center mb-6">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Network Appliances</h2>
+<div class="flex gap-4 font-label-sm text-label-sm">
+<span class="flex items-center gap-1"><span class="w-3 h-3 bg-primary rounded-full"></span> Active</span>
+<span class="flex items-center gap-1"><span class="w-3 h-3 bg-surface-container-high rounded-full"></span> Inactive</span>
+</div>
+</div>
+<div class="flex-1 flex items-end gap-4 h-48 mb-6 pt-4 border-b border-surface-container-high relative">
+<!-- Multi-bar items -->
+<div class="flex-1 flex justify-center items-end gap-1 h-full relative group">
+<div class="w-1/3 bg-primary rounded-t-sm" style="height: 80%"></div>
+<div class="w-1/3 bg-surface-container-high rounded-t-sm" style="height: 20%"></div>
+<span class="absolute -bottom-6 font-label-sm text-label-sm text-secondary">Riyadh</span>
+</div>
+<div class="flex-1 flex justify-center items-end gap-1 h-full relative group">
+<div class="w-1/3 bg-primary rounded-t-sm" style="height: 65%"></div>
+<div class="w-1/3 bg-surface-container-high rounded-t-sm" style="height: 35%"></div>
+<span class="absolute -bottom-6 font-label-sm text-label-sm text-secondary">Jeddah</span>
+</div>
+<div class="flex-1 flex justify-center items-end gap-1 h-full relative group">
+<div class="w-1/3 bg-primary rounded-t-sm" style="height: 90%"></div>
+<div class="w-1/3 bg-surface-container-high rounded-t-sm" style="height: 10%"></div>
+<span class="absolute -bottom-6 font-label-sm text-label-sm text-secondary">Dammam</span>
+</div>
+<div class="flex-1 flex justify-center items-end gap-1 h-full relative group">
+<div class="w-1/3 bg-primary rounded-t-sm" style="height: 45%"></div>
+<div class="w-1/3 bg-surface-container-high rounded-t-sm" style="height: 55%"></div>
+<span class="absolute -bottom-6 font-label-sm text-label-sm text-secondary">Khobar</span>
+</div>
+<div class="flex-1 flex justify-center items-end gap-1 h-full relative group">
+<div class="w-1/3 bg-primary rounded-t-sm" style="height: 75%"></div>
+<div class="w-1/3 bg-surface-container-high rounded-t-sm" style="height: 25%"></div>
+<span class="absolute -bottom-6 font-label-sm text-label-sm text-secondary">Mecca</span>
+</div>
+</div>
+<div class="mt-8 pt-4 border-t border-surface-container-high">
+<label class="font-label-sm text-label-sm text-secondary block mb-2 uppercase">Appliance Status Notes</label>
+<textarea class="w-full bg-surface border border-outline-variant rounded-lg p-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-colors resize-none h-20" placeholder="Notes..."></textarea>
+</div>
+</div>
+<!-- Training Requirement Trend -->
+<div class="col-span-12 lg:col-span-6 bg-surface-container-lowest rounded-xl border border-outline-variant shadow-ambient p-6 flex flex-col h-full">
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-6">Training Requirement Trend</h2>
+<div class="flex-1 h-48 mb-6 relative">
+<!-- Simulated Line Chart -->
+<div class="absolute inset-0 flex items-end">
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 100 100">
+<path d="M0,80 C20,60 40,90 60,40 C80,-10 100,50 100,50 L100,100 L0,100 Z" fill="rgba(0, 51, 102, 0.1)"></path>
+<path d="M0,80 C20,60 40,90 60,40 C80,-10 100,50 100,50" fill="none" stroke="#003366" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<!-- X-axis labels -->
+<div class="absolute bottom-0 w-full flex justify-between font-label-sm text-label-sm text-secondary translate-y-6">
+<span>Q1</span>
+<span>Q2</span>
+<span>Q3</span>
+<span>Q4</span>
+</div>
+</div>
+<div class="mt-8 pt-4 border-t border-surface-container-high">
+<label class="font-label-sm text-label-sm text-secondary block mb-2 uppercase">Observations</label>
+<textarea class="w-full bg-surface border border-outline-variant rounded-lg p-3 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-colors resize-none h-20" placeholder="Enter observations here..."></textarea>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
