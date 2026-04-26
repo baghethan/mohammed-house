@@ -425,6 +425,17 @@
     function renderDynamicChecklistForm(values){
       values = values || {};
       var container = $('dynamicChecklistSections'); if (!container) return;
+
+      var activeId = document.activeElement ? document.activeElement.id : null;
+      var activeStart = null;
+      var activeEnd = null;
+      if (activeId && document.activeElement.tagName === 'INPUT' && document.activeElement.type !== 'radio' && document.activeElement.type !== 'checkbox') {
+        try {
+          activeStart = document.activeElement.selectionStart;
+          activeEnd = document.activeElement.selectionEnd;
+        } catch(e) {}
+      }
+
       var currentAnswers = Object.keys(values).length ? collectDynamicChecklistAnswers(values) : collectDynamicChecklistAnswers();
       var fields = state.checklistFields.filter(function(field){ return field.active !== false; }).sort(function(a, b){
         var sa = String(a.section || ''), sb = String(b.section || '');
@@ -451,7 +462,7 @@
             for (var i = 0; i < count; i += 1) {
               var labelTemplate = state.currentLang === 'en' ? (field.repeat.labelTemplateEn || field.repeat.labelTemplate || getFieldLabel(field) || 'Item {index}') : (field.repeat.labelTemplateAr || field.repeat.labelTemplate || getFieldLabel(field) || 'Item {index}');
               var label = String(labelTemplate).replace('{index}', i + 1);
-              inner += '<div class="field" style="margin-top:10px"><label>' + esc(label) + '</label><input type="text" data-repeat-field-id="' + esc(field.id) + '" data-repeat-index="' + (i + 1) + '" value="' + esc(valuesArr[i] || '') + '" /></div>';
+              inner += '<div class="field" style="margin-top:10px"><label>' + esc(label) + '</label><input type="text" id="dcf_rep_' + esc(field.id) + '_' + (i + 1) + '" data-repeat-field-id="' + esc(field.id) + '" data-repeat-index="' + (i + 1) + '" value="' + esc(valuesArr[i] || '') + '" /></div>';
             }
             item.innerHTML = inner;
           } else {
@@ -463,6 +474,18 @@
       });
       if (!Object.keys(grouped).length) container.innerHTML = '<div class="note">' + esc(t('noDynamicFields')) + '</div>';
       bindDynamicChecklistReactivity();
+
+      if (activeId) {
+        var elToFocus = document.getElementById(activeId);
+        if (elToFocus) {
+          elToFocus.focus();
+          if (activeStart !== null && activeEnd !== null && elToFocus.tagName === 'INPUT' && (elToFocus.type === 'text' || elToFocus.type === 'number' || elToFocus.type === 'search' || elToFocus.type === 'password' || elToFocus.type === 'tel' || elToFocus.type === 'url')) {
+            try {
+              elToFocus.setSelectionRange(activeStart, activeEnd);
+            } catch(e) {}
+          }
+        }
+      }
     }
 
     function renderBrandsDatalist(){ $('brandsDatalist').innerHTML = state.brands.map(function(brand){ return '<option value="' + esc(brand.brand || brand.nameEn || brand.nameAr || brand.key || '') + '"></option>'; }).join(''); }
