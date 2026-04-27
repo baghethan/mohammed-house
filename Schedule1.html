@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>نظام الإجازات - الإصدار الذكي v1.7.0</title>
+    <title>نظام الإجازات - استيراد وتصدير v1.8.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
@@ -16,7 +16,7 @@
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             position: absolute;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.4s ease;
         }
         .date-text-inside { color: white; font-size: 9px; font-weight: 600; white-space: nowrap; padding: 0 10px; }
     </style>
@@ -28,9 +28,21 @@
         <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
             <div>
                 <h1 class="text-xl font-bold text-[#1e3a8a] border-r-4 border-[#1e3a8a] pr-4">نظام إدارة الإجازات السنوية</h1>
-                <p class="text-xs text-slate-400 pr-4 mt-1">تخطيط دقيق للمخطط الزمني</p>
+                <p class="text-xs text-slate-400 pr-4 mt-1">استيراد وتصدير البيانات عبر Excel</p>
             </div>
-            <button onclick="downloadExcel()" class="bg-[#1e3a8a] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-900 transition-all shadow-md">تنزيل Excel</button>
+            
+            <div class="flex gap-2">
+                <label class="cursor-pointer flex items-center bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all shadow-sm">
+                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                    <span>رفع Excel</span>
+                    <input type="file" id="uploadExcel" class="hidden" accept=".xlsx, .xls" />
+                </label>
+
+                <button onclick="downloadExcel()" class="flex items-center bg-[#1e3a8a] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-900 transition-all shadow-md">
+                    <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                    <span>تنزيل Excel</span>
+                </button>
+            </div>
         </div>
 
         <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
@@ -38,7 +50,7 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 mb-1">اسم الموظف</label>
-                    <input type="text" id="empName" placeholder="أدخل الاسم..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 outline-none">
+                    <input type="text" id="empName" placeholder="أدخل الاسم..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-100">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-500 mb-1">من تاريخ</label>
@@ -48,7 +60,7 @@
                     <label class="block text-xs font-semibold text-slate-500 mb-1">إلى تاريخ</label>
                     <input type="date" id="dateTo" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none">
                 </div>
-                <button onclick="addNewVacation()" class="bg-[#0d9488] hover:bg-[#0a7a6f] text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition-all">+ إضافة للجدول</button>
+                <button onclick="processEntry()" class="bg-[#0d9488] hover:bg-[#0a7a6f] text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition-all">+ إضافة</button>
             </div>
         </section>
 
@@ -56,7 +68,7 @@
             <h2 class="text-md font-bold text-slate-700 mb-4 text-right">المخطط الزمني (Gantt Chart)</h2>
             <div class="overflow-x-auto border border-slate-100 rounded-xl">
                 <div class="min-w-[1200px]" id="ganttContainer">
-                    <div class="grid grid-cols-12 bg-slate-50 border-b border-slate-100 text-center text-[10px] font-bold text-slate-400 uppercase">
+                    <div class="grid grid-cols-12 bg-slate-50 border-b border-slate-100 text-center text-[10px] font-bold text-slate-400">
                         <div class="col-span-1 p-3 text-slate-600 border-l border-slate-100">الموظف</div>
                         <div class="col-span-11 grid grid-cols-12">
                             <div class="p-3 border-l border-slate-100">JAN</div><div class="p-3 border-l border-slate-100">FEB</div><div class="p-3 border-l border-slate-100">MAR</div>
@@ -71,8 +83,8 @@
 
         <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <h2 class="text-md font-bold text-slate-700 mb-4 text-right">إدارة الطلبات</h2>
-            <div class="overflow-hidden rounded-xl border border-slate-100">
-                <table class="w-full text-right border-collapse">
+            <div class="overflow-hidden rounded-xl border border-slate-100 text-right">
+                <table class="w-full text-right border-collapse" id="requestsTable">
                     <thead>
                         <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase">
                             <th class="px-6 py-4">الموظف</th>
@@ -89,21 +101,15 @@
     </div>
 
     <script>
-        function addNewVacation() {
-            const name = document.getElementById('empName').value;
-            const from = document.getElementById('dateFrom').value;
-            const to = document.getElementById('dateTo').value;
-
-            if(!name || !from || !to) { alert("أكمل البيانات"); return; }
+        // دالة موحدة لمعالجة البيانات (سواء يدوياً أو من ملف)
+        function addDataToSystem(name, from, to) {
+            if(!name || !from || !to) return;
 
             const d1 = new Date(from);
             const d2 = new Date(to);
+            const rowId = 'row-' + Math.random().toString(36).substr(2, 9);
 
-            if (d2 < d1) { alert("تاريخ النهاية يجب أن يكون بعد البداية"); return; }
-
-            const rowId = 'row-' + Date.now();
-
-            // 1. إضافة لجدول الإدارة
+            // 1. تحديث جدول الإدارة
             const tableRow = `
                 <tr id="${rowId}" class="hover:bg-slate-50 transition-colors">
                     <td class="px-6 py-4 font-bold text-slate-700">${name}</td>
@@ -112,56 +118,84 @@
                     <td class="px-6 py-4 text-center border-x border-slate-50">
                         <span id="status-${rowId}" class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold">PENDING</span>
                     </td>
-                    <td class="px-6 py-4 text-center">
-                        <div class="flex justify-center gap-2">
-                            <button onclick="updateStatus('${rowId}', 'approved')" class="bg-[#10b981] text-white px-3 py-1 rounded text-xs font-bold">موافقة</button>
-                            <button onclick="updateStatus('${rowId}', 'rejected')" class="bg-[#f43f5e] text-white px-3 py-1 rounded text-xs font-bold">رفض</button>
-                        </div>
+                    <td class="px-6 py-4 text-center flex justify-center gap-2">
+                        <button onclick="updateStat('${rowId}', 'ok')" class="bg-teal-500 text-white px-2 py-1 rounded text-[10px]">موافقة</button>
+                        <button onclick="updateStat('${rowId}', 'no')" class="bg-rose-500 text-white px-2 py-1 rounded text-[10px]">رفض</button>
                     </td>
                 </tr>`;
             document.getElementById('tableBody').insertAdjacentHTML('afterbegin', tableRow);
 
-            // 2. حسابات المخطط الزمني (Gantt)
+            // 2. تحديث المخطط الزمني
             const startMonth = d1.getMonth();
             const startDay = d1.getDate();
             const endMonth = d2.getMonth();
             const endDay = d2.getDate();
 
-            // حساب المسافة: كل شهر يمثل 8.33% من المساحة
-            const leftPosition = (startMonth * 8.33) + ((startDay / 30) * 8.33);
-            const endPosition = (endMonth * 8.33) + ((endDay / 30) * 8.33);
-            let width = endPosition - leftPosition;
-            
-            // الحد الأدنى للعرض لكي يظهر النص
-            if(width < 8) width = 8; 
+            const leftPos = (startMonth * 8.33) + ((startDay / 30) * 8.33);
+            const endPos = (endMonth * 8.33) + ((endDay / 30) * 8.33);
+            let width = endPos - leftPos;
+            if(width < 5) width = 5;
 
             const ganttRow = `
                 <div class="grid grid-cols-12 border-b border-slate-50 items-center hover:bg-slate-50 h-16">
-                    <div class="col-span-1 p-4 text-sm font-medium text-slate-700 border-l border-slate-100 bg-white z-10">${name}</div>
-                    <div class="col-span-11 relative flex items-center h-full bg-slate-50/30">
-                        <div class="vacation-bar" style="right: ${leftPosition}%; width: ${width}%;">
+                    <div class="col-span-1 p-4 text-xs font-bold text-slate-700 border-l border-slate-100 bg-white z-10">${name}</div>
+                    <div class="col-span-11 relative flex items-center h-full bg-slate-50/20">
+                        <div class="vacation-bar" style="right: ${leftPos}%; width: ${width}%;">
                             <span class="date-text-inside">${from} - ${to}</span>
                         </div>
                     </div>
                 </div>`;
             document.getElementById('ganttContainer').insertAdjacentHTML('beforeend', ganttRow);
+        }
 
+        // معالجة الزر اليدوي
+        function processEntry() {
+            const n = document.getElementById('empName').value;
+            const f = document.getElementById('dateFrom').value;
+            const t = document.getElementById('dateTo').value;
+            addDataToSystem(n, f, t);
             document.getElementById('empName').value = '';
         }
 
-        function updateStatus(id, stat) {
+        // معالجة رفع ملف Excel
+        document.getElementById('uploadExcel').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                
+                // تحويل الورقة إلى JSON
+                // يجب أن يحتوي ملف Excel على أعمدة باسم: الموظف، من، إلى
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                jsonData.forEach(row => {
+                    // محاولة قراءة البيانات بافتراض أسماء الأعمدة
+                    const name = row['الموظف'] || row['Employee'] || row['Name'];
+                    const from = row['من'] || row['From'] || row['Start'];
+                    const to = row['إلى'] || row['To'] || row['End'];
+                    
+                    if(name && from && to) {
+                        addDataToSystem(name, from, to);
+                    }
+                });
+                alert("تم استيراد البيانات بنجاح!");
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function updateStat(id, s) {
             const el = document.getElementById('status-' + id);
-            if(stat === 'approved') {
-                el.innerText = 'APPROVED'; el.className = 'px-3 py-1 rounded-full bg-green-100 text-green-700 text-[10px] font-bold';
-            } else {
-                el.innerText = 'REJECTED'; el.className = 'px-3 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-bold';
-            }
+            if(s==='ok'){ el.innerText='APPROVED'; el.className='px-3 py-1 rounded-full bg-green-100 text-green-700 text-[10px] font-bold'; }
+            else { el.innerText='REJECTED'; el.className='px-3 py-1 rounded-full bg-red-100 text-red-700 text-[10px] font-bold'; }
         }
 
         function downloadExcel() {
-            const table = document.querySelector("table");
-            const wb = XLSX.utils.table_to_book(table);
-            XLSX.writeFile(wb, "Vacation_Plan_v1.7.xlsx");
+            const wb = XLSX.utils.table_to_book(document.getElementById("requestsTable"));
+            XLSX.writeFile(wb, "Vacation_Plan_v1.8.xlsx");
         }
     </script>
 </body>
