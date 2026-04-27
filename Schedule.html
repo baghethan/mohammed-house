@@ -1,251 +1,190 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Annual Vacation Planner - Almajdouie Motors</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-    <style>
-        body { font-family: 'Inter', 'Segoe UI', sans-serif; background-color: #f4f7f9; }
-        .card-shadow { box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03); }
-        .custom-scrollbar::-webkit-scrollbar { height: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .gantt-row { border-bottom: 1px solid #f8fafc; height: 56px; display: flex; }
-        .gantt-cell { border-right: 1px solid #f8fafc; flex: 1; min-width: 60px; }
-        .vacation-bar {
-            position: absolute;
-            height: 20px;
-            border-radius: 10px;
-            background: linear-gradient(90deg, #2563eb 0%, #14b8a6 100%);
-            filter: drop-shadow(0 2px 4px rgba(37, 99, 235, 0.2));
-            z-index: 5;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 10px;
-            font-weight: bold;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-        .gantt-container { position: relative; flex: 1; display: grid; grid-template-columns: repeat(12, 1fr); }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Almajdouie Motors - Integrated System v10.4.3</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root { --primary: #0d2149; --primary2: #1b4fa3; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f7f9; }
+    .vacation-bar {
+      position: absolute; height: 20px; border-radius: 10px;
+      background: linear-gradient(90deg, #2563eb 0%, #14b8a6 100%);
+      filter: drop-shadow(0 2px 4px rgba(37, 99, 235, 0.2));
+      z-index: 5; display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 10px; font-weight: bold;
+    }
+    .gantt-row { border-bottom: 1px solid #f8fafc; height: 56px; display: flex; }
+    .gantt-cell { border-right: 1px solid #f8fafc; flex: 1; min-width: 60px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .login-overlay { position: fixed; inset: 0; background: rgba(13, 33, 73, 0.95); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+  </style>
 </head>
-<body class="min-h-screen pb-12 text-slate-700">
+<body>
 
-<header class="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
-    <div class="flex items-center space-x-reverse space-x-4">
-        <img src="LOGO-almajdouie.png" alt="Logo" class="h-10">
-        <div class="flex flex-col">
-            <span class="text-[#1e3a8a] font-bold text-lg leading-tight">Almajdouie</span>
-            <span class="text-[#1e3a8a] font-medium text-sm leading-tight">Motors - Scheduling v10.4.3</span>
-        </div>
-    </div>
+<div id="loginOverlay" class="login-overlay">
+  <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md">
+    <img src="LOGO-almajdouie.png" class="h-12 mx-auto mb-6">
+    <h2 class="text-2xl font-bold text-center text-[#0d2149] mb-6">تسجيل الدخول</h2>
+    <form id="loginForm" class="space-y-4">
+      <input id="loginEmail" type="email" placeholder="البريد الإلكتروني" class="w-full rounded-lg border-gray-300" required>
+      <input id="loginPassword" type="password" placeholder="كلمة المرور" class="w-full rounded-lg border-gray-300" required>
+      <button type="submit" class="w-full bg-[#1b4fa3] text-white py-2 rounded-lg font-bold">دخول</button>
+      <div id="loginErr" class="text-red-500 text-sm hidden text-center"></div>
+    </form>
+  </div>
+</div>
+
+<div id="mainContent" class="hidden">
+  <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-50">
     <div class="flex items-center gap-4">
-        <div id="userChip" class="text-xs font-semibold bg-slate-100 px-3 py-1 rounded-full">Admin</div>
-        <button id="btnDownloadAll" class="bg-blue-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800 transition-all">تنزيل المخطط كصورة</button>
+      <img src="LOGO-almajdouie.png" class="h-10">
+      <span class="font-bold text-[#0d2149]">نظام المجدوعي للجدولة</span>
     </div>
-</header>
+    <div class="flex gap-2">
+      <span id="userChip" class="bg-blue-50 px-3 py-1 rounded-full text-xs font-bold text-blue-700"></span>
+      <button id="btnLogout" class="text-red-600 text-sm font-bold">خروج</button>
+    </div>
+  </header>
 
-<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-    <section class="bg-white rounded-2xl p-6 mb-6 card-shadow grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-        <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-2">الموظف</label>
-            <select id="pEmp" class="w-full border-slate-200 rounded-lg text-sm"></select>
-        </div>
-        <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-2">من</label>
-            <input type="date" id="pStart" class="w-full border-slate-200 rounded-lg text-sm">
-        </div>
-        <div>
-            <label class="block text-xs font-semibold text-slate-500 uppercase mb-2">إلى</label>
-            <input type="date" id="pEnd" class="w-full border-slate-200 rounded-lg text-sm">
-        </div>
-        <button onclick="window.addVacationPlan()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium h-[42px]">إضافة للخطة</button>
-    </section>
+  <nav class="max-w-7xl mx-auto p-4 flex gap-2 overflow-x-auto">
+    <button class="tab-btn active px-4 py-2 rounded-full bg-white shadow-sm text-sm" data-tab="schedule">🗓️ الجدول</button>
+    <button class="tab-btn px-4 py-2 rounded-full bg-white shadow-sm text-sm" data-tab="planning">📅 خطة الإجازات</button>
+    </nav>
 
-    <section class="bg-white rounded-2xl p-6 mb-6 card-shadow" id="ganttCaptureArea">
-        <h2 class="text-xl font-bold text-slate-800 mb-6">المخطط السنوي المرئي للإجازات</h2>
-        <div class="overflow-x-auto custom-scrollbar border border-slate-100 rounded-xl">
-            <div class="min-w-[900px]" id="ganttChartBody">
-                <div class="flex gantt-row bg-slate-50 font-semibold text-xs text-slate-500 text-center">
-                    <div class="min-w-[200px] border-l p-3 sticky right-0 bg-slate-50 z-20">الموظف</div>
-                    <div class="flex-1 grid grid-cols-12">
-                        <div class="gantt-cell p-3">Jan</div><div class="gantt-cell p-3">Feb</div><div class="gantt-cell p-3">Mar</div><div class="gantt-cell p-3">Apr</div>
-                        <div class="gantt-cell p-3">May</div><div class="gantt-cell p-3">Jun</div><div class="gantt-cell p-3">Jul</div><div class="gantt-cell p-3">Aug</div>
-                        <div class="gantt-cell p-3">Sep</div><div class="gantt-cell p-3">Oct</div><div class="gantt-cell p-3">Nov</div><div class="gantt-cell p-3">Dec</div>
-                    </div>
-                </div>
-                <div id="ganttRowsContainer"></div>
-            </div>
-        </div>
-    </section>
+  <main class="max-w-7xl mx-auto p-4">
+    <div id="schedule" class="tab-content active">
+       <div class="bg-white p-6 rounded-2xl shadow-sm">هنا يظهر الجدول الأسبوعي الأصلي...</div>
+    </div>
 
-    <section class="bg-white rounded-2xl p-6 card-shadow">
-        <h2 class="text-xl font-bold text-slate-800 mb-6">إدارة الطلبات</h2>
-        <div class="overflow-x-auto">
-            <table class="w-full text-right">
-                <thead>
-                    <tr class="bg-blue-50 text-slate-800 text-sm font-semibold">
-                        <th class="px-6 py-4 rounded-r-xl">الموظف</th>
-                        <th class="px-6 py-4">من</th>
-                        <th class="px-6 py-4">إلى</th>
-                        <th class="px-6 py-4">الحالة</th>
-                        <th class="px-6 py-4 rounded-l-xl">الإجراءات</th>
-                    </tr>
-                </thead>
-                <tbody id="planningTableBody" class="text-sm divide-y divide-slate-100"></tbody>
-            </table>
-        </div>
-    </section>
-</main>
+    <div id="planning" class="tab-content">
+      <section class="bg-white rounded-2xl p-6 mb-6 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div><label class="block text-xs font-bold mb-2">الموظف</label><select id="pEmp" class="w-full rounded-lg border-gray-200 text-sm"></select></div>
+          <div><label class="block text-xs font-bold mb-2">من</label><input type="date" id="pStart" class="w-full rounded-lg border-gray-200 text-sm"></div>
+          <div><label class="block text-xs font-bold mb-2">إلى</label><input type="date" id="pEnd" class="w-full rounded-lg border-gray-200 text-sm"></div>
+          <button onclick="window.addVacationPlan()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold">إضافة للخطة</button>
+      </section>
+
+      <section class="bg-white rounded-2xl p-6 mb-6 shadow-sm overflow-hidden" id="ganttCapture">
+          <h2 class="text-lg font-bold mb-4 text-right">المخطط السنوي للإجازات</h2>
+          <div class="overflow-x-auto border rounded-xl">
+              <div class="min-w-[900px]" id="ganttBody">
+                  <div class="flex gantt-row bg-gray-50 text-xs font-bold text-center">
+                      <div class="min-w-[200px] border-l p-3 sticky right-0 bg-gray-50 z-20">الموظف</div>
+                      <div class="flex-1 grid grid-cols-12"><div class="p-3">Jan</div><div class="p-3">Feb</div><div class="p-3">Mar</div><div class="p-3">Apr</div><div class="p-3">May</div><div class="p-3">Jun</div><div class="p-3">Jul</div><div class="p-3">Aug</div><div class="p-3">Sep</div><div class="p-3">Oct</div><div class="p-3">Nov</div><div class="p-3">Dec</div></div>
+                  </div>
+                  <div id="ganttRows"></div>
+              </div>
+          </div>
+      </section>
+
+      <section class="bg-white rounded-2xl p-6 shadow-sm">
+          <table class="w-full text-right text-sm">
+              <thead class="bg-blue-50 text-blue-900 font-bold"><tr><th class="p-4">الموظف</th><th class="p-4">من</th><th class="p-4">إلى</th><th class="p-4">الحالة</th><th class="p-4">الإجراء</th></tr></thead>
+              <tbody id="planningTable" class="divide-y"></tbody>
+          </table>
+      </section>
+    </div>
+  </main>
+</div>
 
 <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getFirestore, doc, onSnapshot, collection, addDoc, updateDoc, deleteDoc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+  import { getFirestore, doc, onSnapshot, collection, addDoc, updateDoc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-    const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+  // الإعدادات (نفس الإعدادات الأصلية)
+  const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
 
-    let employees = [], planList = [];
+  let employees = [], planList = [];
 
-    // الربط مع البيانات
-    function bindData() {
-        onSnapshot(doc(db, 'schedule', 'jadwal_v6'), s => {
-            employees = s.exists() ? (s.data().data?.emps || []) : [];
-            updateEmployeeSelector();
-            renderAll();
-        });
-        onSnapshot(collection(db, 'vacations'), s => {
-            planList = s.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderAll();
-        });
+  // نظام تسجيل الدخول
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('mainContent').classList.remove('hidden');
+      document.getElementById('userChip').innerText = user.email;
+      bindSnapshots();
+    } else {
+      document.getElementById('loginOverlay').style.display = 'flex';
+      document.getElementById('mainContent').classList.add('hidden');
     }
+  });
 
-    function updateEmployeeSelector() {
-        const select = document.getElementById('pEmp');
-        select.innerHTML = employees.filter(e => e.active).map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-    }
+  // جلب البيانات
+  function bindSnapshots() {
+    onSnapshot(doc(db, 'schedule', 'jadwal_v6'), s => {
+      employees = s.exists() ? (s.data().data?.emps || []) : [];
+      populateSelectors();
+      renderPlanning();
+    });
+    onSnapshot(collection(db, 'vacations'), s => {
+      planList = s.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderPlanning();
+    });
+  }
 
-    window.addVacationPlan = async () => {
-        const id = document.getElementById('pEmp').value;
-        const s = document.getElementById('pStart').value;
-        const e = document.getElementById('pEnd').value;
-        if(!id || !s || !e) return alert("يرجى إكمال البيانات");
-        
-        const emp = employees.find(x => x.id === id);
-        await addDoc(collection(db, 'vacations'), {
-            empId: id,
-            name: emp.name,
-            from: s,
-            to: e,
-            status: 'pending',
-            createdAt: new Date().toISOString()
-        });
+  // تبديل التبويبات
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('bg-blue-600', 'text-white'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('bg-blue-600', 'text-white');
+      document.getElementById(btn.dataset.tab).classList.add('active');
     };
+  });
 
-    window.approveVacation = async (id) => {
-        const plan = planList.find(x => x.id === id);
-        // ترحيل للجدول السنوي
-        const annualRef = doc(db, 'schedule', 'jadwal_annual_leave');
-        const snap = await getDoc(annualRef);
-        const vacations = snap.exists() ? (snap.data().vacations || []) : [];
-        vacations.push({ empId: plan.empId, start: plan.from, end: plan.to });
-        await setDoc(annualRef, { vacations }, { merge: true });
-        
-        await updateDoc(doc(db, 'vacations', id), { status: 'approved' });
-    };
+  // دوال الإجازات (التصميم الجديد)
+  window.addVacationPlan = async () => {
+    const id = document.getElementById('pEmp').value;
+    const s = document.getElementById('pStart').value;
+    const e = document.getElementById('pEnd').value;
+    const emp = employees.find(x => x.id === id);
+    await addDoc(collection(db, 'vacations'), { empId: id, name: emp.name, from: s, to: e, status: 'pending' });
+  };
 
-    window.rejectVacation = async (id) => {
-        await updateDoc(doc(db, 'vacations', id), { status: 'cancelled' });
-    };
+  function renderPlanning() {
+    const rows = document.getElementById('ganttRows');
+    const table = document.getElementById('planningTable');
+    rows.innerHTML = '';
+    table.innerHTML = '';
 
-    function renderAll() {
-        renderGantt();
-        renderTable();
-    }
+    employees.filter(e => e.active).forEach(emp => {
+      const row = document.createElement('div');
+      row.className = 'gantt-row';
+      row.innerHTML = `<div class="min-w-[200px] border-l p-3 sticky right-0 bg-white z-20 text-xs font-bold">${emp.name}</div><div class="flex-1 grid grid-cols-12 relative h-full">` + 
+                      '<div class="gantt-cell"></div>'.repeat(12) + '</div>';
+      
+      const timeline = row.querySelector('.relative');
+      planList.filter(p => p.empId === emp.id).forEach(p => {
+        const start = new Date(p.from), end = new Date(p.to);
+        const year = new Date().getFullYear();
+        if(start.getFullYear() === year) {
+           const offset = (start - new Date(year, 0, 1)) / 86400000;
+           const duration = ((end - start) / 86400000) + 1;
+           const bar = document.createElement('div');
+           bar.className = 'vacation-bar';
+           bar.style.right = (offset/365*100) + '%';
+           bar.style.width = (duration/365*100) + '%';
+           bar.innerText = p.status === 'approved' ? '✓' : '...';
+           timeline.appendChild(bar);
+        }
+      });
+      rows.appendChild(row);
+    });
 
-    function renderGantt() {
-        const container = document.getElementById('ganttRowsContainer');
-        container.innerHTML = '';
-        const currentYear = new Date().getFullYear();
+    table.innerHTML = planList.map(p => `<tr><td class="p-4">${p.name}</td><td class="p-4">${p.from}</td><td class="p-4">${p.to}</td><td class="p-4">${p.status}</td><td class="p-4"><button onclick="window.approvePlan('${p.id}')" class="text-teal-600 font-bold">قبول</button></td></tr>`).join('');
+  }
 
-        employees.filter(e => e.active).forEach(emp => {
-            const row = document.createElement('div');
-            row.className = 'gantt-row';
-            
-            const nameDiv = document.createElement('div');
-            nameDiv.className = 'min-w-[200px] border-l p-3 text-sm font-medium bg-white sticky right-0 z-20 shadow-sm';
-            nameDiv.innerText = emp.name;
-            
-            const timeline = document.createElement('div');
-            timeline.className = 'gantt-container';
-            for(let i=0; i<12; i++) timeline.innerHTML += '<div class="gantt-cell"></div>';
-
-            // رسم الأشرطة
-            const empPlans = planList.filter(p => p.empId === emp.id);
-            empPlans.forEach(p => {
-                const start = new Date(p.from);
-                const end = new Date(p.to);
-                if(start.getFullYear() !== currentYear) return;
-
-                const yearStart = new Date(currentYear, 0, 1);
-                const yearEnd = new Date(currentYear + 1, 0, 1);
-                const totalDays = (yearEnd - yearStart) / 86400000;
-                const offsetDays = (start - yearStart) / 86400000;
-                const durationDays = ((end - start) / 86400000) + 1;
-
-                const bar = document.createElement('div');
-                bar.className = 'vacation-bar';
-                bar.style.right = (offsetDays / totalDays * 100) + '%';
-                bar.style.width = (durationDays / totalDays * 100) + '%';
-                bar.innerText = p.status === 'approved' ? '✓' : '...';
-                timeline.appendChild(bar);
-            });
-
-            row.appendChild(nameDiv);
-            row.appendChild(timeline);
-            container.appendChild(row);
-        });
-    }
-
-    function renderTable() {
-        const body = document.getElementById('planningTableBody');
-        body.innerHTML = planList.map(p => `
-            <tr class="hover:bg-slate-50 transition-colors">
-                <td class="px-6 py-4 font-medium">${p.name}</td>
-                <td class="px-6 py-4 text-slate-600">${p.from}</td>
-                <td class="px-6 py-4 text-slate-600">${p.to}</td>
-                <td class="px-6 py-4">
-                    <span class="px-3 py-1 rounded-full text-xs font-semibold ${
-                        p.status === 'approved' ? 'bg-teal-100 text-teal-700' : 
-                        p.status === 'cancelled' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
-                    }">${p.status === 'approved' ? 'مقبول' : p.status === 'cancelled' ? 'ملغي' : 'قيد الانتظار'}</span>
-                </td>
-                <td class="px-6 py-4 flex gap-2">
-                    ${p.status === 'pending' ? `
-                        <button onclick="window.approveVacation('${p.id}')" class="px-4 py-1.5 bg-[#14b8a6] text-white rounded-full text-xs hover:bg-teal-600 shadow-sm">قبول</button>
-                        <button onclick="window.rejectVacation('${p.id}')" class="px-4 py-1.5 bg-[#ffe4e6] text-[#e11d48] rounded-full text-xs hover:bg-rose-200">رفض</button>
-                    ` : `<span class="text-slate-400 text-xs italic">لا توجد إجراءات</span>`}
-                </td>
-            </tr>
-        `).join('');
-    }
-
-    document.getElementById('btnDownloadAll').onclick = () => {
-        html2canvas(document.getElementById('ganttCaptureArea')).then(canvas => {
-            const link = document.createElement('a');
-            link.download = 'vacation-plan.png';
-            link.href = canvas.toDataURL();
-            link.click();
-        });
-    };
-
-    bindData();
+  function populateSelectors() {
+    document.getElementById('pEmp').innerHTML = employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+  }
 </script>
-
 </body>
 </html>
