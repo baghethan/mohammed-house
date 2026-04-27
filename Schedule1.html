@@ -3,25 +3,32 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>نظام الإجازات - الإصدار المصلح v2.2.0</title>
+    <title>نظام الإجازات - السطر الموحد v2.3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f4f7f9; }
+        
+        /* تعريف مصفوفة ألوان التدرجات */
+        .color-0 { background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%); } /* أزرق */
+        .color-1 { background: linear-gradient(90deg, #0d9488 0%, #14b8a6 100%); } /* تيل */
+        .color-2 { background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%); } /* بنفسجي */
+        .color-3 { background: linear-gradient(90deg, #db2777 0%, #f472b6 100%); } /* وردي */
+        .color-4 { background: linear-gradient(90deg, #ea580c 0%, #fb923c 100%); } /* برتقالي */
+
         .vacation-bar {
             height: 24px;
             border-radius: 12px;
-            background: linear-gradient(90deg, #1e3a8a 0%, #14b8a6 100%);
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             position: absolute;
             z-index: 10;
+            transition: transform 0.2s;
         }
-        .date-text-inside { color: white; font-size: 8px; font-weight: 600; white-space: nowrap; padding: 0 5px; }
-        /* تحسين شبكة المخطط */
+        .vacation-bar:hover { transform: scale(1.02); z-index: 20; }
+        .date-text-inside { color: white; font-size: 8px; font-weight: 700; white-space: nowrap; padding: 0 8px; }
         .gantt-grid { display: grid; width: 100%; min-width: 1100px; }
-        .cell { border-left: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body class="p-4 md:p-8 pb-20">
@@ -30,52 +37,47 @@
         
         <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100">
             <div>
-                <h1 class="text-xl font-bold text-[#1e3a8a] border-r-4 border-[#1e3a8a] pr-4">نظام إدارة الإجازات السنوية</h1>
-                <p class="text-xs text-slate-400 pr-4 mt-1">عرض احترافي للمخطط الزمني</p>
+                <h1 class="text-xl font-bold text-[#1e3a8a] border-r-4 border-[#1e3a8a] pr-4">نظام إدارة الإجازات الذكي</h1>
+                <p class="text-xs text-slate-400 pr-4 mt-1">تجميع إجازات الموظف في سطر واحد بألوان مميزة</p>
             </div>
             <div class="flex gap-2">
-                <label class="cursor-pointer bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 shadow-sm transition-all">
+                <label class="cursor-pointer bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all">
                     <span>رفع Excel</span>
                     <input type="file" id="uploadExcel" class="hidden" accept=".xlsx, .xls" />
                 </label>
-                <button onclick="downloadExcel()" class="bg-[#1e3a8a] text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-900 shadow-md">تنزيل Excel</button>
+                <button onclick="downloadExcel()" class="bg-[#1e3a8a] text-white px-5 py-2 rounded-lg text-sm font-medium shadow-md">تنزيل Excel</button>
             </div>
         </div>
 
         <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-md font-bold text-slate-700">المخطط الزمني (Gantt Chart)</h2>
+                <h2 class="text-md font-bold text-slate-700">المخطط الزمني الموحد (Grouped View)</h2>
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-bold text-slate-500">نطاق العرض:</span>
                     <select id="viewRange" onchange="renderGantt()" class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-50 outline-none">
-                        <option value="year">السنة كاملة (JAN - DEC)</option>
-                        <option value="h1">النصف الأول (JAN - JUN)</option>
-                        <option value="h2">النصف الثاني (JUL - DEC)</option>
-                        <option value="q1">الربع الأول (JAN - MAR)</option>
-                        <option value="q2">الربع الثاني (APR - JUN)</option>
-                        <option value="q3">الربع الثالث (JUL - SEP)</option>
-                        <option value="q4">الربع الرابع (OCT - DEC)</option>
+                        <option value="year">السنة كاملة</option>
+                        <option value="h1">النصف الأول</option>
+                        <option value="h2">النصف الثاني</option>
                     </select>
                 </div>
             </div>
 
-            <div class="overflow-x-auto border border-slate-100 rounded-xl bg-white shadow-inner">
+            <div class="overflow-x-auto border border-slate-100 rounded-xl bg-white">
                 <div id="ganttArea" class="bg-white">
                     </div>
             </div>
         </section>
 
         <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-            <h2 class="text-md font-bold text-slate-700 mb-4 text-right">إدارة الطلبات</h2>
+            <h2 class="text-md font-bold text-slate-700 mb-4 text-right">سجل الطلبات التفصيلي</h2>
             <div class="overflow-hidden rounded-xl border border-slate-100">
                 <table class="w-full text-right border-collapse" id="requestsTable">
                     <thead>
-                        <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase">
+                        <tr class="bg-slate-50 text-slate-600 text-xs font-bold">
                             <th class="px-6 py-4">الموظف</th>
                             <th class="px-6 py-4 text-center">من</th>
                             <th class="px-6 py-4 text-center">إلى</th>
                             <th class="px-6 py-4 text-center">الحالة</th>
-                            <th class="px-6 py-4 text-center">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="text-sm divide-y divide-slate-100"></tbody>
@@ -88,13 +90,6 @@
         let vacationsData = [];
         const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-        // دالة تحويل تواريخ إكسيل
-        function formatExcelDate(serial) {
-            if (!serial || isNaN(serial)) return serial;
-            const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
-            return date.toISOString().split('T')[0];
-        }
-
         function renderGantt() {
             const range = document.getElementById('viewRange').value;
             const area = document.getElementById('ganttArea');
@@ -102,54 +97,69 @@
             let startM = 0, endM = 11;
             if(range === 'h1') { startM = 0; endM = 5; }
             else if(range === 'h2') { startM = 6; endM = 11; }
-            else if(range === 'q1') { startM = 0; endM = 2; }
-            else if(range === 'q2') { startM = 3; endM = 5; }
-            else if(range === 'q3') { startM = 6; endM = 8; }
-            else if(range === 'q4') { startM = 9; endM = 11; }
 
             const totalMonths = (endM - startM) + 1;
-            // 2 أعمدة للاسم + عدد الشهور المختار
             const gridCols = 2 + totalMonths; 
 
-            // إنشاء الهيدر
+            // تجميع البيانات حسب الموظف
+            const grouped = {};
+            vacationsData.forEach(vac => {
+                if (!grouped[vac.name]) grouped[vac.name] = [];
+                grouped[vac.name].push(vac);
+            });
+
+            // بناء الرأس
             let html = `<div class="gantt-grid" style="grid-template-columns: repeat(${gridCols}, 1fr);">
-                <div class="col-span-2 p-3 text-sm font-bold text-slate-600 bg-slate-50 border-l border-b border-slate-100">الموظف</div>`;
-            
+                <div class="col-span-2 p-3 text-sm font-bold text-slate-600 bg-slate-50 border-l border-b">الموظف</div>`;
             for(let i = startM; i <= endM; i++) {
-                html += `<div class="p-3 text-[10px] font-bold text-slate-400 bg-slate-50 border-l border-b border-slate-100 text-center">${monthNames[i]}</div>`;
+                html += `<div class="p-3 text-[10px] font-bold text-slate-400 bg-slate-50 border-l border-b text-center">${monthNames[i]}</div>`;
             }
             html += `</div>`;
 
-            // إنشاء الصفوف
-            vacationsData.forEach(vac => {
-                const d1 = new Date(vac.from);
-                const d2 = new Date(vac.to);
-                const vStartM = d1.getMonth();
-                const vEndM = d2.getMonth();
+            // بناء الصفوف (كل موظف له سطر واحد)
+            Object.keys(grouped).forEach(empName => {
+                const empVacations = grouped[empName];
+                
+                html += `<div class="gantt-grid border-b border-slate-50 h-16" style="grid-template-columns: repeat(${gridCols}, 1fr);">
+                    <div class="col-span-2 p-3 text-[11px] font-bold text-slate-700 border-l border-slate-100 flex items-center bg-white z-20 sticky right-0">${empName}</div>
+                    <div class="col-span-${totalMonths} relative flex items-center h-full bg-slate-50/10">`;
 
-                // التحقق من نطاق العرض
-                if (vEndM >= startM && vStartM <= endM) {
-                    html += `<div class="gantt-grid border-b border-slate-50 h-14" style="grid-template-columns: repeat(${gridCols}, 1fr);">
-                        <div class="col-span-2 p-3 text-[11px] font-bold text-slate-700 border-l border-slate-100 flex items-center bg-white">${vac.name}</div>
-                        <div class="col-span-${totalMonths} relative flex items-center h-full bg-slate-50/10">`;
-                    
-                    // حسابات الشريط
-                    const visibleStartM = Math.max(vStartM, startM);
-                    const visibleEndM = Math.min(vEndM, endM);
-                    const monthWidth = 100 / totalMonths;
-                    
-                    const leftShift = (visibleStartM - startM) * monthWidth;
-                    const barWidth = ((visibleEndM - visibleStartM) + 1) * monthWidth;
+                // رسم جميع إجازات هذا الموظف داخل نفس السطر
+                empVacations.forEach((vac, index) => {
+                    const d1 = new Date(vac.from);
+                    const d2 = new Date(vac.to);
+                    const vStartM = d1.getMonth();
+                    const vEndM = d2.getMonth();
 
-                    html += `
-                        <div class="vacation-bar shadow-sm" style="right: ${leftShift}%; width: ${barWidth - 1}%;">
-                            <span class="date-text-inside">${vac.from}</span>
-                        </div>
-                    </div></div>`;
-                }
+                    if (vEndM >= startM && vStartM <= endM) {
+                        const visibleStartM = Math.max(vStartM, startM);
+                        const visibleEndM = Math.min(vEndM, endM);
+                        const monthWidth = 100 / totalMonths;
+                        
+                        const leftShift = (visibleStartM - startM) * monthWidth;
+                        const barWidth = ((visibleEndM - visibleStartM) + 1) * monthWidth;
+                        
+                        // اختيار لون مختلف بناءً على الترتيب (index)
+                        const colorClass = `color-${index % 5}`;
+
+                        html += `
+                            <div class="vacation-bar ${colorClass} shadow-md" style="right: ${leftShift}%; width: ${barWidth - 0.5}%;">
+                                <span class="date-text-inside">${vac.from.split('-').slice(1).join('/')}</span>
+                            </div>`;
+                    }
+                });
+
+                html += `</div></div>`;
             });
 
             area.innerHTML = html;
+        }
+
+        // تحويل تواريخ إكسيل
+        function formatExcelDate(serial) {
+            if (!serial || isNaN(serial)) return serial;
+            const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
+            return date.toISOString().split('T')[0];
         }
 
         // رفع الملف
@@ -160,35 +170,30 @@
             reader.onload = function(event) {
                 const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
                 const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                
                 vacationsData = jsonData.map(row => ({
-                    id: Date.now() + Math.random(),
                     name: row['الموظف'] || row['Employee'],
                     from: formatExcelDate(row['من'] || row['From']),
-                    to: formatExcelDate(row['إلى'] || row['To']),
-                    status: 'PENDING'
+                    to: formatExcelDate(row['إلى'] || row['To'])
                 })).filter(x => x.name && x.from);
                 
-                updateTable();
+                // تحديث الجدول
+                document.getElementById('tableBody').innerHTML = vacationsData.map(v => `
+                    <tr>
+                        <td class="px-6 py-4 font-bold text-slate-700">${v.name}</td>
+                        <td class="px-6 py-4 text-center font-mono text-slate-500">${v.from}</td>
+                        <td class="px-6 py-4 text-center font-mono text-slate-500">${v.to}</td>
+                        <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold tracking-tighter">PENDING</span></td>
+                    </tr>`).join('');
+
                 renderGantt();
             };
             reader.readAsArrayBuffer(file);
         });
 
-        function updateTable() {
-            const body = document.getElementById('tableBody');
-            body.innerHTML = vacationsData.map(v => `
-                <tr>
-                    <td class="px-6 py-4 font-bold text-slate-700">${v.name}</td>
-                    <td class="px-6 py-4 text-center font-mono text-slate-500">${v.from}</td>
-                    <td class="px-6 py-4 text-center font-mono text-slate-500">${v.to}</td>
-                    <td class="px-6 py-4 text-center"><span class="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold">PENDING</span></td>
-                    <td class="px-6 py-4 text-center"><button class="bg-[#10b981] text-white px-3 py-1 rounded-md text-xs font-bold">موافقة</button></td>
-                </tr>`).join('');
-        }
-
         function downloadExcel() {
             const wb = XLSX.utils.table_to_book(document.getElementById("requestsTable"));
-            XLSX.writeFile(wb, "Vacation_Full_Year_v2.2.xlsx");
+            XLSX.writeFile(wb, "Grouped_Vacations_v2.3.xlsx");
         }
     </script>
 </body>
