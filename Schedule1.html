@@ -3,28 +3,43 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>نظام الإجازات - لوحة الإحصائيات v2.9.0</title>
+    <title>نظام الإجازات - الإصدار المصلح v3.0.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; scroll-behavior: smooth; }
-        .vacation-bar { height: 24px; border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: absolute; z-index: 10; }
-        .date-text-inside { color: white; font-size: 8px; font-weight: 700; white-space: nowrap; padding: 0 5px; }
-        .gantt-grid { display: grid; width: 100%; min-width: 1100px; background: white; }
-        .stat-card { transition: transform 0.2s; }
-        .stat-card:hover { transform: translateY(-5px); }
+        
+        /* تدرجات ألوان واضحة وقوية */
+        .color-0 { background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%); }
+        .color-1 { background: linear-gradient(90deg, #0d9488 0%, #14b8a6 100%); }
+        .color-2 { background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%); }
+        .color-3 { background: linear-gradient(90deg, #db2777 0%, #f472b6 100%); }
+        .color-4 { background: linear-gradient(90deg, #ea580c 0%, #fb923c 100%); }
+
+        .vacation-bar {
+            height: 28px; 
+            border-radius: 14px;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+            position: absolute; 
+            z-index: 50; /* ضمان ظهورها فوق الخلفية */
+            min-width: 20px;
+        }
+        .date-text-inside { color: white; font-size: 9px; font-weight: 700; white-space: nowrap; padding: 0 8px; pointer-events: none; }
+        .gantt-grid-row { display: grid; width: 100%; min-width: 1100px; }
     </style>
 </head>
 <body class="p-4 md:p-8 pb-20 text-right">
 
     <div class="max-w-7xl mx-auto space-y-6">
-        
-        <div class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+        <div class="flex justify-between items-center bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
             <div>
                 <h1 class="text-xl font-bold text-[#1e3a8a] border-r-4 border-[#1e3a8a] pr-4">نظام إدارة الإجازات السنوية</h1>
-                <p class="text-xs text-slate-400 pr-4 mt-1">لوحة تحكم إحصائية تفاعلية v2.9.0</p>
+                <p class="text-xs text-slate-400 pr-4 mt-1">إصلاح شامل للمخطط الزمني v3.0.0</p>
             </div>
             <div class="flex gap-2">
                 <label class="cursor-pointer bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 shadow-sm transition-all">
@@ -35,64 +50,24 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="stat-card bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-blue-50 rounded-xl text-blue-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
-                    </div>
-                    <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg" id="viewLabel">نطاق كامل</span>
-                </div>
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">إجمالي الموظفين المجازين</h3>
-                <p class="text-2xl font-bold text-slate-800" id="statTotalLeaves">0</p>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="statsGrid">
             </div>
-
-            <div class="stat-card bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-green-50 rounded-xl text-green-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
-                    </div>
-                    <span class="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">قيد التنفيذ</span>
-                </div>
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">إجازات نشطة اليوم</h3>
-                <p class="text-2xl font-bold text-slate-800" id="statActiveNow">0</p>
-            </div>
-
-            <div class="stat-card bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-amber-50 rounded-xl text-amber-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
-                    </div>
-                    <span class="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded-lg tracking-tighter">Critical</span>
-                </div>
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">طلبات بانتظار الموافقة</h3>
-                <p class="text-2xl font-bold text-slate-800" id="statPending">0</p>
-            </div>
-
-            <div class="stat-card bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="p-3 bg-purple-50 rounded-xl text-purple-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
-                    </div>
-                    <span class="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg" id="peakMonthBadge">Optimal</span>
-                </div>
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">ذروة الإجازات (أعلى شهر)</h3>
-                <p class="text-2xl font-bold text-slate-800" id="statPeakMonth">---</p>
-            </div>
-        </div>
 
         <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-md font-bold text-slate-700">المخطط الزمني (Gantt Chart)</h2>
-                <select id="viewRange" onchange="refreshUI()" class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-50 outline-none">
-                    <option value="year">السنة كاملة (Jan - Dec)</option>
-                    <option value="q1">الربع الأول (Jan - Mar)</option>
-                    <option value="q2">الربع الثاني (Apr - Jun)</option>
-                    <option value="q3">الربع الثالث (Jul - Sep)</option>
-                    <option value="q4">الربع الرابع (Oct - Dec)</option>
-                </select>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-500">نطاق العرض:</span>
+                    <select id="viewRange" onchange="refreshUI()" class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-50 outline-none focus:ring-2 focus:ring-blue-100">
+                        <option value="year">السنة كاملة (Jan - Dec)</option>
+                        <option value="q1">الربع الأول (Jan - Mar)</option>
+                        <option value="q2">الربع الثاني (Apr - Jun)</option>
+                        <option value="q3">الربع الثالث (Jul - Sep)</option>
+                        <option value="q4">الربع الرابع (Oct - Dec)</option>
+                    </select>
+                </div>
             </div>
-            <div class="overflow-x-auto border border-slate-100 rounded-xl bg-white p-2">
+            <div class="overflow-x-auto border border-slate-200 rounded-xl bg-white p-1">
                 <div id="ganttArea"></div>
             </div>
         </section>
@@ -103,7 +78,7 @@
                 <table class="w-full text-right border-collapse" id="requestsTable">
                     <thead>
                         <tr class="bg-slate-50 text-slate-600 text-xs font-bold uppercase tracking-wider">
-                            <th class="px-6 py-4">الموظف</th><th class="px-6 py-4 text-center">من</th><th class="px-6 py-4 text-center">إلى</th><th class="px-6 py-4 text-center">الحالة</th><th class="px-6 py-4 text-center">الإجراءات</th>
+                            <th class="px-6 py-4">الموظف</th><th class="px-6 py-4 text-center">من</th><th class="px-6 py-4 text-center">إلى</th><th class="px-6 py-4 text-center border-x">الحالة</th><th class="px-6 py-4 text-center">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="text-sm divide-y divide-slate-100"></tbody>
@@ -116,76 +91,64 @@
         let vacationsData = [];
         const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-        // دالة تحديث الإحصائيات (Stats)
-        function updateStats() {
-            const range = document.getElementById('viewRange').value;
-            const today = new Date().toISOString().split('T')[0];
-            
-            // 1. حساب إجمالي الإجازات في النطاق المختار
-            let filtered = vacationsData;
-            if (range.startsWith('q')) {
-                const qMap = { q1: [0, 2], q2: [3, 5], q3: [6, 8], q4: [9, 11] };
-                const [start, end] = qMap[range];
-                filtered = vacationsData.filter(v => {
-                    const m = new Date(v.from).getMonth();
-                    return m >= start && m <= end;
-                });
-                document.getElementById('viewLabel').innerText = "Quarterly View";
-            } else {
-                document.getElementById('viewLabel').innerText = "Annual View";
-            }
-
-            document.getElementById('statTotalLeaves').innerText = filtered.length;
-
-            // 2. إجازات نشطة اليوم
-            const activeNow = vacationsData.filter(v => today >= v.from && today <= v.to).length;
-            document.getElementById('statActiveNow').innerText = activeNow;
-
-            // 3. الطلبات المعلقة
-            const pending = vacationsData.filter(v => v.status === 'PENDING').length;
-            document.getElementById('statPending').innerText = pending;
-
-            // 4. أعلى شهر في الإجازات
-            const monthCounts = new Array(12).fill(0);
-            filtered.forEach(v => monthCounts[new Date(v.from).getMonth()]++);
-            const maxVal = Math.max(...monthCounts);
-            const peakMonthIdx = monthCounts.indexOf(maxVal);
-            document.getElementById('statPeakMonth').innerText = maxVal > 0 ? monthNames[peakMonthIdx] : "---";
-            document.getElementById('peakMonthBadge').innerText = maxVal > 5 ? "High Load" : "Optimal";
-        }
-
         function refreshUI() {
             renderGantt();
             updateTable();
             updateStats();
         }
 
+        // بناء المخطط الزمني - إصلاح نظام الأشرطة
         function renderGantt() {
             const range = document.getElementById('viewRange').value;
             const area = document.getElementById('ganttArea');
             let startM = 0, endM = 11;
-            if(range === 'q1') endM = 2; else if(range === 'q2') {startM=3; endM=5;} else if(range === 'q3') {startM=6; endM=8;} else if(range === 'q4') {startM=9; endM=11;}
             
-            const totalMonths = (endM - startM) + 1, gridCols = 2 + totalMonths;
-            const grouped = {}; vacationsData.forEach(v => { if(!grouped[v.name]) grouped[v.name] = []; grouped[v.name].push(v); });
+            if(range === 'q1') endM = 2; 
+            else if(range === 'q2') {startM=3; endM=5;} 
+            else if(range === 'q3') {startM=6; endM=8;} 
+            else if(range === 'q4') {startM=9; endM=11;}
+            
+            const totalMonths = (endM - startM) + 1;
+            const gridCols = 2 + totalMonths; // 2 للاسم + عدد الشهور
 
-            let html = `<div class="gantt-grid" style="grid-template-columns: repeat(${gridCols}, 1fr);">
-                <div class="col-span-2 p-3 text-sm font-bold text-slate-600 bg-slate-50 border-l border-b">الموظف</div>`;
-            for(let i = startM; i <= endM; i++) html += `<div class="p-3 text-[10px] font-bold text-slate-400 bg-slate-50 border-l border-b text-center">${monthNames[i]}</div>`;
+            // تجميع الموظفين
+            const grouped = {};
+            vacationsData.forEach(v => {
+                if(!grouped[v.name]) grouped[v.name] = [];
+                grouped[v.name].push(v);
+            });
+
+            // بناء الرأس
+            let html = `<div class="gantt-grid-row" style="grid-template-columns: repeat(${gridCols}, 1fr);">
+                <div class="col-span-2 p-3 text-sm font-bold text-slate-600 bg-slate-50 border-l border-b border-slate-200">الموظف</div>`;
+            for(let i = startM; i <= endM; i++) {
+                html += `<div class="p-3 text-[10px] font-bold text-slate-400 bg-slate-50 border-l border-b border-slate-200 text-center uppercase">${monthNames[i]}</div>`;
+            }
             html += `</div>`;
 
+            // بناء الصفوف
             Object.keys(grouped).forEach(emp => {
-                html += `<div class="gantt-grid border-b border-slate-50 h-16" style="grid-template-columns: repeat(${gridCols}, 1fr);">
-                    <div class="col-span-2 p-3 text-[11px] font-bold text-slate-700 border-l border-slate-100 flex items-center bg-white z-20 sticky right-0">${emp}</div>
-                    <div class="col-span-${totalMonths} relative flex items-center h-full bg-slate-50/10">`;
+                html += `<div class="gantt-grid-row border-b border-slate-100 h-16 relative" style="grid-template-columns: repeat(${gridCols}, 1fr);">
+                    <div class="col-span-2 p-3 text-[11px] font-bold text-slate-700 border-l border-slate-200 flex items-center bg-white z-20 sticky right-0 shadow-sm">${emp}</div>
+                    <div class="col-span-${totalMonths} relative flex items-center h-full bg-slate-50/20">`;
+
                 grouped[emp].forEach((vac, idx) => {
-                    const d1 = new Date(vac.from), d2 = new Date(vac.to);
+                    const d1 = new Date(vac.from);
+                    const d2 = new Date(vac.to);
+                    
                     if (d2.getMonth() >= startM && d1.getMonth() <= endM) {
-                        const sM = Math.max(d1.getMonth(), startM), eM = Math.min(d2.getMonth(), endM);
-                        const mWidth = 100 / totalMonths, left = (sM - startM) * mWidth, width = ((eM - sM) + 1) * mWidth;
-                        html += `<div class="vacation-bar color-${idx % 5} shadow-sm" style="right: ${left}%; width: ${width - 0.5}%;">
-                            <span class="date-text-inside">${vac.from.split('-').slice(1).join('/')}</span>
-                        </div>`;
+                        const sM = Math.max(d1.getMonth(), startM);
+                        const eM = Math.min(d2.getMonth(), endM);
+                        const mWidth = 100 / totalMonths;
+                        
+                        // حساب الموقع (Right) والعرض (Width)
+                        const rightPos = (sM - startM) * mWidth;
+                        const barWidth = ((eM - sM) + 1) * mWidth;
+
+                        html += `
+                            <div class="vacation-bar color-${idx % 5}" style="right: ${rightPos}%; width: ${barWidth - 0.5}%;">
+                                <span class="date-text-inside">${vac.from.split('-').slice(1).join('/')}</span>
+                            </div>`;
                     }
                 });
                 html += `</div></div>`;
@@ -193,6 +156,37 @@
             area.innerHTML = html;
         }
 
+        // تحديث الإحصائيات
+        function updateStats() {
+            const grid = document.getElementById('statsGrid');
+            const total = vacationsData.length;
+            const pending = vacationsData.filter(v => v.status === 'PENDING').length;
+            const active = vacationsData.filter(v => {
+                const today = new Date().toISOString().split('T')[0];
+                return today >= v.from && today <= v.to;
+            }).length;
+
+            grid.innerHTML = `
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                    <h3 class="text-slate-400 text-xs font-bold mb-1 uppercase">إجمالي الإجازات</h3>
+                    <p class="text-2xl font-bold text-[#1e3a8a]">${total}</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                    <h3 class="text-slate-400 text-xs font-bold mb-1 uppercase">نشطة حالياً</h3>
+                    <p class="text-2xl font-bold text-emerald-600">${active}</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                    <h3 class="text-slate-400 text-xs font-bold mb-1 uppercase">قيد الانتظار</h3>
+                    <p class="text-2xl font-bold text-amber-500">${pending}</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                    <h3 class="text-slate-400 text-xs font-bold mb-1 uppercase">الحالة العامة</h3>
+                    <p class="text-lg font-bold text-purple-600">تحت السيطرة</p>
+                </div>
+            `;
+        }
+
+        // تحديث الجدول
         function updateTable() {
             const body = document.getElementById('tableBody');
             body.innerHTML = vacationsData.map(v => `
@@ -200,28 +194,58 @@
                     <td class="px-6 py-4 font-bold text-slate-700">${v.name}</td>
                     <td class="px-6 py-4 text-center text-slate-500 font-mono">${v.from}</td>
                     <td class="px-6 py-4 text-center text-slate-500 font-mono">${v.to}</td>
-                    <td class="px-6 py-4 text-center"><span class="px-3 py-1 rounded-full ${getStatusStyle(v.status)} text-[10px] font-bold">${v.status}</span></td>
-                    <td class="px-6 py-4 flex justify-center gap-1"><button onclick="updateStat(${v.id}, 'APPROVED')" class="bg-emerald-500 text-white p-1 rounded text-[10px]">موافقة</button></td>
+                    <td class="px-6 py-4 text-center border-x">
+                        <span class="px-3 py-1 rounded-full ${v.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'} text-[10px] font-bold">${v.status}</span>
+                    </td>
+                    <td class="px-6 py-4 flex justify-center gap-1">
+                        <button onclick="updateStat(${v.id}, 'APPROVED')" class="bg-emerald-500 text-white px-3 py-1 rounded text-[10px] font-bold">موافقة</button>
+                        <button onclick="editItem(${v.id})" class="bg-sky-500 text-white px-3 py-1 rounded text-[10px] font-bold">تعديل</button>
+                    </td>
                 </tr>`).reverse().join('');
         }
-        function getStatusStyle(s) { return s === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'; }
-        function updateStat(id, stat) { const item = vacationsData.find(v => v.id === id); if(item) item.status = stat; refreshUI(); }
 
+        function updateStat(id, stat) { const item = vacationsData.find(v => v.id === id); if(item) item.status = stat; refreshUI(); }
+        
+        function editItem(id) {
+            const item = vacationsData.find(v => v.id === id); if(!item) return;
+            document.getElementById('empName').value = item.name;
+            document.getElementById('dateFrom').value = item.from;
+            document.getElementById('dateTo').value = item.to;
+            vacationsData = vacationsData.filter(v => v.id !== id);
+            refreshUI();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // رفع ملف Excel
         document.getElementById('uploadExcel').addEventListener('change', function(e) {
             const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader(); reader.onload = function(event) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
                 const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
-                XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]).forEach(row => {
-                    const n = row['الموظف'] || row['Employee'], f = formatExcelDate(row['من'] || row['From']), t = formatExcelDate(row['إلى'] || row['To']);
-                    if(n && f && t) vacationsData.push({ id: Date.now() + Math.random(), name: n, from: f, to: t, status: 'PENDING' });
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                jsonData.forEach(row => {
+                    const n = row['الموظف'] || row['Employee'];
+                    let f = row['من'] || row['From'], t = row['إلى'] || row['To'];
+                    if(n && f && t) {
+                        if(typeof f === 'number') f = new Date(Math.round((f - 25569) * 86400 * 1000)).toISOString().split('T')[0];
+                        if(typeof t === 'number') t = new Date(Math.round((t - 25569) * 86400 * 1000)).toISOString().split('T')[0];
+                        vacationsData.push({ id: Date.now() + Math.random(), name: n, from: f, to: t, status: 'PENDING' });
+                    }
                 });
                 refreshUI();
             };
             reader.readAsArrayBuffer(file);
         });
 
-        function formatExcelDate(s) { if(!s || isNaN(s)) return s; return new Date(Math.round((s-25569)*86400*1000)).toISOString().split('T')[0]; }
-        function downloadChartImage() { html2canvas(document.getElementById('ganttArea'), { scale: 2 }).then(canvas => { const a = document.createElement('a'); a.download = 'Chart.png'; a.href = canvas.toDataURL(); a.click(); }); }
+        function downloadChartImage() {
+            html2canvas(document.getElementById('ganttArea'), { scale: 2, backgroundColor: "#ffffff" }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'Gantt_Chart.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+        }
+
         refreshUI();
     </script>
 </body>
