@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-  <title>Almajdouie Motors - Scheduling v10.5.7</title>
+  <title>Almajdouie Motors - Scheduling v10.5.8</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -20,139 +20,70 @@
   <style>
     .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
     body { font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif; transition: background-color 0.3s; overflow-x: hidden; }
-    
     .tab-content { display: none; }
     .tab-content.active { display: block; animation: fadeIn 0.4s ease-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* تنسيق الجداول */
-    .schedule-table { border-spacing: 0; width: 100%; border-collapse: separate; }
-    .schedule-table th { @apply border-b border-slate-100 dark:border-slate-700 p-4 font-black text-[10px] uppercase text-slate-400 text-center; }
-    .schedule-table td { @apply border-b border-slate-50 dark:border-slate-800/50 p-3 transition-all text-center text-xs; }
-    
     .badge { @apply px-3 py-1 text-[10px] font-bold rounded-full uppercase flex items-center justify-center gap-1; }
-    .Morning { @apply bg-blue-600 text-white; }
-    .Night { @apply bg-indigo-900 text-white; }
-    .Off { @apply bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300; }
-    .Annual { @apply bg-red-500 text-white; } 
-
-    /* مخطط Gantt الاحترافي (مثل الصورة 2) */
-    .gantt-grid { display: grid; grid-template-columns: repeat(12, 1fr) 180px; min-width: 1000px; border: 1px solid #edf2f7; border-radius: 12px; overflow: hidden; }
-    .ghead { padding: 12px; background: #f8fafc; dark:bg-slate-800; color: #64748b; text-align: center; font-weight: 800; font-size: 11px; border: 1px solid #f1f5f9; }
-    .gname { padding: 14px; background: #ffffff; dark:bg-dark-surface; font-weight: 700; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: flex-start; font-size: 11px; color: var(--primary); }
-    .gmonths-row { display: grid; grid-template-columns: repeat(12, 1fr); grid-column: 1 / 13; border-bottom: 1px solid #f1f5f9; position: relative; height: 50px; background: white; dark:bg-dark-surface; }
-    .month-slot { border-left: 1px solid #f8fafc; dark:border-slate-700; height: 100%; }
     
-    /* شريط الإجازة المتدرج (Gradient) */
-    .vacation-bar-gradient { 
-        position: absolute; height: 22px; 
-        background: linear-gradient(90deg, #4ade80 0%, #3b82f6 100%); 
-        top: 14px; border-radius: 999px; color: white; font-size: 9px; 
-        display: flex; align-items: center; justify-content: center; 
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); z-index: 10; padding: 0 10px; font-weight: 800;
-    }
+    /* Gantt Chart Styling - Matched to Image 2 */
+    .gantt-grid { display: grid; grid-template-columns: repeat(12, 1fr) 180px; min-width: 1000px; border: 1px solid #edf2f7; border-radius: 12px; overflow: hidden; background: #fff; }
+    .ghead { padding: 12px; background: #f8fafc; color: #64748b; text-align: center; font-weight: 800; font-size: 11px; border: 1px solid #f1f5f9; }
+    .gname { padding: 14px; background: #ffffff; font-weight: 700; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: flex-start; font-size: 11px; color: var(--primary); border-right: 1px solid #f1f5f9; }
+    .gmonths-row { display: grid; grid-template-columns: repeat(12, 1fr); grid-column: 1 / 13; border-bottom: 1px solid #f1f5f9; position: relative; height: 50px; }
+    .month-slot { border-left: 1px solid #f8fafc; height: 100%; }
+    .vacation-bar-gradient { position: absolute; height: 22px; background: linear-gradient(90deg, #4ade80 0%, #3b82f6 100%); top: 14px; border-radius: 999px; color: white; font-size: 9px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2); z-index: 10; padding: 0 10px; font-weight: 800; white-space: nowrap; }
 
     html[dir="rtl"] .sidebar { @apply right-0 border-l; }
     html[dir="ltr"] .sidebar { @apply left-0 border-r; }
     html[dir="rtl"] main { @apply mr-[280px] ml-0; }
     html[dir="ltr"] main { @apply ml-[280px] mr-0; }
-    .dark .sidebar, .dark header, .dark .bg-white { @apply bg-dark-surface border-slate-700 text-white; }
     .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 999; display: none; align-items: center; justify-content: center; }
   </style>
 </head>
 <body class="bg-[#f7f9ff] dark:bg-dark-bg text-slate-900 dark:text-slate-100 min-h-screen text-start">
 
-<div class="overlay" id="loginOverlay" style="display:flex;">
-  <div class="bg-white dark:bg-dark-surface p-10 rounded-3xl shadow-2xl w-full max-w-md border border-slate-200 dark:border-slate-700 text-center">
-    <img src="LOGO-almajdouie.png" class="h-12 mx-auto mb-6 dark:brightness-200" alt="Logo" />
-    <h2 class="text-2xl font-black mb-1">بوابة الموظفين</h2>
-    <p class="text-blue-500 text-xs font-bold mb-6 uppercase tracking-widest">v10.5.7 Enterprise</p>
-    <form class="space-y-4" id="loginForm">
-      <input id="loginEmail" type="email" class="w-full rounded-xl border-slate-200 dark:bg-slate-800 p-4 text-sm" placeholder="Email" required />
-      <input id="loginPassword" type="password" class="w-full rounded-xl border-slate-200 dark:bg-slate-800 p-4 text-sm" placeholder="Password" required />
-      <button class="w-full bg-primary text-white font-black py-4 rounded-xl shadow-lg hover:bg-primary-light transition-all" type="submit">دخول النظام</button>
-    </form>
-  </div>
-</div>
-
 <aside class="sidebar fixed top-0 h-full w-[280px] bg-white z-40 flex flex-col shadow-2xl transition-all duration-300">
   <div class="p-8 text-center">
-    <img src="LOGO-almajdouie.png" class="h-14 w-auto mx-auto mb-4 dark:brightness-200" alt="Logo" />
-    <h1 class="text-lg font-black text-primary dark:text-blue-400">المجدوعي للسيارات</h1>
+    <img src="LOGO-almajdouie.png" class="h-14 w-auto mx-auto mb-4" alt="Logo" />
+    <h1 class="text-lg font-black text-primary leading-none uppercase">المجدوعي للسيارات</h1>
     <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Personnel Management</p>
   </div>
   <nav class="space-y-1 text-start px-4 flex-1 overflow-y-auto">
-    <button data-tab="dashboard" class="tab-btn active w-full flex items-center gap-3 px-4 py-3.5 text-primary dark:text-white bg-blue-50 dark:bg-blue-900/20 border-r-4 border-primary rounded-xl transition-all shadow-sm">
-      <span class="material-symbols-outlined">dashboard</span> <span class="text-sm font-bold">Dashboard</span>
+    <button data-tab="dashboard" class="tab-btn active w-full flex items-center gap-3 px-4 py-3.5 text-primary bg-blue-50 border-r-4 border-primary rounded-xl transition-all shadow-sm">
+      <span class="material-symbols-outlined">dashboard</span> <span class="text-sm font-bold">لوحة القيادة</span>
     </button>
-    <button data-tab="schedule" class="tab-btn w-full flex items-center gap-3 px-4 py-3.5 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all">
-      <span class="material-symbols-outlined">calendar_month</span> <span class="text-sm font-bold">الجدول الأسبوعي</span>
-    </button>
-    <button data-tab="admin" class="tab-btn w-full flex items-center gap-3 px-4 py-3.5 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all">
-      <span class="material-symbols-outlined">badge</span> <span class="text-sm font-bold">إدارة الموظفين</span>
-    </button>
-    <div class="pt-6 pb-2 px-4 text-[10px] font-black text-slate-300 uppercase tracking-widest border-t mx-2 mt-4 dark:border-slate-700">طلبات الإجازات</div>
-    <button data-tab="planning" class="tab-btn w-full flex items-center gap-3 px-4 py-3.5 text-slate-500 dark:text-slate-400 hover:bg-slate-50 rounded-xl transition-all">
+    <button data-tab="planning" class="tab-btn w-full flex items-center gap-3 px-4 py-3.5 text-slate-500 hover:bg-slate-50 rounded-xl transition-all">
       <span class="material-symbols-outlined">event_note</span> <span class="text-sm font-bold">خطة الإجازات</span>
     </button>
-    <button data-tab="holidays" class="tab-btn w-full flex items-center gap-3 px-4 py-3.5 text-slate-500 dark:text-slate-400 hover:bg-slate-50 rounded-xl transition-all">
-      <span class="material-symbols-outlined">celebration</span> <span class="text-sm font-bold">العطل الرسمية</span>
-    </button>
   </nav>
-  <div class="p-8 border-t border-slate-100 dark:border-slate-700 space-y-4">
-    <div class="grid grid-cols-2 gap-2">
-        <button onclick="window.setLanguage('ar')" class="py-2 text-[10px] font-black rounded-lg border border-slate-200 bg-white dark:bg-slate-800">AR</button>
-        <button onclick="window.setLanguage('en')" class="py-2 text-[10px] font-black rounded-lg border border-slate-200 bg-white dark:bg-slate-800">EN</button>
-    </div>
-    <button id="btnLogout" class="w-full flex items-center gap-3 px-5 py-3 text-red-500 rounded-2xl transition-all hover:bg-red-50">
-      <span class="material-symbols-outlined text-xl">logout</span> <span class="text-xs font-bold">خروج</span>
-    </button>
-  </div>
 </aside>
 
-<header class="fixed top-0 h-16 bg-white/90 dark:bg-dark-surface/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 z-30 flex items-center justify-between px-10 transition-all duration-300">
-  <div class="flex items-center gap-4 flex-1"><div class="relative w-full max-w-md"><span class="material-symbols-outlined absolute inset-y-0 start-4 flex items-center text-slate-400">search</span><input class="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-full py-2 ps-12 pe-5 text-xs focus:ring-2 focus:ring-primary/20" placeholder="Search records..." type="text"/></div></div>
-  <div class="flex items-center gap-6"><div class="text-end ps-5 border-inline-start dark:border-slate-700 hidden sm:block"><p class="text-xs font-black text-primary dark:text-blue-400" id="userDisplayName">User</p><p class="text-[9px] text-slate-400 font-bold">v10.5.7 Admin</p></div></div>
+<header class="fixed top-0 h-16 bg-white/90 backdrop-blur-md border-b border-slate-200 z-30 flex items-center justify-between px-10">
+  <div class="flex items-center gap-4 flex-1"><div class="relative w-full max-w-md"><input class="w-full bg-slate-100 border-none rounded-full py-2 ps-12 pe-5 text-xs" placeholder="البحث..." type="text"/></div></div>
 </header>
 
 <main class="pt-24 p-8 lg:p-12 transition-all">
   <div class="max-w-7xl mx-auto space-y-10">
 
-    <section id="dashboard" class="tab-content active space-y-8">
-        <h2 class="text-4xl font-black text-primary dark:text-blue-400 tracking-tighter">Operational Dashboard</h2>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div class="bg-white dark:bg-dark-surface p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm"><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Staff</p><h3 class="text-3xl font-black text-primary dark:text-white mt-1" id="statTotalEmps">0</h3></div>
-            <div class="bg-white dark:bg-dark-surface p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm"><p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">On Shift</p><h3 class="text-3xl font-black text-green-600 mt-1" id="statOnShift">0</h3></div>
-        </div>
-    </section>
-
-    <section id="schedule" class="tab-content">
-      <div class="flex justify-between items-end mb-8"><div><h2 class="text-3xl font-black text-primary dark:text-blue-400 tracking-tighter">Weekly Master Schedule</h2><p class="text-xs text-slate-400 font-bold mt-1" id="capRange"></p></div><button class="bg-primary text-white px-8 py-3.5 rounded-2xl text-[11px] font-black shadow-xl" id="downBtn"><span class="material-symbols-outlined text-sm">photo_camera</span> Download</button></div>
-      <div class="bg-white dark:bg-dark-surface p-6 rounded-[2rem] border border-slate-100 dark:border-slate-700 mb-8 flex items-center justify-between gap-6 shadow-sm"><div class="flex items-center gap-3"><button class="p-2.5 hover:bg-slate-100 rounded-xl text-primary" id="btnPrevWeek"><span class="material-symbols-outlined">chevron_right</span></button><button class="px-8 py-2.5 bg-slate-50 dark:bg-slate-800 text-[10px] font-black rounded-2xl border border-slate-100" id="btnCurrentWeek">Today</button><button class="p-2.5 hover:bg-slate-100 rounded-xl text-primary" id="btnNextWeek"><span class="material-symbols-outlined">chevron_left</span></button></div><input type="date" id="datePicker" class="rounded-2xl border-slate-200 dark:bg-slate-800 text-xs font-black h-12 px-5" /></div>
-      <div class="bg-white dark:bg-dark-surface rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden"><div class="overflow-x-auto"><table class="schedule-table"><thead><tr id="headerDates"></tr></thead><tbody id="scheduleBody"></tbody></table></div></div>
-    </section>
+    <section id="dashboard" class="tab-content active"><h2 class="text-3xl font-black">Dashboard</h2></section>
 
     <section id="planning" class="tab-content text-start space-y-8">
         <div class="flex justify-between items-center">
             <div>
-                <h2 class="text-3xl font-black text-primary dark:text-blue-400 tracking-tighter">المخطط السنوي للإجازات</h2>
-                <div class="flex items-center gap-2 mt-2">
-                    <span class="w-3 h-3 rounded-full bg-blue-500"></span>
-                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">فترة الإجازة</p>
-                </div>
+                <h2 class="text-3xl font-black text-primary tracking-tighter">المخطط السنوي للإجازات</h2>
+                <div class="flex items-center gap-2 mt-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span><p class="text-[10px] font-bold text-slate-500 uppercase">فترة الإجازة</p></div>
             </div>
-            <button class="bg-primary text-white px-6 py-3 rounded-2xl text-[11px] font-black shadow-lg" onclick="window.printGantt()">📸 تحميل كصورة</button>
         </div>
 
-        <div class="bg-white dark:bg-dark-surface p-10 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-2xl">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10 pb-10 border-b border-slate-50 dark:border-slate-800">
-                <select id="pEmp" class="rounded-xl border-slate-200 dark:bg-slate-800 text-sm font-bold"></select>
-                <input type="date" id="pStart" class="rounded-xl border-slate-200 dark:bg-slate-800 text-sm" />
-                <input type="date" id="pEnd" class="rounded-xl border-slate-200 dark:bg-slate-800 text-sm" />
-                <button class="bg-primary text-white py-3 rounded-xl font-black text-sm" onclick="window.addVacationPlan()">+ إضافة للخطة</button>
+        <div class="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-2xl">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10 pb-10 border-b">
+                <select id="pEmp" class="rounded-xl border-slate-200 text-sm font-bold h-12"></select>
+                <input type="date" id="pStart" class="rounded-xl border-slate-200 text-sm h-12" />
+                <input type="date" id="pEnd" class="rounded-xl border-slate-200 text-sm h-12" />
+                <button class="bg-primary text-white py-3 rounded-xl font-black text-sm h-12" onclick="window.addVacationPlan()">+ إضافة للخطة</button>
             </div>
 
-            <div class="overflow-x-auto p-4 bg-slate-50/50 dark:bg-slate-800/30 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-inner">
+            <div class="overflow-x-auto p-4 bg-slate-50 rounded-3xl border shadow-inner">
                 <div class="gantt-grid" id="gantt">
                     <div class="ghead">ديسمبر</div><div class="ghead">نوفمبر</div><div class="ghead">أكتوبر</div><div class="ghead">سبتمبر</div>
                     <div class="ghead">أغسطس</div><div class="ghead">يوليو</div><div class="ghead">يونيو</div><div class="ghead">مايو</div>
@@ -162,14 +93,14 @@
             </div>
         </div>
 
-        <div class="bg-white dark:bg-dark-surface p-10 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-2xl">
-            <h3 class="text-2xl font-black text-primary dark:text-blue-400 mb-8 tracking-tighter">إدارة الطلبات</h3>
+        <div class="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-2xl">
+            <h3 class="text-2xl font-black text-primary mb-8 tracking-tighter">إدارة الطلبات</h3>
             <div class="overflow-x-auto">
-                <table class="w-full text-start divide-y divide-slate-100 dark:divide-slate-800">
-                    <thead><tr class="text-slate-400 text-[10px] font-black uppercase tracking-widest bg-slate-50 dark:bg-slate-800/50">
+                <table class="w-full text-start border-collapse">
+                    <thead><tr class="text-slate-400 text-[10px] font-black uppercase bg-slate-50">
                       <th class="py-4 px-6 text-start">الموظف</th>
-                      <th class="py-4">من</th>
-                      <th class="py-4">إلى</th>
+                      <th class="py-4 text-center">من</th>
+                      <th class="py-4 text-center">إلى</th>
                       <th class="py-4 text-center">الحالة</th>
                       <th class="py-4 text-end px-6">الإجراءات</th>
                     </tr></thead>
@@ -178,49 +109,60 @@
             </div>
         </div>
     </section>
-
-    <section id="admin" class="tab-content">...</section>
-    <section id="holidays" class="tab-content">...</section>
-
   </div>
 </main>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { getFirestore, doc, collection, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325' };
-const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
+const app = initializeApp(firebaseConfig); const db = getFirestore(app);
 
-let employees=[], planList=[], manualOverrides={}, vacationsList=[], holidayDuties=[];
+let employees=[], planList=[];
 const $=id=>document.getElementById(id);
 
 async function bindSnapshots(){
-    onSnapshot(doc(db,'schedule','jadwal_v6'), s=>{ employees=s.exists()?s.data().data?.emps:[]; updateSelectors(); renderAll(); });
-    onSnapshot(collection(db,'vacations'), s=>{ planList=s.docs.map(d=>({id:d.id,...d.data()})); renderAll(); });
-    onSnapshot(doc(db,'schedule','jadwal_annual_leave'), s=>{ vacationsList=s.exists()?s.data().vacations:[]; renderAll(); });
+    // جلب الموظفين
+    onSnapshot(doc(db,'schedule','jadwal_v6'), s=>{ 
+        employees=s.exists()?s.data().data?.emps:[]; 
+        updateSelectors(); 
+        renderAll(); 
+    });
+    // جلب الطلبات (هنا كان الخلل في مسميات الحقول)
+    onSnapshot(collection(db,'vacations'), s=>{ 
+        planList=s.docs.map(d=>({id:d.id, ...d.data()})); 
+        renderAll(); 
+    });
 }
 
-function updateSelectors(){ const opts=employees.filter(e=>e.active).map(e=>`<option value="${e.id}">${e.name}</option>`).join(''); if($('pEmp')) $('pEmp').innerHTML=opts; }
+function updateSelectors(){ 
+    const opts=employees.filter(e=>e.active).map(e=>`<option value="${e.id}">${e.name}</option>`).join(''); 
+    if($('pEmp')) $('pEmp').innerHTML=opts; 
+}
 
-// إدارة طلبات الإجازة
-window.addVacationPlan=async()=>{
+// دالة الإضافة مع توحيد مسميات الحقول (from, to, status)
+window.addVacationPlan = async() => {
     const id=$('pEmp').value, s=$('pStart').value, e=$('pEnd').value;
     if(!id||!s||!e) return;
     const emp = employees.find(x=>x.id===id);
-    await addDoc(collection(db,'vacations'), { empId:id, name:emp.name, from:s, to:e, status:'pending' });
+    await addDoc(collection(db,'vacations'), { 
+        empId: id, // استخدام المعرف النصي الموحد
+        name: emp.name, 
+        from: s, 
+        to: e, 
+        status: 'pending' 
+    });
+    $('pStart').value=''; $('pEnd').value='';
 };
 
 window.approveVacation = async(id)=>{
     const plan = planList.find(x=>x.id===id);
     if(!plan) return;
-    // إضافة للإجازات المعتمدة
     const annualRef = doc(db,'schedule','jadwal_annual_leave');
     const snap = await getDoc(annualRef);
     const existing = snap.exists() ? snap.data().vacations : [];
     await setDoc(annualRef, { vacations: [...existing, { empId: plan.empId, start: plan.from, end: plan.to }] }, {merge:true});
-    // تحديث الحالة
     await updateDoc(doc(db,'vacations', id), { status: 'approved' });
 };
 
@@ -229,32 +171,25 @@ window.rejectVacation = async(id)=>{
 };
 
 function renderAll(){
-    const dp=$('datePicker'); if(!dp.value) { window.setCurrentWeek(); return; }
-    const start=new Date(dp.value.replace(/-/g,'/')), t= { ar:{days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت']} };
-    
-    // Header Dates
-    let h=`<th class="ps-10 py-6 text-start">Staff</th>`;
-    for(let i=0;i<7;i++){ let d=new Date(start.getTime()); d.setDate(start.getDate()+i); h+=`<th class="text-center font-bold">${t.ar.days[d.getDay()]}<br><span class="text-[9px] opacity-40">${d.getDate()}/${d.getMonth()+1}</span></th>`; }
-    $('headerDates').innerHTML=h;
-
-    // Drawing Body logic remains from previous v10.5.6...
-    renderGantt(); renderPlanList();
+    renderGantt(); 
+    renderPlanList(); 
 }
 
 function renderPlanList(){
+    // التأكد من قراءة الحقول الصحيحة (from, to, status) لمنع ظهور undefined
     $('planningBody').innerHTML = planList.map(p=>`
-        <tr class="hover:bg-slate-50 transition-all border-b border-slate-50 dark:border-slate-800">
-            <td class="py-4 px-6 font-bold text-xs text-primary dark:text-blue-400 text-start">${p.name}</td>
-            <td class="py-4 text-xs font-medium text-slate-500">${p.from}</td>
-            <td class="py-4 text-xs font-medium text-slate-500">${p.to}</td>
+        <tr class="border-b border-slate-50 transition-colors hover:bg-slate-50/50">
+            <td class="py-4 px-6 font-bold text-xs text-primary text-start">${p.name || 'موظف غير معروف'}</td>
+            <td class="py-4 text-xs text-center text-slate-500">${p.from || '-'}</td>
+            <td class="py-4 text-xs text-center text-slate-500">${p.to || '-'}</td>
             <td class="py-4 text-center">
                 <span class="badge mx-auto ${p.status==='approved'?'bg-green-100 text-green-700':'bg-amber-100 text-amber-700'}">
                     ${p.status==='approved'?'مكتمل':'قيد الانتظار'}
                 </span>
             </td>
             <td class="py-4 px-6 text-end flex justify-end gap-2">
-                <button onclick="window.approveVacation('${p.id}')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-black shadow-sm">موافقة</button>
-                <button onclick="window.rejectVacation('${p.id}')" class="bg-red-100 hover:bg-red-200 text-red-600 px-3 py-1.5 rounded-lg text-[10px] font-black">رفض</button>
+                <button onclick="window.approveVacation('${p.id}')" class="bg-green-500 text-white px-4 py-1.5 rounded-lg text-[10px] font-black shadow-sm">موافقة</button>
+                <button onclick="window.rejectVacation('${p.id}')" class="bg-red-100 text-red-600 px-4 py-1.5 rounded-lg text-[10px] font-black">رفض</button>
             </td>
         </tr>`).join('');
 }
@@ -265,23 +200,18 @@ function renderGantt(){
     chart.innerHTML=''; heads.forEach(h=>chart.appendChild(h));
 
     employees.filter(e=>e.active).forEach(emp=>{
-        // صف الشهور
         const monthsRow=document.createElement('div'); 
-        monthsRow.className='gmonths-row dark:border-slate-700'; 
-        for(let i=0;i<12;i++) {
-            const slot = document.createElement('div');
-            slot.className = 'month-slot';
-            monthsRow.appendChild(slot);
-        }
+        monthsRow.className='gmonths-row'; 
+        for(let i=0;i<12;i++) monthsRow.innerHTML+='<div class="month-slot"></div>';
 
-        // أشرطة الإجازات لهذا الموظف
-        const empPlans = planList.filter(p=>p.empId===emp.id);
+        // تصفية الخطط للموظف الحالي باستخدام empId الموحد
+        const empPlans = planList.filter(p=> String(p.empId) === String(emp.id));
         empPlans.forEach(p=>{
+            if(!p.from || !p.to) return;
             const dFrom=new Date(p.from.replace(/-/g,'/')), dTo=new Date(p.to.replace(/-/g,'/'));
-            const year=dFrom.getFullYear(), yStart=new Date(year,0,1), yEnd=new Date(year+1,0,1);
+            const year=new Date().getFullYear(), yStart=new Date(year,0,1), yEnd=new Date(year+1,0,1);
             const totalDays=(yEnd-yStart)/86400000;
             const bar=document.createElement('div'); bar.className='vacation-bar-gradient';
-            // حساب الموقع بنظام الـ RTL (من اليمين لليسار)
             const rightPos = ((dFrom-yStart)/86400000/totalDays*100);
             bar.style.right = rightPos + '%';
             bar.style.width = (((dTo-dFrom)/86400000+1)/totalDays*100)+'%';
@@ -290,9 +220,8 @@ function renderGantt(){
         });
         chart.appendChild(monthsRow);
 
-        // خلية الاسم (تظهر على اليمين في الـ Grid)
         const nameCell=document.createElement('div'); 
-        nameCell.className='gname dark:border-slate-700'; 
+        nameCell.className='gname'; 
         nameCell.innerText=emp.name; 
         chart.appendChild(nameCell);
     });
@@ -300,14 +229,11 @@ function renderGantt(){
 
 document.querySelectorAll('.tab-btn').forEach(b=>b.onclick=()=>{ 
     document.querySelectorAll('.tab-btn, .tab-content').forEach(x=>x.classList.remove('active','bg-blue-50','text-primary'));
-    b.classList.add('active','bg-blue-50','text-primary'); document.getElementById(b.dataset.tab).classList.add('active'); renderAll();
+    b.classList.add('active','bg-blue-50','text-primary'); 
+    document.getElementById(b.dataset.tab).classList.add('active'); 
 });
 
-onAuthStateChanged(auth, u=>{ if(!u){ $('loginOverlay').style.display='flex'; } else { $('loginOverlay').style.display='none'; $('userDisplayName').textContent=u.email; bindSnapshots(); window.setCurrentWeek(); } });
-window.setCurrentWeek=()=>{ let n=new Date(); n.setDate(n.getDate()-n.getDay()); $('datePicker').value=n.toISOString().split('T')[0]; renderAll(); };
-$('btnLogout').onclick=()=>signOut(auth);
-if(localStorage.getItem('theme')==='dark') document.documentElement.classList.add('dark');
-window.addEventListener('DOMContentLoaded', ()=> { renderAll(); });
+window.addEventListener('DOMContentLoaded', ()=> { bindSnapshots(); });
 </script>
 </body>
 </html>
