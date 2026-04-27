@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Annual Leave - Vacation Planner</title>
+    <title>Annual Leave - Vacation Planner v1.3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
@@ -13,6 +13,7 @@
             height: 20px;
             border-radius: 10px;
             background: linear-gradient(90deg, #2563eb 0%, #14b8a6 100%);
+            transition: all 0.3s ease;
         }
         .custom-scrollbar::-webkit-scrollbar { height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -24,76 +25,60 @@
         
         <div class="flex justify-between items-center">
             <div>
-                <h1 class="text-2xl font-bold text-slate-800 border-l-4 border-[#1e3a8a] pl-4">إدارة الإجازات السنوية (Annual Leave)</h1>
-                <p class="text-slate-500 mt-1">عرض وتحليل المخطط الزمني وتصدير البيانات</p>
+                <h1 class="text-2xl font-bold text-slate-800 border-l-4 border-[#1e3a8a] pl-4">نظام إدارة الإجازات السنوية</h1>
+                <p class="text-slate-500 mt-1 text-sm">تخطيط الإجازات وتحديث المخطط اللحظي</p>
             </div>
-            
             <div class="flex gap-2">
-                <label class="cursor-pointer flex items-center bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all shadow-sm">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
-                    <span>رفع Excel</span>
-                    <input type="file" id="uploadExcel" class="hidden" accept=".xlsx, .xls" />
-                </label>
-
-                <button onclick="downloadExcel()" class="flex items-center bg-[#1e3a8a] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-900 transition-all shadow-md">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
-                    <span>تنزيل Excel</span>
+                <button onclick="downloadExcel()" class="flex items-center bg-[#1e3a8a] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-900 shadow-md transition-all">
+                    تنزيل Excel
                 </button>
             </div>
         </div>
 
         <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-lg font-semibold text-slate-700">المخطط الزمني السنوي</h2>
-                <div class="flex items-center space-x-2">
-                    <span class="w-3 h-3 rounded-full bg-blue-500"></span>
-                    <span class="text-xs text-slate-500 font-medium">فترة الإجازة</span>
+            <h2 class="text-md font-bold text-slate-700 mb-4 border-b pb-2">إضافة طلب إجازة جديد</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">اسم الموظف</label>
+                    <input type="text" id="empName" placeholder="أدخل الاسم..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 outline-none">
                 </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">من تاريخ</label>
+                    <input type="date" id="dateFrom" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">إلى تاريخ</label>
+                    <input type="date" id="dateTo" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-100 outline-none">
+                </div>
+                <button onclick="addNewVacation()" class="w-full bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-teal-700 transition-all shadow-sm">
+                    إضافة للمخطط والجدول +
+                </button>
             </div>
+        </section>
 
+        <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <h2 class="text-lg font-semibold text-slate-700 mb-6">المخطط الزمني السنوي (Gantt Chart)</h2>
             <div class="overflow-x-auto custom-scrollbar border border-slate-50 rounded-xl">
-                <div class="min-w-[1000px]">
-                    <div class="grid grid-cols-12 bg-slate-50 border-b border-slate-100 text-center">
-                        <div class="col-span-2 p-3 text-sm font-bold text-slate-600 border-r">الموظف</div>
+                <div class="min-w-[1000px]" id="ganttContainer">
+                    <div class="grid grid-cols-12 bg-slate-50 border-b border-slate-100 text-center text-[10px] font-bold text-slate-400 uppercase">
+                        <div class="col-span-2 p-3 text-slate-600 border-r text-sm">الموظف</div>
                         <div class="col-span-10 grid grid-cols-12">
-                            <div class="p-3 text-xs font-semibold text-slate-400 border-r">Jan</div>
-                            <div class="p-3 text-xs font-semibold text-slate-400 border-r">Feb</div>
-                            <div class="p-3 text-xs font-semibold text-slate-400 border-r">Mar</div>
-                            <div class="p-3 text-xs font-semibold text-slate-400 border-r">Apr</div>
-                            <div class="p-3 text-xs font-semibold text-slate-400 border-r">May</div>
-                            <div class="p-3 text-xs font-semibold text-slate-400 border-r">Jun</div>
-                            <div class="p-3 text-xs font-semibold text-slate-400 border-r">Jul</div>
-                            <div class="p-3 text-xs font-semibold text-slate-400 border-r">Aug</div>
-                            <div class="p-3 text-xs font-semibold text-slate-400 border-r">Sep</div>
-                            <div class="p-3 text-xs font-semibold text-slate-400 border-r">Oct</div>
-                            <div class="p-3 text-xs font-semibold text-slate-400 border-r">Nov</div>
-                            <div class="p-3 text-xs font-semibold text-slate-400">Dec</div>
+                            <div class="p-3 border-r">Jan</div><div class="p-3 border-r">Feb</div><div class="p-3 border-r">Mar</div>
+                            <div class="p-3 border-r">Apr</div><div class="p-3 border-r">May</div><div class="p-3 border-r">Jun</div>
+                            <div class="p-3 border-r">Jul</div><div class="p-3 border-r">Aug</div><div class="p-3 border-r">Sep</div>
+                            <div class="p-3 border-r">Oct</div><div class="p-3 border-r">Nov</div><div class="p-3">Dec</div>
                         </div>
                     </div>
-
-                    <div class="grid grid-cols-12 border-b border-slate-50 items-center hover:bg-slate-50 transition-colors">
-                        <div class="col-span-2 p-4 text-sm font-medium text-slate-700 border-r">Abdullah Al-Sulaimani</div>
-                        <div class="col-span-10 relative flex items-center h-full px-2">
-                            <div class="absolute left-[8%] w-[20%] vacation-bar shadow-sm"></div>
-                        </div>
                     </div>
-
-                    <div class="grid grid-cols-12 border-b border-slate-50 items-center hover:bg-slate-50 transition-colors">
-                        <div class="col-span-2 p-4 text-sm font-medium text-slate-700 border-r">Almajdouie Motors</div>
-                        <div class="col-span-10 relative flex items-center h-full px-2">
-                            <div class="absolute left-[40%] w-[15%] vacation-bar shadow-sm opacity-80"></div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </section>
 
         <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <h2 class="text-lg font-semibold text-slate-700 mb-6 text-left">إدارة الطلبات</h2>
             <div class="overflow-x-auto">
-                <table id="requestsTable" class="w-full text-left border-collapse">
+                <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-blue-50 text-slate-600 text-xs uppercase tracking-wider font-bold">
+                        <tr class="bg-blue-50 text-slate-600 text-xs uppercase font-bold">
                             <th class="px-6 py-4 rounded-l-xl">الموظف</th>
                             <th class="px-6 py-4 text-center">من</th>
                             <th class="px-6 py-4 text-center">إلى</th>
@@ -101,52 +86,71 @@
                             <th class="px-6 py-4 text-center rounded-r-xl">الإجراءات</th>
                         </tr>
                     </thead>
-                    <tbody class="text-sm divide-y divide-slate-100">
-                        <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="px-6 py-4 font-semibold text-slate-700">Abdullah Al-Sulaimani</td>
-                            <td class="px-6 py-4 text-center text-slate-500">01/05/2026</td>
-                            <td class="px-6 py-4 text-center text-slate-500">15/05/2026</td>
-                            <td class="px-6 py-4 text-center">
-                                <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold uppercase">Pending</span>
-                            </td>
-                            <td class="px-6 py-4 flex justify-center space-x-2">
-                                <button class="bg-teal-500 text-white px-3 py-1 rounded-md text-xs">Approve</button>
-                                <button class="bg-rose-100 text-rose-600 px-3 py-1 rounded-md text-xs">Reject</button>
-                            </td>
-                        </tr>
-                    </tbody>
+                    <tbody id="tableBody" class="text-sm divide-y divide-slate-100">
+                        </tbody>
                 </table>
             </div>
         </section>
     </div>
 
-    <footer class="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-slate-400 text-xs">
-        <div class="flex items-center gap-4">
-            <span>© 2026 Almajdouie Motors. All rights reserved.</span>
-        </div>
-        <div class="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+    <footer class="mt-12 pt-6 border-t border-slate-200 flex justify-between items-center text-slate-400 text-xs px-8">
+        <span>© 2026 Almajdouie Motors. v1.3.0</span>
+        <div class="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full">
             <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-            <span class="font-medium text-slate-600 tracking-wider uppercase">System Version 1.2.0</span>
+            <span class="font-medium text-slate-600 uppercase">System Active</span>
         </div>
     </footer>
 
     <script>
-        function downloadExcel() {
-            const table = document.getElementById("requestsTable");
-            const wb = XLSX.utils.table_to_book(table, { sheet: "Requests" });
-            XLSX.writeFile(wb, "Vacation_Requests_v1.2.0.xlsx");
+        function addNewVacation() {
+            const name = document.getElementById('empName').value;
+            const from = document.getElementById('dateFrom').value;
+            const to = document.getElementById('dateTo').value;
+
+            if(!name || !from || !to) {
+                alert("يرجى تعبئة كافة البيانات");
+                return;
+            }
+
+            // 1. إضافة لجدول الإدارة
+            const tableBody = document.getElementById('tableBody');
+            const row = `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4 font-semibold text-slate-700">${name}</td>
+                    <td class="px-6 py-4 text-center text-slate-500">${from}</td>
+                    <td class="px-6 py-4 text-center text-slate-500">${to}</td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold uppercase">Pending</span>
+                    </td>
+                    <td class="px-6 py-4 flex justify-center space-x-2">
+                        <button class="bg-teal-500 text-white px-3 py-1 rounded-md text-xs">Approve</button>
+                    </td>
+                </tr>`;
+            tableBody.insertAdjacentHTML('afterbegin', row);
+
+            // 2. إضافة للمخطط الزمني (Gantt)
+            const ganttContainer = document.getElementById('ganttContainer');
+            const month = new Date(from).getMonth(); // يحصل على رقم الشهر (0-11)
+            const leftPosition = (month * 8.33); // تقريباً موقع الشهر في الشبكة
+
+            const ganttRow = `
+                <div class="grid grid-cols-12 border-b border-slate-50 items-center hover:bg-slate-50 transition-colors">
+                    <div class="col-span-2 p-4 text-sm font-medium text-slate-700 border-r">${name}</div>
+                    <div class="col-span-10 relative flex items-center h-12 px-2">
+                        <div class="absolute vacation-bar shadow-sm" style="left: ${leftPosition}%; width: 15%;"></div>
+                    </div>
+                </div>`;
+            ganttContainer.insertAdjacentHTML('beforeend', ganttRow);
+
+            // مسح الحقول بعد الإضافة
+            document.getElementById('empName').value = '';
         }
 
-        document.getElementById('uploadExcel').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const data = new Uint8Array(event.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                alert("تم رفع الملف بنجاح للنظام (v1.2.0)");
-            };
-            reader.readAsArrayBuffer(file);
-        });
+        function downloadExcel() {
+            const table = document.querySelector("table");
+            const wb = XLSX.utils.table_to_book(table);
+            XLSX.writeFile(wb, "Vacation_Plan_v1.3.xlsx");
+        }
     </script>
 </body>
 </html>
