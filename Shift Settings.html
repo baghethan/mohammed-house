@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" id="mainHtml">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shift Settings - Almajdouie Motors</title>
+  <style>
+    :root{--primary:#0d2149;--primary2:#1b4fa3;--text:#1f2937;--muted:#64748b;--surface:rgba(255,255,255,.94);--surface2:#fff;--shadow:0 18px 50px rgba(13,33,73,.16);--success:#10b981}
+    *{box-sizing:border-box} 
+    body{margin:0;padding:20px;font-family:'Segoe UI',sans-serif;background:linear-gradient(180deg, rgba(12,31,73,.1), rgba(255,255,255,.2)), url('image_dba186.png') center/cover fixed no-repeat;min-height:100vh;display:flex;justify-content:center}
+    .shell{width:100%;max-width:800px}
+    .glass{width:100%;background:var(--surface);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.45);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;padding:40px}
+    .card{background:var(--surface2);border:1px solid rgba(15,23,42,.08);border-radius:18px;padding:25px;box-shadow:0 10px 24px rgba(0,0,0,.05);margin-bottom:20px}
+    .btn,.btn2{border:none;border-radius:12px;padding:12px 25px;font-weight:800;cursor:pointer;transition:.2s;font-size:14px}
+    .btn{background:#fff;color:var(--primary);border:1px solid #e2e8f0}
+    .btn2{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff; width:100%; margin-top:10px}
+    .row{display:flex;gap:20px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+    .input-group{flex:1; min-width:250px; display:flex; flex-direction:column; gap:8px}
+    label{font-weight:800; color:var(--primary); font-size:14px; display:flex; align-items:center; gap:8px}
+    input[type="time"]{padding:12px; border-radius:10px; border:1px solid #d8dee8; background:#fff; font-family:inherit; font-size:15px; color:var(--primary); font-weight:700}
+    .status-msg{padding:10px; border-radius:10px; text-align:center; font-weight:800; font-size:13px; display:none; margin-top:15px}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <div class="glass">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:20px; margin-bottom:30px">
+        <div style="display:flex; align-items:center; gap:15px">
+            <img src="LOGO-almajdouie.png" style="height:50px" />
+            <div>
+                <h2 id="title" style="margin:0; color:var(--primary); font-weight:900; font-size:22px">إعدادات توقيت الورديات</h2>
+                <p id="subtitle" style="margin:0; color:var(--muted); font-size:12px; font-weight:700">تخصيص ساعات العمل الرسمية - المجدوعي للسيارات</p>
+            </div>
+        </div>
+        <button class="btn" id="btnLang">AR / EN</button>
+    </div>
+
+    <div class="card">
+        <label style="font-size:18px; margin-bottom:20px">☀️ وردية الصباح (Morning Shift)</label>
+        <div class="row">
+            <div class="input-group">
+                <label id="lblMStart">وقت الحضور:</label>
+                <input type="time" id="morningStart" value="07:30" />
+            </div>
+            <div class="input-group">
+                <label id="lblMEnd">وقت الانصراف:</label>
+                <input type="time" id="morningEnd" value="17:00" />
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <label style="font-size:18px; margin-bottom:20px">🌙 وردية المساء (Night Shift)</label>
+        <div class="row">
+            <div class="input-group">
+                <label id="lblNStart">وقت الحضور:</label>
+                <input type="time" id="nightStart" value="13:00" />
+            </div>
+            <div class="input-group">
+                <label id="lblNEnd">وقت الانصراف:</label>
+                <input type="time" id="nightEnd" value="22:00" />
+            </div>
+        </div>
+    </div>
+
+    <button class="btn2" id="saveBtn" onclick="window.saveSettings()">💾 حفظ كافة الإعدادات</button>
+    <div id="statusBox" class="status-msg"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getFirestore, doc, onSnapshot, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
+const app = initializeApp(firebaseConfig); const db = getFirestore(app);
+
+const i18n = {
+    ar: { title:'إعدادات توقيت الورديات', subtitle:'تخصيص ساعات العمل الرسمية - المجدوعي للسيارات', start:'وقت الحضور:', end:'وقت الانصراف:', save:'💾 حفظ كافة الإعدادات', success:'✅ تم حفظ التوقيتات الجديدة بنجاح!' },
+    en: { title:'Shift Time Settings', subtitle:'Customize Official Working Hours - Almajdouie Motors', start:'Start Time:', end:'End Time:', save:'💾 Save All Settings', success:'✅ New shift times saved successfully!' }
+};
+
+let currentLang=localStorage.getItem('lang')||'ar';
+const $=id=>document.getElementById(id), tr=()=>i18n[currentLang];
+
+// --- 1. Save Logic ---
+window.saveSettings = async () => {
+    const data = {
+        morningStart: $('morningStart').value,
+        morningEnd: $('morningEnd').value,
+        nightStart: $('nightStart').value,
+        nightEnd: $('nightEnd').value,
+        updatedAt: new Date().toISOString()
+    };
+
+    try {
+        await setDoc(doc(db, 'schedule', 'shift_settings'), data, { merge: true });
+        const box = $('statusBox');
+        box.innerText = tr().success;
+        box.style.display = 'block';
+        box.style.background = '#ecfdf5';
+        box.style.color = '#059669';
+        setTimeout(() => box.style.display = 'none', 4000);
+    } catch (e) {
+        alert("Error saving settings");
+    }
+};
+
+// --- 2. Initial Load ---
+async function loadSettings(){
+    const snap = await getDoc(doc(db, 'schedule', 'shift_settings'));
+    if(snap.exists()){
+        const d = snap.data();
+        if(d.morningStart) $('morningStart').value = d.morningStart;
+        if(d.morningEnd) $('morningEnd').value = d.morningEnd;
+        if(d.nightStart) $('nightStart').value = d.nightStart;
+        if(d.nightEnd) $('nightEnd').value = d.nightEnd;
+    }
+}
+
+$('btnLang').addEventListener('click', () => {
+    currentLang = currentLang==='ar'?'en':'ar'; localStorage.setItem('lang', currentLang); location.reload();
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+    if(currentLang==='en') { $('mainHtml').dir='ltr'; $('mainHtml').lang='en'; }
+    const t = tr();
+    $('title').innerText = t.title; $('subtitle').innerText = t.subtitle; 
+    $('saveBtn').innerText = t.save;
+    $('lblMStart').innerText = t.start; $('lblMEnd').innerText = t.end;
+    $('lblNStart').innerText = t.start; $('lblNEnd').innerText = t.end;
+    loadSettings();
+});
+</script>
+</body>
+</html>
