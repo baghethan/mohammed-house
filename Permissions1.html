@@ -2,65 +2,54 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Permissions v2.3.0 - Maximum Force</title>
+  <title>Permissions v2.4.0 - Diagnostics Mode</title>
   <style>
-    :root{--primary:#0d2149;--accent:#1b4fa3;--success:#10b981;--error:#ef4444;--bg:#f8fafc;--border:#cbd5e1}
+    :root{--primary:#0d2149;--accent:#1b4fa3;--error:#ef4444;--bg:#f8fafc;--border:#cbd5e1}
     body{font-family:'Segoe UI', Tahoma, sans-serif; background:var(--bg); padding:20px;}
     .card{background:#fff; border-radius:12px; padding:25px; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid var(--border); max-width:850px; margin:auto}
-    .status-indicator{padding:12px; border-radius:8px; text-align:center; font-weight:bold; margin-bottom:20px; font-size:14px; display:none}
-    .status-loading{background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd}
-    .status-error{background:#fee2e2; color:#b91c1c; border:1px solid #fecaca}
-    .status-success{background:#dcfce7; color:#166534; border:1px solid #bbf7d0}
-    .input-group{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px}
-    input{width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; outline:none}
-    .perms-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:12px; background:#f1f5f9; padding:15px; border-radius:10px}
-    .perm-card{background:#fff; border:1px solid var(--border); padding:10px; border-radius:8px; display:flex; align-items:center; gap:8px; cursor:pointer}
-    .btn-action{width:100%; padding:14px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:15px}
-    .table-container{max-height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; margin-top:10px}
+    .diag-box{background:#1e293b; color:#34d399; padding:15px; border-radius:8px; font-family:monospace; font-size:12px; margin-bottom:20px; display:none; direction:ltr; text-align:left; border:2px solid #4ade80}
+    .status-bar{padding:12px; border-radius:8px; text-align:center; font-weight:bold; margin-bottom:20px; font-size:14px; display:none}
+    .loading{background:#e0f2fe; color:#0369a1}
+    .error-msg{background:#fee2e2; color:#b91c1c}
+    .btn-diag{background:#6366f1; color:#fff; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold; width:100%; margin-bottom:15px}
+    .btn-action{width:100%; padding:14px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer}
+    .table-container{max-height:200px; overflow-y:auto; border:1px solid var(--border); margin-top:10px}
     table{width:100%; border-collapse:collapse}
-    th{position:sticky; top:0; background:#f8fafc; padding:12px; text-align:right; font-size:12px; border-bottom:2px solid var(--border)}
-    td{padding:12px; border-bottom:1px solid #edf2f7; font-size:13px; cursor:pointer}
-    tr:hover{background:#f1f5f9}
+    td{padding:10px; border-bottom:1px solid #eee; font-size:13px}
   </style>
 </head>
 <body>
 
 <div class="card">
-    <div id="statusBox" class="status-indicator"></div>
+    <div id="statusBar" class="status-bar"></div>
     
-    <div style="text-align:center; margin-bottom:25px">
-        <h2 style="color:var(--primary); margin:0">إدارة الصلاحيات (v2.3.0)</h2>
-        <p style="color:#64748b; font-size:12px; margin-top:5px">إصدار تخطي حظر الشبكة القوي - المجدوعي للسيارات</p>
+    <div style="text-align:center; margin-bottom:20px">
+        <h2 style="color:var(--primary); margin:0">إدارة الصلاحيات (v2.4.0)</h2>
+        <p style="color:#64748b; font-size:11px">نظام فحص أعطال الشبكة - المجدوعي للسيارات</p>
     </div>
 
-    <div class="input-group">
-        <div><label style="display:block; font-weight:bold; margin-bottom:5px; font-size:13px">الاسم الكامل</label><input id="uName" type="text"></div>
-        <div><label style="display:block; font-weight:bold; margin-bottom:5px; font-size:13px">البريد الإلكتروني</label><input id="uEmail" type="email"></div>
+    <button class="btn-diag" id="diagBtn">🔍 بدء فحص وتتبع مسار الاتصال (Diagnostics)</button>
+    <div id="diagBox" class="diag-box"></div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px">
+        <div><label style="font-size:12px; font-weight:bold">الاسم</label><input id="uName" type="text" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc"></div>
+        <div><label style="font-size:12px; font-weight:bold">البريد</label><input id="uEmail" type="email" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc"></div>
     </div>
     <input id="uId" type="hidden">
 
-    <div class="perms-grid" id="permsDisplay"></div>
+    <button class="btn-action" id="saveBtn">💾 حفظ التعديلات</button>
 
-    <button class="btn-action" id="saveBtn" style="margin-top:20px">💾 حفظ التعديلات الآن</button>
-
-    <div style="margin-top:30px; display:flex; justify-content:space-between; align-items:center">
-        <h3 style="font-size:15px; margin:0">👥 قائمة الموظفين (الموجودين في Firestore)</h3>
-        <button id="reloadBtn" style="padding:8px 20px; background:var(--success); color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:bold">🔄 جلب البيانات بالقوة</button>
-    </div>
-
-    <div class="table-container">
-        <table>
-            <thead><tr><th>الموظف</th><th>البريد الإلكتروني</th></tr></thead>
-            <tbody id="usersTbody">
-                <tr><td colspan="2" style="text-align:center; padding:20px; color:#94a3b8">اضغط على الزر الأخضر أعلاه لبدء سحب البيانات...</td></tr>
-            </tbody>
-        </table>
+    <div style="margin-top:20px">
+        <h3 style="font-size:14px">قائمة الموظفين:</h3>
+        <div class="table-container">
+            <table><tbody id="usersTbody"><tr><td>اضغط على فحص الاتصال بالأعلى لمعرفة السبب...</td></tr></tbody></table>
+        </div>
     </div>
 </div>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { initializeFirestore, doc, setDoc, getDoc, getDocs, collection, query, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { initializeFirestore, doc, getDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const firebaseConfig = { 
     apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', 
@@ -72,92 +61,56 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-// إجبار المتصفح على البقاء في وضع Long Polling وتجاهل الـ Streams تماماً للسرعة
 const db = initializeFirestore(app, { experimentalForceLongPolling: true, useFetchStreams: false });
 
-const PAGES = {
-    dashboard: "لوحة التحكم", schedule: "الجدول", employees: "الموظفون", 
-    annual: "الإجازات", planning: "الخطة", settings: "الإعدادات", permissions: "الصلاحيات"
-};
+const diagBox = document.getElementById('diagBox');
+const statusBar = document.getElementById('statusBar');
 
-document.getElementById('permsDisplay').innerHTML = Object.keys(PAGES).map(k => `
-    <label class="perm-card"><input type="checkbox" class="perm-check" data-id="${k}"> <span>${PAGES[k]}</span></label>
-`).join('');
+function logDiag(text) {
+    const time = new Date().toLocaleTimeString();
+    diagBox.innerHTML += `[${time}] ${text}<br>`;
+    diagBox.scrollTop = diagBox.scrollHeight;
+}
 
-const statusBox = document.getElementById('statusBox');
-const updateStatus = (t, m='loading') => {
-    statusBox.innerText = t;
-    statusBox.className = 'status-indicator status-' + m;
-    statusBox.style.display = 'block';
-};
-
-// وظيفة الجلب بالقوة (Maximum Force Fetch)
-async function fetchWithForce() {
-    updateStatus("جاري محاولة اختراق حظر الشبكة وجلب البيانات...");
-    const tbody = document.getElementById('usersTbody');
+async function runDiagnostics() {
+    diagBox.style.display = 'block';
+    diagBox.innerHTML = "--- STARTING FIREBASE NETWORK TEST ---<br>";
+    logDiag("1. Checking Firebase SDK Initialization...");
     
     try {
-        // محاولة جلب أول 50 مستخدم فقط لتقليل حمل البيانات
-        const snap = await getDocs(query(collection(db, 'app_users'), limit(50)));
+        logDiag("2. Attempting to connect to Firestore (google.com)...");
+        // اختبار الاتصال بطلب بسيط جداً
+        const testRef = collection(db, 'app_users');
+        logDiag("3. Sending Data Request (GET app_users)...");
         
-        if (snap.empty) {
-            tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:20px; color:red">⚠️ لم يتم العثور على سجلات في app_users - تأكد من أسماء الحقول</td></tr>';
-            updateStatus("تم الاتصال ولكن لم نجد بيانات", 'error');
-            return;
-        }
+        const timeout = setTimeout(() => {
+            logDiag("!! TIMEOUT: No response from Google servers within 10s.");
+            logDiag(">> Probable cause: Corporate Firewall blocking Port 443.");
+        }, 10000);
 
-        tbody.innerHTML = snap.docs.map(doc => {
-            const d = doc.data();
-            return `<tr onclick="window.loadSpecificUser('${doc.id}')">
-                <td><b>${d.name || 'بدون اسم'}</b></td>
-                <td>${d.email || '-'}</td>
-            </tr>`;
-        }).join('');
+        const snap = await getDocs(testRef);
+        clearTimeout(timeout);
         
-        updateStatus("تم جلب " + snap.size + " سجل بنجاح!", 'success');
-        setTimeout(() => statusBox.style.display = 'none', 3000);
-    } catch(err) {
-        updateStatus("خطأ: الشبكة لا تزال تحظر الرد. يرجى الانتظار 5 ثوانٍ والمحاولة مجدداً.", 'error');
+        logDiag(`4. SUCCESS: Received ${snap.size} records.`);
+        document.getElementById('usersTbody').innerHTML = snap.docs.map(d => `<tr><td>${d.data().name}</td></tr>`).join('');
+        
+    } catch (e) {
+        logDiag(`!! ERROR DETECTED: ${e.code}`);
+        logDiag(`!! MESSAGE: ${e.message}`);
+        
+        if (e.code === 'unavailable') {
+            logDiag(">> ANALYSIS: The backend is unreachable. Network is blocking the connection.");
+        } else if (e.code === 'permission-denied') {
+            logDiag(">> ANALYSIS: Connection OK, but Security Rules rejected access.");
+        }
+        
+        statusBar.innerText = "فشل التحليل: يرجى تصوير الشاشة السوداء وإرسالها";
+        statusBar.className = "status-bar error-msg";
+        statusBar.style.display = "block";
     }
 }
 
-document.getElementById('reloadBtn').onclick = fetchWithForce;
-
-window.loadSpecificUser = async (id) => {
-    updateStatus("جاري سحب بيانات الموظف المختارة...");
-    try {
-        const res = await getDoc(doc(db, 'app_users', id));
-        if(res.exists()) {
-            const u = res.data();
-            document.getElementById('uId').value = id;
-            document.getElementById('uName').value = u.name || "";
-            document.getElementById('uEmail').value = u.email || "";
-            document.querySelectorAll('.perm-check').forEach(c => {
-                c.checked = u.permissions && u.permissions[c.dataset.id]?.view;
-            });
-            updateStatus("تم التحميل بنجاح", 'success');
-            setTimeout(() => statusBox.style.display = 'none', 1000);
-        }
-    } catch(e) { updateStatus("فشل تحميل التفاصيل", 'error'); }
-};
-
-document.getElementById('saveBtn').onclick = async () => {
-    const id = document.getElementById('uId').value;
-    if(!id) return alert("الرجاء اختيار اسم أولاً");
-    updateStatus("جاري الحفظ بالقوة...");
-    const perms = {};
-    document.querySelectorAll('.perm-check').forEach(c => { if(c.checked) perms[c.dataset.id] = {view:true, add:true}; });
-    try {
-        await setDoc(doc(db, 'app_users', id), {
-            name: document.getElementById('uName').value,
-            email: document.getElementById('uEmail').value,
-            permissions: perms,
-            updatedAt: new Date()
-        }, { merge: true });
-        updateStatus("✅ تم الحفظ بنجاح", 'success');
-        setTimeout(() => { statusBox.style.display = 'none'; fetchWithForce(); }, 2000);
-    } catch(e) { updateStatus("فشل الحفظ - يرجى المحاولة مرة أخرى", 'error'); }
-};
+document.getElementById('diagBtn').onclick = runDiagnostics;
 </script>
 </body>
 </html>
