@@ -109,14 +109,26 @@
     if (!user) { window.location.href = 'login.html'; return; }
     try {
       const snap = await db.collection('app_users').doc(user.uid).get();
-      const profile = snap.exists ? snap.data() : {};
+      if (!snap.exists) {
+        alert("لا توجد صلاحيات لهذا المستخدم");
+        auth.signOut();
+        return;
+      }
+      const profile = snap.data();
+      if (profile.active !== true) {
+        alert("الحساب غير مفعّل");
+        auth.signOut();
+        return;
+      }
       $('userName').textContent = profile.name || user.email;
       if (profile.photoURL) $('userAvatar').src = profile.photoURL;
       const allowed = profile.pages || ['dashboard'];
       document.querySelectorAll('nav button[data-page]').forEach(btn => { btn.classList.toggle('hidden', !allowed.includes(btn.dataset.page)); });
       setLang(currentLang);
       const first = allowed.includes('dashboard') ? 'dashboard' : allowed[0];
-      loadPage(first, document.querySelector(`button[data-page="${first}"]`));
+      if (first) {
+        loadPage(first, document.querySelector(`button[data-page="${first}"]`));
+      }
     } catch (err) { console.error(err); }
   });
 
