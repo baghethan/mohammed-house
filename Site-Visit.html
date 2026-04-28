@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v1.6.5 - All Pages Complete</title>
+  <title>Site-Visit-v2.1.7 - Admin UID Auto-Fix</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -591,7 +591,7 @@
       }
     };
 
-    const APP_VERSION = 'v2.1.6';
+    const APP_VERSION = 'v2.1.7';
     const SHARED_BRAND_GROUPS = [
       { id:'changan_deepal', brands:['changan','deepal'] }
     ];
@@ -652,15 +652,47 @@
 
     function clearAllListeners(){ Object.keys(unsub).forEach(k=>{ if(unsub[k]) unsub[k](); unsub[k]=null; }); }
 
+function stripProfileMeta(profile = {}){
+ const { id, source, uidMismatch, ...data } = profile || {};
+ return data;
+}
+async function ensureUserProfileAlias(user, profile){
+ if(!user || !profile || !profile.id || profile.id === user.uid) return profile;
+ const aliasPayload = {
+  ...stripProfileMeta(profile),
+  email: profile.email || user.email || '',
+  name: profile.name || user.displayName || '',
+  role: profile.role || 'user',
+  active: profile.active !== false,
+  technicianId: profile.technicianId || '',
+  pages: getEffectivePagesForProfile(profile),
+  migratedFromDocId: profile.id,
+  uidMismatch: true,
+  lastLoginAt: Timestamp.now(),
+  updatedAt: Timestamp.now()
+ };
+ if(!profile.createdAt) aliasPayload.createdAt = Timestamp.now();
+ try{
+  await setDoc(doc(db,'app_users', user.uid), aliasPayload, {merge:true});
+  return { id:user.uid, ...aliasPayload, source:'uid-alias-created', uidMismatch:true };
+ }catch(err){
+  console.warn('app_users UID alias creation failed:', err);
+  return { ...profile, source:profile.source || 'email-fallback', uidMismatch:true };
+ }
+}
+
     async function resolveCurrentUserProfile(user){
-      // Primary lookup by UID document id (matches your rules)
-      let snap = await getDocs(query(collection(db,'app_users'), where('__name__','==', user.uid), limit(1)));
-      if(!snap.empty) return { id:snap.docs[0].id, ...snap.docs[0].data() };
-      // Fallback read by email for UI only (rules may still require UID doc)
-      snap = await getDocs(query(collection(db,'app_users'), where('email','==', user.email), limit(1)));
-      if(!snap.empty) return { id:snap.docs[0].id, ...snap.docs[0].data() };
-      return null;
-    }
+ // Primary lookup by UID document id (matches your rules)
+ let snap = await getDocs(query(collection(db,'app_users'), where('__name__','==', user.uid), limit(1)));
+ if(!snap.empty) return { id:snap.docs[0].id, source:'uid', uidMismatch:false, ...snap.docs[0].data() };
+ // Fallback read by email for UI and self-healing if document id does not equal auth UID
+ snap = await getDocs(query(collection(db,'app_users'), where('email','==', user.email), limit(1)));
+ if(!snap.empty){
+  const profile = { id:snap.docs[0].id, source:'email', uidMismatch:snap.docs[0].id !== user.uid, ...snap.docs[0].data() };
+  return await ensureUserProfileAlias(user, profile);
+ }
+ return null;
+}
 
     function updateUserActiveLabel(){
       const activeSwitch = $('userActiveSwitch');
