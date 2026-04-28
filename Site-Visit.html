@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v2.1.7 - Admin UID Auto-Fix</title>
+  <title>Site-Visit-v2.1.8 - Final Direct UID Read</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -533,7 +533,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, query, orderBy, onSnapshot, Timestamp, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getFirestore, collection, doc, getDoc, setDoc, addDoc, deleteDoc, query, orderBy, onSnapshot, Timestamp, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
@@ -591,7 +591,7 @@
       }
     };
 
-    const APP_VERSION = 'v2.1.7';
+    const APP_VERSION = 'v2.1.8';
     const SHARED_BRAND_GROUPS = [
       { id:'changan_deepal', brands:['changan','deepal'] }
     ];
@@ -651,7 +651,6 @@
     function monthName(dateValue){ if(!dateValue) return ''; const d=new Date(dateValue); return ['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()] || ''; }
 
     function clearAllListeners(){ Object.keys(unsub).forEach(k=>{ if(unsub[k]) unsub[k](); unsub[k]=null; }); }
-
 function stripProfileMeta(profile = {}){
  const { id, source, uidMismatch, ...data } = profile || {};
  return data;
@@ -682,14 +681,22 @@ async function ensureUserProfileAlias(user, profile){
 }
 
     async function resolveCurrentUserProfile(user){
- // Primary lookup by UID document id (matches your rules)
- let snap = await getDocs(query(collection(db,'app_users'), where('__name__','==', user.uid), limit(1)));
- if(!snap.empty) return { id:snap.docs[0].id, source:'uid', uidMismatch:false, ...snap.docs[0].data() };
- // Fallback read by email for UI and self-healing if document id does not equal auth UID
- snap = await getDocs(query(collection(db,'app_users'), where('email','==', user.email), limit(1)));
- if(!snap.empty){
-  const profile = { id:snap.docs[0].id, source:'email', uidMismatch:snap.docs[0].id !== user.uid, ...snap.docs[0].data() };
-  return await ensureUserProfileAlias(user, profile);
+ // Best path for Firestore rules: direct read by app_users/{Auth UID}
+ try{
+  const directSnap = await getDoc(doc(db,'app_users', user.uid));
+  if(directSnap.exists()) return { id:directSnap.id, source:'uid-direct', uidMismatch:false, ...directSnap.data() };
+ }catch(err){
+  console.warn('Direct app_users UID read failed:', err);
+ }
+ // Optional fallback by email if rules allow query/list on app_users
+ try{
+  const snap = await getDocs(query(collection(db,'app_users'), where('email','==', user.email), limit(1)));
+  if(!snap.empty){
+   const profile = { id:snap.docs[0].id, source:'email', uidMismatch:snap.docs[0].id !== user.uid, ...snap.docs[0].data() };
+   return await ensureUserProfileAlias(user, profile);
+  }
+ }catch(err){
+  console.warn('Fallback app_users email query failed:', err);
  }
  return null;
 }
@@ -1689,8 +1696,11 @@ async function ensureUserProfileAlias(user, profile){
     function listenWindowsUpgrades(){ if(unsub.windowsUpgrades) unsub.windowsUpgrades(); unsub.windowsUpgrades = onSnapshot(query(collection(db,'windows_upgrades')), snap=>{ state.windowsUpgrades = snap.docs.map(d=>({id:d.id, ...d.data()})); renderUpgradeWindowsTable(); }, err=>setAlert('uwError', 'windows_upgrades: ' + err.message)); }
 
     onAuthStateChanged(auth, async user => {
-      if(user){
-        state.currentUser = user;
+      if(user){ 
+ state.currentUser = user; 
+ $('currentUserChip').classList.remove('hidden'); 
+ $('currentUserChip').textContent = `${user.email} | loading...`; 
+ $('logoutBtn').classList.remove('hidden');
         let profile = null;
         try { profile = await resolveCurrentUserProfile(user); } catch(err){ $('loginMessage').textContent = 'app_users lookup error: ' + err.message; }
         state.currentUserProfile = profile;
@@ -1711,7 +1721,7 @@ async function ensureUserProfileAlias(user, profile){
         $('appRoot').classList.remove('hidden');
 
         if(!profile){
-          setAlert('dashboardError', state.currentLang==='ar' ? 'تنبيه: لم يتم العثور على app_users/{UID}. قد تعمل بعض التبويبات للقراءة فقط أو تفشل حسب القواعد.' : 'Warning: app_users/{UID} was not found. Some tabs may fail according to rules.');
+          setAlert('dashboardError', state.currentLang==='ar' ? 'تنبيه: لم يتم العثور على app_users/{UID} أو لم تسمح القواعد بقراءة المستند مباشرة. أنشئ/انسخ مستندًا باسم Auth UID داخل app_users.' : 'Warning: app_users/{UID} was not found or the rules did not allow direct document read. Create/copy a document named with the Auth UID inside app_users.');
         }
 
         listenBranches();
