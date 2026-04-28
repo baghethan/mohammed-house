@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v2.1.10 - Branch Import Fix</title>
+  <title>Site-Visit-v2.1.11 - Diagnostics Build</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -138,6 +138,7 @@
       <button class="tab-btn" data-tab="technicians" data-i18n="tabTechnicians">إدارة الفنيين</button>
       <button class="tab-btn" data-tab="permissions" data-i18n="tabPermissions">الصلاحيات</button>
       <button class="tab-btn" data-tab="dynamicChecklistAdmin" data-i18n="tabDynamicChecklistAdmin">Dynamic Check‑List (Admin)</button>
+      <button class="tab-btn" data-tab="diagnostics">Diagnostics / تشخيص الأداء</button>
     </div>
 
     <section id="dashboard" class="panel active">
@@ -222,6 +223,38 @@
         <h3>Dynamic Check‑List (Admin)</h3>
         <div class="note">صفحة الإدارة المتقدمة تتيح إضافة/حذف/تعديل البنود والمنطق والربط. ارفع الملف <span class="rtl-en">dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html</span> في نفس المسار حتى يعمل هذا التبويب.</div>
         <iframe id="dynamicChecklistAdminFrame" src="dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html" style="width:100%;height:calc(100vh - 260px);border:1px solid var(--border);border-radius:16px;background:#fff;margin-top:12px"></iframe>
+      </div>
+    </section>
+
+    <section id="diagnostics" class="panel">
+      <div class="card">
+        <h3>Diagnostics / تشخيص الأداء</h3>
+        <div class="note">هذا التبويب يقيس زمن تحميل بيانات التبويبات والـ listeners والعمليات الثقيلة مثل استيراد الفروع. افتح التبويبات التي تريد قياسها ثم انسخ التقرير وأرسله لي.</div>
+        <div class="grid-3" style="margin-top:12px">
+          <div class="stat"><span class="label">Session</span><div class="value" id="diagSessionSeconds">0s</div></div>
+          <div class="stat"><span class="label">Auth Profile</span><div class="value" id="diagAuthMs">0ms</div></div>
+          <div class="stat"><span class="label">Last Branch Import</span><div class="value" id="diagBranchImportMs">-</div></div>
+        </div>
+        <div class="grid-2" style="margin-top:16px">
+          <div class="card">
+            <h3>Tab Readiness</h3>
+            <div class="table-wrap"><table><thead><tr><th>Tab</th><th>Status</th><th>Ready In</th><th>Dependencies</th></tr></thead><tbody id="diagTabsBody"></tbody></table></div>
+          </div>
+          <div class="card">
+            <h3>Listener Timings</h3>
+            <div class="table-wrap"><table><thead><tr><th>Listener</th><th>Starts</th><th>Docs</th><th>First Snapshot</th><th>Last Snapshot</th><th>Updates</th></tr></thead><tbody id="diagListenersBody"></tbody></table></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3>Actions & Raw Report</h3>
+          <div class="actions">
+            <button class="btn" id="refreshDiagnosticsBtn" type="button">تحديث التقرير</button>
+            <button class="btn green" id="copyDiagnosticsBtn" type="button">نسخ JSON</button>
+          </div>
+          <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Action</th><th>Last Duration</th><th>Runs</th><th>Meta</th></tr></thead><tbody id="diagActionsBody"></tbody></table></div>
+          <div class="field" style="margin-top:12px"><label>JSON Report</label><textarea id="diagJsonOutput" style="min-height:220px"></textarea></div>
+          <div class="note" id="diagMessage">افتح أي تبويب أو نفّذ أي عملية، ثم اضغط تحديث التقرير أو نسخ JSON.</div>
+        </div>
       </div>
     </section>
 
@@ -533,7 +566,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, collection, doc, getDoc, setDoc, addDoc, deleteDoc, writeBatch, query, orderBy, onSnapshot, Timestamp, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, query, orderBy, onSnapshot, Timestamp, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
@@ -551,7 +584,8 @@
 
     const state = {
       branches:[], technicians:[], visits:[], checklists:[], checklistFields:[], brands:[], users:[], windowsUpgrades:[],
-      currentUser:null, currentUserProfile:null, previewData:'', currentLang:'ar'
+      currentUser:null, currentUserProfile:null, previewData:'', currentLang:'ar',
+      debugMetrics:{ sessionStartedAt: performance.now(), auth:{}, listeners:{}, tabs:{}, actions:{} }
     };
 
 
@@ -565,7 +599,8 @@
       { key: 'branches', name: 'إدارة الفروع', description: 'إدارة الفروع والمواقع' },
       { key: 'technicians', name: 'إدارة الفنيين', description: 'إدارة بيانات الفنيين ونطاقاتهم' },
       { key: 'permissions', name: 'الصلاحيات', description: 'إدارة الوصول والصلاحيات' },
-      { key: 'dynamicChecklistAdmin', name: 'Dynamic Check‑List (Admin)', description: 'إدارة البنود الديناميكية وربطها مع Check‑List الأساسي' }
+      { key: 'dynamicChecklistAdmin', name: 'Dynamic Check‑List (Admin)', description: 'إدارة البنود الديناميكية وربطها مع Check‑List الأساسي' },
+      { key: 'diagnostics', name: 'Diagnostics / تشخيص الأداء', description: 'قياس زمن تحميل التبويبات والـ listeners والعمليات الثقيلة' }
     ];
 
     const permissionRoleDefaults = {
@@ -577,7 +612,7 @@
       supervisor: {
         title: 'الدور الحالي: Supervisor',
         description: 'يمتلك هذا الدور صلاحيات إشرافية على الصفحات التشغيلية والتقارير مع استثناء بعض صفحات الإدارة الحساسة.',
-        pages: ['dashboard', 'checklist', 'upgradeWindows', 'reports', 'visit', 'branches', 'technicians']
+        pages: ['dashboard', 'checklist', 'upgradeWindows', 'reports', 'visit', 'branches', 'technicians', 'diagnostics']
       },
       technician: {
         title: 'الدور الحالي: Technician',
@@ -591,7 +626,7 @@
       }
     };
 
-    const APP_VERSION = 'v2.1.10';
+    const APP_VERSION = 'v2.1.11';
     const SHARED_BRAND_GROUPS = [
       { id:'changan_deepal', brands:['changan','deepal'] }
     ];
@@ -651,52 +686,57 @@
     function monthName(dateValue){ if(!dateValue) return ''; const d=new Date(dateValue); return ['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()] || ''; }
 
     function clearAllListeners(){ Object.keys(unsub).forEach(k=>{ if(unsub[k]) unsub[k](); unsub[k]=null; }); }
-function chunkArray(arr, size=400){ const out=[]; for(let i=0;i<arr.length;i+=size) out.push(arr.slice(i, i+size)); return out; }
-async function commitBranchBatches(items, mode='set'){
- const chunks = chunkArray(items, 400);
- for(let i=0; i<chunks.length; i++){
-  const batch = writeBatch(db);
-  for(const item of chunks[i]){
-   if(mode === 'delete') batch.delete(doc(db,'branches', item.id));
-   else batch.set(doc(db,'branches', item.branchId), {
-    branchName: item.branchName,
-    brand: item.brand,
-    region: item.region,
-    city: item.city,
-    branchType: item.branchType,
-    contactShowroom: item.contactShowroom,
-    contactService: item.contactService,
-    contactSpareParts: item.contactSpareParts,
-    functionName: item.functionName,
-    function: item.function,
-    gps: item.gps,
-    location: item.location,
-    updatedAt: Timestamp.now(),
-    createdAt: item.createdAt || Timestamp.now()
-   }, {merge:true});
-  }
-  await batch.commit();
-  setMessage('branchMessage', (state.currentLang==='ar' ? 'جاري تنفيذ الدفعة ' : 'Processing batch ') + `${i+1}/${chunks.length}` + (mode === 'delete' ? (state.currentLang==='ar' ? ' (حذف)...' : ' (delete)...') : (state.currentLang==='ar' ? ' (رفع)...' : ' (upload)...')));
- }
-}
 
+    function getDebugNow(){ return performance.now(); }
+    function resetDiagnostics(){ state.debugMetrics = { sessionStartedAt: getDebugNow(), auth:{}, listeners:{}, tabs:{}, actions:{} }; }
+    function ensureListenerMetric(name){ state.debugMetrics.listeners[name] = state.debugMetrics.listeners[name] || { starts:0, firstSnapshotMs:null, lastSnapshotMs:null, docCount:0, updates:0, errors:0 }; return state.debugMetrics.listeners[name]; }
+    function markListenerStart(name){ const m = ensureListenerMetric(name); m.starts += 1; m.lastStartMs = Math.round(getDebugNow() - state.debugMetrics.sessionStartedAt); return m; }
+    function markListenerSnapshot(name, count){ const m = ensureListenerMetric(name); const rel = Math.round(getDebugNow() - state.debugMetrics.sessionStartedAt); if(m.firstSnapshotMs == null) m.firstSnapshotMs = rel; m.lastSnapshotMs = rel; m.docCount = Number(count || 0); m.updates += 1; }
+    function markListenerError(name, err){ const m = ensureListenerMetric(name); m.errors += 1; m.lastError = err?.message || String(err || ''); m.lastErrorMs = Math.round(getDebugNow() - state.debugMetrics.sessionStartedAt); }
+    function ensureActionMetric(name){ state.debugMetrics.actions[name] = state.debugMetrics.actions[name] || { runs:0, lastDurationMs:null, meta:{} }; return state.debugMetrics.actions[name]; }
+    function markActionStart(name, meta={}){ const m = ensureActionMetric(name); m.runs += 1; m.startedAt = getDebugNow(); m.startedRelMs = Math.round(getDebugNow() - state.debugMetrics.sessionStartedAt); m.meta = { ...(m.meta || {}), ...(meta || {}) }; }
+    function markActionEnd(name, meta={}){ const m = ensureActionMetric(name); const end = getDebugNow(); m.lastDurationMs = m.startedAt ? Math.round(end - m.startedAt) : null; m.finishedRelMs = Math.round(end - state.debugMetrics.sessionStartedAt); m.meta = { ...(m.meta || {}), ...(meta || {}) }; delete m.startedAt; }
+    function markTabOpened(tabId){ state.debugMetrics.tabs[tabId] = state.debugMetrics.tabs[tabId] || { opens:0, firstOpenMs:null, lastOpenMs:null }; const t = state.debugMetrics.tabs[tabId]; const rel = Math.round(getDebugNow() - state.debugMetrics.sessionStartedAt); t.opens += 1; if(t.firstOpenMs == null) t.firstOpenMs = rel; t.lastOpenMs = rel; }
+    function getTabDependencies(){ return { dashboard:['branches','technicians','visits','checklists','brands'], checklist:['technicians','visits','checklistFields','checklists','branches','brands'], brands:['brands'], upgradeWindows:['windowsUpgrades','branches','brands'], reports:['checklists','visits','brands'], visit:['visits','branches','technicians'], branches:['branches'], technicians:['technicians','branches'], permissions:['users'], dynamicChecklistAdmin:['checklistFields'], diagnostics:[] }; }
+    function safeJson(v){ try{ return JSON.stringify(v, null, 2); }catch(err){ return String(v || ''); } }
+    function getDiagnosticsPayload(){ return { version: APP_VERSION, elapsedMs: Math.round(getDebugNow() - state.debugMetrics.sessionStartedAt), auth: state.debugMetrics.auth, listeners: state.debugMetrics.listeners, tabs: state.debugMetrics.tabs, actions: state.debugMetrics.actions, currentUser: state.currentUser ? { uid: state.currentUser.uid, email: state.currentUser.email } : null, profile: state.currentUserProfile ? { id: state.currentUserProfile.id || '', role: state.currentUserProfile.role || '', pages: state.currentUserProfile.pages || [] } : null }; }
+    function renderDiagnostics(){
+      if(!$('diagTabsBody') || !$('diagListenersBody') || !$('diagActionsBody')) return;
+      const elapsedMs = Math.round(getDebugNow() - state.debugMetrics.sessionStartedAt);
+      if($('diagSessionSeconds')) $('diagSessionSeconds').textContent = `${(elapsedMs/1000).toFixed(1)}s`;
+      if($('diagAuthMs')) $('diagAuthMs').textContent = state.debugMetrics.auth.profileMs != null ? `${state.debugMetrics.auth.profileMs}ms` : '-';
+      const branchImport = state.debugMetrics.actions.importBranchesFromExcel;
+      if($('diagBranchImportMs')) $('diagBranchImportMs').textContent = branchImport?.lastDurationMs != null ? `${branchImport.lastDurationMs}ms` : '-';
+      const depsMap = getTabDependencies();
+      const tabRows = Object.entries(depsMap).map(([tab, deps]) => {
+        if(!deps.length) return { tab, status:'Ready', readyMs:0, deps:'-' };
+        const depMetrics = deps.map(dep => state.debugMetrics.listeners[dep] || state.debugMetrics.actions[dep] || null);
+        const readyList = depMetrics.map(m => m?.firstSnapshotMs ?? m?.finishedRelMs).filter(v => v != null);
+        const allReady = readyList.length === deps.length;
+        return { tab, status: allReady ? 'Ready' : (readyList.length ? 'Partial' : 'Pending'), readyMs: allReady ? Math.max(...readyList) : '-', deps: deps.join(', ') };
+      });
+      $('diagTabsBody').innerHTML = tabRows.map(r => `<tr><td>${esc(r.tab)}</td><td>${esc(r.status)}</td><td>${esc(r.readyMs === '-' ? '-' : r.readyMs + 'ms')}</td><td>${esc(r.deps)}</td></tr>`).join('') || '<tr><td colspan="4">No data</td></tr>';
+      const listenerRows = Object.entries(state.debugMetrics.listeners).sort((a,b) => String(a[0]).localeCompare(String(b[0])));
+      $('diagListenersBody').innerHTML = listenerRows.length ? listenerRows.map(([name, m]) => `<tr><td>${esc(name)}</td><td>${esc(m.starts)}</td><td>${esc(m.docCount)}</td><td>${esc(m.firstSnapshotMs != null ? m.firstSnapshotMs + 'ms' : '-')}</td><td>${esc(m.lastSnapshotMs != null ? m.lastSnapshotMs + 'ms' : '-')}</td><td>${esc(m.updates)}</td></tr>`).join('') : '<tr><td colspan="6">No listener data yet</td></tr>';
+      const actionRows = Object.entries(state.debugMetrics.actions).sort((a,b) => String(a[0]).localeCompare(String(b[0])));
+      $('diagActionsBody').innerHTML = actionRows.length ? actionRows.map(([name, m]) => `<tr><td>${esc(name)}</td><td>${esc(m.lastDurationMs != null ? m.lastDurationMs + 'ms' : '-')}</td><td>${esc(m.runs || 0)}</td><td>${esc(JSON.stringify(m.meta || {}))}</td></tr>`).join('') : '<tr><td colspan="4">No action data yet</td></tr>';
+      if($('diagJsonOutput')) $('diagJsonOutput').value = safeJson(getDiagnosticsPayload());
+    }
+    async function copyDiagnosticsReport(){
+      renderDiagnostics();
+      const payload = $('diagJsonOutput')?.value || safeJson(getDiagnosticsPayload());
+      try{ await navigator.clipboard.writeText(payload); if($('diagMessage')) $('diagMessage').textContent = state.currentLang==='ar' ? 'تم نسخ التقرير بنجاح.' : 'Diagnostics report copied.'; }
+      catch(err){ if($('diagMessage')) $('diagMessage').textContent = (state.currentLang==='ar' ? 'تعذر النسخ التلقائي. انسخ التقرير يدويًا من المربع.' : 'Automatic copy failed. Please copy manually from the textarea.') + ' ' + (err?.message || ''); }
+    }
     async function resolveCurrentUserProfile(user){
- // Best path for Firestore rules: direct read by app_users/{Auth UID}
- try{
-  const directSnap = await getDoc(doc(db,'app_users', user.uid));
-  if(directSnap.exists()) return { id:directSnap.id, source:'uid-direct', uidMismatch:false, ...directSnap.data() };
- }catch(err){
-  console.warn('Direct app_users UID read failed:', err);
- }
- // Optional fallback by email if rules allow query/list on app_users
- try{
-  const snap = await getDocs(query(collection(db,'app_users'), where('email','==', user.email), limit(1)));
-  if(!snap.empty) return { id:snap.docs[0].id, source:'email', uidMismatch:snap.docs[0].id !== user.uid, ...snap.docs[0].data() };
- }catch(err){
-  console.warn('Fallback app_users email query failed:', err);
- }
- return null;
-}
+      // Primary lookup by UID document id (matches your rules)
+      let snap = await getDocs(query(collection(db,'app_users'), where('__name__','==', user.uid), limit(1)));
+      if(!snap.empty) return { id:snap.docs[0].id, ...snap.docs[0].data() };
+      // Fallback read by email for UI only (rules may still require UID doc)
+      snap = await getDocs(query(collection(db,'app_users'), where('email','==', user.email), limit(1)));
+      if(!snap.empty) return { id:snap.docs[0].id, ...snap.docs[0].data() };
+      return null;
+    }
 
     function updateUserActiveLabel(){
       const activeSwitch = $('userActiveSwitch');
@@ -829,6 +869,7 @@ async function commitBranchBatches(items, mode='set'){
     }
 
     function activateTab(tabId, force = false){
+      markTabOpened(tabId);
       const allowed = force ? null : getEffectivePagesForProfile(state.currentUserProfile);
       if(!force && Array.isArray(allowed) && allowed.length && !allowed.includes(tabId)){
         alert(state.currentLang === 'ar' ? 'ليس لديك صلاحية الوصول لهذه الصفحة.' : 'You do not have permission to access this page.');
@@ -836,6 +877,7 @@ async function commitBranchBatches(items, mode='set'){
       }
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab === tabId));
       document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id === tabId));
+      if(tabId === 'diagnostics') renderDiagnostics();
     }
     document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', ()=>activateTab(btn.dataset.tab)));
 
@@ -1592,46 +1634,33 @@ async function commitBranchBatches(items, mode='set'){
       return { branchId, branchType: String(normalized.branchtype || '').trim(), contactShowroom: String(normalized.contactshowroom || '').trim(), contactService: String(normalized.contactservice || '').trim(), contactSpareParts: String(normalized.contactspareparts || '').trim(), brand: String(normalized.brand || '').trim(), functionName: fn, function: fn, branchName: String(normalized.branchname || '').trim(), gps: String(normalized.gps || '').trim(), location: String(normalized.location || '').trim(), region: String(normalized.region || '').trim(), city };
     }
     async function importBranchesFromExcel(){
-      let hadBranchesListener = false;
+      markActionStart('importBranchesFromExcel');
       try{
         if(typeof XLSX === 'undefined') throw new Error('XLSX library not loaded');
         const file = $('branchesExcelFile').files?.[0];
         if(!file) throw new Error(state.currentLang==='ar'?'اختر ملف Excel أولاً.':'Choose an Excel file first.');
         if(!confirm(state.currentLang==='ar'?'سيتم حذف كل الفروع القديمة من المخزن ثم رفع الملف الجديد. هل تريد المتابعة؟':'All current branches will be deleted before importing the new file. Continue?')) return;
-
-        if(unsub.branches){
-          unsub.branches();
-          unsub.branches = null;
-          hadBranchesListener = true;
-        }
-
-        setMessage('branchMessage', state.currentLang==='ar'?'جاري قراءة الملف وتحضير دفعات الحذف والرفع...':'Reading Excel and preparing delete/upload batches...');
+        setMessage('branchMessage', state.currentLang==='ar'?'جاري قراءة الملف ومسح القديم...':'Reading Excel and clearing old records...');
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, {type:'array'});
         const sheetName = workbook.SheetNames[0];
         if(!sheetName) throw new Error(state.currentLang==='ar'?'ملف Excel لا يحتوي على أي ورقة.':'Excel file has no sheets.');
-
         const sheet = workbook.Sheets[sheetName];
         const rawRows = XLSX.utils.sheet_to_json(sheet, {defval:''});
         const rows = rawRows.map(normalizeBranchImportRow).filter(Boolean);
         if(!rows.length) throw new Error(state.currentLang==='ar'?'لم يتم العثور على صفوف صالحة. تأكد من أسماء الأعمدة المطلوبة.':'No valid rows found. Check the required column names.');
-
         const existing = await getDocs(collection(db,'branches'));
-        if(existing.docs.length){
-          await commitBranchBatches(existing.docs.map(d => ({id:d.id})), 'delete');
+        for(const snapDoc of existing.docs){ await deleteDoc(doc(db,'branches', snapDoc.id)); }
+        for(const row of rows){
+          await setDoc(doc(db,'branches', row.branchId), { branchName: row.branchName, brand: row.brand, region: row.region, city: row.city, branchType: row.branchType, contactShowroom: row.contactShowroom, contactService: row.contactService, contactSpareParts: row.contactSpareParts, functionName: row.functionName, function: row.function, gps: row.gps, location: row.location, updatedAt: Timestamp.now(), createdAt: Timestamp.now() }, {merge:true});
         }
-
-        await commitBranchBatches(rows, 'set');
-
         $('branchesExcelFile').value='';
         populateTechnicianAssignmentOptions({});
+        markActionEnd('importBranchesFromExcel', { rows: rows.length, existingDeleted: existing.docs.length });
         setMessage('branchMessage', (state.currentLang==='ar'?'تم استيراد ':'Imported ') + rows.length + (state.currentLang==='ar'?' صف/فرع بنجاح بعد حذف القديم.':' branch rows successfully after clearing old data.'));
         setAlert('branchError');
-      } catch(err){
-        setAlert('branchError', err.message || String(err));
-      } finally {
-        if(hadBranchesListener || !unsub.branches) listenBranches();
-      }
+        if($('diagnostics')?.classList.contains('active')) renderDiagnostics();
+      } catch(err){ markActionEnd('importBranchesFromExcel', { error: err?.message || String(err) }); setAlert('branchError', err.message || String(err)); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }
     }
     function exportBranchesToExcel(){
       try{
@@ -1697,22 +1726,51 @@ async function commitBranchBatches(items, mode='set'){
       $('technicianSelector')?.addEventListener('change', loadSelectedTechnician); $('loadTechnicianBtn')?.addEventListener('click', loadSelectedTechnician); $('techAssignRegion')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value })); $('techAssignCity')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value, city: $('techAssignCity').value })); $('techAssignBrand')?.addEventListener('change', ()=>populateTechnicianAssignmentOptions({ region: $('techAssignRegion').value, city: $('techAssignCity').value, brand: $('techAssignBrand').value })); $('techAssignBranch')?.addEventListener('change', syncTechnicianAssignmentFromBranch); $('saveTechnicianBtn').addEventListener('click', saveTechnician); $('clearTechnicianBtn').addEventListener('click', clearTechnicianForm);
       $('userRole')?.addEventListener('change', applyRoleDefaultsToPermissionForm); $('userActiveSwitch')?.addEventListener('change', updateUserActiveLabel); $('applyUserRoleBtn')?.addEventListener('click', applyRoleDefaultsToPermissionForm); $('resetUserRoleBtn')?.addEventListener('click', applyRoleDefaultsToPermissionForm); $('selectAllPermissionPagesBtn')?.addEventListener('click', () => { applySelectedPagesToUI(permissionPages.map(p => p.key)); }); $('clearPermissionPagesBtn')?.addEventListener('click', () => { applySelectedPagesToUI([]); }); $('saveUserBtn').addEventListener('click', saveUser); $('clearUserBtn').addEventListener('click', clearUserForm);
       $('runReportBtn').addEventListener('click', runReport);
+      $('refreshDiagnosticsBtn')?.addEventListener('click', renderDiagnostics);
+      $('copyDiagnosticsBtn')?.addEventListener('click', copyDiagnosticsReport);
     }
 
-    function listenBranches(){ if(unsub.branches) unsub.branches(); unsub.branches = onSnapshot(query(collection(db,'branches'), orderBy('branchName')), snap=>{ state.branches = snap.docs.map(d=>({id:d.id, ...d.data()})); renderBranchesList(); renderBranchSelectors(); populateTechnicianAssignmentOptions({}); renderStats(); }, err=>setAlert('branchError', 'branches: ' + err.message)); }
-    function listenTechnicians(){ if(unsub.technicians) unsub.technicians(); unsub.technicians = onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap=>{ state.technicians = snap.docs.map(d=>({id:d.id, ...d.data()})); renderTechniciansList(); renderTechnicianSelectors(); renderBranchSelectors(); renderLatestBrands(); renderStats(); populateVisitsForTechnician(); }, err=>setAlert('technicianError', 'technicians: ' + err.message)); }
-    function listenVisits(){ if(unsub.visits) unsub.visits(); unsub.visits = onSnapshot(query(collection(db,'siteVisits'), orderBy('date','desc')), snap=>{ state.visits = snap.docs.map(d=>({id:d.id, ...d.data()})); renderVisitsTable(); populateVisitsForTechnician(); renderLatestBrands(); renderDashboardBrandBoxes(); renderStats(); }, err=>setAlert('visitError', 'siteVisits: ' + err.message)); }
-    function listenChecklistFields(){ if(unsub.checklistFields) unsub.checklistFields(); unsub.checklistFields = onSnapshot(collection(db,'checklist_fields'), snap=>{ state.checklistFields = snap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>{ const sa=String(a.section||''); const sb=String(b.section||''); if(sa!==sb) return sa.localeCompare(sb); return Number(a.order||0)-Number(b.order||0); }); renderDynamicChecklistForm({}); }, err=>{ setAlert('checklistError', 'checklist_fields: ' + err.message); }); }
-    function listenChecklists(){ if(unsub.checklists) unsub.checklists(); unsub.checklists = onSnapshot(query(collection(db,'branch_checklists'), orderBy('visitDate','desc')), snap=>{ state.checklists = snap.docs.map(d=>({id:d.id, ...d.data()})); renderChecklistTable(); renderLatestChecklistTable(); renderStats(); }, err=>{ setAlert('checklistError', 'branch_checklists: ' + err.message); setAlert('dashboardError', 'branch_checklists: ' + err.message); }); }
-    function listenBrands(){ if(unsub.brands) unsub.brands(); unsub.brands = onSnapshot(query(collection(db,'brand_assets'), orderBy('nameAr')), snap=>{ state.brands = snap.docs.map(d=>({id:d.id, ...d.data()})); renderBrands(); renderDashboardBrandBoxes(); renderStats(); }, err=>{ setAlert('brandsError', 'brand_assets: ' + err.message); setAlert('dashboardError', 'brand_assets: ' + err.message); }); }
-    function listenUsers(){ if(unsub.users) unsub.users(); unsub.users = onSnapshot(query(collection(db,'app_users')), snap=>{ state.users = snap.docs.map(d=>({id:d.id, ...d.data()})); renderUsersTable(); }, err=>setAlert('permissionsError', 'app_users: ' + err.message)); }
-    function listenWindowsUpgrades(){ if(unsub.windowsUpgrades) unsub.windowsUpgrades(); unsub.windowsUpgrades = onSnapshot(query(collection(db,'windows_upgrades')), snap=>{ state.windowsUpgrades = snap.docs.map(d=>({id:d.id, ...d.data()})); renderUpgradeWindowsTable(); }, err=>setAlert('uwError', 'windows_upgrades: ' + err.message)); }
-
+    function listenBranches(){
+      markListenerStart('branches');
+      if(unsub.branches) unsub.branches();
+      unsub.branches = onSnapshot(query(collection(db,'branches'), orderBy('branchName')), snap=>{ state.branches = snap.docs.map(d=>({id:d.id, ...d.data()})); markListenerSnapshot('branches', state.branches.length); renderBranchesList(); renderBranchSelectors(); populateTechnicianAssignmentOptions({}); renderStats(); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }, err=>{ markListenerError('branches', err); setAlert('branchError', 'branches: ' + err.message); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }); }
+    function listenTechnicians(){
+      markListenerStart('technicians');
+      if(unsub.technicians) unsub.technicians();
+      unsub.technicians = onSnapshot(query(collection(db,'technicians'), orderBy('name')), snap=>{ state.technicians = snap.docs.map(d=>({id:d.id, ...d.data()})); markListenerSnapshot('technicians', state.technicians.length); renderTechniciansList(); renderTechnicianSelectors(); renderBranchSelectors(); renderLatestBrands(); renderStats(); populateVisitsForTechnician(); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }, err=>{ markListenerError('technicians', err); setAlert('technicianError', 'technicians: ' + err.message); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }); }
+    function listenVisits(){
+      markListenerStart('visits');
+      if(unsub.visits) unsub.visits();
+      unsub.visits = onSnapshot(query(collection(db,'siteVisits'), orderBy('date','desc')), snap=>{ state.visits = snap.docs.map(d=>({id:d.id, ...d.data()})); markListenerSnapshot('visits', state.visits.length); renderVisitsTable(); populateVisitsForTechnician(); renderLatestBrands(); renderDashboardBrandBoxes(); renderStats(); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }, err=>{ markListenerError('visits', err); setAlert('visitError', 'siteVisits: ' + err.message); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }); }
+    function listenChecklistFields(){
+      markListenerStart('checklistFields');
+      if(unsub.checklistFields) unsub.checklistFields();
+      unsub.checklistFields = onSnapshot(collection(db,'checklist_fields'), snap=>{ state.checklistFields = snap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>{ const sa=String(a.section||''); const sb=String(b.section||''); if(sa!==sb) return sa.localeCompare(sb); return Number(a.order||0)-Number(b.order||0); }); markListenerSnapshot('checklistFields', state.checklistFields.length); renderDynamicChecklistForm({}); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }, err=>{ markListenerError('checklistFields', err); setAlert('checklistError', 'checklist_fields: ' + err.message); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }); }
+    function listenChecklists(){
+      markListenerStart('checklists');
+      if(unsub.checklists) unsub.checklists();
+      unsub.checklists = onSnapshot(query(collection(db,'branch_checklists'), orderBy('visitDate','desc')), snap=>{ state.checklists = snap.docs.map(d=>({id:d.id, ...d.data()})); markListenerSnapshot('checklists', state.checklists.length); renderChecklistTable(); renderLatestChecklistTable(); renderStats(); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }, err=>{ markListenerError('checklists', err); setAlert('checklistError', 'branch_checklists: ' + err.message); setAlert('dashboardError', 'branch_checklists: ' + err.message); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }); }
+    function listenBrands(){
+      markListenerStart('brands');
+      if(unsub.brands) unsub.brands();
+      unsub.brands = onSnapshot(query(collection(db,'brand_assets'), orderBy('nameAr')), snap=>{ state.brands = snap.docs.map(d=>({id:d.id, ...d.data()})); markListenerSnapshot('brands', state.brands.length); renderBrands(); renderDashboardBrandBoxes(); renderStats(); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }, err=>{ markListenerError('brands', err); setAlert('brandsError', 'brand_assets: ' + err.message); setAlert('dashboardError', 'brand_assets: ' + err.message); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }); }
+    function listenUsers(){
+      markListenerStart('users');
+      if(unsub.users) unsub.users();
+      unsub.users = onSnapshot(query(collection(db,'app_users')), snap=>{ state.users = snap.docs.map(d=>({id:d.id, ...d.data()})); markListenerSnapshot('users', state.users.length); renderUsersTable(); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }, err=>{ markListenerError('users', err); setAlert('permissionsError', 'app_users: ' + err.message); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }); }
+    function listenWindowsUpgrades(){
+      markListenerStart('windowsUpgrades');
+      if(unsub.windowsUpgrades) unsub.windowsUpgrades();
+      unsub.windowsUpgrades = onSnapshot(query(collection(db,'windows_upgrades')), snap=>{ state.windowsUpgrades = snap.docs.map(d=>({id:d.id, ...d.data()})); markListenerSnapshot('windowsUpgrades', state.windowsUpgrades.length); renderUpgradeWindowsTable(); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }, err=>{ markListenerError('windowsUpgrades', err); setAlert('uwError', 'windows_upgrades: ' + err.message); if($('diagnostics')?.classList.contains('active')) renderDiagnostics(); }); }
     onAuthStateChanged(auth, async user => {
       if(user){
+        resetDiagnostics();
         state.currentUser = user;
+        state.debugMetrics.auth.startedAt = 0;
         let profile = null;
-        try { profile = await resolveCurrentUserProfile(user); } catch(err){ $('loginMessage').textContent = 'app_users lookup error: ' + err.message; }
+        const profileStart = getDebugNow();
+        try { profile = await resolveCurrentUserProfile(user); } catch(err){ $('loginMessage').textContent = 'app_users lookup error: ' + err.message; state.debugMetrics.auth.error = err.message; }
+        state.debugMetrics.auth.profileMs = Math.round(getDebugNow() - profileStart);
         state.currentUserProfile = profile;
 
         if(profile && profile.active === false){
@@ -1742,8 +1800,10 @@ async function commitBranchBatches(items, mode='set'){
         listenBrands();
         listenUsers();
         listenWindowsUpgrades();
+        if($('diagnostics')?.classList.contains('active')) renderDiagnostics();
       } else {
         clearAllListeners();
+        resetDiagnostics();
         state.currentUser=null; state.currentUserProfile=null; state.branches=[]; state.technicians=[]; state.visits=[]; state.checklists=[]; state.checklistFields=[]; state.brands=[]; state.users=[]; state.windowsUpgrades=[];
         $('currentUserChip').classList.add('hidden');
         $('logoutBtn').classList.add('hidden');
@@ -1755,7 +1815,7 @@ async function commitBranchBatches(items, mode='set'){
         renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); renderUpgradeWindowsTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); clearUpgradeWindowsForm(); renderDynamicChecklistForm({});
       }
     });
-    attachListeners(); const versionChip = document.querySelector('header .chip'); if(versionChip) versionChip.textContent = APP_VERSION; applyLanguage('ar'); updateUserActiveLabel(); applyRoleDefaultsToPermissionForm(); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); renderUpgradeWindowsTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); clearUpgradeWindowsForm(); renderLatestBrands(); renderDashboardBrandBoxes(); renderDynamicChecklistForm({});
+    attachListeners(); const versionChip = document.querySelector('header .chip'); if(versionChip) versionChip.textContent = APP_VERSION; applyLanguage('ar'); updateUserActiveLabel(); applyRoleDefaultsToPermissionForm(); renderBranchesList(); renderTechniciansList(); renderChecklistTable(); renderBrands(); renderStats(); renderVisitsTable(); renderUsersTable(); renderUpgradeWindowsTable(); clearChecklistForm(); clearBrandForm(); clearVisitForm(); clearBranchForm(); clearTechnicianForm(); clearUserForm(); clearUpgradeWindowsForm(); renderLatestBrands(); renderDashboardBrandBoxes(); renderDynamicChecklistForm({}); renderDiagnostics();
   </script>
 </body>
 </html>
