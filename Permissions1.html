@@ -2,14 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Permissions Management v1.3.2 - Almajdouie Motors</title>
+  <title>Permissions Management v1.3.3 - Almajdouie Motors</title>
   <style>
     :root{--primary:#0d2149;--primary-2:#1b4fa3;--green:#10b981;--border:#e2e8f0;--bg:#f8fafc;--card:#fff;--radius:16px}
     *{box-sizing:border-box} body{margin:0;font-family:'Segoe UI', Tahoma, sans-serif;background:var(--bg);padding:20px}
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 10px 30px rgba(0,0,0,0.05);padding:20px;margin-bottom:20px}
     .card h3{margin:-20px -20px 20px;padding:15px 20px;background:var(--primary);color:#fff;font-size:16px;border-radius:16px 16px 0 0;font-weight:900}
     .field{margin-bottom:15px} label{display:block;margin-bottom:5px;font-weight:800;font-size:13px;color:var(--primary)}
-    input, select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);outline:none}
+    input, select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);outline:none;font-weight:700}
     .permissions-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:10px}
     .perm-item{background:#fcfdfe;border:1px solid var(--border);padding:12px;border-radius:12px;display:flex;align-items:center;gap:10px;font-weight:800;font-size:12px;cursor:pointer}
     .perm-item input{width:18px;height:18px;accent-color:var(--green);cursor:pointer}
@@ -22,8 +22,8 @@
 </head>
 <body>
   <div class="card" style="background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff">
-    <h2 style="margin:0;font-weight:900">🛡️ إدارة الصلاحيات v1.3.2</h2>
-    <p style="margin:5px 0 0;font-size:12px;opacity:0.8">تم إصلاح الخطأ 400 وضمان التوافق مع المواقع الأخرى.</p>
+    <h2 style="margin:0;font-weight:900">🛡️ إدارة الصلاحيات v1.3.3</h2>
+    <p style="margin:5px 0 0;font-size:12px;opacity:0.8">تم حصر الأدوار في (Admin) و (Technician) لتبسيط إدارة المستخدمين.</p>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
@@ -32,12 +32,18 @@
         <div class="field"><label>UID الموظف (من Firebase)</label><input id="userUid" type="text" placeholder="المعرف الفريد للمستخدم"></div>
         <div class="field"><label>الاسم الكامل</label><input id="userName" type="text"></div>
         <div class="field"><label>البريد الإلكتروني</label><input id="userEmail" type="email"></div>
-        <div class="field"><label>الدور</label><select id="userRole"><option value="admin">Admin</option><option value="supervisor">Supervisor</option><option value="user">User</option></select></div>
+        <div class="field">
+            <label>الدور (Role)</label>
+            <select id="userRole">
+                <option value="admin">Admin</option>
+                <option value="technician">Technician</option>
+            </select>
+        </div>
     </div>
     <div class="card">
         <h3>📂 التبويبات المسموح بها</h3>
         <div class="permissions-grid" id="permsGrid"></div>
-        <button class="btn btn-save" id="saveBtn">💾 حفظ وتحديث المواقع المرتبطة</button>
+        <button class="btn btn-save" id="saveBtn">💾 حفظ وتحديث الصلاحيات</button>
         <button class="btn" style="width:100%;margin-top:8px" id="clearBtn">تنظيف الحقول</button>
     </div>
   </div>
@@ -96,7 +102,7 @@ $('saveBtn').onclick = async () => {
     if(!uid) return alert("يرجى إدخال UID");
 
     const permissions = {};
-    const pagesArray = []; // لضمان التوافق مع المواقع الأخرى
+    const pagesArray = [];
 
     document.querySelectorAll('.p-check').forEach(cb => {
         if(cb.checked) {
@@ -109,19 +115,18 @@ $('saveBtn').onclick = async () => {
     const payload = {
         name: $('userName').value || "",
         email: $('userEmail').value || "",
-        role: $('userRole').value || "user",
-        permissions: permissions, // التنسيق الجديد (Map)
-        pages: pagesArray,       // التنسيق القديم (Array) للمواقع الأخرى
+        role: $('userRole').value,
+        permissions: permissions,
+        pages: pagesArray,
         active: true,
-        updatedAt: serverTimestamp() // استخدام توقيت السيرفر الرسمي
+        updatedAt: serverTimestamp()
     };
 
     try {
         await setDoc(doc(db, 'app_users', uid), payload, { merge: true });
-        alert("✅ تم التحديث بنجاح؛ المواقع الأخرى تعمل الآن!");
+        alert("✅ تم حفظ البيانات بنجاح!");
         $('userUid').value = ""; drawPerms();
     } catch(e) { 
-        console.error("Firestore Error 400 Debug:", e);
         alert("فشل الحفظ: " + e.message); 
     }
 };
@@ -142,7 +147,9 @@ window.editUser = (id) => {
     const u = users.find(x => x.id === id);
     if(!u) return;
     $('userUid').value = u.id; $('userName').value = u.name || "";
-    $('userEmail').value = u.email || ""; $('userRole').value = u.role || "user";
+    $('userEmail').value = u.email || ""; 
+    // التأكد من اختيار أحد الدورين المتاحين فقط
+    $('userRole').value = (u.role === 'admin' || u.role === 'technician') ? u.role : 'technician';
     drawPerms(u.permissions || {});
 };
 
