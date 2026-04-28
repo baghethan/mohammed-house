@@ -3,164 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام المجدوعي للسيارات | v1.1.6</title>
+    <title>إدارة المجدوعي للسيارات | v1.1.7</title>
     <style>
-        :root { 
-            --primary: #0062ff; 
-            --dark: #1a1a1a; 
-            --bg: #f0f4f8;
-            --glass: rgba(255, 255, 255, 0.95); 
-            --success: #28a745;
-        }
-        
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: var(--bg); 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            height: 100vh; 
-            color: #333;
-        }
-
+        :root { --primary: #0062ff; --dark: #1a1a1a; --bg: #f0f4f8; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         .hidden { display: none !important; }
 
-        .debug-panel {
-            position: fixed; bottom: 10px; left: 10px; background: #222; color: #fff;
-            padding: 6px 12px; border-radius: 20px; font-size: 10px; z-index: 10000;
-            display: flex; align-items: center; gap: 8px; border: 1px solid #444; opacity: 0.8;
-        }
-        .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
-        .dot-online { background: #00ff00; box-shadow: 0 0 5px #00ff00; }
-        .dot-offline { background: #ff0000; }
-
-        #login-page { 
-            height: 100vh; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            background: linear-gradient(135deg, #004dc9 0%, #0062ff 100%); 
-        }
-        .login-card { 
-            background: var(--glass); 
-            padding: 40px; 
-            border-radius: 24px; 
-            box-shadow: 0 20px 50px rgba(0,0,0,0.15); 
-            width: 90%; 
-            max-width: 400px; 
-            text-align: center; 
-        }
-        input, select, textarea { 
-            width: 100%; 
-            padding: 14px; 
-            margin: 12px 0; 
-            border: 1px solid #e0e0e0; 
-            border-radius: 12px; 
-            font-size: 15px; 
-            box-sizing: border-box;
-            outline: none;
-            transition: 0.3s;
-        }
-        input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,98,255,0.1); }
-        .btn-login { 
-            width: 100%; 
-            padding: 16px; 
-            background: var(--primary); 
-            color: white; 
-            border: none; 
-            border-radius: 12px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            font-size: 16px; 
-            margin-top: 10px;
-        }
-
-        header { 
-            background: var(--dark); 
-            color: white; 
-            padding: 12px 25px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-        }
-        .nav-tabs { 
-            background: white; 
-            display: flex; 
-            border-bottom: 1px solid #ddd; 
-            overflow-x: auto; 
-            white-space: nowrap;
-            padding: 0 10px;
-        }
-        .tab { 
-            padding: 18px 22px; 
-            border: none; 
-            background: none; 
-            cursor: pointer; 
-            font-weight: 600; 
-            color: #777; 
-            border-bottom: 3px solid transparent; 
-            font-size: 14px;
-        }
+        header { background: var(--dark); color: white; padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; }
+        .nav-tabs { background: white; display: flex; border-bottom: 1px solid #ddd; overflow-x: auto; white-space: nowrap; }
+        .tab { padding: 18px 22px; border: none; background: none; cursor: pointer; font-weight: 600; color: #777; border-bottom: 3px solid transparent; }
         .tab.active { color: var(--primary); border-bottom-color: var(--primary); background: #f0f7ff; }
         
-        .main-content { padding: 30px; flex: 1; overflow-y: auto; }
-        .card { 
-            background: white; 
-            padding: 35px; 
-            border-radius: 20px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.03); 
-            max-width: 1000px; 
-            margin: auto; 
-        }
+        .main-content { flex: 1; padding: 20px; display: flex; flex-direction: column; }
+        #viewContainer { background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); flex: 1; overflow: hidden; position: relative; }
+        
+        /* تصميم الـ iframe */
+        #contentFrame { width: 100%; height: 100%; border: none; }
 
-        .btn-action { 
-            background: var(--primary); 
-            color: white; 
-            border: none; 
-            padding: 16px; 
-            border-radius: 12px; 
-            cursor: pointer; 
-            width: 100%; 
-            font-weight: bold; 
-            font-size: 16px;
-        }
+        /* شاشة تسجيل الدخول (نفس التصميم السابق) */
+        #login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #004dc9, #0062ff); position: fixed; width: 100%; z-index: 9999; }
+        .login-card { background: white; padding: 40px; border-radius: 24px; width: 90%; max-width: 400px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div class="debug-panel">
-        <div id="apiDot" class="dot"></div>
-        <span>V1.1.6</span>
-        <span id="apiStatusText">جاري الفحص...</span>
-    </div>
-
     <div id="login-page">
         <div class="login-card">
-            <h2 style="margin-bottom: 10px;">دخول النظام</h2>
-            <p style="color:#666; margin-bottom:30px;">شركة المجدوعي للسيارات</p>
-            <input type="email" id="emailField" placeholder="البريد الإلكتروني" value="baghethanmh@almajdouie.com">
-            <input type="password" id="passField" placeholder="كلمة المرور">
-            <button class="btn-login" id="btnLogin">تسجيل الدخول</button>
-            <p id="msg" style="color:#e63946; font-size:13px; margin-top:15px;"></p>
+            <h2>دخول النظام</h2>
+            <p style="color:#666;">شركة المجدوعي للسيارات</p>
+            <input type="email" id="emailField" placeholder="البريد الإلكتروني" value="baghethanmh@almajdouie.com" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px;">
+            <input type="password" id="passField" placeholder="كلمة المرور" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px;">
+            <button onclick="handleLogin()" style="width:100%; padding:15px; background:var(--primary); color:white; border:none; border-radius:12px; cursor:pointer; font-weight:bold;">دخول</button>
+            <p id="msg" style="color:red; font-size:13px;"></p>
         </div>
     </div>
 
     <div id="dash-page" class="hidden">
         <header>
-            <div id="userDisplay" style="font-size: 14px;"></div>
+            <div id="userDisplay"></div>
             <div style="font-weight: bold;">إدارة المجدوعي للسيارات</div>
-            <button onclick="location.reload()" style="background:#333; color:#ccc; border:none; padding:6px 15px; border-radius:8px; cursor:pointer;">خروج</button>
+            <button onclick="location.reload()" style="background:#333; color:white; border:none; padding:5px 12px; border-radius:8px; cursor:pointer;">خروج</button>
         </header>
         <nav class="nav-tabs" id="tabsBox"></nav>
         <main class="main-content">
-            <div id="viewBox" class="card"></div>
+            <div id="viewContainer">
+                <iframe id="contentFrame" name="contentFrame"></iframe>
+            </div>
         </main>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
@@ -171,124 +66,54 @@
             appId: "1:944819735112:web:07315600da39377320667d"
         };
 
-        async function checkHealth() {
-            const dot = document.getElementById('apiDot');
-            const txt = document.getElementById('apiStatusText');
-            try {
-                const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
-                    method: 'POST', body: JSON.stringify({ returnSecureToken: true })
-                });
-                if (res.status === 400) { dot.className = "dot dot-online"; txt.innerText = "متصل ✅"; }
-                else { dot.className = "dot dot-offline"; txt.innerText = "محدود ❌"; }
-            } catch { dot.className = "dot dot-offline"; txt.innerText = "خطأ اتصال"; }
-        }
-
-        checkHealth();
-
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let currentUserData = null;
-
-        document.getElementById('btnLogin').onclick = async () => {
+        window.handleLogin = async () => {
             const e = document.getElementById('emailField').value;
             const p = document.getElementById('passField').value;
-            const m = document.getElementById('msg');
-            m.innerText = "جاري التحقق...";
-            try { await signInWithEmailAndPassword(auth, e, p); } 
-            catch (err) { m.innerText = "فشل الدخول: تأكد من البيانات"; }
+            try { await signInWithEmailAndPassword(auth, e, p); } catch { document.getElementById('msg').innerText = "خطأ في الدخول"; }
         };
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const snap = await getDoc(doc(db, "app_users", user.uid));
                 if (snap.exists()) {
-                    currentUserData = snap.data();
+                    window.currentUserData = snap.data();
                     showDash();
                 }
             }
         });
 
-        function translate(id) {
-            const names = { 
-                'dashboard': 'الرئيسية', 'checklist': 'قوائم الفحص', 'branches': 'الفروع', 
-                'reports': 'التقارير', 'technicians': 'الفنيين', 'visit': 'الزيارات',
-                'holidays': 'طلب إجازة', 'permissions': 'إدارة الصلاحيات', 'schedule': 'الجدول الزمني',
-                'brands': 'العلامات التجارية', 'upgradeWindows': 'تحديث الويندوز',
-                'diagnostics': 'تشخيص النظام', 'dynamicChecklistAdmin': 'نماذج الفحص'
-            };
-            return names[id] || id;
-        }
-
         function showDash() {
             document.getElementById('login-page').classList.add('hidden');
             document.getElementById('dash-page').classList.remove('hidden');
-            document.getElementById('userDisplay').innerHTML = `مرحباً: <b>${currentUserData.name}</b>`;
+            document.getElementById('userDisplay').innerHTML = `مرحباً: <b>${window.currentUserData.name}</b>`;
+            
             const box = document.getElementById('tabsBox');
             box.innerHTML = '';
-            if(currentUserData.pages) {
-                currentUserData.pages.forEach(pID => {
-                    const b = document.createElement('button');
-                    b.className = 'tab';
-                    b.innerText = translate(pID);
-                    b.onclick = () => loadTab(pID, b);
-                    box.appendChild(b);
-                });
-            }
+            window.currentUserData.pages.forEach(pID => {
+                const b = document.createElement('button');
+                b.className = 'tab';
+                b.innerText = translate(pID);
+                b.onclick = () => loadTab(pID, b);
+                box.appendChild(b);
+            });
             if(box.firstChild) box.firstChild.click();
+        }
+
+        function translate(id) {
+            const names = { 'dashboard': 'الرئيسية', 'branches': 'الفروع', 'technicians': 'الفنيين', 'holidays': 'الإجازات' };
+            return names[id] || id;
         }
 
         window.loadTab = (id, el) => {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
-            const view = document.getElementById('viewBox');
-            const hasPermission = (currentUserData.role === 'admin') || (currentUserData.permissions && currentUserData.permissions[id] && currentUserData.permissions[id].view);
-            if (hasPermission) {
-                if (id === 'holidays') { renderHolidaysForm(view); } 
-                else {
-                    view.innerHTML = `<div style="text-align:center; padding: 40px 0;"><h2 style="color:var(--primary)">قسم ${translate(id)}</h2><p style="color:#888;">هذا القسم قيد التجهيز.</p></div>`;
-                }
-            } else {
-                view.innerHTML = `<h3 style="color:#e63946; text-align:center; padding:50px;">ليس لديك صلاحية.</h3>`;
-            }
+            // تغيير رابط الإطار ليفتح صفحة مستقلة
+            document.getElementById('contentFrame').src = id + ".html";
         };
-
-        function renderHolidaysForm(container) {
-            container.innerHTML = `
-                <div style="max-width: 500px; margin: auto;">
-                    <h2 style="color: var(--primary); text-align: center;">تقديم طلب إجازة</h2>
-                    <label>نوع الإجازة</label>
-                    <select id="hType"><option value="annual">إجازة سنوية</option><option value="sick">إجازة مرضية</option></select>
-                    <label>تاريخ البدء</label><input type="date" id="hStart">
-                    <label>تاريخ الانتهاء</label><input type="date" id="hEnd">
-                    <label>السبب</label><textarea id="hReason"></textarea>
-                    <button class="btn-action" id="btnSubmitHoliday">إرسال الطلب الآن</button>
-                    <p id="hStatus" style="text-align:center; font-weight:bold; margin-top:20px;"></p>
-                </div>
-            `;
-            document.getElementById('btnSubmitHoliday').onclick = async () => {
-                const status = document.getElementById('hStatus');
-                const btn = document.getElementById('btnSubmitHoliday');
-                const data = {
-                    requesterId: auth.currentUser.uid, requesterName: currentUserData.name,
-                    type: document.getElementById('hType').value, startDate: document.getElementById('hStart').value,
-                    endDate: document.getElementById('hEnd').value, reason: document.getElementById('hReason').value,
-                    status: 'pending', timestamp: new Date()
-                };
-                if(!data.startDate || !data.endDate) { status.innerText = "⚠️ حدد التواريخ"; return; }
-                try {
-                    btn.disabled = true; btn.innerText = "جاري الإرسال...";
-                    await addDoc(collection(db, "schedule"), data);
-                    status.innerText = "✅ تم الإرسال بنجاح!";
-                    status.style.color = "green";
-                    btn.style.background = "#28a745"; // تم إصلاح السطر هنا
-                } catch (e) {
-                    status.innerText = "❌ خطأ: " + e.message;
-                    btn.disabled = false;
-                }
-            };
-        }
     </script>
 </body>
 </html>
