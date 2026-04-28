@@ -3,57 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام المجدوعي | تشخيص v1.0.7</title>
+    <title>نظام إدارة المجدوعي | v1.0.8</title>
     <style>
-        :root { --primary: #0062ff; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #eef2f7; margin: 0; direction: rtl; }
+        /* إعدادات التصميم - Glassmorphism Style */
+        :root {
+            --primary: #0062ff;
+            --bg: #f0f2f5;
+            --glass: rgba(255, 255, 255, 0.9);
+            --dark: #1e1e1e;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
         .hidden { display: none !important; }
 
-        /* نظام تتبع الحالة في الزاوية */
+        /* لوحة التشخيص في الزاوية */
         .debug-panel {
-            position: fixed; bottom: 10px; left: 10px;
+            position: fixed; bottom: 15px; left: 15px;
             background: #212529; color: white;
-            padding: 8px 15px; border-radius: 8px;
-            font-family: monospace; font-size: 12px; z-index: 9999;
-            border: 1px solid #444; display: flex; align-items: center; gap: 10px;
+            padding: 10px 15px; border-radius: 10px;
+            font-family: monospace; font-size: 12px; z-index: 10000;
+            display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
-        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #666; }
-        .dot-green { background: #00ff00; box-shadow: 0 0 5px #00ff00; }
-        .dot-red { background: #ff0000; box-shadow: 0 0 5px #ff0000; }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; background: #666; }
+        .dot-green { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
+        .dot-red { background: #ff0000; box-shadow: 0 0 8px #ff0000; }
 
-        /* تصميم الدخول */
-        #login-section { height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .login-box { background: white; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 350px; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        .btn-main { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        /* صفحة الدخول */
+        #login-section {
+            height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #0062ff, #003a99);
+        }
+        .login-box {
+            background: var(--glass); padding: 3rem; border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2); width: 100%; max-width: 400px;
+            backdrop-filter: blur(10px); text-align: center;
+        }
+        input {
+            width: 100%; padding: 14px; margin: 10px 0; border: 1px solid #ddd;
+            border-radius: 10px; font-size: 16px; box-sizing: border-box;
+        }
+        .btn-primary {
+            width: 100%; padding: 14px; background: var(--primary); color: white;
+            border: none; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: bold;
+        }
+
+        /* واجهة الداشبورد */
+        header {
+            background: var(--dark); color: white; padding: 15px 30px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .tabs-nav {
+            background: white; display: flex; border-bottom: 2px solid #eee;
+            overflow-x: auto; white-space: nowrap;
+        }
+        .tab-btn {
+            padding: 18px 30px; border: none; background: none; cursor: pointer;
+            font-weight: 600; color: #555; border-bottom: 4px solid transparent;
+            transition: 0.3s;
+        }
+        .tab-btn.active {
+            color: var(--primary); border-bottom-color: var(--primary);
+            background: #f0f7ff;
+        }
+
+        .main-container { padding: 30px; flex: 1; overflow-y: auto; }
+        .content-card {
+            background: white; padding: 30px; border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
     </style>
 </head>
 <body>
 
     <div class="debug-panel">
         <div id="statusDot" class="status-dot"></div>
-        <span id="verInfo">v1.0.7</span>
-        <span id="apiMsg" style="color: #aaa;">| جاري فحص المفتاح...</span>
+        <span>v1.0.8</span>
+        <span id="apiStatusText" style="color: #aaa;">| فحص API...</span>
     </div>
 
-    <div id="login-section">
+    <section id="login-section">
         <div class="login-box">
-            <h2 style="text-align: center;">دخول النظام</h2>
-            <input type="email" id="email" placeholder="الإيميل">
-            <input type="password" id="pass" placeholder="كلمة المرور">
-            <button class="btn-main" id="doLogin">دخول</button>
-            <p id="error-display" style="color:red; font-size:12px; margin-top:10px; text-align:center;"></p>
+            <h2 style="margin-bottom: 25px;">دخول النظام</h2>
+            <input type="email" id="userEmail" placeholder="البريد الإلكتروني" value="baghethanmh@almajdouie.com">
+            <input type="password" id="userPass" placeholder="كلمة المرور">
+            <button class="btn-primary" id="loginAction">دخول</button>
+            <p id="authError" style="color:red; font-size:13px; margin-top:15px;"></p>
         </div>
-    </div>
+    </section>
 
-    <div id="dashboard-section" class="hidden">
-        <header style="background:#1a1a1a; color:white; padding:15px; display:flex; justify-content:space-between;">
-            <span>أهلاً: <b id="uName"></b></span>
-            <button onclick="location.reload()">خروج</button>
+    <section id="dashboard-section" class="hidden">
+        <header>
+            <div>مرحباً: <b id="userName"></b></div>
+            <div style="font-size: 14px; opacity: 0.8;">شركة المجدوعي للسيارات</div>
+            <button onclick="location.reload()" style="background:#444; color:white; border:none; padding:6px 15px; border-radius:6px; cursor:pointer">خروج</button>
         </header>
-        <div id="tabsList" style="display:flex; background:white; border-bottom:1px solid #ddd;"></div>
-        <div id="view-port" style="padding:20px;"></div>
-    </div>
+
+        <nav class="tabs-nav" id="tabsList"></nav>
+
+        <main class="main-container">
+            <div id="contentView" class="content-card">
+                <h3>يرجى اختيار قسم من القائمة العلوية</h3>
+            </div>
+        </main>
+    </section>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -61,7 +122,7 @@
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyBsvBEEHEgBuw9Pdml-Om90mm8MLDw8gWs", 
+            apiKey: "AIzaSyBsvBEEHEgBuw9Pdml-Om90mm8MLDw8gWs",
             authDomain: "baghethan-ba325.firebaseapp.com",
             projectId: "baghethan-ba325",
             storageBucket: "baghethan-ba325.firebasestorage.app",
@@ -69,73 +130,115 @@
             appId: "1:944819735112:web:07315600da39377320667d"
         };
 
-        // --- نظام التشخيص (Debug System) ---
-        async function diagnoseApiKey() {
+        // --- نظام تشخيص الـ API Key ---
+        async function checkApiHealth() {
             const dot = document.getElementById('statusDot');
-            const msg = document.getElementById('apiMsg');
-            
+            const txt = document.getElementById('apiStatusText');
             try {
-                // محاولة إرسال طلب تجريبي لجوجل لنرى هل المفتاح مقبول أم لا
-                const testReq = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
-                    method: 'POST',
-                    body: JSON.stringify({ returnSecureToken: true })
+                const check = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
+                    method: 'POST', body: JSON.stringify({ returnSecureToken: true })
                 });
-                
-                const res = await testReq.json();
-
-                if (res.error) {
-                    if (res.error.message === "MISSING_EMAIL") {
-                        // هذا يعني أن المفتاح شغال تمام وجوجل استقبلت الطلب وتنتظر بيانات!
-                        dot.className = "status-dot dot-green";
-                        msg.innerText = "| المفتاح سليم ✅";
-                    } else {
-                        // خطأ حقيقي من جوجل (مثلاً المفتاح مقيد أو خطأ)
-                        dot.className = "status-dot dot-red";
-                        msg.innerText = `| خطأ: ${res.error.status}`;
-                        console.error("Diagnostic Error:", res.error);
-                    }
+                const res = await check.json();
+                if (res.error && res.error.message === "MISSING_EMAIL") {
+                    dot.className = "status-dot dot-green";
+                    txt.innerText = "| API سليم ✅";
+                } else {
+                    dot.className = "status-dot dot-red";
+                    txt.innerText = "| خطأ في المفتاح ❌";
                 }
-            } catch (err) {
+            } catch {
                 dot.className = "status-dot dot-red";
-                msg.innerText = "| فشل الاتصال بجوجل";
+                txt.innerText = "| فشل الاتصال";
             }
         }
 
-        // تشغيل التشخيص فوراً
-        diagnoseApiKey();
+        checkApiHealth();
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        document.getElementById('doLogin').onclick = async () => {
-            const e = document.getElementById('email').value;
-            const p = document.getElementById('pass').value;
-            const errDiv = document.getElementById('error-display');
-            errDiv.innerText = "";
+        let userProfile = null;
 
+        // تنفيذ الدخول
+        document.getElementById('loginAction').onclick = async () => {
+            const e = document.getElementById('userEmail').value;
+            const p = document.getElementById('userPass').value;
+            const err = document.getElementById('authError');
             try {
                 await signInWithEmailAndPassword(auth, e, p);
-            } catch (err) {
-                errDiv.innerText = "فشل الدخول: " + err.message;
+            } catch (ex) {
+                err.innerText = "تعذر الدخول: تأكد من البيانات أو تفعيل الـ API";
             }
         };
 
+        // مراقبة الدخول
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const snap = await getDoc(doc(db, "app_users", user.uid));
-                if (snap.exists()) {
-                    renderUI(snap.data());
+                if (snap.exists() && snap.data().active) {
+                    userProfile = snap.data();
+                    initDashboard();
                 }
             }
         });
 
-        function renderUI(data) {
+        function initDashboard() {
             document.getElementById('login-section').classList.add('hidden');
             document.getElementById('dashboard-section').classList.remove('hidden');
-            document.getElementById('uName').innerText = data.name;
-            // ... (باقي كود التبويبات كما في v1.0.6)
+            document.getElementById('userName').innerText = userProfile.name;
+
+            const list = document.getElementById('tabsList');
+            list.innerHTML = '';
+
+            // بناء التبويبات ديناميكياً
+            userProfile.pages.forEach(pageID => {
+                const btn = document.createElement('button');
+                btn.className = 'tab-btn';
+                btn.innerText = getArName(pageID);
+                btn.onclick = () => switchPage(pageID, btn);
+                list.appendChild(btn);
+            });
+
+            if(list.firstChild) list.firstChild.click();
         }
+
+        function getArName(id) {
+            const map = {
+                'dashboard': 'الرئيسية',
+                'checklist': 'قوائم الفحص',
+                'branches': 'الفروع',
+                'reports': 'التقارير',
+                'visit': 'الزيارات الميدانية',
+                'technicians': 'الفنيين'
+            };
+            return map[id] || id;
+        }
+
+        window.switchPage = (id, el) => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
+
+            const view = document.getElementById('contentView');
+            const perm = userProfile.permissions[id];
+
+            if (perm && perm.view) {
+                view.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center">
+                        <h2>قسم ${getArName(id)}</h2>
+                        <span style="background:#eee; padding:5px 12px; border-radius:20px; font-size:12px">صلاحية: ${userProfile.role}</span>
+                    </div>
+                    <hr style="border:0; border-top:1px solid #eee; margin:20px 0">
+                    <p>أهلاً بك في نظام شركة المجدوعي. هذا القسم مخصص لـ ${getArName(id)}.</p>
+                `;
+                
+                if (perm.add) {
+                    view.innerHTML += `<button style="background:green; color:white; border:none; padding:12px 20px; border-radius:8px; cursor:pointer">إضافة جديد +</button>`;
+                }
+            } else {
+                view.innerHTML = `<h3 style="color:red">عذراً، ليس لديك صلاحية عرض هذا القسم.</h3>`;
+            }
+        };
 
     </script>
 </body>
