@@ -2,41 +2,20 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Employee Management v1.3.0</title>
+  <title>Employee Management v1.4.0 - Auto Sync</title>
   <style>
     :root { --primary:#0d2149; --primary2:#1b4fa3; --surface:rgba(255,255,255,.94); --shadow:0 10px 30px rgba(0,0,0,0.08); }
     body { margin:0; padding:20px; font-family:'Segoe UI',sans-serif; background:transparent; }
     .glass { background:var(--surface); backdrop-filter:blur(10px); border-radius:24px; border:1px solid rgba(255,255,255,0.5); padding:30px; box-shadow:var(--shadow); }
     .card { background:#fff; border-radius:18px; padding:20px; margin-bottom:20px; border:1px solid #eee; }
-    .btn-add { background:var(--primary); color:#fff; border:none; padding:12px 25px; border-radius:12px; font-weight:800; cursor:pointer; }
-    input[type="text"] { padding:12px; border-radius:12px; border:1px solid #ddd; width:100%; max-width:400px; }
-    
-    table { width:100%; border-collapse:separate; border-spacing:0 8px; margin-top:20px; }
+    table { width:100%; border-collapse:separate; border-spacing:0 8px; margin-top:10px; }
     th { padding:15px; color:var(--primary); font-weight:900; border-bottom:2px solid #f1f5f9; text-align:center; font-size:14px; }
     td { padding:15px; background:#fff; border-top:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9; text-align:center; vertical-align: middle; }
-    .emp-row:hover td { background:#f8fafc; }
-
-    /* استايل الـ Rotation Dropdown مطابق للصورة */
     .rotation-select {
-        padding: 10px 15px;
-        border-radius: 12px;
-        border: 1px solid #d1d5db;
-        background: #fff;
-        color: #1f2937;
-        font-weight: 700;
-        font-size: 13px;
-        cursor: pointer;
-        width: 160px;
-        appearance: none;
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-        background-repeat: no-repeat;
-        background-position: left 12px center;
-        background-size: 14px;
-        text-align: center;
+        padding: 10px; border-radius: 12px; border: 1px solid #d1d5db; background: #fff;
+        font-weight: 700; font-size: 13px; cursor: pointer; width: 160px; text-align: center;
     }
-    
-    .status-active { color: #10b981; font-weight: 900; }
-    .status-hidden { color: #ef4444; font-weight: 900; }
+    .sync-status { font-size: 11px; color: #10b981; font-weight: 800; margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
   </style>
 </head>
 <body>
@@ -45,24 +24,19 @@
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px">
         <div style="display:flex; align-items:center; gap:12px">
             <img src="LOGO-almajdouie.png" style="height:45px" />
-            <h2 style="color:var(--primary); margin:0">إدارة سجل الموظفين v1.3.0</h2>
+            <h2 style="color:var(--primary); margin:0">إدارة سجل الموظفين (مزامنة تلقائية)</h2>
         </div>
     </div>
 
-    <div class="card">
-        <div style="display:flex; gap:10px">
-            <input type="text" id="newEmpName" placeholder="أدخل اسم الموظف الجديد..." />
-            <button class="btn-add" onclick="window.addEmployee()">إضافة موظف +</button>
-        </div>
-    </div>
+    <div class="sync-status">🟢 النظام متصل وقيد المزامنة التلقائية مع صفحة الصلاحيات</div>
 
     <div class="card">
-        <h3 style="color:var(--primary); margin-top:0">👥 قائمة الموظفين والروتيشن</h3>
+        <h3 style="color:var(--primary); margin-top:0">👥 قائمة الموظفين (تحدث تلقائياً)</h3>
         <table>
             <thead>
                 <tr>
                     <th style="text-align:right">اسم الموظف</th>
-                    <th>الدوام</th>
+                    <th>نوع الدوام</th>
                     <th>الروتيشن (الإجازة)</th>
                     <th>الحالة</th>
                     <th>الإجراءات</th>
@@ -76,7 +50,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { 
-    initializeFirestore, doc, onSnapshot, updateDoc, 
+    initializeFirestore, doc, onSnapshot, updateDoc, collection, getDocs,
     persistentLocalCache, persistentMultipleTabManager 
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
@@ -96,52 +70,69 @@ const db = initializeFirestore(app, {
 });
 
 let emps = [];
-const docRef = doc(db, 'schedule', 'jadwal_v6');
+const scheduleDocRef = doc(db, 'schedule', 'jadwal_v6');
 
-// الاستماع للبيانات
-onSnapshot(docRef, (snap) => {
+// --- وظيفة المزامنة التلقائية ---
+async function syncEmployees(appUsers) {
+    let needsUpdate = false;
+    const currentEmpIds = new Set(emps.map(e => e.id));
+
+    appUsers.forEach(user => {
+        // إذا كان المستخدم غير موجود في سجل الموظفين، أضفه تلقائياً
+        if (!currentEmpIds.has(user.id)) {
+            emps.push({
+                id: user.id,
+                name: user.name || "موظف جديد",
+                active: true,
+                fixed: false,
+                rotation: 'none'
+            });
+            needsUpdate = true;
+            console.log("Auto-synced new employee:", user.name);
+        }
+    });
+
+    if (needsUpdate) {
+        await updateDoc(scheduleDocRef, { "data.emps": emps });
+    }
+}
+
+// الاستماع لمجموعة المستخدمين app_users للمزامنة
+onSnapshot(collection(db, 'app_users'), (snap) => {
+    const appUsers = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    syncEmployees(appUsers);
+});
+
+// الاستماع لسجل الموظفين الفعلي لعرضه
+onSnapshot(scheduleDocRef, (snap) => {
     if(snap.exists()) {
         emps = snap.data().data?.emps || [];
         render();
     }
 });
 
-window.addEmployee = async () => {
-    const name = document.getElementById('newEmpName').value;
-    if(!name) return;
-    const newEmp = { 
-        id: "emp_" + Date.now(), 
-        name: name, 
-        active: true, 
-        fixed: false,
-        rotation: 'none' // افتراضي لا يوجد
-    };
-    await updateDoc(docRef, { "data.emps": [...emps, newEmp] });
-    document.getElementById('newEmpName').value = "";
-};
-
 window.updateRotation = async (id, val) => {
     const updated = emps.map(e => e.id === id ? {...e, rotation: val} : e);
-    await updateDoc(docRef, { "data.emps": updated });
+    await updateDoc(scheduleDocRef, { "data.emps": updated });
 };
 
 window.toggleActive = async (id) => {
     const updated = emps.map(e => e.id === id ? {...e, active: !e.active} : e);
-    await updateDoc(docRef, { "data.emps": updated });
+    await updateDoc(scheduleDocRef, { "data.emps": updated });
 };
 
 window.toggleShift = async (id) => {
     const updated = emps.map(e => e.id === id ? {...e, fixed: !e.fixed} : e);
-    await updateDoc(docRef, { "data.emps": updated });
+    await updateDoc(scheduleDocRef, { "data.emps": updated });
 };
 
 function render() {
     const tbody = document.getElementById('empTableBody');
     tbody.innerHTML = emps.map(e => `
-        <tr class="emp-row">
+        <tr>
             <td style="text-align:right; font-weight:800; color:var(--primary)">${e.name}</td>
             <td>
-                <button onclick="window.toggleShift('${e.id}')" style="background:none; border:1px solid #ddd; padding:6px 12px; border-radius:10px; cursor:pointer; font-size:12px; font-weight:700">
+                <button onclick="window.toggleShift('${e.id}')" style="background:none; border:1px solid #ddd; padding:6px; border-radius:10px; cursor:pointer; font-weight:700">
                     ${e.fixed ? '🌙 ليلي ثابت' : '🔄 متغير'}
                 </button>
             </td>
@@ -153,13 +144,13 @@ function render() {
                 </select>
             </td>
             <td>
-                <span class="${e.active ? 'status-active' : 'status-hidden'}">
+                <span style="color:${e.active ? '#10b981' : '#ef4444'}; font-weight:900">
                     ${e.active ? '● نشط' : '● مخفي'}
                 </span>
             </td>
             <td>
-                <button onclick="window.toggleActive('${e.id}')" style="background:${e.active ? '#fee2e2' : '#f0fdf4'}; color:${e.active ? '#b91c1c' : '#166534'}; border:none; padding:8px 15px; border-radius:10px; font-weight:800; cursor:pointer; font-size:12px">
-                    ${e.active ? 'إخفاء' : 'إظهار'}
+                <button onclick="window.toggleActive('${e.id}')" style="background:${e.active ? '#fee2e2' : '#f0fdf4'}; color:${e.active ? '#b91c1c' : '#166534'}; border:none; padding:8px 15px; border-radius:10px; font-weight:800; cursor:pointer">
+                    ${e.active ? 'إخفاء من الجدول' : 'إظهار في الجدول'}
                 </button>
             </td>
         </tr>
