@@ -2,32 +2,50 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Employee Management v1.2.0</title>
+  <title>Employee Management v1.3.0</title>
   <style>
-    :root { --primary:#0d2149; --primary2:#1b4fa3; --surface:rgba(255,255,255,.9); --shadow:0 10px 30px rgba(0,0,0,0.08); }
+    :root { --primary:#0d2149; --primary2:#1b4fa3; --surface:rgba(255,255,255,.94); --shadow:0 10px 30px rgba(0,0,0,0.08); }
     body { margin:0; padding:20px; font-family:'Segoe UI',sans-serif; background:transparent; }
     .glass { background:var(--surface); backdrop-filter:blur(10px); border-radius:24px; border:1px solid rgba(255,255,255,0.5); padding:30px; box-shadow:var(--shadow); }
     .card { background:#fff; border-radius:18px; padding:20px; margin-bottom:20px; border:1px solid #eee; }
     .btn-add { background:var(--primary); color:#fff; border:none; padding:12px 25px; border-radius:12px; font-weight:800; cursor:pointer; }
-    input { padding:12px; border-radius:12px; border:1px solid #ddd; width:100%; max-width:400px; margin-left:10px; }
+    input[type="text"] { padding:12px; border-radius:12px; border:1px solid #ddd; width:100%; max-width:400px; }
+    
     table { width:100%; border-collapse:separate; border-spacing:0 8px; margin-top:20px; }
-    th { padding:15px; color:var(--primary); font-weight:900; border-bottom:2px solid #f1f5f9; text-align:center; }
-    td { padding:15px; background:#fff; border-top:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9; text-align:center; }
+    th { padding:15px; color:var(--primary); font-weight:900; border-bottom:2px solid #f1f5f9; text-align:center; font-size:14px; }
+    td { padding:15px; background:#fff; border-top:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9; text-align:center; vertical-align: middle; }
     .emp-row:hover td { background:#f8fafc; }
-    /* Loading Indicator */
-    #loadingOverlay { position:fixed; top:0; left:0; width:100%; height:4px; background:#e2e8f0; display:none; }
-    #loadingBar { height:100%; background:var(--primary2); width:0%; transition: 0.3s; }
+
+    /* استايل الـ Rotation Dropdown مطابق للصورة */
+    .rotation-select {
+        padding: 10px 15px;
+        border-radius: 12px;
+        border: 1px solid #d1d5db;
+        background: #fff;
+        color: #1f2937;
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+        width: 160px;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: left 12px center;
+        background-size: 14px;
+        text-align: center;
+    }
+    
+    .status-active { color: #10b981; font-weight: 900; }
+    .status-hidden { color: #ef4444; font-weight: 900; }
   </style>
 </head>
 <body>
-
-<div id="loadingOverlay"><div id="loadingBar"></div></div>
 
 <div class="glass">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px">
         <div style="display:flex; align-items:center; gap:12px">
             <img src="LOGO-almajdouie.png" style="height:45px" />
-            <h2 style="color:var(--primary); margin:0">إدارة سجل الموظفين</h2>
+            <h2 style="color:var(--primary); margin:0">إدارة سجل الموظفين v1.3.0</h2>
         </div>
     </div>
 
@@ -39,12 +57,13 @@
     </div>
 
     <div class="card">
-        <h3 style="color:var(--primary); margin-top:0">👥 قائمة الموظفين المسجلين</h3>
+        <h3 style="color:var(--primary); margin-top:0">👥 قائمة الموظفين والروتيشن</h3>
         <table>
             <thead>
                 <tr>
-                    <th style="text-align:right">الاسم</th>
-                    <th>نوع الدوام</th>
+                    <th style="text-align:right">اسم الموظف</th>
+                    <th>الدوام</th>
+                    <th>الروتيشن (الإجازة)</th>
                     <th>الحالة</th>
                     <th>الإجراءات</th>
                 </tr>
@@ -57,8 +76,8 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { 
-    getFirestore, doc, onSnapshot, updateDoc, 
-    initializeFirestore, persistentLocalCache, persistentMultipleTabManager 
+    initializeFirestore, doc, onSnapshot, updateDoc, 
+    persistentLocalCache, persistentMultipleTabManager 
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const firebaseConfig = { 
@@ -71,27 +90,19 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-
-// --- الحل السحري لمشكلة الـ 10 ثواني ---
 const db = initializeFirestore(app, {
-    experimentalForceLongPolling: true, // إجبار الاتصال عبر HTTP لتجاوز جدار الحماية
-    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()}) // تفعيل الكاش لسرعة التحميل
+    experimentalForceLongPolling: true,
+    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
 });
 
 let emps = [];
 const docRef = doc(db, 'schedule', 'jadwal_v6');
 
-// جلب البيانات
+// الاستماع للبيانات
 onSnapshot(docRef, (snap) => {
-    document.getElementById('loadingOverlay').style.display = 'none';
     if(snap.exists()) {
         emps = snap.data().data?.emps || [];
         render();
-    }
-}, (error) => {
-    console.error("Firestore Error:", error);
-    if(error.code === 'unavailable') {
-        alert("فشل الاتصال بالخادم. يرجى التأكد من الإنترنت أو تحديث الصفحة.");
     }
 });
 
@@ -102,11 +113,16 @@ window.addEmployee = async () => {
         id: "emp_" + Date.now(), 
         name: name, 
         active: true, 
-        fixed: false 
+        fixed: false,
+        rotation: 'none' // افتراضي لا يوجد
     };
-    const updatedEmps = [...emps, newEmp];
-    await updateDoc(docRef, { "data.emps": updatedEmps });
+    await updateDoc(docRef, { "data.emps": [...emps, newEmp] });
     document.getElementById('newEmpName').value = "";
+};
+
+window.updateRotation = async (id, val) => {
+    const updated = emps.map(e => e.id === id ? {...e, rotation: val} : e);
+    await updateDoc(docRef, { "data.emps": updated });
 };
 
 window.toggleActive = async (id) => {
@@ -123,29 +139,32 @@ function render() {
     const tbody = document.getElementById('empTableBody');
     tbody.innerHTML = emps.map(e => `
         <tr class="emp-row">
-            <td style="text-align:right; font-weight:800">${e.name}</td>
+            <td style="text-align:right; font-weight:800; color:var(--primary)">${e.name}</td>
             <td>
-                <button onclick="window.toggleShift('${e.id}')" style="background:none; border:1px solid #ddd; padding:5px 10px; border-radius:8px; cursor:pointer">
+                <button onclick="window.toggleShift('${e.id}')" style="background:none; border:1px solid #ddd; padding:6px 12px; border-radius:10px; cursor:pointer; font-size:12px; font-weight:700">
                     ${e.fixed ? '🌙 ليلي ثابت' : '🔄 متغير'}
                 </button>
             </td>
             <td>
-                <span style="color:${e.active ? '#10b981' : '#ef4444'}; font-weight:900">
+                <select class="rotation-select" onchange="window.updateRotation('${e.id}', this.value)">
+                    <option value="none" ${e.rotation === 'none' ? 'selected' : ''}>لا يوجد</option>
+                    <option value="thu_fri" ${e.rotation === 'thu_fri' ? 'selected' : ''}>الخميس والجمعة</option>
+                    <option value="fri_sat" ${e.rotation === 'fri_sat' ? 'selected' : ''}>الجمعة والسبت</option>
+                </select>
+            </td>
+            <td>
+                <span class="${e.active ? 'status-active' : 'status-hidden'}">
                     ${e.active ? '● نشط' : '● مخفي'}
                 </span>
             </td>
             <td>
-                <button onclick="window.toggleActive('${e.id}')" style="background:${e.active ? '#fee2e2' : '#f0fdf4'}; color:${e.active ? '#b91c1c' : '#166534'}; border:none; padding:8px 12px; border-radius:8px; font-weight:800; cursor:pointer">
+                <button onclick="window.toggleActive('${e.id}')" style="background:${e.active ? '#fee2e2' : '#f0fdf4'}; color:${e.active ? '#b91c1c' : '#166534'}; border:none; padding:8px 15px; border-radius:10px; font-weight:800; cursor:pointer; font-size:12px">
                     ${e.active ? 'إخفاء' : 'إظهار'}
                 </button>
             </td>
         </tr>
     `).join('');
 }
-
-// تشغيل شريط التحميل الوهمي
-document.getElementById('loadingOverlay').style.display = 'block';
-document.getElementById('loadingBar').style.width = '70%';
 </script>
 </body>
 </html>
