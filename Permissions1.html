@@ -2,22 +2,22 @@
 <html lang="ar" dir="rtl" id="permHtml">
 <head>
   <meta charset="UTF-8" />
-  <title>Permissions Management v1.6.0 - Multi-Lang</title>
+  <title>Permissions Management v1.7.0 - Ultra Fast</title>
   <style>
     :root{--primary:#0d2149;--primary-2:#1b4fa3;--green:#10b981;--red:#ef4444;--border:#e2e8f0;--bg:#f8fafc;--card:#fff;--radius:16px}
     *{box-sizing:border-box} 
-    body{margin:0;font-family:'Segoe UI', Tahoma, sans-serif;background:var(--bg);padding:20px; transition: 0.3s;}
+    body{margin:0;font-family:'Segoe UI', Tahoma, sans-serif;background:var(--bg);padding:20px;}
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 10px 30px rgba(0,0,0,0.05);padding:20px;margin-bottom:20px}
     .card h3{margin:-20px -20px 20px;padding:15px 20px;background:var(--primary);color:#fff;font-size:15px;border-radius:16px 16px 0 0;font-weight:900; display:flex; justify-content:space-between; align-items:center;}
     .field{margin-bottom:15px} label{display:block;margin-bottom:5px;font-weight:800;font-size:13px;color:var(--primary)}
-    input, select{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;outline:none;transition:0.2s}
+    input, select{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;outline:none;}
     .grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(140px, 1fr));gap:10px;margin-top:10px}
     .p-item{padding:10px;border:1.5px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:8px;cursor:pointer;background:#fff}
-    .p-item input{width:18px;height:18px}
-    .btn-save{width:100%;padding:15px;background:linear-gradient(135deg, var(--primary), var(--primary-2));color:#fff;border:none;border-radius:12px;font-weight:900;cursor:pointer;font-size:15px;margin-top:10px}
+    .p-item input{width:18px;height:18px; cursor:pointer}
+    .btn-save{width:100%;padding:15px;background:linear-gradient(135deg, var(--primary), var(--primary-2));color:#fff;border:none;border-radius:12px;font-weight:900;cursor:pointer;font-size:15px}
+    .loading-overlay{display:none; color:var(--primary); font-weight:bold; text-align:center; padding:10px;}
     table{width:100%;border-collapse:collapse;margin-top:10px}
-    th{text-align:inherit;padding:12px;font-size:12px;color:var(--muted);border-bottom:2px solid var(--border)}
-    td{padding:12px;font-size:13px;border-bottom:1px solid var(--border)}
+    th, td{text-align:inherit;padding:12px;font-size:13px;border-bottom:1px solid var(--border)}
     .lang-btn{background:rgba(255,255,255,0.2); border:1px solid #fff; color:#fff; padding:4px 10px; border-radius:8px; cursor:pointer; font-size:11px;}
   </style>
 </head>
@@ -26,9 +26,11 @@
 <div style="max-width:900px;margin:0 auto">
     <div class="card">
         <h3>
-            <span id="t-title">🔐 إدارة صلاحيات الوصول (v1.6.0)</span>
+            <span id="t-title">🔐 إدارة الصلاحيات (v1.7.0 - نسخة سريعة)</span>
             <button class="lang-btn" id="langBtn">English</button>
         </h3>
+        <div id="loadingInfo" class="loading-overlay">جاري الاتصال بالقاعدة...</div>
+        
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px">
             <div class="field"><label id="l-name">اسم المستخدم</label><input id="userName" type="text"></div>
             <div class="field"><label id="l-email">البريد الإلكتروني</label><input id="userEmail" type="email"></div>
@@ -41,31 +43,21 @@
                     <option value="SuperAdmin">SuperAdmin</option>
                 </select>
             </div>
-            <div class="field"><label id="l-uid">رقم المعرف (User UID)</label><input id="userUid" type="text"></div>
-        </div>
-        <div class="field"><label id="l-status">الحالة</label>
-            <select id="userActive">
-                <option value="true" id="opt-active">نشط (Active)</option>
-                <option value="false" id="opt-disabled">معطل (Disabled)</option>
-            </select>
+            <div class="field"><label id="l-uid">رقم المعرف (User UID)</label><input id="userUid" type="text" placeholder="انسخ الـ UID من القائمة بالأسفل"></div>
         </div>
 
-        <label id="l-pages">الصفحات المتاحة للمستخدم:</label>
+        <label id="l-pages">حدد الصلاحيات المطلوبة:</label>
         <div class="grid" id="permsGrid"></div>
-        <button class="btn-save" id="saveBtn">حفظ التغييرات</button>
+        <br>
+        <button class="btn-save" id="saveBtn">حفظ التغييرات فوراً</button>
     </div>
 
     <div class="card">
-        <h3 id="t-list">👥 قائمة المستخدمين المسجلين</h3>
+        <h3 id="t-list">👥 المستخدمون (اضغط على الاسم للتعديل)</h3>
         <div style="overflow-x:auto">
             <table>
                 <thead>
-                    <tr>
-                        <th id="th-user">المستخدم</th>
-                        <th id="th-email">البريد</th>
-                        <th id="th-role">الدور</th>
-                        <th id="th-status">الحالة</th>
-                    </tr>
+                    <tr><th id="th-user">المستخدم</th><th id="th-role">الدور</th><th id="th-status">UID</th></tr>
                 </thead>
                 <tbody id="usersList"></tbody>
             </table>
@@ -75,7 +67,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { initializeFirestore, doc, setDoc, getDoc, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { initializeFirestore, doc, setDoc, getDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const firebaseConfig = { 
     apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', 
@@ -87,68 +79,73 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 
-const langData = {
-    ar: {
-        title: "🔐 إدارة صلاحيات الوصول (v1.6.0)", name: "اسم المستخدم", email: "البريد الإلكتروني", 
-        role: "الدور الوظيفي", uid: "رقم المعرف (User UID)", status: "الحالة", pages: "الصفحات المتاحة:",
-        save: "حفظ التغييرات وتحديث الصلاحيات", list: "👥 قائمة المستخدمين المسجلين",
-        thUser: "المستخدم", thEmail: "البريد", thRole: "الدور", thStatus: "الحالة",
-        tabs: { dashboard: "لوحة التحكم", schedule: "الجدول الأسبوعي", employees: "الموظفون", annual: "الإجازات", planning: "خطة الإجازات", settings: "الإعدادات", permissions: "الصلاحيات" }
-    },
-    en: {
-        title: "🔐 Permissions Management (v1.6.0)", name: "User Name", email: "Email Address", 
-        role: "Job Role", uid: "User UID", status: "Status", pages: "Available Pages:",
-        save: "Save Changes & Update Permissions", list: "👥 Registered Users List",
-        thUser: "User", thEmail: "Email", thRole: "Role", thStatus: "Status",
-        tabs: { dashboard: "Dashboard", schedule: "Weekly Schedule", employees: "Employees", annual: "Annual Leave", planning: "Vacation Plan", settings: "Settings", permissions: "Permissions" }
-    }
+// الحل الحاسم للسرعة: إجبار المتصفح على استخدام الاتصال البسيط وتعطيل التدفق المستمر
+const db = initializeFirestore(app, { 
+    experimentalForceLongPolling: true,
+    useFetchStreams: false
+});
+
+const TABS = {
+    dashboard: "لوحة التحكم", schedule: "الجدول الأسبوعي", employees: "الموظفون", 
+    annual: "الإجازات", planning: "خطة الإجازات", settings: "الإعدادات", permissions: "الصلاحيات"
 };
 
-let currentLang = 'ar';
-
-function switchLang() {
-    currentLang = currentLang === 'ar' ? 'en' : 'ar';
-    document.getElementById('permHtml').dir = currentLang === 'ar' ? 'rtl' : 'ltr';
-    document.getElementById('langBtn').innerText = currentLang === 'ar' ? 'English' : 'العربية';
-    
-    const d = langData[currentLang];
-    document.getElementById('t-title').innerText = d.title;
-    document.getElementById('l-name').innerText = d.name;
-    document.getElementById('l-email').innerText = d.email;
-    document.getElementById('l-role').innerText = d.role;
-    document.getElementById('l-uid').innerText = d.uid;
-    document.getElementById('l-status').innerText = d.status;
-    document.getElementById('l-pages').innerText = d.pages;
-    document.getElementById('saveBtn').innerText = d.save;
-    document.getElementById('t-list').innerText = d.list;
-    document.getElementById('th-user').innerText = d.thUser;
-    document.getElementById('th-email').innerText = d.thEmail;
-    document.getElementById('th-role').innerText = d.thRole;
-    document.getElementById('th-status').innerText = d.thStatus;
-    
-    drawPerms();
-}
-
-document.getElementById('langBtn').onclick = switchLang;
-
+// رسم المربعات
 function drawPerms() {
-    const tabs = langData[currentLang].tabs;
-    document.getElementById('permsGrid').innerHTML = Object.keys(tabs).map(id => `
+    document.getElementById('permsGrid').innerHTML = Object.keys(TABS).map(id => `
         <label class="p-item">
             <input type="checkbox" class="p-check" data-id="${id}">
-            <span>${tabs[id]}</span>
+            <span>${TABS[id]}</span>
         </label>
     `).join('');
 }
-
 drawPerms();
 
+// جلب المستخدمين فور فتح الصفحة (Fetch بدلاً من Listen) لتسريع الأداء
+async function loadUsers() {
+    try {
+        const snap = await getDocs(collection(db, 'app_users'));
+        document.getElementById('usersList').innerHTML = snap.docs.map(d => {
+            const u = d.data();
+            return `
+                <tr onclick="window.editUser('${d.id}')" style="cursor:pointer">
+                    <td><b>${u.name || 'بدون اسم'}</b></td>
+                    <td>${u.role}</td>
+                    <td style="font-size:10px; font-family:monospace">${d.id}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch(e) { console.error(e); }
+}
+loadUsers();
+
+// وظيفة التعديل السريع
+window.editUser = async (id) => {
+    document.getElementById('loadingInfo').style.display = 'block';
+    try {
+        const d = await getDoc(doc(db, 'app_users', id));
+        if(!d.exists()) return;
+        const u = d.data();
+        document.getElementById('userUid').value = id;
+        document.getElementById('userName').value = u.name || "";
+        document.getElementById('userEmail').value = u.email || "";
+        document.getElementById('userRole').value = u.role || "Staff";
+        
+        document.querySelectorAll('.p-check').forEach(cb => {
+            cb.checked = u.permissions && u.permissions[cb.dataset.id]?.view;
+        });
+    } finally {
+        document.getElementById('loadingInfo').style.display = 'none';
+    }
+};
+
+// الحفظ السريع
 document.getElementById('saveBtn').onclick = async () => {
     const uid = document.getElementById('userUid').value.trim();
-    if(!uid) return alert(currentLang === 'ar' ? "يرجى إدخال UID" : "Please enter UID");
+    if(!uid) return alert("يرجى اختيار مستخدم أولاً");
     
+    document.getElementById('saveBtn').innerText = "جاري الحفظ...";
     const permissions = {};
     document.querySelectorAll('.p-check').forEach(cb => {
         if(cb.checked) permissions[cb.dataset.id] = { view: true, add: true };
@@ -159,38 +156,13 @@ document.getElementById('saveBtn').onclick = async () => {
             name: document.getElementById('userName').value,
             email: document.getElementById('userEmail').value,
             role: document.getElementById('userRole').value,
-            active: document.getElementById('userActive').value === "true",
             permissions: permissions,
             updatedAt: new Date()
         }, { merge: true });
-        alert(currentLang === 'ar' ? "✅ تم الحفظ!" : "✅ Saved!");
-    } catch(e) { alert(e.message); }
-};
-
-onSnapshot(collection(db, 'app_users'), s => {
-    const users = s.docs.map(d => ({id:d.id, ...d.data()}));
-    document.getElementById('usersList').innerHTML = users.map(u => `
-        <tr onclick="window.editUser('${u.id}')" style="cursor:pointer">
-            <td><b>${u.name || '-'}</b></td>
-            <td>${u.email || '-'}</td>
-            <td>${u.role}</td>
-            <td>${u.active ? 'Active' : 'Disabled'}</td>
-        </tr>
-    `).join('');
-});
-
-window.editUser = async (id) => {
-    const d = await getDoc(doc(db, 'app_users', id));
-    if(!d.exists()) return;
-    const u = d.data();
-    document.getElementById('userUid').value = id;
-    document.getElementById('userName').value = u.name || "";
-    document.getElementById('userEmail').value = u.email || "";
-    document.getElementById('userRole').value = u.role || "Staff";
-    document.getElementById('userActive').value = String(u.active);
-    document.querySelectorAll('.p-check').forEach(cb => {
-        cb.checked = u.permissions && u.permissions[cb.dataset.id]?.view;
-    });
+        alert("✅ تم التحديث بنجاح!");
+        loadUsers();
+    } catch(e) { alert("خطأ في الحفظ: " + e.message); }
+    document.getElementById('saveBtn').innerText = "حفظ التغييرات فوراً";
 };
 </script>
 </body>
