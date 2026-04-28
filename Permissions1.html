@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Permissions Management v1.3.4 - Almajdouie Motors</title>
+  <title>Permissions Management v1.3.5 - Almajdouie Motors</title>
   <style>
     :root{--primary:#0d2149;--primary-2:#1b4fa3;--green:#10b981;--border:#e2e8f0;--bg:#f8fafc;--card:#fff;--radius:16px}
     *{box-sizing:border-box} body{margin:0;font-family:'Segoe UI', Tahoma, sans-serif;background:var(--bg);padding:20px}
@@ -22,8 +22,8 @@
 </head>
 <body>
   <div class="card" style="background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff">
-    <h2 style="margin:0;font-weight:900">🛡️ إدارة الصلاحيات v1.3.4</h2>
-    <p style="margin:5px 0 0;font-size:12px;opacity:0.8">تم إضافة دور (Supervisor) بناءً على طلبك لزيادة مرونة الإدارة.</p>
+    <h2 style="margin:0;font-weight:900">🛡️ إدارة الصلاحيات v1.3.5</h2>
+    <p style="margin:5px 0 0;font-size:12px;opacity:0.8">تم تحسين الاتصال ليتجاوز قيود الشبكة لضمان عمل الحفظ بنجاح.</p>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
@@ -51,6 +51,7 @@
 
   <div class="card">
     <h3>👥 قائمة المستخدمين المسجلين</h3>
+    <p style="font-size: 11px; color: var(--muted); margin-bottom: 10px;">* انقر على الموظف للتعديل. تأكد أن حالتك تظهر "نشط" باللون الأخضر.</p>
     <table>
         <thead><tr><th>الاسم</th><th>البريد</th><th>الدور</th><th>الحالة</th></tr></thead>
         <tbody id="usersList"></tbody>
@@ -74,8 +75,10 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// --- إجبار الاتصال المستمر لضمان تخطي الـ Firewall ---
 const db = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
+    experimentalForceLongPolling: true, 
     localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
 });
 
@@ -128,7 +131,7 @@ $('saveBtn').onclick = async () => {
         alert("✅ تم حفظ البيانات بنجاح!");
         $('userUid').value = ""; drawPerms();
     } catch(e) { 
-        alert("فشل الحفظ: " + e.message); 
+        alert("فشل الحفظ: " + e.message + "\nتأكد من أن حالتك في الجدول بالأسفل تظهر 'نشط'"); 
     }
 };
 
@@ -149,11 +152,8 @@ window.editUser = (id) => {
     if(!u) return;
     $('userUid').value = u.id; $('userName').value = u.name || "";
     $('userEmail').value = u.email || ""; 
-    
-    // التحقق من الأدوار الثلاثة المتاحة
     const validRoles = ['admin', 'supervisor', 'technician'];
     $('userRole').value = validRoles.includes(u.role) ? u.role : 'technician';
-    
     drawPerms(u.permissions || {});
 };
 
