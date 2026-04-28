@@ -3,64 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام إدارة الصلاحيات</title>
+    <title>نظام إدارة المجدوعي</title>
     <style>
-        :root { --primary-color: #2c3e50; --accent-color: #3498db; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; }
+        :root { --main-bg: #f8f9fa; --primary: #0056b3; --dark: #343a40; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--main-bg); margin: 0; direction: rtl; }
         .hidden { display: none !important; }
-        
-        /* تصميم صفحة الدخول */
-        #login-container { height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .login-box { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: var(--accent-color); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
 
-        /* تصميم الداشبورد والتبويبات */
-        #app-container { display: flex; flex-direction: column; height: 100vh; }
-        header { background: var(--primary-color); color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        /* تنسيق صفحة الدخول */
+        #login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: #e9ecef; }
+        .login-card { background: white; padding: 2rem; border-radius: 12px; shadow: 0 10px 25px rgba(0,0,0,0.1); width: 350px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .btn-login { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+
+        /* تنسيق الداشبورد */
+        header { background: var(--dark); color: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; }
+        .tab-bar { background: white; display: flex; border-bottom: 2px solid #dee2e6; overflow-x: auto; }
+        .tab-item { padding: 15px 25px; cursor: pointer; border: none; background: none; font-weight: 600; color: #495057; border-bottom: 3px solid transparent; }
+        .tab-item.active { color: var(--primary); border-bottom-color: var(--primary); background: #f1f3f5; }
         
-        .tabs-nav { background: #fff; display: flex; border-bottom: 2px solid #ddd; overflow-x: auto; }
-        .tab-link { padding: 15px 25px; cursor: pointer; border: none; background: none; font-weight: bold; color: #666; transition: 0.3s; }
-        .tab-link.active { color: var(--accent-color); border-bottom: 3px solid var(--accent-color); background: #f9f9f9; }
-        
-        .content-area { flex: 1; padding: 20px; overflow-y: auto; }
-        .card { background: white; padding: 20px; border-radius: 8px; shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .main-content { padding: 30px; }
+        .content-card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .logout-btn { background: #dc3545; color: white; border: none; padding: 6px 15px; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="login-container">
-        <div class="login-box">
-            <h2 style="text-align: center;">تسجيل الدخول</h2>
-            <input type="email" id="email" placeholder="البريد الإلكتروني" value="">
-            <input type="password" id="password" placeholder="كلمة المرور" value="">
-            <button id="loginBtn">دخول النظام</button>
+    <div id="login-page">
+        <div class="login-card">
+            <h2 style="text-align:center">تسجيل الدخول</h2>
+            <input type="email" id="email" placeholder="البريد الإلكتروني">
+            <input type="password" id="password" placeholder="كلمة المرور">
+            <button class="btn-login" id="loginBtn">دخول النظام</button>
         </div>
     </div>
 
-    <div id="app-container" class="hidden">
+    <div id="dashboard-page" class="hidden">
         <header>
-            <div id="user-info">مرحباً: <span id="user-name">...</span></div>
-            <button onclick="logout()" style="width: auto; background: #e74c3c; padding: 5px 15px;">خروج</button>
+            <div>أهلاً: <span id="display-name"></span></div>
+            <button class="logout-btn" id="logoutBtn">خروج</button>
         </header>
 
-        <nav class="tabs-nav" id="main-tabs"></nav>
+        <div class="tab-bar" id="tabs-container"></div>
 
-        <main class="content-area">
-            <div id="tab-content-render" class="card">
-                <h3>اختر قسم من الأعلى للبدء</h3>
+        <main class="main-content">
+            <div id="render-area" class="content-card">
+                <h3>يرجى اختيار قسم من الأعلى</h3>
             </div>
         </main>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // إعدادات مشروعك (كما في الصورة الثالثة)
+        // إعدادات Firebase من صورتك (يرجى التأكد من الـ apiKey يدوياً)
         const firebaseConfig = {
-            apiKey: "AIzaSyBsvBEEHEgBuw9Pdml-Om90mm8MLDw8gWs",
+            apiKey: "AIzaSyBsvBEEHEgBuw9Pdml-Om90mm8MLDw8gWs", // تأكد من مطابقة هذا المفتاح بالضبط
             authDomain: "baghethan-ba325.firebaseapp.com",
             projectId: "baghethan-ba325",
             storageBucket: "baghethan-ba325.firebasestorage.app",
@@ -72,18 +71,16 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let currentUserData = null;
+        let userDocData = null;
 
-        // --- دالة تسجيل الدخول ---
+        // --- التعامل مع الدخول ---
         document.getElementById('loginBtn').addEventListener('click', async () => {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-
             try {
                 await signInWithEmailAndPassword(auth, email, password);
-                // التوجيه يتم تلقائياً عبر onAuthStateChanged
             } catch (error) {
-                alert("خطأ في بيانات الدخول: " + error.message);
+                alert("خطأ: " + error.message);
             }
         });
 
@@ -91,110 +88,72 @@
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const docRef = doc(db, "app_users", user.uid);
-                const docSnap = await getDoc(docRef);
-
-                if (docSnap.exists()) {
-                    currentUserData = docSnap.data();
-                    if (currentUserData.active) {
-                        initApp();
-                    } else {
-                        alert("حسابك غير نشط");
-                        signOut(auth);
-                    }
+                const snap = await getDoc(docRef);
+                if (snap.exists() && snap.data().active) {
+                    userDocData = snap.data();
+                    loadDashboard();
+                } else {
+                    alert("الحساب غير موجود أو غير نشط");
+                    signOut(auth);
                 }
             } else {
-                showLogin();
+                document.getElementById('login-page').classList.remove('hidden');
+                document.getElementById('dashboard-page').classList.add('hidden');
             }
         });
 
-        function initApp() {
-            document.getElementById('login-container').classList.add('hidden');
-            document.getElementById('app-container').classList.remove('hidden');
-            document.getElementById('user-name').innerText = currentUserData.name;
-            renderTabs();
-        }
+        function loadDashboard() {
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('dashboard-page').classList.remove('hidden');
+            document.getElementById('display-name').innerText = userDocData.name;
+            
+            const tabsCont = document.getElementById('tabs-container');
+            tabsCont.innerHTML = '';
 
-        function showLogin() {
-            document.getElementById('login-container').classList.remove('hidden');
-            document.getElementById('app-container').classList.add('hidden');
-        }
-
-        // --- بناء التبويبات ديناميكياً ---
-        function renderTabs() {
-            const tabsNav = document.getElementById('main-tabs');
-            tabsNav.innerHTML = '';
-
-            // نمر على قائمة الصفحات (pages) المسموحة للمستخدم في Firestore
-            currentUserData.pages.forEach(pageID => {
+            // بناء التبويبات بناءً على مصفوفة pages في المستند
+            userDocData.pages.forEach(pageId => {
                 const btn = document.createElement('button');
-                btn.className = 'tab-link';
-                btn.innerText = getPageTitle(pageID); // دالة لتحويل اسم الكود لاسم مقروء
-                btn.onclick = () => switchTab(pageID, btn);
-                tabsNav.appendChild(btn);
+                btn.className = 'tab-item';
+                btn.innerText = pageId.charAt(0).toUpperCase() + pageId.slice(1); // تحويل أول حرف لكبير
+                btn.onclick = () => selectTab(pageId, btn);
+                tabsCont.appendChild(btn);
             });
         }
 
-        // دالة لتحويل أسماء الـ IDs لأسماء عربية جميلة
-        function getPageTitle(id) {
-            const titles = {
-                'dashboard': 'الرئيسية',
-                'dashboard2': 'لوحة المراقبة 2',
-                'checklist': 'قائمة الفحص',
-                'branches': 'الفروع',
-                'reports': 'التقارير'
-                // يمكنك إضافة أي صفحة جديدة هنا
-            };
-            return titles[id] || id;
-        }
+        // --- تبديل محتوى التبويب مع فحص الصلاحيات ---
+        window.selectTab = (id, el) => {
+            document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
+            el.classList.add('active');
 
-        // --- تبديل المحتوى والتحقق من صلاحية View داخل التبويب ---
-        window.switchTab = (pageID, element) => {
-            // تحديث شكل الأزرار
-            document.querySelectorAll('.tab-link').forEach(b => b.classList.remove('active'));
-            element.classList.add('active');
-
-            const contentArea = document.getElementById('tab-content-render');
+            const renderArea = document.getElementById('render-area');
             
-            // جلب صلاحيات هذه الصفحة تحديداً من ماب permissions في Firestore
-            const perm = currentUserData.permissions[pageID];
+            // جلب صلاحية هذا التبويب من الـ permissions في Firestore
+            const perm = userDocData.permissions[id];
 
             if (perm && perm.view) {
-                renderPageHTML(pageID, perm);
+                let content = `<h2>قسم ${id}</h2><hr>`;
+                
+                // إضافة محتوى مختلف لكل تبويب
+                if (id === 'dashboard') {
+                    content += `<p>مرحباً بك في لوحة المعلومات الرئيسية لشركة المجدوعي.</p>`;
+                } else if (id === 'checklist') {
+                    content += `<p>هنا تظهر قوائم الفحص الفنية.</p>`;
+                } else {
+                    content += `<p>محتوى افتراضي لصفحة ${id}</p>`;
+                }
+
+                // إذا كان لديه صلاحية add يظهر الزر
+                if (perm.add) {
+                    content += `<button style="background:green; color:white; padding:10px; border:none; border-radius:5px">إضافة جديد +</button>`;
+                }
+
+                renderArea.innerHTML = content;
             } else {
-                contentArea.innerHTML = `<h3 style="color:red">عذراً، ليس لديك صلاحية عرض هذه الصفحة.</h3>`;
+                renderArea.innerHTML = `<h3 style="color:red">ليس لديك صلاحية عرض (View) لهذه الصفحة.</h3>`;
             }
         };
 
-        // --- مكان كتابة محتوى كل صفحة ---
-        function renderPageHTML(pageID, perm) {
-            const container = document.getElementById('tab-content-render');
-            let html = `<h2>${getPageTitle(pageID)}</h2><hr>`;
-
-            // هنا يمكنك تعريف محتوى كل صفحة بناءً على الـ ID
-            switch(pageID) {
-                case 'dashboard':
-                    html += `<p>أهلاً بك في اللوحة الرئيسية. إحصائيات النظام تظهر هنا.</p>`;
-                    break;
-                case 'dashboard2':
-                    html += `<p>محتوى لوحة المراقبة الثانية المتقدمة.</p>`;
-                    break;
-                case 'reports':
-                    html += `<p>قسم التقارير السنوية والشهرية.</p>`;
-                    break;
-                default:
-                    html += `<p>محتوى افتراضي لصفحة ${pageID}</p>`;
-            }
-
-            // مثال: إضافة زر "إضافة" فقط إذا كان حقل add في Firestore يساوي true
-            if (perm.add) {
-                html += `<button style="width:auto; background:green">إضافة سجل جديد في ${pageID}</button>`;
-            }
-
-            container.innerHTML = html;
-        }
-
-        window.logout = () => signOut(auth);
-
+        document.getElementById('logoutBtn').onclick = () => signOut(auth);
     </script>
 </body>
 </html>
