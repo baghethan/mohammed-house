@@ -2,9 +2,9 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Permissions Management v1.3.6 - Almajdouie Motors</title>
+  <title>Permissions Management v1.3.7 - Almajdouie Motors</title>
   <style>
-    :root{--primary:#0d2149;--primary-2:#1b4fa3;--green:#10b981;--danger:#ef4444;--border:#e2e8f0;--bg:#f8fafc;--card:#fff;--radius:16px}
+    :root{--primary:#0d2149;--primary-2:#1b4fa3;--green:#10b981;--border:#e2e8f0;--bg:#f8fafc;--card:#fff;--radius:16px}
     *{box-sizing:border-box} body{margin:0;font-family:'Segoe UI', Tahoma, sans-serif;background:var(--bg);padding:20px}
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 10px 30px rgba(0,0,0,0.05);padding:20px;margin-bottom:20px}
     .card h3{margin:-20px -20px 20px;padding:15px 20px;background:var(--primary);color:#fff;font-size:16px;border-radius:16px 16px 0 0;font-weight:900}
@@ -22,8 +22,8 @@
 </head>
 <body>
   <div class="card" style="background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff">
-    <h2 style="margin:0;font-weight:900">🛡️ إدارة الصلاحيات v1.3.6</h2>
-    <p style="margin:5px 0 0;font-size:12px;opacity:0.8">تم إضافة خيار "الحالة" للتحكم في ظهور أو إخفاء الموظفين من النظام.</p>
+    <h2 style="margin:0;font-weight:900">🛡️ إدارة الصلاحيات v1.3.7</h2>
+    <p style="margin:5px 0 0;font-size:12px;opacity:0.8">نسخة مستقرة مع دعم "الحالة" والاتصال المباشر لشبكة المجدوعي.</p>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
@@ -33,21 +33,8 @@
         <div class="field"><label>الاسم الكامل</label><input id="userName" type="text"></div>
         <div class="field"><label>البريد الإلكتروني</label><input id="userEmail" type="email"></div>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
-            <div class="field">
-                <label>الدور (Role)</label>
-                <select id="userRole">
-                    <option value="admin">Admin</option>
-                    <option value="supervisor">Supervisor</option>
-                    <option value="technician">Technician</option>
-                </select>
-            </div>
-            <div class="field">
-                <label>الحالة (Status)</label>
-                <select id="userActive">
-                    <option value="true">نشط (Active)</option>
-                    <option value="false">مخفي (Hidden)</option>
-                </select>
-            </div>
+            <div class="field"><label>الدور (Role)</label><select id="userRole"><option value="admin">Admin</option><option value="supervisor">Supervisor</option><option value="technician">Technician</option></select></div>
+            <div class="field"><label>الحالة (Status)</label><select id="userActive"><option value="true">نشط (Active)</option><option value="false">مخفي (Hidden)</option></select></div>
         </div>
     </div>
     <div class="card">
@@ -68,10 +55,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { 
-    initializeFirestore, doc, collection, onSnapshot, setDoc, 
-    serverTimestamp, persistentLocalCache, persistentMultipleTabManager 
-} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { initializeFirestore, doc, collection, onSnapshot, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const firebaseConfig = { 
     apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', 
@@ -83,10 +67,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
-    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
-});
+const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 
 const appTabs = [
     {id:'dashboard', n:'لوحة التحكم'}, {id:'schedule', n:'الجدول الأسبوعي'},
@@ -113,32 +94,27 @@ $('saveBtn').onclick = async () => {
 
     const permissions = {};
     const pagesArray = [];
-
     document.querySelectorAll('.p-check').forEach(cb => {
         if(cb.checked) {
-            const pageId = cb.dataset.id;
-            permissions[pageId] = { view: true, add: true };
-            pagesArray.push(pageId);
+            const pid = cb.dataset.id;
+            permissions[pid] = { view: true, add: true };
+            pagesArray.push(pid);
         }
     });
 
-    const payload = {
-        name: $('userName').value || "",
-        email: $('userEmail').value || "",
-        role: $('userRole').value,
-        permissions: permissions,
-        pages: pagesArray,
-        active: $('userActive').value === "true", // تحويل النص إلى Boolean
-        updatedAt: serverTimestamp()
-    };
-
     try {
-        await setDoc(doc(db, 'app_users', uid), payload, { merge: true });
-        alert("✅ تم حفظ البيانات وتحديث الحالة بنجاح!");
+        await setDoc(doc(db, 'app_users', uid), {
+            name: $('userName').value || "",
+            email: $('userEmail').value || "",
+            role: $('userRole').value,
+            active: $('userActive').value === "true",
+            permissions: permissions,
+            pages: pagesArray,
+            updatedAt: serverTimestamp()
+        }, { merge: true });
+        alert("✅ تم الحفظ بنجاح!");
         $('userUid').value = ""; drawPerms();
-    } catch(e) { 
-        alert("فشل الحفظ: " + e.message); 
-    }
+    } catch(e) { alert("فشل الحفظ: " + e.message); }
 };
 
 onSnapshot(collection(db, 'app_users'), s => {
@@ -158,8 +134,8 @@ window.editUser = (id) => {
     if(!u) return;
     $('userUid').value = u.id; $('userName').value = u.name || "";
     $('userEmail').value = u.email || ""; 
-    $('userRole').value = ['admin', 'supervisor', 'technician'].includes(u.role) ? u.role : 'technician';
-    $('userActive').value = String(u.active === true); // عرض الحالة الحالية في القائمة
+    $('userRole').value = u.role || 'technician';
+    $('userActive').value = String(u.active === true);
     drawPerms(u.permissions || {});
 };
 
