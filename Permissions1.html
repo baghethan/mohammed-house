@@ -2,9 +2,9 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Permissions Management v1.3.9 - Multi-Language</title>
+  <title>Permissions Management v1.4.0 - Repair Mode</title>
   <style>
-    :root{--primary:#0d2149;--primary-2:#1b4fa3;--green:#10b981;--border:#e2e8f0;--bg:#f8fafc;--card:#fff;--radius:16px}
+    :root{--primary:#0d2149;--primary-2:#1b4fa3;--green:#10b981;--red:#ef4444;--border:#e2e8f0;--bg:#f8fafc;--card:#fff;--radius:16px}
     *{box-sizing:border-box} body{margin:0;font-family:'Segoe UI', Tahoma, sans-serif;background:var(--bg);padding:20px; transition: 0.3s;}
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 10px 30px rgba(0,0,0,0.05);padding:20px;margin-bottom:20px}
     .card h3{margin:-20px -20px 20px;padding:15px 20px;background:var(--primary);color:#fff;font-size:15px;border-radius:16px 16px 0 0;font-weight:900}
@@ -13,13 +13,13 @@
     .permissions-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:10px}
     .perm-item{background:#fcfdfe;border:1px solid var(--border);padding:12px;border-radius:12px;display:flex;align-items:center;gap:10px;font-weight:800;font-size:12px;cursor:pointer}
     .perm-item input{width:18px;height:18px;accent-color:var(--green);cursor:pointer}
-    .btn{padding:12px 25px;border-radius:12px;border:none;font-weight:800;cursor:pointer;transition:0.2s}
-    .btn-save{background:var(--green);color:#fff;width:100%;margin-top:15px}
+    .btn{padding:10px 20px;border-radius:12px;border:none;font-weight:800;cursor:pointer;transition:0.2s; font-size: 13px;}
+    .btn-save{background:var(--green);color:#fff;width:100%;margin-top:15px; height: 45px;}
+    .btn-repair{background:var(--red); color:#fff; margin-left:10px}
     .sync-badge{font-size:10px; padding:4px 8px; border-radius:8px; background:rgba(16,185,129,0.1); color:var(--green); font-weight:900;}
     table{width:100%;border-collapse:collapse;margin-top:15px}
     th,td{padding:12px;border-bottom:1px solid #eee;text-align:right;font-size:13px}
     th{background:#f8fafc;color:var(--primary);font-weight:900}
-    /* LTR Support */
     html[dir="ltr"] th, html[dir="ltr"] td { text-align: left; }
   </style>
 </head>
@@ -27,11 +27,12 @@
   <div class="card" style="background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff">
     <div style="display:flex; justify-content:space-between; align-items:center">
         <div>
-            <h2 id="txt-main-title" style="margin:0;font-weight:900">🛡️ إدارة الصلاحيات v1.3.9</h2>
-            <p id="txt-main-desc" style="margin:5px 0 0;font-size:12px;opacity:0.8">دعم كامل للغتين العربية والإنجليزية مع مزامنة تلقائية.</p>
+            <h2 id="txt-main-title" style="margin:0;font-weight:900">🛡️ إدارة الصلاحيات v1.4.0</h2>
+            <p id="txt-main-desc" style="margin:5px 0 0;font-size:12px;opacity:0.8">نمط الإصلاح: تجاوز خطأ 400 وتفعيل المزامنة التلقائية.</p>
         </div>
-        <div style="display:flex; align-items:center; gap:15px">
-            <select id="langSwitcher" style="width:120px; padding:5px; height:35px; font-size:12px">
+        <div style="display:flex; align-items:center; gap:10px">
+            <button id="btnRepair" class="btn btn-repair">🔧 إصلاح المزامنة</button>
+            <select id="langSwitcher" style="width:100px; padding:5px; height:35px; font-size:12px">
                 <option value="ar">العربية</option>
                 <option value="en">English</option>
             </select>
@@ -53,7 +54,9 @@
     </div>
     <div class="card">
         <h3 id="txt-tabs-title">📂 التبويبات المسموح بها</h3>
-        <div id="permsGrid" class="permissions-grid"></div>
+        <div id="permsGrid" class="permissions-grid">
+            <p style="font-size:12px; color:#666; text-align:center">جاري سحب التبويبات... اضغط على "إصلاح" إذا لم تظهر.</p>
+        </div>
         <button class="btn btn-save" id="saveBtn">💾 حفظ وتحديث الصلاحيات</button>
         <button class="btn" style="width:100%;margin-top:8px" id="clearBtn">تنظيف الحقول</button>
     </div>
@@ -69,7 +72,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { initializeFirestore, doc, collection, onSnapshot, setDoc, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { initializeFirestore, doc, collection, onSnapshot, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const firebaseConfig = { 
     apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', 
@@ -81,97 +84,18 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+// إجبار المتصفح على استخدام Long Polling لتجاوز Firewall الشركة وحل خطأ Lease
 const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 
-// --- نظام الترجمة ---
 const I18N = {
-    ar: {
-        title: "🛡️ إدارة الصلاحيات v1.3.9",
-        desc: "دعم كامل للغتين العربية والإنجليزية مع مزامنة تلقائية.",
-        userData: "👤 بيانات الحساب",
-        tabs: "📂 التبويبات المسموح بها",
-        list: "👥 قائمة المستخدمين المسجلين",
-        lblUid: "UID الموظف (من Firebase)",
-        lblName: "الاسم الكامل",
-        lblEmail: "البريد الإلكتروني",
-        lblRole: "الدور (Role)",
-        lblStatus: "الحالة (Status)",
-        optActive: "نشط (Active)",
-        optHidden: "مخفي (Hidden)",
-        btnSave: "💾 حفظ وتحديث الصلاحيات",
-        btnClear: "تنظيف الحقول",
-        thName: "الاسم",
-        thEmail: "البريد",
-        thRole: "الدور",
-        thStatus: "الحالة",
-        statusActive: "نشط",
-        statusHidden: "مخفي",
-        syncOk: "🟢 المخطط متزامن",
-        syncLoading: "جاري المزامنة...",
-        saved: "✅ تم الحفظ بنجاح!"
-    },
-    en: {
-        title: "🛡️ Permissions Management v1.3.9",
-        desc: "Full support for Arabic and English with auto-sync.",
-        userData: "👤 User Account Details",
-        tabs: "📂 Allowed Tabs",
-        list: "👥 Registered Users List",
-        lblUid: "Employee UID (from Firebase)",
-        lblName: "Full Name",
-        lblEmail: "Email Address",
-        lblRole: "Account Role",
-        lblStatus: "Account Status",
-        optActive: "Active",
-        optHidden: "Hidden",
-        btnSave: "💾 Save & Update Permissions",
-        btnClear: "Clear Form",
-        thName: "Name",
-        thEmail: "Email",
-        thRole: "Role",
-        thStatus: "Status",
-        statusActive: "Active",
-        statusHidden: "Hidden",
-        syncOk: "🟢 Schema Synced",
-        syncLoading: "Syncing...",
-        saved: "✅ Saved successfully!"
-    }
+    ar: { title: "🛡️ إدارة الصلاحيات v1.4.0", userData: "👤 بيانات الحساب", tabs: "📂 التبويبات المسموح بها", list: "👥 قائمة المستخدمين المسجلين", btnSave: "💾 حفظ وتحديث الصلاحيات", syncOk: "🟢 المخطط متزامن", saved: "✅ تم الحفظ بنجاح!", repairConfirm: "هل تريد البدء في إصلاح مزامنة التبويبات؟" },
+    en: { title: "🛡️ Permissions Management v1.4.0", userData: "👤 User Account", tabs: "📂 Allowed Tabs", list: "👥 Registered Users", btnSave: "💾 Save & Update", syncOk: "🟢 Schema Synced", saved: "✅ Saved successfully!", repairConfirm: "Do you want to start schema repair?" }
 };
 
 let currentLang = 'ar';
 const $ = id => document.getElementById(id);
 
-function applyLanguage(lang) {
-    currentLang = lang;
-    const t = I18N[lang];
-    document.documentElement.lang = lang;
-    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-    
-    $('txt-main-title').innerText = t.title;
-    $('txt-main-desc').innerText = t.desc;
-    $('txt-user-data').innerText = t.userData;
-    $('txt-tabs-title').innerText = t.tabs;
-    $('txt-users-list').innerText = t.list;
-    $('lbl-uid').innerText = t.lblUid;
-    $('lbl-name').innerText = t.lblName;
-    $('lbl-email').innerText = t.lblEmail;
-    $('lbl-role').innerText = t.lblRole;
-    $('lbl-status').innerText = t.lblStatus;
-    $('opt-active').innerText = t.optActive;
-    $('opt-hidden').innerText = t.optHidden;
-    $('saveBtn').innerText = t.btnSave;
-    $('clearBtn').innerText = t.btnClear;
-    $('th-name').innerText = t.thName;
-    $('th-email').innerText = t.thEmail;
-    $('th-role').innerText = t.thRole;
-    $('th-status').innerText = t.thStatus;
-    
-    drawPerms();
-    renderUsersList();
-}
-
-$('langSwitcher').onchange = (e) => applyLanguage(e.target.value);
-
-// القائمة المرجعية للتبويبات
+// القائمة المرجعية (موحدة لتعمل مع جميع المواقع)
 const appTabs = [
     {id:'dashboard', ar:'لوحة التحكم', en:'Dashboard'}, 
     {id:'schedule', ar:'الجدول الأسبوعي', en:'Weekly Schedule'},
@@ -180,27 +104,39 @@ const appTabs = [
     {id:'planning', ar:'خطة الإجازات', en:'Vacation Planning'}, 
     {id:'settings', ar:'إعدادات الدوام', en:'Shift Settings'},
     {id:'permissions', ar:'الصلاحيات', en:'Permissions'}, 
-    {id:'windows_upgrades', ar:'ترقيات ويندوز', en:'Windows Upgrades'},
-    {id:'checklists', ar:'التفتيش الفني', en:'Technical Checklists'}
+    {id:'upgradeWindows', ar:'ترقية ويندوز', en:'Windows Upgrades'},
+    {id:'checklist', ar:'Check-List', en:'Technical Checklists'}
 ];
 
-let dynamicPages = [];
-let users = [];
+function applyLanguage(lang) {
+    currentLang = lang; document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    $('txt-main-title').innerText = I18N[lang].title;
+    $('saveBtn').innerText = I18N[lang].btnSave;
+    drawPerms();
+}
 
-async function syncSystemPages() {
+$('langSwitcher').onchange = (e) => applyLanguage(e.target.value);
+
+// --- محرك الإصلاح والمزامنة اليدوي ---
+$('btnRepair').onclick = async () => {
+    if(!confirm(I18N[currentLang].repairConfirm)) return;
     try {
         const syncPromises = appTabs.map(tab => 
             setDoc(doc(db, "system_pages", tab.id), { 
-                name: tab.ar, nameEn: tab.en, active: true 
+                name: tab.ar, nameEn: tab.en, active: true, 
+                lastRepair: new Date().toISOString() 
             }, { merge: true })
         );
         await Promise.all(syncPromises);
-        $('syncStatus').innerText = I18N[currentLang].syncOk;
-    } catch (e) { $('syncStatus').innerText = "🔴 Error"; }
-}
+        alert("✅ تم إصلاح المخطط بنجاح!");
+        location.reload();
+    } catch (e) { alert("Error: " + e.message); }
+};
 
+let dynamicPages = [];
 onSnapshot(collection(db, "system_pages"), snap => {
     dynamicPages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if(dynamicPages.length > 0) $('syncStatus').innerText = I18N[currentLang].syncOk;
     drawPerms();
 });
 
@@ -216,71 +152,42 @@ function drawPerms(selected = {}) {
 
 $('saveBtn').onclick = async () => {
     const uid = $('userUid').value.trim();
-    if(!uid) return alert("UID Required");
-
-    const permissions = {};
-    const pagesArray = [];
+    if(!uid) return alert("UID Missing");
+    const permissions = {}; const pagesArray = [];
     document.querySelectorAll('.p-check').forEach(cb => {
-        if(cb.checked) {
-            const pid = cb.dataset.id;
-            permissions[pid] = { view: true, add: true };
-            pagesArray.push(pid);
+        if(cb.checked) { 
+            permissions[cb.dataset.id] = { view: true, add: true }; 
+            pagesArray.push(cb.dataset.id); 
         }
     });
 
     try {
         await setDoc(doc(db, 'app_users', uid), {
-            name: $('userName').value || "",
-            email: $('userEmail').value || "",
-            role: $('userRole').value,
-            active: $('userActive').value === "true",
-            lang: currentLang,
-            permissions: permissions,
-            pages: pagesArray,
-            updatedAt: serverTimestamp()
+            name: $('userName').value || "", email: $('userEmail').value || "",
+            role: $('userRole').value, active: $('userActive').value === "true",
+            permissions: permissions, pages: pagesArray, lang: currentLang
         }, { merge: true });
         alert(I18N[currentLang].saved);
         $('userUid').value = ""; drawPerms();
     } catch(e) { alert(e.message); }
 };
 
-function renderUsersList() {
-    const t = I18N[currentLang];
+onSnapshot(collection(db, 'app_users'), s => {
+    const users = s.docs.map(d => ({id:d.id, ...d.data()}));
     $('usersList').innerHTML = users.map(u => `
-        <tr onclick="window.editUser('${u.id}')" style="cursor:pointer">
-            <td><b>${u.name || '-'}</b></td>
-            <td>${u.email || '-'}</td>
-            <td>${u.role}</td>
-            <td style="color:${u.active?'#10b981':'#ef4444'}">${u.active ? t.statusActive : t.statusHidden}</td>
+        <tr onclick="window.editUser('${u.id}', ${JSON.stringify(u.permissions || {}).replace(/"/g, '&quot;')})" style="cursor:pointer">
+            <td><b>${u.name || '-'}</b></td><td>${u.email || '-'}</td>
+            <td>${u.role}</td><td style="color:${u.active?'#10b981':'#ef4444'}">${u.active?'نشط':'مخفي'}</td>
         </tr>
     `).join('');
-}
-
-onSnapshot(collection(db, 'app_users'), s => {
-    users = s.docs.map(d => ({id:d.id, ...d.data()}));
-    renderUsersList();
 });
 
-window.editUser = (id) => {
-    const u = users.find(x => x.id === id);
-    if(!u) return;
-    $('userUid').value = u.id; $('userName').value = u.name || "";
-    $('userEmail').value = u.email || ""; 
-    $('userRole').value = u.role || 'technician';
-    $('userActive').value = String(u.active === true);
-    if(u.lang) {
-        $('langSwitcher').value = u.lang;
-        applyLanguage(u.lang);
-    }
-    drawPerms(u.permissions || {});
+window.editUser = (id, perms) => {
+    $('userUid').value = id; 
+    drawPerms(perms);
 };
 
-$('clearBtn').onclick = () => { $('userUid').value=""; drawPerms(); };
-
-window.onload = () => {
-    applyLanguage('ar');
-    syncSystemPages();
-};
+window.onload = () => applyLanguage('ar');
 </script>
 </body>
 </html>
