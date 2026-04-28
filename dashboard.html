@@ -3,89 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        :root {
-            --primary: #0d4b73;
-            --bg: #edf3f8;
-            --card: rgba(255, 255, 255, 0.9);
-            --border: #d7e0ea;
-        }
+        :root { --primary: #0d4b73; --bg: #ffffff; }
+        
+        /* منع التمرير المزدوج وإزالة الفراغات */
         body { 
-            margin: 0; font-family: 'Segoe UI', Tahoma, sans-serif; 
-            background: var(--bg); padding: 25px; color: #163247;
+            margin: 0; 
+            padding: 20px; 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            background: var(--bg);
+            box-sizing: border-box;
         }
-        .welcome-section {
+
+        .header-banner {
             background: linear-gradient(135deg, #0d4b73, #0a3b5a);
-            color: white; padding: 30px; border-radius: 20px;
-            margin-bottom: 30px; box-shadow: 0 10px 20px rgba(13, 75, 115, 0.2);
+            color: white; padding: 25px; border-radius: 15px;
+            margin-bottom: 25px; position: relative; overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
+
+        .header-banner h1 { margin: 0; font-size: 22px; }
+        .header-banner p { margin: 5px 0 0; opacity: 0.8; font-size: 14px; }
+
         .stats-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px;
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
         }
-        .stat-card {
-            background: var(--card); border: 1px solid var(--border);
-            padding: 25px; border-radius: 16px; text-align: center;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.05);
-            transition: 0.3s;
+
+        .card {
+            background: #f8fafc; border: 1px solid #e2e8f0;
+            padding: 20px; border-radius: 12px; text-align: center;
+            transition: 0.2s;
         }
-        .stat-card:hover { transform: translateY(-5px); }
-        .stat-card h3 { margin: 0; font-size: 14px; color: #6e8192; }
-        .stat-card .value { font-size: 28px; font-weight: 800; color: var(--primary); margin: 10px 0; }
-        .badge { background: #eaf9f0; color: #2f9e66; padding: 5px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; }
+        .card:hover { border-color: var(--primary); background: #f0f7ff; }
+        .card h3 { margin: 0; font-size: 13px; color: #64748b; text-transform: uppercase; }
+        .card .value { font-size: 32px; font-weight: 800; color: var(--primary); margin: 10px 0; }
+        .card .status { font-size: 11px; font-weight: bold; color: #22c55e; background: #f0fdf4; padding: 4px 10px; border-radius: 20px; }
     </style>
 </head>
 <body>
 
-    <div class="welcome-section">
-        <h1 id="welcomeMsg">مرحباً بك في نظام المجدوعي للسيارات</h1>
-        <p>لوحة التحكم الذكية - نظرة عامة على أداء النظام اليوم.</p>
+    <div class="header-banner">
+        <h1 id="welcomeTitle">مرحباً بك في لوحة تحكم المجدوعي</h1>
+        <p>متابعة أداء الفروع والأنظمة بشكل لحظي ومباشر.</p>
     </div>
 
     <div class="stats-grid">
-        <div class="stat-card">
+        <div class="card">
             <h3>إجمالي الفروع</h3>
-            <div class="value" id="branchCount">..</div>
-            <span class="badge">تحديث فوري</span>
+            <div class="value" id="bCount">0</div>
+            <span class="status">متصل الآن</span>
         </div>
-        <div class="stat-card">
-            <h3>طلبات الإجازات</h3>
-            <div class="value" id="holidayCount">..</div>
-            <span class="badge" style="background:#fff7e6; color:#c47f00;">تحت المراجعة</span>
+        <div class="card">
+            <h3>طلبات الإجازة</h3>
+            <div class="value" id="hCount">0</div>
+            <span class="status" style="color:#f59e0b; background:#fffbeb;">انتظار المراجعة</span>
         </div>
-        <div class="stat-card">
-            <h3>الفنيين المسجلين</h3>
-            <div class="value" id="techCount">..</div>
-            <span class="badge">نشط الآن</span>
-        </div>
-        <div class="stat-card">
-            <h3>الزيارات الميدانية</h3>
-            <div class="value">0</div>
-            <span class="badge">اليوم</span>
+        <div class="card">
+            <h3>الفنيين</h3>
+            <div class="value" id="tCount">0</div>
+            <span class="status">نشط</span>
         </div>
     </div>
 
     <script type="module">
-        // جلب البيانات من الماستر (test2.html)
         const db = window.parent.appDb;
-        const userData = window.parent.currentUserData;
+        const user = window.parent.currentUserData;
 
-        if (userData) {
-            document.getElementById('welcomeMsg').innerText = `أهلاً، ${userData.name}`;
+        if(user) document.getElementById('welcomeTitle').innerText = `أهلاً بك، ${user.name}`;
+
+        async function updateStats() {
+            try {
+                const bSnap = await db.collection('branches').get();
+                document.getElementById('bCount').innerText = bSnap.size;
+
+                const hSnap = await db.collection('schedule').where('status', '==', 'pending').get();
+                document.getElementById('hCount').innerText = hSnap.size;
+
+                const tSnap = await db.collection('technicians').get();
+                document.getElementById('tCount').innerText = tSnap.size;
+            } catch(e) { console.log("Stats error:", e); }
         }
 
-        // جلب إحصائيات سريعة من Firestore
-        async function fetchStats() {
-            const branches = await db.collection('branches').get();
-            document.getElementById('branchCount').innerText = branches.size;
-
-            const holidays = await db.collection('schedule').where('status', '==', 'pending').get();
-            document.getElementById('holidayCount').innerText = holidays.size;
-
-            const techs = await db.collection('technicians').get();
-            document.getElementById('techCount').innerText = techs.size;
-        }
-
-        fetchStats();
+        updateStats();
     </script>
 </body>
 </html>
