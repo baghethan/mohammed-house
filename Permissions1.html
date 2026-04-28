@@ -2,41 +2,40 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Permissions Management v1.3.0</title>
+  <title>Permissions Management v1.3.1 - Almajdouie Motors</title>
   <style>
     :root{--primary:#0d2149;--primary-2:#1b4fa3;--green:#10b981;--border:#e2e8f0;--bg:#f8fafc;--card:#fff;--radius:16px}
     *{box-sizing:border-box} body{margin:0;font-family:'Segoe UI', Tahoma, sans-serif;background:var(--bg);padding:20px}
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 10px 30px rgba(0,0,0,0.05);padding:20px;margin-bottom:20px}
-    .card h3{margin:-20px -20px 20px;padding:15px 20px;background:var(--primary);color:#fff;font-size:16px;border-radius:16px 16px 0 0}
+    .card h3{margin:-20px -20px 20px;padding:15px 20px;background:var(--primary);color:#fff;font-size:16px;border-radius:16px 16px 0 0;font-weight:900}
     .field{margin-bottom:15px} label{display:block;margin-bottom:5px;font-weight:800;font-size:13px;color:var(--primary)}
     input, select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);outline:none}
     .permissions-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:10px}
-    .perm-item{background:#fcfdfe;border:1px solid var(--border);padding:12px;border-radius:12px;display:flex;align-items:center;gap:10px;font-weight:800;font-size:12px}
+    .perm-item{background:#fcfdfe;border:1px solid var(--border);padding:12px;border-radius:12px;display:flex;align-items:center;gap:10px;font-weight:800;font-size:12px;cursor:pointer}
     .perm-item input{width:18px;height:18px;accent-color:var(--green);cursor:pointer}
     .btn{padding:12px 25px;border-radius:12px;border:none;font-weight:800;cursor:pointer;transition:0.2s}
     .btn-save{background:var(--green);color:#fff;width:100%;margin-top:15px}
     table{width:100%;border-collapse:collapse;margin-top:15px}
     th,td{padding:12px;border-bottom:1px solid #eee;text-align:right;font-size:13px}
-    th{background:#f8fafc;color:var(--primary)}
+    th{background:#f8fafc;color:var(--primary);font-weight:900}
   </style>
 </head>
 <body>
   <div class="card" style="background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff">
-    <h2 style="margin:0">🛡️ إدارة الصلاحيات - المجدوعي للسيارات</h2>
-    <p style="margin:5px 0 0;font-size:12px;opacity:0.8">اختر المستخدم ثم حدد الصفحات التي يمكنه الوصول إليها باستخدام علامات الصح.</p>
+    <h2 style="margin:0;font-weight:900">🛡️ إدارة الصلاحيات v1.3.1</h2>
+    <p style="margin:5px 0 0;font-size:12px;opacity:0.8">تم تحديث هذا الإصدار ليدعم الاتصال المستقر من داخل شبكة الشركة.</p>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
     <div class="card">
-        <h3>👤 بيانات المستخدم</h3>
-        <div class="field"><label>UID (من Firebase)</label><input id="userUid" type="text" placeholder="أدخل المعرف الفريد للمستخدم"></div>
+        <h3>👤 بيانات الحساب</h3>
+        <div class="field"><label>UID الموظف (من Firebase)</label><input id="userUid" type="text" placeholder="المعرف الفريد للمستخدم"></div>
         <div class="field"><label>الاسم الكامل</label><input id="userName" type="text"></div>
         <div class="field"><label>البريد الإلكتروني</label><input id="userEmail" type="email"></div>
         <div class="field"><label>الدور</label><select id="userRole"><option value="admin">Admin</option><option value="supervisor">Supervisor</option><option value="user">User</option></select></div>
     </div>
-
     <div class="card">
-        <h3>📂 الصلاحيات المتاحة</h3>
+        <h3>📂 التبويبات المسموح بها</h3>
         <div class="permissions-grid" id="permsGrid"></div>
         <button class="btn btn-save" id="saveBtn">💾 حفظ الصلاحيات المحددة</button>
         <button class="btn" style="width:100%;margin-top:8px" id="clearBtn">تنظيف الحقول</button>
@@ -46,19 +45,36 @@
   <div class="card">
     <h3>👥 قائمة المستخدمين المسجلين</h3>
     <table>
-        <thead><tr><th>الاسم</th><th>البريد</th><th>الدور</th><th>عدد الصلاحيات</th></tr></thead>
+        <thead><tr><th>الاسم</th><th>البريد</th><th>الدور</th><th>الحالة</th></tr></thead>
         <tbody id="usersList"></tbody>
     </table>
   </div>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getFirestore, doc, collection, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+// تم استخدام initializeFirestore لحل مشكلة الاتصال
+import { 
+    initializeFirestore, doc, collection, onSnapshot, setDoc, 
+    persistentLocalCache, persistentMultipleTabManager 
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
-const app = initializeApp(firebaseConfig); const db = getFirestore(app);
+const firebaseConfig = { 
+    apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', 
+    authDomain:'baghethan-ba325.firebaseapp.com', 
+    projectId:'baghethan-ba325', 
+    storageBucket:'baghethan-ba325.firebasestorage.app', 
+    messagingSenderId:'944819735112', 
+    appId:'1:944819735112:web:07315600da39377320667d' 
+};
 
-// التبويبات الفعلية الموجودة في صفحة Schedule.html
+const app = initializeApp(firebaseConfig);
+
+// --- الحل البرمجي لتجاوز جدار حماية الشركة (Firewall) ---
+const db = initializeFirestore(app, {
+    experimentalForceLongPolling: true, // إجبار الاتصال المستقر
+    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
+});
+
 const appTabs = [
     {id:'dashboard', n:'لوحة التحكم'}, {id:'schedule', n:'الجدول الأسبوعي'},
     {id:'employees', n:'الموظفون'}, {id:'annual', n:'الإجازات السنوية'},
@@ -69,7 +85,6 @@ const appTabs = [
 let users = [];
 const $ = id => document.getElementById(id);
 
-// عرض الخيارات
 function drawPerms(selected = {}) {
     $('permsGrid').innerHTML = appTabs.map(t => `
         <label class="perm-item">
@@ -79,7 +94,6 @@ function drawPerms(selected = {}) {
     `).join('');
 }
 
-// الحفظ
 $('saveBtn').onclick = async () => {
     const uid = $('userUid').value.trim();
     if(!uid) return alert("يرجى إدخال UID");
@@ -95,12 +109,14 @@ $('saveBtn').onclick = async () => {
             role: $('userRole').value, permissions: permissions,
             active: true, updatedAt: new Date().toISOString()
         }, { merge: true });
-        alert("✅ تم الحفظ بنجاح");
+        alert("✅ تم الحفظ بنجاح وتجاوز قيود الشبكة");
         $('userUid').value = ""; drawPerms();
-    } catch(e) { alert("خطأ في الحفظ"); }
+    } catch(e) { 
+        console.error(e);
+        alert("فشل الحفظ: " + e.message); 
+    }
 };
 
-// المزامنة
 onSnapshot(collection(db, 'app_users'), s => {
     users = s.docs.map(d => ({id:d.id, ...d.data()}));
     $('usersList').innerHTML = users.map(u => `
@@ -108,7 +124,7 @@ onSnapshot(collection(db, 'app_users'), s => {
             <td><b>${u.name || '-'}</b></td>
             <td>${u.email || '-'}</td>
             <td>${u.role}</td>
-            <td>${Object.keys(u.permissions || {}).length}</td>
+            <td style="color:${u.active?'#10b981':'#ef4444'}">${u.active?'نشط':'مخفي'}</td>
         </tr>
     `).join('');
 });
