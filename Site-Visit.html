@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site-Visit-v2.1.8 - Final Direct UID Read</title>
+  <title>Site-Visit-v2.1.10 - Branch Import Fix</title>
   <style>
     :root{
       --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
@@ -533,7 +533,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, collection, doc, getDoc, setDoc, addDoc, deleteDoc, query, orderBy, onSnapshot, Timestamp, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getFirestore, collection, doc, getDoc, setDoc, addDoc, deleteDoc, writeBatch, query, orderBy, onSnapshot, Timestamp, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     const firebaseConfig = {
       apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
@@ -591,7 +591,7 @@
       }
     };
 
-    const APP_VERSION = 'v2.1.8';
+    const APP_VERSION = 'v2.1.10';
     const SHARED_BRAND_GROUPS = [
       { id:'changan_deepal', brands:['changan','deepal'] }
     ];
@@ -651,32 +651,32 @@
     function monthName(dateValue){ if(!dateValue) return ''; const d=new Date(dateValue); return ['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()] || ''; }
 
     function clearAllListeners(){ Object.keys(unsub).forEach(k=>{ if(unsub[k]) unsub[k](); unsub[k]=null; }); }
-function stripProfileMeta(profile = {}){
- const { id, source, uidMismatch, ...data } = profile || {};
- return data;
-}
-async function ensureUserProfileAlias(user, profile){
- if(!user || !profile || !profile.id || profile.id === user.uid) return profile;
- const aliasPayload = {
-  ...stripProfileMeta(profile),
-  email: profile.email || user.email || '',
-  name: profile.name || user.displayName || '',
-  role: profile.role || 'user',
-  active: profile.active !== false,
-  technicianId: profile.technicianId || '',
-  pages: getEffectivePagesForProfile(profile),
-  migratedFromDocId: profile.id,
-  uidMismatch: true,
-  lastLoginAt: Timestamp.now(),
-  updatedAt: Timestamp.now()
- };
- if(!profile.createdAt) aliasPayload.createdAt = Timestamp.now();
- try{
-  await setDoc(doc(db,'app_users', user.uid), aliasPayload, {merge:true});
-  return { id:user.uid, ...aliasPayload, source:'uid-alias-created', uidMismatch:true };
- }catch(err){
-  console.warn('app_users UID alias creation failed:', err);
-  return { ...profile, source:profile.source || 'email-fallback', uidMismatch:true };
+function chunkArray(arr, size=400){ const out=[]; for(let i=0;i<arr.length;i+=size) out.push(arr.slice(i, i+size)); return out; }
+async function commitBranchBatches(items, mode='set'){
+ const chunks = chunkArray(items, 400);
+ for(let i=0; i<chunks.length; i++){
+  const batch = writeBatch(db);
+  for(const item of chunks[i]){
+   if(mode === 'delete') batch.delete(doc(db,'branches', item.id));
+   else batch.set(doc(db,'branches', item.branchId), {
+    branchName: item.branchName,
+    brand: item.brand,
+    region: item.region,
+    city: item.city,
+    branchType: item.branchType,
+    contactShowroom: item.contactShowroom,
+    contactService: item.contactService,
+    contactSpareParts: item.contactSpareParts,
+    functionName: item.functionName,
+    function: item.function,
+    gps: item.gps,
+    location: item.location,
+    updatedAt: Timestamp.now(),
+    createdAt: item.createdAt || Timestamp.now()
+   }, {merge:true});
+  }
+  await batch.commit();
+  setMessage('branchMessage', (state.currentLang==='ar' ? 'جاري تنفيذ الدفعة ' : 'Processing batch ') + `${i+1}/${chunks.length}` + (mode === 'delete' ? (state.currentLang==='ar' ? ' (حذف)...' : ' (delete)...') : (state.currentLang==='ar' ? ' (رفع)...' : ' (upload)...')));
  }
 }
 
@@ -691,10 +691,7 @@ async function ensureUserProfileAlias(user, profile){
  // Optional fallback by email if rules allow query/list on app_users
  try{
   const snap = await getDocs(query(collection(db,'app_users'), where('email','==', user.email), limit(1)));
-  if(!snap.empty){
-   const profile = { id:snap.docs[0].id, source:'email', uidMismatch:snap.docs[0].id !== user.uid, ...snap.docs[0].data() };
-   return await ensureUserProfileAlias(user, profile);
-  }
+  if(!snap.empty) return { id:snap.docs[0].id, source:'email', uidMismatch:snap.docs[0].id !== user.uid, ...snap.docs[0].data() };
  }catch(err){
   console.warn('Fallback app_users email query failed:', err);
  }
@@ -1595,30 +1592,46 @@ async function ensureUserProfileAlias(user, profile){
       return { branchId, branchType: String(normalized.branchtype || '').trim(), contactShowroom: String(normalized.contactshowroom || '').trim(), contactService: String(normalized.contactservice || '').trim(), contactSpareParts: String(normalized.contactspareparts || '').trim(), brand: String(normalized.brand || '').trim(), functionName: fn, function: fn, branchName: String(normalized.branchname || '').trim(), gps: String(normalized.gps || '').trim(), location: String(normalized.location || '').trim(), region: String(normalized.region || '').trim(), city };
     }
     async function importBranchesFromExcel(){
+      let hadBranchesListener = false;
       try{
         if(typeof XLSX === 'undefined') throw new Error('XLSX library not loaded');
         const file = $('branchesExcelFile').files?.[0];
         if(!file) throw new Error(state.currentLang==='ar'?'اختر ملف Excel أولاً.':'Choose an Excel file first.');
         if(!confirm(state.currentLang==='ar'?'سيتم حذف كل الفروع القديمة من المخزن ثم رفع الملف الجديد. هل تريد المتابعة؟':'All current branches will be deleted before importing the new file. Continue?')) return;
-        setMessage('branchMessage', state.currentLang==='ar'?'جاري قراءة الملف ومسح القديم...':'Reading Excel and clearing old records...');
+
+        if(unsub.branches){
+          unsub.branches();
+          unsub.branches = null;
+          hadBranchesListener = true;
+        }
+
+        setMessage('branchMessage', state.currentLang==='ar'?'جاري قراءة الملف وتحضير دفعات الحذف والرفع...':'Reading Excel and preparing delete/upload batches...');
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, {type:'array'});
         const sheetName = workbook.SheetNames[0];
         if(!sheetName) throw new Error(state.currentLang==='ar'?'ملف Excel لا يحتوي على أي ورقة.':'Excel file has no sheets.');
+
         const sheet = workbook.Sheets[sheetName];
         const rawRows = XLSX.utils.sheet_to_json(sheet, {defval:''});
         const rows = rawRows.map(normalizeBranchImportRow).filter(Boolean);
         if(!rows.length) throw new Error(state.currentLang==='ar'?'لم يتم العثور على صفوف صالحة. تأكد من أسماء الأعمدة المطلوبة.':'No valid rows found. Check the required column names.');
+
         const existing = await getDocs(collection(db,'branches'));
-        for(const snapDoc of existing.docs){ await deleteDoc(doc(db,'branches', snapDoc.id)); }
-        for(const row of rows){
-          await setDoc(doc(db,'branches', row.branchId), { branchName: row.branchName, brand: row.brand, region: row.region, city: row.city, branchType: row.branchType, contactShowroom: row.contactShowroom, contactService: row.contactService, contactSpareParts: row.contactSpareParts, functionName: row.functionName, function: row.function, gps: row.gps, location: row.location, updatedAt: Timestamp.now(), createdAt: Timestamp.now() }, {merge:true});
+        if(existing.docs.length){
+          await commitBranchBatches(existing.docs.map(d => ({id:d.id})), 'delete');
         }
+
+        await commitBranchBatches(rows, 'set');
+
         $('branchesExcelFile').value='';
         populateTechnicianAssignmentOptions({});
         setMessage('branchMessage', (state.currentLang==='ar'?'تم استيراد ':'Imported ') + rows.length + (state.currentLang==='ar'?' صف/فرع بنجاح بعد حذف القديم.':' branch rows successfully after clearing old data.'));
         setAlert('branchError');
-      } catch(err){ setAlert('branchError', err.message || String(err)); }
+      } catch(err){
+        setAlert('branchError', err.message || String(err));
+      } finally {
+        if(hadBranchesListener || !unsub.branches) listenBranches();
+      }
     }
     function exportBranchesToExcel(){
       try{
@@ -1696,11 +1709,8 @@ async function ensureUserProfileAlias(user, profile){
     function listenWindowsUpgrades(){ if(unsub.windowsUpgrades) unsub.windowsUpgrades(); unsub.windowsUpgrades = onSnapshot(query(collection(db,'windows_upgrades')), snap=>{ state.windowsUpgrades = snap.docs.map(d=>({id:d.id, ...d.data()})); renderUpgradeWindowsTable(); }, err=>setAlert('uwError', 'windows_upgrades: ' + err.message)); }
 
     onAuthStateChanged(auth, async user => {
-      if(user){ 
- state.currentUser = user; 
- $('currentUserChip').classList.remove('hidden'); 
- $('currentUserChip').textContent = `${user.email} | loading...`; 
- $('logoutBtn').classList.remove('hidden');
+      if(user){
+        state.currentUser = user;
         let profile = null;
         try { profile = await resolveCurrentUserProfile(user); } catch(err){ $('loginMessage').textContent = 'app_users lookup error: ' + err.message; }
         state.currentUserProfile = profile;
@@ -1721,7 +1731,7 @@ async function ensureUserProfileAlias(user, profile){
         $('appRoot').classList.remove('hidden');
 
         if(!profile){
-          setAlert('dashboardError', state.currentLang==='ar' ? 'تنبيه: لم يتم العثور على app_users/{UID} أو لم تسمح القواعد بقراءة المستند مباشرة. أنشئ/انسخ مستندًا باسم Auth UID داخل app_users.' : 'Warning: app_users/{UID} was not found or the rules did not allow direct document read. Create/copy a document named with the Auth UID inside app_users.');
+          setAlert('dashboardError', state.currentLang==='ar' ? 'تنبيه: لم يتم العثور على app_users/{UID}. قد تعمل بعض التبويبات للقراءة فقط أو تفشل حسب القواعد.' : 'Warning: app_users/{UID} was not found. Some tabs may fail according to rules.');
         }
 
         listenBranches();
