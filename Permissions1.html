@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Permissions Management v1.3.7 - Almajdouie Motors</title>
+  <title>Permissions Management v1.3.8 - Auto Sync Schema</title>
   <style>
     :root{--primary:#0d2149;--primary-2:#1b4fa3;--green:#10b981;--border:#e2e8f0;--bg:#f8fafc;--card:#fff;--radius:16px}
     *{box-sizing:border-box} body{margin:0;font-family:'Segoe UI', Tahoma, sans-serif;background:var(--bg);padding:20px}
@@ -15,6 +15,7 @@
     .perm-item input{width:18px;height:18px;accent-color:var(--green);cursor:pointer}
     .btn{padding:12px 25px;border-radius:12px;border:none;font-weight:800;cursor:pointer;transition:0.2s}
     .btn-save{background:var(--green);color:#fff;width:100%;margin-top:15px}
+    .sync-badge{font-size:10px; padding:4px 8px; border-radius:8px; background:rgba(16,185,129,0.1); color:var(--green); font-weight:900; margin-right:10px}
     table{width:100%;border-collapse:collapse;margin-top:15px}
     th,td{padding:12px;border-bottom:1px solid #eee;text-align:right;font-size:13px}
     th{background:#f8fafc;color:var(--primary);font-weight:900}
@@ -22,8 +23,11 @@
 </head>
 <body>
   <div class="card" style="background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff">
-    <h2 style="margin:0;font-weight:900">🛡️ إدارة الصلاحيات v1.3.7</h2>
-    <p style="margin:5px 0 0;font-size:12px;opacity:0.8">نسخة مستقرة مع دعم "الحالة" والاتصال المباشر لشبكة المجدوعي.</p>
+    <div style="display:flex; justify-content:space-between; align-items:center">
+        <h2 style="margin:0;font-weight:900">🛡️ إدارة الصلاحيات v1.3.8</h2>
+        <span id="syncStatus" class="sync-badge" style="background:#fff; color:var(--primary)">جاري المزامنة التلقائية...</span>
+    </div>
+    <p style="margin:5px 0 0;font-size:12px;opacity:0.8">النظام يسحب ويحدث التبويبات تلقائياً من قاعدة البيانات لضمان عدم التعليق.</p>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
@@ -39,7 +43,9 @@
     </div>
     <div class="card">
         <h3>📂 التبويبات المسموح بها</h3>
-        <div class="permissions-grid" id="permsGrid"></div>
+        <div id="permsGrid" class="permissions-grid">
+            <p style="font-size:12px; color:#666">جاري تحميل التبويبات الديناميكية...</p>
+        </div>
         <button class="btn btn-save" id="saveBtn">💾 حفظ وتحديث الصلاحيات</button>
         <button class="btn" style="width:100%;margin-top:8px" id="clearBtn">تنظيف الحقول</button>
     </div>
@@ -55,7 +61,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { initializeFirestore, doc, collection, onSnapshot, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { initializeFirestore, doc, collection, onSnapshot, setDoc, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const firebaseConfig = { 
     apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', 
@@ -69,21 +75,49 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 
+// القائمة المرجعية (سيتم مزامنتها مع الداتابيس تلقائياً)
 const appTabs = [
     {id:'dashboard', n:'لوحة التحكم'}, {id:'schedule', n:'الجدول الأسبوعي'},
     {id:'employees', n:'الموظفون'}, {id:'annual', n:'الإجازات السنوية'},
     {id:'planning', n:'خطة الإجازات'}, {id:'settings', n:'إعدادات الدوام'},
-    {id:'permissions', n:'الصلاحيات'}
+    {id:'permissions', n:'الصلاحيات'}, {id:'windows_upgrades', n:'ترقيات ويندوز'},
+    {id:'checklists', n:'التفتيش الفني'}
 ];
 
 const $ = id => document.getElementById(id);
+let dynamicPages = [];
 let users = [];
 
+// --- محرك المزامنة التلقائية للمخطط ---
+async function syncSystemPages() {
+    try {
+        const syncPromises = appTabs.map(tab => 
+            setDoc(doc(db, "system_pages", tab.id), { 
+                name: tab.n, 
+                active: true, 
+                lastSync: serverTimestamp() 
+            }, { merge: true })
+        );
+        await Promise.all(syncPromises);
+        $('syncStatus').innerText = "🟢 المخطط متزامن";
+    } catch (e) {
+        console.error("Sync Error:", e);
+        $('syncStatus').innerText = "🔴 خطأ في المزامنة";
+    }
+}
+
+// سحب التبويبات بشكل حي
+onSnapshot(collection(db, "system_pages"), snap => {
+    dynamicPages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    drawPerms();
+});
+
 function drawPerms(selected = {}) {
-    $('permsGrid').innerHTML = appTabs.map(t => `
+    if (dynamicPages.length === 0) return;
+    $('permsGrid').innerHTML = dynamicPages.map(p => `
         <label class="perm-item">
-            <input type="checkbox" class="p-check" data-id="${t.id}" ${selected[t.id]?.view ? 'checked' : ''}>
-            <span>${t.n}</span>
+            <input type="checkbox" class="p-check" data-id="${p.id}" ${selected[p.id]?.view ? 'checked' : ''}>
+            <span>${p.name}</span>
         </label>
     `).join('');
 }
@@ -112,7 +146,7 @@ $('saveBtn').onclick = async () => {
             pages: pagesArray,
             updatedAt: serverTimestamp()
         }, { merge: true });
-        alert("✅ تم الحفظ بنجاح!");
+        alert("✅ تم الحفظ وتحديث التبويبات بنجاح!");
         $('userUid').value = ""; drawPerms();
     } catch(e) { alert("فشل الحفظ: " + e.message); }
 };
@@ -140,7 +174,9 @@ window.editUser = (id) => {
 };
 
 $('clearBtn').onclick = () => { $('userUid').value=""; drawPerms(); };
-window.onload = () => drawPerms();
+window.onload = () => {
+    syncSystemPages(); // تشغيل المزامنة عند الفتح
+};
 </script>
 </body>
 </html>
