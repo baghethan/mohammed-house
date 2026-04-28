@@ -3,19 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام إدارة المجدوعي</title>
+    <title>نظام الإدارة - v1.0.5</title>
     <style>
         :root { --main-bg: #f8f9fa; --primary: #0056b3; --dark: #343a40; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--main-bg); margin: 0; direction: rtl; }
         .hidden { display: none !important; }
 
-        /* تنسيق صفحة الدخول */
+        /* تنسيق نسخة النظام في الزاوية */
+        .version-badge {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        /* تنسيق صفحة الدخول والداشبورد (نفس السابق مع تحسينات طفيفة) */
         #login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: #e9ecef; }
-        .login-card { background: white; padding: 2rem; border-radius: 12px; shadow: 0 10px 25px rgba(0,0,0,0.1); width: 350px; }
+        .login-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 350px; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
         .btn-login { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
 
-        /* تنسيق الداشبورد */
         header { background: var(--dark); color: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; }
         .tab-bar { background: white; display: flex; border-bottom: 2px solid #dee2e6; overflow-x: auto; }
         .tab-item { padding: 15px 25px; cursor: pointer; border: none; background: none; font-weight: 600; color: #495057; border-bottom: 3px solid transparent; }
@@ -28,18 +41,21 @@
 </head>
 <body>
 
+    <div class="version-badge" id="version-display">v0.0.0</div>
+
     <div id="login-page">
         <div class="login-card">
-            <h2 style="text-align:center">تسجيل الدخول</h2>
+            <h2 style="text-align:center">دخول النظام</h2>
             <input type="email" id="email" placeholder="البريد الإلكتروني">
             <input type="password" id="password" placeholder="كلمة المرور">
-            <button class="btn-login" id="loginBtn">دخول النظام</button>
+            <button class="btn-login" id="loginBtn">دخول</button>
         </div>
     </div>
 
     <div id="dashboard-page" class="hidden">
         <header>
-            <div>أهلاً: <span id="display-name"></span></div>
+            <div>المستخدم: <span id="display-name"></span></div>
+            <div id="page-indicator" style="font-weight: bold; color: #ffca28;">[ الصفحة الرئيسية ]</div>
             <button class="logout-btn" id="logoutBtn">خروج</button>
         </header>
 
@@ -47,7 +63,7 @@
 
         <main class="main-content">
             <div id="render-area" class="content-card">
-                <h3>يرجى اختيار قسم من الأعلى</h3>
+                <h3>جاري تحميل البيانات...</h3>
             </div>
         </main>
     </div>
@@ -57,9 +73,12 @@
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // إعدادات Firebase من صورتك (يرجى التأكد من الـ apiKey يدوياً)
+        // --- إعدادات النسخة ---
+        const APP_VERSION = "1.0.5"; // قم بتغيير هذا الرقم عند كل تحديث جديد للكود
+        document.getElementById('version-display').innerText = `الإصدار: ${APP_VERSION}`;
+
         const firebaseConfig = {
-            apiKey: "AIzaSyBsvBEEHEgBuw9Pdml-Om90mm8MLDw8gWs", // تأكد من مطابقة هذا المفتاح بالضبط
+            apiKey: "AIzaSyBsvBEEHEgBuw9Pdml-Om90mm8MLDw8gWs",
             authDomain: "baghethan-ba325.firebaseapp.com",
             projectId: "baghethan-ba325",
             storageBucket: "baghethan-ba325.firebasestorage.app",
@@ -73,7 +92,6 @@
 
         let userDocData = null;
 
-        // --- التعامل مع الدخول ---
         document.getElementById('loginBtn').addEventListener('click', async () => {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
@@ -84,7 +102,6 @@
             }
         });
 
-        // --- مراقبة حالة المستخدم ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const docRef = doc(db, "app_users", user.uid);
@@ -93,7 +110,6 @@
                     userDocData = snap.data();
                     loadDashboard();
                 } else {
-                    alert("الحساب غير موجود أو غير نشط");
                     signOut(auth);
                 }
             } else {
@@ -110,46 +126,48 @@
             const tabsCont = document.getElementById('tabs-container');
             tabsCont.innerHTML = '';
 
-            // بناء التبويبات بناءً على مصفوفة pages في المستند
             userDocData.pages.forEach(pageId => {
                 const btn = document.createElement('button');
                 btn.className = 'tab-item';
-                btn.innerText = pageId.charAt(0).toUpperCase() + pageId.slice(1); // تحويل أول حرف لكبير
+                btn.innerText = getFriendlyName(pageId);
                 btn.onclick = () => selectTab(pageId, btn);
                 tabsCont.appendChild(btn);
             });
+
+            // فتح أول تبويب تلقائياً
+            if (userDocData.pages.length > 0) {
+                tabsCont.firstChild.click();
+            }
         }
 
-        // --- تبديل محتوى التبويب مع فحص الصلاحيات ---
+        function getFriendlyName(id) {
+            const names = {
+                'dashboard': 'الرئيسية',
+                'checklist': 'قوائم الفحص',
+                'branches': 'الفروع',
+                'technicians': 'الفنيين',
+                'reports': 'التقارير'
+            };
+            return names[id] || id;
+        }
+
         window.selectTab = (id, el) => {
             document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
             el.classList.add('active');
 
+            // تحديث مؤشر الصفحة العلوي
+            document.getElementById('page-indicator').innerText = `[ ${getFriendlyName(id)} ]`;
+
             const renderArea = document.getElementById('render-area');
-            
-            // جلب صلاحية هذا التبويب من الـ permissions في Firestore
             const perm = userDocData.permissions[id];
 
             if (perm && perm.view) {
-                let content = `<h2>قسم ${id}</h2><hr>`;
-                
-                // إضافة محتوى مختلف لكل تبويب
-                if (id === 'dashboard') {
-                    content += `<p>مرحباً بك في لوحة المعلومات الرئيسية لشركة المجدوعي.</p>`;
-                } else if (id === 'checklist') {
-                    content += `<p>هنا تظهر قوائم الفحص الفنية.</p>`;
-                } else {
-                    content += `<p>محتوى افتراضي لصفحة ${id}</p>`;
-                }
-
-                // إذا كان لديه صلاحية add يظهر الزر
+                renderArea.innerHTML = `<h2>محتوى صفحة ${getFriendlyName(id)}</h2><p>هذه الصفحة تعمل ضمن الإصدار ${APP_VERSION}</p>`;
                 if (perm.add) {
-                    content += `<button style="background:green; color:white; padding:10px; border:none; border-radius:5px">إضافة جديد +</button>`;
+                    renderArea.innerHTML += `<button style="background:green; color:white; padding:8px 15px; border:none; border-radius:5px">إضافة في ${getFriendlyName(id)}</button>`;
                 }
-
-                renderArea.innerHTML = content;
             } else {
-                renderArea.innerHTML = `<h3 style="color:red">ليس لديك صلاحية عرض (View) لهذه الصفحة.</h3>`;
+                renderArea.innerHTML = `<h3 style="color:red">عذراً، لا تمتلك صلاحية عرض هذه الصفحة.</h3>`;
             }
         };
 
