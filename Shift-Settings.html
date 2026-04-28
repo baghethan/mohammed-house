@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shift Settings v1.2.1 - Almajdouie Motors</title>
+  <title>Shift Settings v1.2.2 - Almajdouie Motors</title>
   <style>
     :root{--primary:#0d2149;--primary2:#1b4fa3;--text:#1f2937;--muted:#64748b;--surface:rgba(255,255,255,.94);--surface2:#fff;--shadow:0 18px 50px rgba(13,33,73,.16);--success:#10b981}
     *{box-sizing:border-box} 
@@ -18,6 +18,7 @@
     input[type="time"]{padding:12px; border-radius:10px; border:1px solid #d8dee8; background:#fff; font-family:inherit; font-size:15px; color:var(--primary); font-weight:700}
     .shift-title { font-size:17px; font-weight:900; margin-bottom:15px; display:block; color:var(--primary); border-right:4px solid var(--primary); padding-right:10px; }
     .status-msg{padding:12px; border-radius:12px; text-align:center; font-weight:800; font-size:13px; display:none; margin-top:15px}
+    #authWarn { background:#fee2e2; color:#b91c1c; padding:10px; border-radius:10px; font-size:12px; margin-bottom:15px; display:none; text-align:center; font-weight:bold; }
   </style>
 </head>
 <body>
@@ -25,8 +26,10 @@
   <div class="glass">
     <div style="display:flex; align-items:center; gap:15px; margin-bottom:30px; border-bottom:2px solid #eee; padding-bottom:20px">
         <img src="LOGO-almajdouie.png" style="height:45px" />
-        <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:20px">إعدادات توقيت العمل v1.2.1</h2>
+        <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:20px">إعدادات توقيت العمل v1.2.2</h2>
     </div>
+
+    <div id="authWarn">⚠️ تنبيه: لم يتم اكتشاف تسجيل دخول في هذه النافذة. الحفظ قد يفشل.</div>
 
     <div class="card">
         <span class="shift-title">☀️ وردية الصباح (Morning Shift)</span>
@@ -59,6 +62,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { 
     initializeFirestore, doc, setDoc, getDoc, 
     persistentLocalCache, persistentMultipleTabManager 
@@ -66,14 +70,25 @@ import {
 
 const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
-// --- الحل لإجبار الاتصال وتجاوز الحظر ---
+// إجبار الاتصال عبر HTTP لتجاوز جدار الحماية
 const db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
     localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
 });
 
 const $=id=>document.getElementById(id);
+
+// التحقق من حالة المستخدم داخل الـ iframe
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        $('authWarn').style.display = 'none';
+        console.log("User logged in inside iframe:", user.email);
+    } else {
+        $('authWarn').style.display = 'block';
+    }
+});
 
 window.saveSettings = async () => {
     const btn = $('saveBtn');
@@ -93,7 +108,15 @@ window.saveSettings = async () => {
         box.style.display = 'block'; box.style.background = '#ecfdf5'; box.style.color = '#059669';
         setTimeout(() => box.style.display = 'none', 3000);
     } catch (e) {
-        alert("فشل الحفظ: تأكد من الاتصال بالإنترنت.");
+        console.error("Save error details:", e);
+        // تشخيص الخطأ للمستخدم
+        if (e.code === 'permission-denied') {
+            alert("خطأ في الصلاحيات: القواعد تمنع الحفظ. تأكد من أنك مسجل دخول كـ Admin.");
+        } else if (e.code === 'unavailable') {
+            alert("خطأ: الخادم غير متاح حالياً. قد يكون بسبب جدار حماية الشبكة.");
+        } else {
+            alert("فشل الحفظ: " + e.message);
+        }
     } finally {
         btn.innerText = "💾 حفظ كافة الإعدادات"; btn.disabled = false;
     }
