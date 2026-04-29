@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Diagnostics Tool v2.1.13</title>
+  <title>Diagnostics Tool v2.1.14</title>
   <style>
     :root{ --primary:#0d4b73; --green:#2f9e66; --danger:#d64545; --warning:#c47f00; --border:#d7e0ea; --text:#163247; --muted:#6e8192; --bg:#edf3f8; --card:#fff; --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px; }
     *{box-sizing:border-box}
@@ -22,6 +22,7 @@
     th{background:#f8fbff;color:var(--primary)}
     .badge-ready{ background: var(--green); color: white; padding: 2px 8px; border-radius: 10px; font-weight: bold;}
     .badge-pending{ background: var(--warning); color: white; padding: 2px 8px; border-radius: 10px;}
+    .badge-auto { background: #eee; color: #666; font-size: 10px; padding: 1px 5px; border-radius: 4px; margin-right: 5px; }
     @media (max-width:1000px){ .grid-2, .grid-3 {grid-template-columns: 1fr;} }
   </style>
 </head>
@@ -29,41 +30,43 @@
 
   <main>
     <div class="card">
-      <h3>ملخص الحالة / Performance v2.1.13</h3>
+      <h3>ملخص الأداء الذكي / v2.1.14</h3>
       <div class="grid-3">
         <div class="stat"><span class="label">مدة الجلسة</span><div class="value" id="diagSessionSeconds">0s</div></div>
         <div class="stat"><span class="label">زمن تعريف المستخدم</span><div class="value" id="diagAuthMs">0ms</div></div>
-        <div class="stat"><span class="label">إجمالي المستندات المراقبة</span><div class="value" id="diagTotalDocs">0</div></div>
+        <div class="stat"><span class="label">إجمالي التبويبات المكتشفة</span><div class="value" id="diagTotalTabs">0</div></div>
       </div>
     </div>
 
     <div class="grid-2">
       <div class="card">
-        <h3>جاهزية التبويبات / Tab Readiness</h3>
+        <h3>جاهزية التبويبات (قراءة آلية) / Tab Readiness</h3>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>التبويب (Tab)</th>
-                <th>الإصدار (Ver)</th> <th>الحالة (Status)</th>
-                <th>وقت الجاهزية</th>
-                <th>الاعتمادات (Deps)</th>
+                <th>الإصدار (Ver)</th>
+                <th>الحالة (Status)</th>
+                <th>وقت التحميل</th>
               </tr>
             </thead>
-            <tbody id="diagTabsBody"></tbody>
+            <tbody id="diagTabsBody">
+                <tr><td colspan="4" style="text-align:center">جاري استكشاف التبويبات...</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
 
       <div class="card">
-        <h3>مراقبة البيانات / Live Listeners</h3>
+        <h3>مراقبة قواعد البيانات / Database Listeners</h3>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>المستمع (Listener)</th>
                 <th>المستندات</th>
-                <th>أول استجابة</th>
+                <th>الاستجابة</th>
               </tr>
             </thead>
             <tbody id="diagListenersBody"></tbody>
@@ -96,41 +99,34 @@
       authMs: 0,
       metrics: {},
       userPages: [],
-      // مسميات الإصدارات الحالية
+      // التبويبات المعروفة يدوياً
       versions: { 
-        dashboard:'v1.0.2', 
-        checklist:'v1.2.0', 
-        brands:'v1.0.0', 
-        upgradeWindows:'v2.1.7', 
-        reports:'v1.0.5', 
-        visit:'v1.1.0', 
-        branches:'v1.0.0', 
-        technicians:'v1.0.1', 
-        permissions:'v1.0.0', 
-        dynamicChecklistAdmin:'v2.1.6',
-        diagnostics: 'v2.1.13'
+        dashboard:'v1.0.2', checklist:'v1.2.0', brands:'v1.0.0', upgradeWindows:'v2.1.7', 
+        reports:'v1.0.5', visit:'v1.1.0', branches:'v1.0.0', technicians:'v1.0.1', 
+        permissions:'v1.0.0', dynamicChecklistAdmin:'v2.1.6', diagnostics: 'v2.1.14'
       },
-      // خرائط الاعتمادات لكل تبويب
+      // الاعتمادات المعروفة يدوياً
       deps: { 
         dashboard:['branches','technicians','siteVisits'], 
         checklist:['technicians','siteVisits','checklist_fields'], 
         upgradeWindows:['windows_upgrades','branches'], 
         reports:['branch_checklists','siteVisits'],
         dynamicChecklistAdmin:['checklist_fields'],
-        visit:['siteVisits','branches','technicians'],
-        branches:['branches'],
-        technicians:['technicians'],
-        permissions:['app_users'],
-        brands:['brand_assets']
+        visit:['siteVisits','branches','technicians']
       }
     };
 
     const $ = id => document.getElementById(id);
 
-    // دالة تحويل الأسماء البرمجية للأسماء التي تظهر في قاعدة البيانات
-    function getSafeKey(id) {
-        const map = { 'checklist': 'قائمة الفحص', 'dashboard': 'الرئيسية', 'upgradeWindows': 'ترقية أجهزة ويندوز', 'visit': 'الزيارات', 'reports': 'التقارير', 'dynamicChecklistAdmin': 'إدارة الفحص الذكي', 'diagnostics': 'التشخيص' };
-        return map[id] || id;
+    // خريطة تحويل المسميات لضمان مطابقة Firebase
+    function getSafeKey(name) {
+        const map = { 
+            'قائمة الفحص': 'checklist', 'الرئيسية': 'dashboard', 'لوحة التحكم': 'dashboard',
+            'ترقية أجهزة ويندوز': 'upgradeWindows', 'تحديثات الويندوز': 'upgradeWindows',
+            'الزيارات': 'visit', 'زيارة الفرع': 'visit', 'التقارير': 'reports',
+            'إدارة الفحص الذكي': 'dynamicChecklistAdmin', 'التشخيص': 'diagnostics' 
+        };
+        return map[name] || name;
     }
 
     function listen(name) {
@@ -148,20 +144,32 @@
       $('diagSessionSeconds').textContent = elapsed + 's';
       $('diagAuthMs').textContent = state.authMs + 'ms';
 
-      // عرض التبويبات التي يمتلك المستخدم صلاحية عليها فقط، أو عرض الكل إذا لم يتوفر ملف تعريف
-      const tabsToDisplay = state.userPages.length > 0 ? Object.keys(state.deps).filter(k => state.userPages.includes(getSafeKey(k)) || state.userPages.includes(k)) : Object.keys(state.deps);
+      // قراءة كل تبويبات المستخدم من Firebase
+      const tabsToDisplay = state.userPages.map(p => ({
+          original: p,
+          key: getSafeKey(p)
+      }));
+      
+      $('diagTotalTabs').textContent = tabsToDisplay.length;
 
       $('diagTabsBody').innerHTML = tabsToDisplay.map(tab => {
-        const deps = state.deps[tab] || [];
+        const key = tab.key;
+        const ver = state.versions[key];
+        const deps = state.deps[key] || [];
+        
+        // إذا كان التبويب مجهولاً (جديد)، نعتبره Ready إذا انتهى الـ Auth
         const readyDeps = deps.filter(d => state.metrics[d]?.readyAt);
-        const isReady = readyDeps.length === deps.length;
-        const maxTime = isReady ? Math.max(...deps.map(d => state.metrics[d].readyAt)) : '-';
+        const isReady = deps.length > 0 ? (readyDeps.length === deps.length) : (state.authMs > 0);
+        const maxTime = isReady && deps.length > 0 ? Math.max(...deps.map(d => state.metrics[d].readyAt)) : (isReady ? state.authMs : '-');
         
         return `<tr>
-          <td>${tab}</td>
-          <td><b>${state.versions[tab] || '-'}</b></td> <td><span class="${isReady?'badge-ready':'badge-pending'}">${isReady?'Ready':'Pending'}</span></td>
+          <td>${tab.original} <br><small style="color:#999">${key}</small></td>
+          <td>
+            <b>${ver || 'v1.0.0'}</b> 
+            ${!ver ? '<span class="badge-auto">NEW</span>' : ''}
+          </td>
+          <td><span class="${isReady?'badge-ready':'badge-pending'}">${isReady?'Ready':'Pending'}</span></td>
           <td>${maxTime === '-' ? '-' : maxTime + 'ms'}</td>
-          <td style="font-size:10px; color:#999">${deps.join(', ')}</td>
         </tr>`;
       }).join('');
 
@@ -171,26 +179,24 @@
           <td>${m.count}</td>
           <td>${m.readyAt ? m.readyAt + 'ms' : '...'}</td>
         </tr>`).join('');
-      
-      $('diagTotalDocs').textContent = Object.values(state.metrics).reduce((s, x) => s + x.count, 0);
     }
 
     onAuthStateChanged(auth, async user => {
       if(user) {
         state.authMs = Math.round(performance.now() - state.startedAt);
-        // قراءة صلاحيات المستخدم لمعرفة التبويبات "الموجودة" له
         try {
             const userDoc = await getDoc(doc(db, 'app_users', user.uid));
-            if(userDoc.exists()) state.userPages = userDoc.data().pages || [];
-        } catch(e) {}
+            if(userDoc.exists()) {
+                state.userPages = userDoc.data().pages || [];
+            }
+        } catch(e) { console.error("Error fetching pages:", e); }
         
-        // تشغيل المستمعات للجداول الأساسية
         ['branches','technicians','siteVisits','checklist_fields','windows_upgrades','branch_checklists','app_users','brand_assets'].forEach(listen);
         render();
       }
     });
 
-    setInterval(render, 3000);
+    setInterval(render, 4000);
   </script>
 </body>
 </html>
