@@ -21,14 +21,18 @@
             background: var(--bg);
         }
 
-        body { display: flex; flex-direction: column; }
+        body { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh;
+        }
 
         .hidden { display: none !important; }
 
         /* تأثير التوسع السلس عند فتح الصفحات */
         @keyframes expandPage {
-            from { opacity: 0; transform: translateY(15px) scale(0.99); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .page-animation { animation: expandPage 0.4s ease-out forwards; }
 
@@ -36,6 +40,7 @@
             background: var(--dark); color: white; padding: 10px 25px; 
             display: flex; justify-content: space-between; align-items: center; 
             box-shadow: 0 2px 10px rgba(0,0,0,0.2); flex-shrink: 0;
+            z-index: 10;
         }
 
         .nav-tabs { 
@@ -56,6 +61,7 @@
             display: flex; 
             flex-direction: column; 
             box-sizing: border-box;
+            overflow: hidden; /* يمنع ظهور شريط تمرير مزدوج */
         }
 
         #viewContainer { 
@@ -65,9 +71,15 @@
             box-shadow: 0 10px 30px rgba(18,48,74,.08); 
             overflow: hidden; 
             display: flex;
+            flex-direction: column;
         }
 
-        #contentFrame { width: 100%; height: 100%; border: none; }
+        #contentFrame { 
+            width: 100%; 
+            flex: 1; /* التمدد لملء الحاوية */
+            border: none; 
+            display: block;
+        }
 
         /* شاشة تسجيل الدخول */
         #login-page { 
@@ -91,13 +103,15 @@
         </div>
     </div>
 
-    <div id="dash-page" class="hidden">
+    <div id="dash-page" class="hidden" style="height: 100%; display: flex; flex-direction: column;">
         <header>
             <div id="userDisplay" style="font-size: 13px;"></div>
             <div style="font-weight: 800; letter-spacing: 0.5px;">نظام المجدوعي الموحد</div>
             <button onclick="location.reload()" style="background:#d64545; color:white; border:none; padding:5px 15px; border-radius:20px; cursor:pointer; font-weight:bold; font-size: 11px;">خروج</button>
         </header>
+        
         <nav class="nav-tabs" id="tabsBox"></nav>
+        
         <main class="main-content">
             <div id="viewContainer">
                 <iframe id="contentFrame" name="contentFrame"></iframe>
@@ -126,7 +140,11 @@
         window.handleLogin = async () => {
             const e = document.getElementById('emailField').value;
             const p = document.getElementById('passField').value;
-            try { await window.appAuth.signInWithEmailAndPassword(e, p); } catch { document.getElementById('msg').innerText = "بيانات الدخول غير صحيحة"; }
+            try { 
+                await window.appAuth.signInWithEmailAndPassword(e, p); 
+            } catch { 
+                document.getElementById('msg').innerText = "بيانات الدخول غير صحيحة"; 
+            }
         };
 
         window.appAuth.onAuthStateChanged(async (user) => {
@@ -142,6 +160,7 @@
         function showDash() {
             document.getElementById('login-page').classList.add('hidden');
             document.getElementById('dash-page').classList.remove('hidden');
+            document.getElementById('dash-page').style.display = 'flex'; // لضمان عمل Flexbox
             document.getElementById('userDisplay').innerHTML = `مرحباً: <b>${window.currentUserData.name}</b>`;
             
             const box = document.getElementById('tabsBox');
@@ -157,7 +176,20 @@
         }
 
         function translate(id) {
-            const names = { 'dashboard': 'الرئيسية', 'branches': 'إدارة الفروع', 'technicians': 'الفنيين', 'holidays': 'الإجازات' };
+            const names = { 
+                'dashboard': 'الرئيسية', 
+                'branches': 'إدارة الفروع', 
+                'technicians': 'الفنيين', 
+                'holidays': 'الإجازات',
+                'diagnostics': 'التشخيص',
+                'dynamicChecklistAdmin': 'إدارة الفحص الذكي',
+                'permissions': 'الصلاحيات',
+                'visit': 'الزيارات',
+                'reports': 'التقارير',
+                'upgradeWindows': 'تحديثات الويندوز',
+                'brands': 'العلامات التجارية',
+                'checklist': 'قائمة الفحص'
+            };
             return names[id] || id;
         }
 
@@ -167,7 +199,7 @@
             
             const frame = document.getElementById('contentFrame');
             frame.classList.remove('page-animation');
-            void frame.offsetWidth; // إجبار المتصفح على إعادة تشغيل الأنميشن
+            void frame.offsetWidth; // Force reflow لضمان إعادة تشغيل الأنميشن
             
             frame.src = id + ".html";
             frame.classList.add('page-animation');
