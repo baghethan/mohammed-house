@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors | Master v1.2.8</title>
+    <title>Almajdouie Motors | Master v1.2.9</title>
     <style>
         :root { 
             --primary: #0d4b73; 
@@ -121,7 +121,7 @@
                     'dashboard': 'Dashboard', 'branches': 'Branches', 'technicians': 'Technicians',
                     'holidays': 'Holidays', 'diagnostics': 'Diagnostics', 'dynamicChecklistAdmin': 'Checklist Admin',
                     'permissions': 'Permissions', 'visit': 'Visits', 'reports': 'Reports',
-                    'upgradeWindows': 'Windows Updates', 'brands': 'Brands', 'checklist': 'Checklist'
+                    'upgradeWindows': 'Windows Upgrades', 'brands': 'Brands', 'checklist': 'Checklist'
                 }
             },
             ar: {
@@ -137,9 +137,13 @@
             }
         };
 
-        // معالجة أسماء الصفحات القادمة من Firebase لتتوافق مع النظام
         function getSafeKey(id) {
-            const map = { 'قائمة الفحص': 'checklist', 'الرئيسية': 'dashboard', 'لوحة التحكم': 'dashboard' };
+            const map = { 
+                'قائمة الفحص': 'checklist', 
+                'الرئيسية': 'dashboard', 
+                'تحديثات الويندوز': 'upgradeWindows',
+                'لوحة التحكم': 'dashboard' 
+            };
             return map[id] || id;
         }
 
@@ -147,9 +151,8 @@
             currentLang = currentLang === 'en' ? 'ar' : 'en';
             applyTranslations();
             if(window.currentUserData) {
-                showDash(); // إعادة بناء التبويبات باللغة الجديدة
+                showDash();
                 if(activeTabId) {
-                    // إعادة تحميل الصفحة الداخلية باللغة الجديدة فوراً
                     const activeBtn = document.querySelector(`.tab[data-id="${activeTabId}"]`);
                     loadTab(activeTabId, activeBtn);
                 }
@@ -210,12 +213,11 @@
             document.getElementById('dash-page').style.display = 'flex';
             
             const box = document.getElementById('tabsBox');
-            const savedActiveId = activeTabId; // حفظ التبويب الحالي قبل المسح
+            const savedActiveId = activeTabId; 
             box.innerHTML = '';
             
             let pages = (window.currentUserData.pages || []).map(p => getSafeKey(p));
 
-            // إجبار Checklist لتكون الأولى
             if (pages.includes('checklist')) {
                 pages = ['checklist', ...pages.filter(p => p !== 'checklist')];
             }
@@ -229,7 +231,6 @@
                 box.appendChild(b);
             });
 
-            // فتح التبويب الأول تلقائياً عند أول دخول، أو العودة للتبويب السابق عند تغيير اللغة
             if(savedActiveId) {
                 const btn = document.querySelector(`.tab[data-id="${savedActiveId}"]`);
                 if(btn) btn.classList.add('active');
@@ -247,10 +248,19 @@
             frame.classList.remove('page-animation');
             void frame.offsetWidth; 
 
-            // توجيه لملف check-list.html مع تمرير اللغة في الرابط
-            let fileName = (id === 'checklist') ? "check-list.html" : id + ".html";
-            frame.src = fileName + "?lang=" + currentLang;
+            let cleanId = getSafeKey(id);
+            let fileName;
+
+            // منطق الربط المخصص للملفات
+            if (cleanId === 'checklist') {
+                fileName = "check-list.html";
+            } else if (cleanId === 'upgradeWindows') {
+                fileName = "upgrade-windows.html";
+            } else {
+                fileName = cleanId + ".html";
+            }
             
+            frame.src = fileName + "?lang=" + currentLang;
             frame.classList.add('page-animation');
         };
 
