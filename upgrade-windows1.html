@@ -1,343 +1,185 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" id="report-html">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>نظام ترقية الويندوز - Upgrade Windows</title>
-  <style>
-    :root{
-      --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
-      --border:#d7e0ea; --text:#163247; --muted:#6e8192; --bg:#edf3f8; --card:#fff; --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg)}
-    header{background:var(--primary);color:#fff;padding:14px 18px;box-shadow:var(--shadow);position:sticky;top:0;z-index:50}
-    .container{max-width:1500px;margin:18px auto;padding:0 14px 28px}
-    .grid-2{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
-    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:14px}
-    .grid-4{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px}
-    .card,.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
-    .card{padding:16px;overflow:hidden;margin-bottom:16px}
-    .card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
-    .stat{padding:16px}.stat .label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}.stat .value{font-size:30px;font-weight:800;color:var(--primary)}
-    .field{display:grid;gap:8px;margin-bottom:12px}.field label{font-size:14px;font-weight:700}.field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:inherit;background:#fbfcfe}
-    .btn{border:1px solid var(--border);border-radius:999px;padding:10px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer}
-    .btn.green{background:var(--green);border-color:var(--green);color:#fff}.btn.warning{background:var(--warning);border-color:var(--warning);color:#fff}
-    .btn.small{padding:7px 11px;font-size:12px}
-    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;margin-bottom:14px}
-    .note{background:#f6fbff;border:1px dashed #bfd7e8;color:#33546b;border-radius:12px;padding:10px 12px;margin-top:12px;line-height:1.7;font-size:13px}
-    .alert{padding:10px 12px;border-radius:12px;margin-top:10px}.alert.error{background:#ffecec;border:1px solid #f3b0b0;color:#8a1f1f}.hidden{display:none}
-    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px;background:#fff} table{width:100%;border-collapse:collapse} th,td{padding:12px 10px;border-bottom:1px solid #edf2f7;text-align:right;white-space:nowrap;font-size:13px} th{background:#f8fbff;color:var(--primary)}
+    <meta charset="UTF-8">
+    <title>تقرير ترقية الأنظمة — شركة المجدوعي للسيارات</title>
     
-    /* Upgrade Summary Specific */
-    .upgrade-summary-top{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px;margin-bottom:16px}
-    .upgrade-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-    .upgrade-meta-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
-    .upgrade-meta-card h4{margin:0 0 12px;color:var(--primary);font-size:16px}
-    .upgrade-mini-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-    .upgrade-mini-card{border:1px solid var(--border);border-top:5px solid var(--primary);border-radius:14px;padding:12px;background:#fbfdff}
-    .upgrade-mini-title{font-weight:800;color:var(--primary);margin-bottom:10px;font-size:14px}
-    .upgrade-mini-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-    .upgrade-mini-pill{border:1px solid var(--border);border-radius:12px;padding:8px 10px;background:#fff;text-align:center}
-    .upgrade-mini-pill .label{display:block;font-size:10px;color:var(--muted)}
-    .upgrade-mini-pill .value{font-size:16px;font-weight:800}
-    .upgrade-progress-track{height:8px;background:#e9f0f6;border-radius:999px;overflow:hidden;margin-top:5px}
-    .upgrade-progress-fill{height:100%;border-radius:999px;transition:width .25s ease}
-    
-    @media (max-width:1200px){ .grid-2, .grid-3, .grid-4, .upgrade-summary-top, .upgrade-meta-grid { grid-template-columns: 1fr; } }
-  </style>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        :root { --primary: #0d4b73; --success: #10b981; --warning: #f59e0b; --bg: #f4f7f9; }
+        body { margin: 0; padding: 40px; font-family: 'Segoe UI', Tahoma, sans-serif; background: #e2e8f0; transition: 0.3s; }
+        
+        /* ورقة التقرير */
+        .report-paper { 
+            max-width: 1100px; margin: auto; background: white; padding: 50px; 
+            border-radius: 25px; box-shadow: 0 15px 50px rgba(0,0,0,0.1); 
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--primary); padding-bottom: 25px; margin-bottom: 35px; }
+        .logo-img { height: 65px; }
+        .title-box h1 { margin: 0; font-size: 26px; color: var(--primary); font-weight: 800; }
+
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; margin-bottom: 40px; }
+        .stat-card { background: #fff; padding: 25px; border-radius: 20px; text-align: center; border: 1px solid #f1f5f9; }
+        .stat-card h2 { font-size: 55px; margin: 10px 0; color: var(--primary); }
+
+        .item { background: #f8fafc; border-radius: 15px; padding: 15px; margin-bottom: 12px; border: 1px solid #edf2f7; }
+        .progress-container { width: 100%; background: #e2e8f0; height: 8px; border-radius: 10px; margin: 10px 0; overflow: hidden; }
+        .progress-bar { height: 100%; background: var(--success); border-radius: 10px; }
+
+        /* الأزرار العائمة (لن تظهر في الصورة المنسوخة) */
+        .floating-controls { position: fixed; bottom: 30px; left: 30px; display: flex; flex-direction: column; gap: 12px; z-index: 1000; }
+        .btn { 
+            border: none; padding: 14px 22px; border-radius: 50px; cursor: pointer; 
+            font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 10px; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15); transition: 0.3s;
+        }
+        .btn:hover { transform: scale(1.05); }
+        .btn-back { background: #475569; color: white; } /* زر الرجوع */
+        .btn-lang { background: var(--primary); color: white; }
+        .btn-copy { background: var(--success); color: white; }
+
+        [dir="ltr"] .header { flex-direction: row-reverse; }
+        [dir="ltr"] .title-box { text-align: left; }
+    </style>
 </head>
 <body>
 
-<header>
-  <div class="container" style="margin:0 auto; padding:0">
-    <div style="display:flex; justify-content:space-between; align-items:center">
-      <div style="font-size:22px; font-weight:800">ترقية أنظمة الويندوز | Windows Upgrade Portal</div>
-      <div id="userInfo" style="font-size:14px">جاري التحميل...</div>
+<div class="floating-controls">
+    <button class="btn btn-back" onclick="window.location.href='upgrade-windows.html'">
+        <i class="fas fa-arrow-right"></i> <span data-i18n="btn_back">العودة للوحة التحكم</span>
+    </button>
+    <button class="btn btn-lang" onclick="toggleLanguage()">
+        <i class="fas fa-language"></i> <span id="lang-text">English</span>
+    </button>
+    <button class="btn btn-copy" onclick="copyReportImage()">
+        <i class="fas fa-camera"></i> <span data-i18n="btn_capture">نسخ التقرير للإيميل</span>
+    </button>
+</div>
+
+<div class="report-paper" id="report-content">
+    <div class="header">
+        <div style="display:flex; align-items:center; gap:20px;">
+            <img src="LOGO-almajdouie.png" alt="Logo" class="logo-img">
+            <div class="title-box">
+                <h1 data-i18n="comp_name">شركة المجدوعي للسيارات</h1>
+                <p data-i18n="sys_name">نظام متابعة ترقية الأنظمة - Upgrade Windows Management</p>
+            </div>
+        </div>
+        <div style="text-align: left; font-size: 12px; color: #94a3b8;">
+            <span data-i18n="date_lbl">تاريخ التقرير</span>: <span id="report-date"></span><br>
+            <span id="user-status" style="color:var(--primary)">جاري المزامنة...</span>
+        </div>
     </div>
-  </div>
-</header>
 
-<main class="container">
-  <section class="card">
-    <h3>ملخص ترقية الأجهزة</h3>
-    <div class="upgrade-summary-top">
-      <div class="stat"><span class="label">إجمالي السجلات</span><div class="value" id="upgradeWindowsStatTotal">0</div></div>
-      <div class="stat"><span class="label">إجمالي الأجهزة</span><div class="value" id="upgradeWindowsStatDevices">0</div></div>
-      <div class="stat"><span class="label">قيد التنفيذ</span><div class="value" id="upgradeWindowsStatInProgress">0</div></div>
-      <div class="stat"><span class="label">مكتمل</span><div class="value" id="upgradeWindowsStatCompleted">0</div></div>
+    <div class="stats-row">
+        <div class="stat-card"><span data-i18n="stat_total">إجمالي الأجهزة</span><h2 id="v-total">0</h2></div>
+        <div class="stat-card" style="border-color:var(--warning)"><span data-i18n="stat_remain">متبقي (Planned)</span><h2 id="v-remain" style="color:var(--warning)">0</h2></div>
+        <div class="stat-card" style="border-color:var(--success)"><span data-i18n="stat_done">مكتمل (Completed)</span><h2 id="v-done" style="color:var(--success)">0</h2></div>
     </div>
-    <div class="upgrade-meta-grid">
-      <div class="upgrade-meta-card">
-        <h4>المناطق</h4>
-        <div class="upgrade-mini-grid" id="upgradeWindowsRegionsGrid"></div>
-      </div>
-      <div class="upgrade-meta-card">
-        <h4>المدن</h4>
-        <div class="upgrade-mini-grid" id="upgradeWindowsCitiesGrid"></div>
-      </div>
+
+    <div class="grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+        <div class="list-card"><h4><i class="fas fa-map-marker-alt"></i> <span data-i18n="sec_reg">المناطق</span></h4><div id="list-reg"></div></div>
+        <div class="list-card"><h4><i class="fas fa-city"></i> <span data-i18n="sec_city">المدن</span></h4><div id="list-city"></div></div>
+        <div class="list-card"><h4><i class="fas fa-car"></i> <span data-i18n="sec_brand">البراندات</span></h4><div id="list-brand"></div></div>
     </div>
-  </section>
+</div>
 
-  <div class="grid-2">
-    <section class="card">
-      <h3>إدخال / تعديل بيانات الترقية</h3>
-      <input type="hidden" id="uwEditingId">
-      
-      <div class="grid-3">
-        <div class="field"><label>الفرع</label><select id="uwBranchSelect"></select></div>
-        <div class="field"><label>الموظف في الفرع؟</label><select id="uwEmployeeInBranch"><option value="yes">نعم</option><option value="no">لا</option></select></div>
-        <div class="field"><label>Branch ID</label><input id="uwBranchId" readonly></div>
-      </div>
-
-      <div class="grid-3">
-        <div class="field"><label>البراند</label><select id="uwBrandSelect"></select></div>
-        <div class="field"><label>المدينة</label><input id="uwCity" readonly></div>
-        <div class="field"><label>المنطقة</label><input id="uwRegion" readonly></div>
-      </div>
-
-      <div class="grid-3">
-        <div class="field"><label>اسم الموظف</label><input id="uwEmployeeName"></div>
-        <div class="field"><label>رقم الموظف</label><input id="uwEmployeeId"></div>
-        <div class="field"><label>اسم الجهاز</label><input id="uwDeviceName"></div>
-      </div>
-
-      <div class="grid-3">
-        <div class="field"><label>عدد الأجهزة</label><input id="uwDevicesCount" type="number" min="1"></div>
-        <div class="field"><label>تاريخ الزيارة</label><input id="uwTechnicianVisitDate" type="date"></div>
-        <div class="field"><label>الحالة</label><select id="uwStatus">
-          <option value="planned">Planned</option>
-          <option value="in progress">In Progress</option>
-          <option value="completed">Completed</option>
-        </select></div>
-      </div>
-
-      <div class="field"><label>ملاحظات</label><textarea id="uwNotes"></textarea></div>
-
-      <div class="actions">
-        <button class="btn green" id="saveUWBtn">حفظ السجل</button>
-        <button class="btn" id="clearUWBtn">تنظيف الحقول</button>
-      </div>
-
-      <hr style="border:0; border-top:1px solid var(--border); margin:20px 0">
-
-      <div class="grid-3">
-        <div class="field"><label>ملف Excel</label><input id="uwExcelFile" type="file" accept=".xlsx,.xls"></div>
-        <div class="field"><label>&nbsp;</label><button class="btn warning" id="importUWBtn">استيراد من Excel</button></div>
-        <div class="field"><label>&nbsp;</label><button class="btn" id="exportUWBtn">تصدير إلى Excel</button></div>
-      </div>
-      
-      <div id="uwMessage" class="note">جاهز للعمل.</div>
-      <div id="uwError" class="alert error hidden"></div>
-    </section>
-
-    <section class="card">
-      <h3>سجلات الترقية الحالية</h3>
-      <div class="field"><input id="uwSearch" placeholder="بحث سريع عن موظف، فرع، أو جهاز..."></div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Branch ID</th>
-              <th>الموظف</th>
-              <th>الجهاز</th>
-              <th>الحالة</th>
-              <th>إجراء</th>
-            </tr>
-          </thead>
-          <tbody id="uwTableBody"></tbody>
-        </table>
-      </div>
-    </section>
-  </div>
-</main>
-
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script type="module">
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-  import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-  import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, query, onSnapshot, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-
-  const firebaseConfig = {
-    apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
-    authDomain:'baghethan-ba325.firebaseapp.com',
-    projectId:'baghethan-ba325',
-    storageBucket:'baghethan-ba325.firebasestorage.app',
-    messagingSenderId:'944819735112',
-    appId:'1:944819735112:web:07315600da39377320667d'
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  const state = {
-    windowsUpgrades: [],
-    branches: [],
-    brands: [],
-    currentUser: null
-  };
-
-  const $ = id => document.getElementById(id);
-
-  // --- Functions Logics ---
-
-  function renderUpgradeWindowsSummary() {
-    const total = state.windowsUpgrades.length;
-    const devices = state.windowsUpgrades.reduce((s, r) => s + (Number(r.devicesCount) || 0), 0);
-    const inProgress = state.windowsUpgrades.filter(r => ['planned', 'in progress'].includes(String(r.status || '').toLowerCase())).length;
-    const completed = state.windowsUpgrades.filter(r => String(r.status || '').toLowerCase() === 'completed').length;
-
-    $('upgradeWindowsStatTotal').textContent = total;
-    $('upgradeWindowsStatDevices').textContent = devices;
-    $('upgradeWindowsStatInProgress').textContent = inProgress;
-    $('upgradeWindowsStatCompleted').textContent = completed;
-
-    const buildCards = (key) => {
-        const map = new Map();
-        state.windowsUpgrades.forEach(r => {
-            const val = r[key] || 'غير محدد';
-            if(!map.has(val)) map.set(val, { p:0, c:0 });
-            const b = map.get(val);
-            if(r.status === 'completed') b.c++; else b.p++;
-        });
-        return [...map.entries()].map(([name, counts]) => {
-            const pct = Math.round((counts.c / (counts.c + counts.p)) * 100) || 0;
-            return `
-                <div class="upgrade-mini-card">
-                    <div class="upgrade-mini-title">${name}</div>
-                    <div class="upgrade-mini-stats">
-                        <div class="upgrade-mini-pill"><span class="label">معلق</span><span class="value">${counts.p}</span></div>
-                        <div class="upgrade-mini-pill"><span class="label">مكتمل</span><span class="value">${counts.c}</span></div>
-                    </div>
-                    <div class="upgrade-progress-track"><div class="upgrade-progress-fill" style="width:${pct}%; background:var(--green)"></div></div>
-                </div>`;
-        }).join('');
+<script>
+    const i18n = {
+        ar: { comp_name: "شركة المجدوعي للسيارات", sys_name: "نظام متابعة ترقية الأنظمة", stat_total: "إجمالي الأجهزة", stat_remain: "متبقي", stat_done: "مكتمل", btn_back: "العودة للوحة التحكم", btn_capture: "نسخ التقرير للإيميل", sec_reg: "المناطق", sec_city: "المدن", sec_brand: "البراندات", date_lbl: "التاريخ", t: "إجمالي", r: "باقي", d: "تم" },
+        en: { comp_name: "Almajdouie Motors Co.", sys_name: "Systems Upgrade Management", stat_total: "Total Devices", stat_remain: "Remain", stat_done: "Done", btn_back: "Back to Control Center", btn_capture: "Copy Image for Email", sec_reg: "Regions", sec_city: "Cities", sec_brand: "Brands", date_lbl: "Date", t: "Total", r: "Remain", d: "Done" }
     };
 
-    $('upgradeWindowsRegionsGrid').innerHTML = buildCards('region');
-    $('upgradeWindowsCitiesGrid').innerHTML = buildCards('city');
-  }
+    let currentLang = 'ar';
+    const firebaseConfig = {
+      apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
+      authDomain: "baghethan-ba325.firebaseapp.com",
+      projectId: "baghethan-ba325",
+      storageBucket: "baghethan-ba325.firebasestorage.app",
+      messagingSenderId: "944819735112",
+      appId: "1:944819735112:web:07315600da39377320667d"
+    };
 
-  function renderUpgradeWindowsTable() {
-    const q = ($('uwSearch').value || '').toLowerCase();
-    const filtered = state.windowsUpgrades.filter(r => 
-        !q || [r.employeeName, r.branchId, r.deviceName, r.status].some(v => String(v||'').toLowerCase().includes(q))
-    );
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
 
-    $('uwTableBody').innerHTML = filtered.map(r => `
-      <tr>
-        <td>${r.branchId || '-'}</td>
-        <td>${r.employeeName || '-'}</td>
-        <td>${r.deviceName || '-'}</td>
-        <td><span style="color:${r.status === 'completed' ? 'var(--green)' : 'var(--warning)'}">${r.status}</span></td>
-        <td><button class="btn small" onclick="editRecord('${r.id}')">تعديل</button></td>
-      </tr>
-    `).join('');
-    renderUpgradeWindowsSummary();
-  }
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            document.getElementById('user-status').innerText = "متصل: " + user.email;
+            startSync();
+        } else { window.location.href = "login.html"; }
+    });
 
-  window.editRecord = (id) => {
-    const r = state.windowsUpgrades.find(x => x.id === id);
-    if(!r) return;
-    $('uwEditingId').value = r.id;
-    $('uwBranchSelect').value = r.branchId || '';
-    $('uwBranchId').value = r.branchId || '';
-    $('uwBrandSelect').value = r.brand || '';
-    $('uwCity').value = r.city || '';
-    $('uwRegion').value = r.region || '';
-    $('uwEmployeeName').value = r.employeeName || '';
-    $('uwEmployeeId').value = r.employeeId || '';
-    $('uwDeviceName').value = r.deviceName || '';
-    $('uwDevicesCount').value = r.devicesCount || 1;
-    $('uwTechnicianVisitDate').value = r.technicianVisitDate || '';
-    $('uwStatus').value = r.status || 'planned';
-    $('uwNotes').value = r.notes || '';
-  };
-
-  async function saveRecord() {
-    try {
-        const id = $('uwEditingId').value;
-        const payload = {
-            branchId: $('uwBranchId').value,
-            brand: $('uwBrandSelect').value,
-            city: $('uwCity').value,
-            region: $('uwRegion').value,
-            employeeName: $('uwEmployeeName').value,
-            employeeId: $('uwEmployeeId').value,
-            deviceName: $('uwDeviceName').value,
-            devicesCount: Number($('uwDevicesCount').value),
-            technicianVisitDate: $('uwTechnicianVisitDate').value,
-            status: $('uwStatus').value,
-            notes: $('uwNotes').value,
-            updatedAt: Timestamp.now()
-        };
-        if(id) await setDoc(doc(db, 'windows_upgrades', id), payload, {merge:true});
-        else await addDoc(collection(db, 'windows_upgrades'), { ...payload, createdAt: Timestamp.now() });
-        
-        $('uwMessage').textContent = "تم الحفظ بنجاح";
-        clearForm();
-    } catch(e) { $('uwError').textContent = e.message; $('uwError').classList.remove('hidden'); }
-  }
-
-  function clearForm() {
-    $('uwEditingId').value = '';
-    $('uwBranchId').value = '';
-    $('uwEmployeeName').value = '';
-    $('uwEmployeeId').value = '';
-    $('uwDeviceName').value = '';
-    $('uwNotes').value = '';
-    $('uwBranchSelect').value = '';
-  }
-
-  // --- Listeners ---
-  onAuthStateChanged(auth, user => {
-    if(user) {
-        state.currentUser = user;
-        $('userInfo').textContent = `متصل كـ: ${user.email}`;
-        
-        onSnapshot(collection(db, 'windows_upgrades'), snap => {
-            state.windowsUpgrades = snap.docs.map(d => ({id: d.id, ...d.data()}));
-            renderUpgradeWindowsTable();
+    function startSync() {
+        db.collection("windows_upgrades").onSnapshot(snapshot => {
+            let total = 0, done = 0;
+            const sums = { region: {}, city: {}, brand: {} };
+            snapshot.forEach(doc => {
+                const d = doc.data();
+                let c = parseInt(d.devicesCount || 1);
+                let s = String(d.status || '').toLowerCase().trim();
+                total += c; if(s === 'completed') done += c;
+                ['region', 'city', 'brand'].forEach(k => {
+                    let val = d[k] || 'N/A';
+                    if(!sums[k][val]) sums[k][val] = { t:0, d:0 };
+                    sums[k][val].t += c; if(s === 'completed') sums[k][val].d += c;
+                });
+            });
+            document.getElementById('v-total').innerText = total;
+            document.getElementById('v-done').innerText = done;
+            document.getElementById('v-remain').innerText = total - done;
+            renderAll(sums);
         });
-
-        onSnapshot(collection(db, 'branches'), snap => {
-            state.branches = snap.docs.map(d => ({id: d.id, ...d.data()}));
-            $('uwBranchSelect').innerHTML = '<option value="">اختر الفرع</option>' + 
-                state.branches.map(b => `<option value="${b.id}">${b.branchName || b.id}</option>`).join('');
-        });
-
-        onSnapshot(collection(db, 'brand_assets'), snap => {
-            state.brands = snap.docs.map(d => ({id: d.id, ...d.data()}));
-            $('uwBrandSelect').innerHTML = '<option value="">اختر البراند</option>' + 
-                state.brands.map(b => `<option value="${b.brand || b.nameEn}">${b.nameAr || b.brand}</option>`).join('');
-        });
-    } else {
-        window.location.href = "Site-Visit.html"; // العودة لصفحة الدخول إذا لم يكن مسجلاً
     }
-  });
 
-  $('uwBranchSelect').addEventListener('change', e => {
-      const b = state.branches.find(x => x.id === e.target.value);
-      if(b) {
-          $('uwBranchId').value = b.id;
-          $('uwCity').value = b.city || '';
-          $('uwRegion').value = b.region || '';
-      }
-  });
+    function renderAll(sums) {
+        const lang = i18n[currentLang];
+        const draw = (id, data) => {
+            const el = document.getElementById(id); el.innerHTML = '';
+            Object.entries(data).sort((a,b)=>b[1].t - a[1].t).forEach(([name, v]) => {
+                let p = Math.round((v.d/v.t)*100) || 0;
+                el.innerHTML += `<div class="item">
+                    <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:13px;"><span>${name}</span><span>${p}%</span></div>
+                    <div class="progress-container"><div class="progress-bar" style="width:${p}%"></div></div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; text-align:center; font-size:10px;">
+                        <div style="background:white; border-radius:5px; padding:3px;">${lang.t}: ${v.t}</div>
+                        <div style="background:white; border-radius:5px; padding:3px; color:orange;">${lang.r}: ${v.t-v.d}</div>
+                        <div style="background:white; border-radius:5px; padding:3px; color:green;">${lang.d}: ${v.d}</div>
+                    </div></div>`;
+            });
+        };
+        draw('list-reg', sums.region); draw('list-city', sums.city); draw('list-brand', sums.brand);
+    }
 
-  $('saveUWBtn').addEventListener('click', saveRecord);
-  $('clearUWBtn').addEventListener('click', clearForm);
-  $('uwSearch').addEventListener('input', renderUpgradeWindowsTable);
+    function toggleLanguage() {
+        currentLang = currentLang === 'ar' ? 'en' : 'ar';
+        const d = i18n[currentLang];
+        document.getElementById('report-html').dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+        document.getElementById('lang-text').innerText = currentLang === 'ar' ? 'English' : 'العربية';
+        document.querySelectorAll('[data-i18n]').forEach(el => { el.innerText = d[el.getAttribute('data-i18n')]; });
+        startSync();
+    }
 
-  // التصدير للاكسل
-  $('exportUWBtn').addEventListener('click', () => {
-      const ws = XLSX.utils.json_to_sheet(state.windowsUpgrades);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Upgrades");
-      XLSX.writeFile(wb, "Windows_Upgrade_Report.xlsx");
-  });
+    async function copyReportImage() {
+        const btn = document.querySelector('.btn-copy');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري النسخ...';
+        const canvas = await html2canvas(document.getElementById('report-content'), { scale: 2, backgroundColor: "#ffffff" });
+        canvas.toBlob(blob => {
+            navigator.clipboard.write([new ClipboardItem({"image/png": blob})]).then(() => {
+                btn.innerHTML = '<i class="fas fa-check"></i> تم النسخ!';
+                setTimeout(() => btn.innerHTML = '<i class="fas fa-camera"></i> ' + i18n[currentLang].btn_capture, 2000);
+            });
+        });
+    }
 
+    document.getElementById('report-date').innerText = new Date().toLocaleDateString('ar-SA');
 </script>
 </body>
 </html>
