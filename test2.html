@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors | Master v1.3.4</title>
+    <title>Almajdouie Motors | Master v1.3.5</title>
     <style>
         :root { 
             --primary: #0d4b73; 
@@ -37,11 +37,18 @@
             overflow-x: auto; white-space: nowrap; flex-shrink: 0;
         }
 
+        /* تعديل التنسيق ليدعم ظهور الإصدار بالأسفل */
         .tab { 
-            padding: 15px 20px; border: none; background: none; cursor: pointer; 
-            font-weight: 700; color: #6e8192; border-bottom: 3px solid transparent; transition: 0.3s; 
+            padding: 8px 20px; border: none; background: none; cursor: pointer; 
+            color: #6e8192; border-bottom: 3px solid transparent; transition: 0.3s; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-width: 100px;
         }
+        .tab-text { font-weight: 700; font-size: 14px; }
+        .tab-ver { font-size: 9px; font-weight: 400; opacity: 0.6; margin-top: 2px; }
+        
         .tab.active { color: var(--primary); border-bottom-color: var(--primary); background: #f6fbff; }
+        .tab.active .tab-ver { opacity: 0.9; color: var(--primary); }
 
         .main-content { 
             flex: 1; padding: 10px; display: flex; flex-direction: column; 
@@ -68,7 +75,6 @@
             padding: 4px 12px; border-radius: 15px; cursor: pointer;
             font-size: 11px; font-weight: bold; margin: 0 10px;
         }
-        .lang-btn:hover { background: #555; }
     </style>
 </head>
 <body>
@@ -112,24 +118,32 @@
         let currentLang = 'en'; 
         let activeTabId = null;
 
+        // خريطة الإصدارات لكل صفحة
+        const pageVersions = {
+            'dashboard': 'v1.0.2',
+            'branches': 'v1.0.0',
+            'technicians': 'v1.0.1',
+            'holidays': 'v1.0.0',
+            'diagnostics': 'v1.0.0',
+            'dynamicChecklistAdmin': 'v2.1.6', // تم التحديث
+            'permissions': 'v1.0.0',
+            'visit': 'v1.1.0',
+            'reports': 'v1.0.5',
+            'upgradeWindows': 'v2.1.7', // تم التحديث
+            'brands': 'v1.0.0',
+            'checklist': 'v1.2.0'
+        };
+
         const translations = {
             en: {
                 dir: 'ltr', loginTitle: 'System Login', systemSub: 'Almajdouie Motors Management',
                 emailPlac: 'Email', passPlac: 'Password', loginBtn: 'Login', logoutBtn: 'Logout',
                 welcome: 'Welcome: ', systemTitle: 'Unified Almajdouie System', langBtn: 'عربي',
                 pages: {
-                    'dashboard': 'Dashboard', 
-                    'branches': 'Branches', 
-                    'technicians': 'Technicians',
-                    'holidays': 'Holidays', 
-                    'diagnostics': 'Diagnostics', 
-                    'dynamicChecklistAdmin': 'Checklist Admin',
-                    'permissions': 'Permissions', 
-                    'visit': 'Visit Branch',
-                    'reports': 'Reports Windows Upgrades',
-                    'upgradeWindows': 'Upgrade Windows', 
-                    'brands': 'Brands', 
-                    'checklist': 'Checklist'
+                    'dashboard': 'Dashboard', 'branches': 'Branches', 'technicians': 'Technicians',
+                    'holidays': 'Holidays', 'diagnostics': 'Diagnostics', 'dynamicChecklistAdmin': 'Checklist Admin',
+                    'permissions': 'Permissions', 'visit': 'Visit Branch', 'reports': 'Reports Windows Upgrades',
+                    'upgradeWindows': 'Upgrade Windows', 'brands': 'Brands', 'checklist': 'Checklist'
                 }
             },
             ar: {
@@ -137,34 +151,20 @@
                 emailPlac: 'البريد الإلكتروني', passPlac: 'كلمة المرور', loginBtn: 'تسجيل الدخول', logoutBtn: 'خروج',
                 welcome: 'مرحباً: ', systemTitle: 'نظام المجدوعي الموحد', langBtn: 'English',
                 pages: {
-                    'dashboard': 'لوحة التحكم', 
-                    'branches': 'إدارة الفروع', 
-                    'technicians': 'الفنيين',
-                    'holidays': 'الإجازات', 
-                    'diagnostics': 'التشخيص', 
-                    'dynamicChecklistAdmin': 'إدارة الفحص',
-                    'permissions': 'الصلاحيات', 
-                    'visit': 'زيارة الفرع',
-                    'reports': 'التقارير تحديثات الويندوز',
-                    'upgradeWindows': 'ترقية ويندوز', 
-                    'brands': 'العلامات التجارية', 
-                    'checklist': 'قائمة الفحص'
+                    'dashboard': 'لوحة التحكم', 'branches': 'إدارة الفروع', 'technicians': 'الفنيين',
+                    'holidays': 'الإجازات', 'diagnostics': 'التشخيص', 'dynamicChecklistAdmin': 'إدارة الفحص',
+                    'permissions': 'الصلاحيات', 'visit': 'زيارة الفرع', 'reports': 'التقارير تحديثات الويندوز',
+                    'upgradeWindows': 'ترقية ويندوز', 'brands': 'العلامات التجارية', 'checklist': 'قائمة الفحص'
                 }
             }
         };
 
         function getSafeKey(id) {
             const map = { 
-                'قائمة الفحص': 'checklist', 
-                'الرئيسية': 'dashboard', 
-                'لوحة التحكم': 'dashboard',
-                'ترقية أجهزة ويندوز': 'upgradeWindows',
-                'تحديثات الويندوز': 'upgradeWindows',
-                'الزيارات': 'visit',
-                'زيارة الفرع': 'visit',
-                'التقارير': 'reports',
-                'التقارير تحديثات الويندوز': 'reports',
-                'إدارة الفحص الذكي': 'dynamicChecklistAdmin'
+                'قائمة الفحص': 'checklist', 'الرئيسية': 'dashboard', 'لوحة التحكم': 'dashboard',
+                'ترقية أجهزة ويندوز': 'upgradeWindows', 'تحديثات الويندوز': 'upgradeWindows',
+                'الزيارات': 'visit', 'زيارة الفرع': 'visit', 'التقارير': 'reports',
+                'التقارير تحديثات الويندوز': 'reports', 'إدارة الفحص الذكي': 'dynamicChecklistAdmin'
             };
             return map[id] || id;
         }
@@ -172,13 +172,7 @@
         function toggleLang() {
             currentLang = currentLang === 'en' ? 'ar' : 'en';
             applyTranslations();
-            if(window.currentUserData) {
-                showDash();
-                if(activeTabId) {
-                    const activeBtn = document.querySelector(`.tab[data-id="${activeTabId}"]`);
-                    loadTab(activeTabId, activeBtn);
-                }
-            }
+            if(window.currentUserData) showDash();
         }
 
         function applyTranslations() {
@@ -248,7 +242,12 @@
                 const b = document.createElement('button');
                 b.className = 'tab';
                 b.setAttribute('data-id', pID);
-                b.innerText = translations[currentLang].pages[pID] || pID;
+                
+                // إضافة الاسم والنسخة في زر التبويب
+                const name = translations[currentLang].pages[pID] || pID;
+                const ver = pageVersions[pID] || 'v1.0.0';
+                b.innerHTML = `<span class="tab-text">${name}</span><span class="tab-ver">${ver}</span>`;
+                
                 b.onclick = () => loadTab(pID, b);
                 box.appendChild(b);
             });
@@ -273,21 +272,12 @@
             let cleanId = getSafeKey(id);
             let fileName;
 
-            // منطق الربط المخصص للملفات
-            if (cleanId === 'checklist') {
-                fileName = "check-list.html";
-            } else if (cleanId === 'upgradeWindows') {
-                fileName = "upgrade-windows.html";
-            } else if (cleanId === 'visit') {
-                fileName = "visits.html";
-            } else if (cleanId === 'dynamicChecklistAdmin') {
-                fileName = "dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html";
-            } else if (cleanId === 'reports') {
-                // الربط الجديد لتبويب رقم 9
-                fileName = "windows-report.html";
-            } else {
-                fileName = cleanId + ".html";
-            }
+            if (cleanId === 'checklist') fileName = "check-list.html";
+            else if (cleanId === 'upgradeWindows') fileName = "upgrade-windows.html";
+            else if (cleanId === 'visit') fileName = "visits.html";
+            else if (cleanId === 'dynamicChecklistAdmin') fileName = "dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html";
+            else if (cleanId === 'reports') fileName = "windows-report.html";
+            else fileName = cleanId + ".html";
             
             frame.src = fileName + "?lang=" + currentLang;
             frame.classList.add('page-animation');
