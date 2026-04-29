@@ -3,67 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Diagnostics Tool - Performance Monitor</title>
+  <title>Diagnostics Tool v2.1.12</title>
   <style>
-    :root{
-      --primary:#0d4b73; --primary-2:#0a3b5a; --green:#2f9e66; --danger:#d64545; --warning:#c47f00;
-      --border:#d7e0ea; --text:#163247; --muted:#6e8192; --bg:#edf3f8; --card:#fff; --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px;
-    }
+    :root{ --primary:#0d4b73; --green:#2f9e66; --danger:#d64545; --warning:#c47f00; --border:#d7e0ea; --text:#163247; --muted:#6e8192; --bg:#edf3f8; --card:#fff; --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px; }
     *{box-sizing:border-box}
-    body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg); padding: 20px;}
-    header{background:var(--primary);color:#fff;padding:14px 18px;box-shadow:var(--shadow);border-radius: var(--radius);margin-bottom: 20px;}
-    .header-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-    .title{font-size:24px;font-weight:800}
-    .chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:8px 12px;border-radius:999px; font-size: 14px;}
-    
+    body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg); padding: 10px !important;}
+    header{ display: none !important; } /* إخفاء الهيدر داخل النظام */
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow); padding:16px; margin-bottom: 16px; overflow:hidden}
     .card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
-    
-    .grid-2{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
-    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:14px}
-    
-    .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
-    .stat .label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
-    .stat .value{font-size:30px;font-weight:800;color:var(--primary)}
-    
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow); text-align: center;}
+    .stat .label{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
+    .stat .value{font-size:24px;font-weight:800;color:var(--primary)}
     .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px;background:#fff}
     table{width:100%;border-collapse:collapse}
-    th,td{padding:12px 10px;border-bottom:1px solid #edf2f7;text-align:right;white-space:nowrap;font-size:14px}
+    th,td{padding:10px;border-bottom:1px solid #edf2f7;text-align:right;white-space:nowrap;font-size:13px}
     th{background:#f8fbff;color:var(--primary)}
-    
-    .btn{border:1px solid var(--border);border-radius:999px;padding:10px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer; transition: 0.2s;}
-    .btn:hover{opacity: 0.8;}
-    .btn.green{background:var(--green);border-color:var(--green);color:#fff}
-    
-    .field{display:grid;gap:8px}
-    .field label{font-size:14px;font-weight:700}
-    .field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-family: monospace;background:#fbfcfe; min-height:220px;resize:vertical}
-    
-    .note{background:#f6fbff;border:1px dashed #bfd7e8;color:#33546b;border-radius:12px;padding:10px 12px;margin-top:12px;line-height:1.7}
-    .alert{padding:10px 12px;border-radius:12px;margin-top:10px}
-    .alert.error{background:#ffecec;border:1px solid #f3b0b0;color:#8a1f1f}
-    .hidden{display:none}
-
+    .badge-ready{ background: var(--green); color: white; padding: 2px 8px; border-radius: 10px; font-weight: bold;}
+    .badge-pending{ background: var(--warning); color: white; padding: 2px 8px; border-radius: 10px;}
     @media (max-width:1000px){ .grid-2, .grid-3 {grid-template-columns: 1fr;} }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="header-row">
-      <div class="title">تشخيص الأداء وأنظمة المراقبة / Diagnostics Tool</div>
-      <div class="chip" id="versionTag">v2.1.11</div>
-    </div>
-  </header>
-
   <main>
     <div class="card">
-      <h3>ملخص الحالة / Performance Overview</h3>
-      <div class="note">هذه الصفحة مخصصة لمراقبة العمليات الخلفية لـ Firebase، زمن استجابة التوثيق، وحالة مزامنة البيانات بين التبويبات المختلفة.</div>
-      <div class="grid-3" style="margin-top:12px">
-        <div class="stat"><span class="label">مدة الجلسة (Session)</span><div class="value" id="diagSessionSeconds">0s</div></div>
-        <div class="stat"><span class="label">زمن تعريف المستخدم (Auth Profile)</span><div class="value" id="diagAuthMs">0ms</div></div>
-        <div class="stat"><span class="label">آخر استيراد فروع (Branch Import)</span><div class="value" id="diagBranchImportMs">-</div></div>
+      <h3>ملخص الحالة / Performance v2.1.12</h3>
+      <div class="grid-3">
+        <div class="stat"><span class="label">مدة الجلسة</span><div class="value" id="diagSessionSeconds">0s</div></div>
+        <div class="stat"><span class="label">زمن تعريف المستخدم</span><div class="value" id="diagAuthMs">0ms</div></div>
+        <div class="stat"><span class="label">إجمالي المستندات المراقبة</span><div class="value" id="diagTotalDocs">0</div></div>
       </div>
     </div>
 
@@ -75,192 +45,106 @@
             <thead>
               <tr>
                 <th>التبويب (Tab)</th>
+                <th>الإصدار (Ver)</th>
                 <th>الحالة (Status)</th>
                 <th>وقت الجاهزية</th>
-                <th>الاعتمادات (Dependencies)</th>
               </tr>
             </thead>
-            <tbody id="diagTabsBody">
-              <tr><td colspan="4" style="text-align:center">جاري جلب البيانات...</td></tr>
-            </tbody>
+            <tbody id="diagTabsBody"></tbody>
           </table>
         </div>
       </div>
 
       <div class="card">
-        <h3>مراقبة المستمعين / Listener Timings</h3>
+        <h3>مراقبة البيانات / Live Listeners</h3>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>المستمع (Listener)</th>
-                <th>البدايات</th>
                 <th>المستندات</th>
                 <th>أول استجابة</th>
-                <th>آخر تحديث</th>
               </tr>
             </thead>
-            <tbody id="diagListenersBody">
-              <tr><td colspan="5" style="text-align:center">لا توجد مستمعات نشطة حالياً.</td></tr>
-            </tbody>
+            <tbody id="diagListenersBody"></tbody>
           </table>
         </div>
       </div>
-    </div>
-
-    <div class="card" style="margin-top:16px">
-      <h3>الإجراءات وتقرير الخام / Actions & Raw Report</h3>
-      <div style="display:flex; gap:10px; margin-bottom: 15px;">
-        <button class="btn" id="refreshDiagnosticsBtn" type="button">تحديث التقرير</button>
-        <button class="btn green" id="copyDiagnosticsBtn" type="button">نسخ JSON</button>
-      </div>
-      
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>الإجراء (Action)</th>
-              <th>آخر مدة استغرقها</th>
-              <th>عدد المرات</th>
-              <th>بيانات إضافية (Meta)</th>
-            </tr>
-          </thead>
-          <tbody id="diagActionsBody"></tbody>
-        </table>
-      </div>
-
-      <div class="field" style="margin-top:16px">
-        <label>تقرير بصيغة JSON</label>
-        <textarea id="diagJsonOutput" readonly placeholder="سيظهر التقرير البرمجي هنا..."></textarea>
-      </div>
-      <div class="note" id="diagMessage">يمكنك نسخ هذا التقرير وإرساله للمطور لتحليل المشاكل التقنية في حال حدوث بطء في النظام.</div>
     </div>
   </main>
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, collection, query, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getFirestore, collection, onSnapshot, query, limit } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    // تكوين Firebase (نفس الإعدادات الأصلية)
-    const firebaseConfig = {
-      apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs',
-      authDomain:'baghethan-ba325.firebaseapp.com',
-      projectId:'baghethan-ba325',
-      storageBucket:'baghethan-ba325.firebasestorage.app',
-      messagingSenderId:'944819735112',
-      appId:'1:944819735112:web:07315600da39377320667d'
-    };
-
+    const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
     const state = {
-      currentUser: null,
-      currentUserProfile: null,
-      debugMetrics: { 
-        sessionStartedAt: performance.now(), 
-        auth: {}, 
-        listeners: {}, 
-        tabs: {}, 
-        actions: {} 
+      startedAt: performance.now(),
+      authMs: 0,
+      metrics: {},
+      versions: { dashboard:'v1.0.2', checklist:'v1.2.0', brands:'v1.0.0', upgradeWindows:'v2.1.7', reports:'v1.0.5', visit:'v1.1.0', branches:'v1.0.0', technicians:'v1.0.1', permissions:'v1.0.0', dynamicChecklistAdmin:'v2.1.6' },
+      deps: { 
+        dashboard:['branches','technicians','siteVisits'], 
+        checklist:['technicians','siteVisits','checklist_fields'], 
+        upgradeWindows:['windows_upgrades','branches'], 
+        reports:['branch_checklists','siteVisits'],
+        dynamicChecklistAdmin:['checklist_fields']
       }
     };
 
-    // دوال المراقبة المستخرجة
     const $ = id => document.getElementById(id);
-    const esc = v => String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 
-    function getDebugNow() { return performance.now(); }
-
-    function getTabDependencies() {
-      return { 
-        dashboard:['branches','technicians','visits','checklists','brands'], 
-        checklist:['technicians','visits','checklistFields','checklists','branches','brands'], 
-        brands:['brands'], 
-        upgradeWindows:['windowsUpgrades','branches','brands'], 
-        reports:['checklists','visits','brands'], 
-        visit:['visits','branches','technicians'], 
-        branches:['branches'], 
-        technicians:['technicians','branches'], 
-        permissions:['users'], 
-        dynamicChecklistAdmin:['checklistFields']
-      };
-    }
-
-    async function resolveCurrentUserProfile(user) {
-      let snap = await getDocs(query(collection(db,'app_users'), where('__name__','==', user.uid), limit(1)));
-      if(!snap.empty) return { id:snap.docs[0].id, ...snap.docs[0].data() };
-      return null;
-    }
-
-    function renderDiagnostics() {
-      const elapsedMs = Math.round(getDebugNow() - state.debugMetrics.sessionStartedAt);
-      $('diagSessionSeconds').textContent = `${(elapsedMs/1000).toFixed(1)}s`;
-      $('diagAuthMs').textContent = state.debugMetrics.auth.profileMs != null ? `${state.debugMetrics.auth.profileMs}ms` : '-';
-      
-      const depsMap = getTabDependencies();
-      const tabRows = Object.entries(depsMap).map(([tab, deps]) => {
-        const depMetrics = deps.map(dep => state.debugMetrics.listeners[dep] || state.debugMetrics.actions[dep] || null);
-        const readyList = depMetrics.map(m => m?.firstSnapshotMs ?? m?.finishedRelMs).filter(v => v != null);
-        const allReady = readyList.length === deps.length;
-        return { 
-          tab, 
-          status: allReady ? 'Ready' : (readyList.length ? 'Partial' : 'Pending'), 
-          readyMs: allReady ? Math.max(...readyList) : '-', 
-          deps: deps.join(', ') 
-        };
+    function listen(name) {
+      state.metrics[name] = { count: 0, readyAt: null };
+      onSnapshot(query(collection(db, name), limit(1)), snap => {
+        state.metrics[name].count = snap.size;
+        if(!state.metrics[name].readyAt) state.metrics[name].readyAt = Math.round(performance.now() - state.startedAt);
+        render();
       });
-
-      $('diagTabsBody').innerHTML = tabRows.map(r => `<tr><td>${esc(r.tab)}</td><td>${esc(r.status)}</td><td>${esc(r.readyMs === '-' ? '-' : r.readyMs + 'ms')}</td><td>${esc(r.deps)}</td></tr>`).join('');
-      
-      const listenerRows = Object.entries(state.debugMetrics.listeners);
-      $('diagListenersBody').innerHTML = listenerRows.length ? listenerRows.map(([name, m]) => `
-        <tr>
-          <td>${esc(name)}</td>
-          <td>${esc(m.starts)}</td>
-          <td>${esc(m.docCount)}</td>
-          <td>${esc(m.firstSnapshotMs ? m.firstSnapshotMs + 'ms' : '-')}</td>
-          <td>${esc(m.lastSnapshotMs ? m.lastSnapshotMs + 'ms' : '-')}</td>
-        </tr>`).join('') : '<tr><td colspan="5" style="text-align:center">لا توجد بيانات مستمعات حالياً</td></tr>';
-
-      $('diagJsonOutput').value = JSON.stringify({
-        elapsedMs,
-        auth: state.debugMetrics.auth,
-        listeners: state.debugMetrics.listeners,
-        tabs: state.debugMetrics.tabs,
-        currentUser: state.currentUser ? user.email : 'Guest'
-      }, null, 2);
     }
 
-    // إدارة الدخول والتوثيق لقياس الـ Auth Profile
-    onAuthStateChanged(auth, async user => {
-      if(user){
-        state.currentUser = user;
-        const profileStart = getDebugNow();
-        try { 
-          state.currentUserProfile = await resolveCurrentUserProfile(user); 
-        } catch(err) { 
-          state.debugMetrics.auth.error = err.message; 
-        }
-        state.debugMetrics.auth.profileMs = Math.round(getDebugNow() - profileStart);
-        renderDiagnostics();
+    function render() {
+      const elapsed = ((performance.now() - state.startedAt)/1000).toFixed(1);
+      $('diagSessionSeconds').textContent = elapsed + 's';
+      $('diagAuthMs').textContent = state.authMs + 'ms';
+
+      // Tab Readiness Table
+      $('diagTabsBody').innerHTML = Object.entries(state.deps).map(([tab, deps]) => {
+        const readyDeps = deps.filter(d => state.metrics[d]?.readyAt);
+        const isReady = readyDeps.length === deps.length;
+        const maxTime = isReady ? Math.max(...deps.map(d => state.metrics[d].readyAt)) : '-';
+        return `<tr>
+          <td>${tab}</td>
+          <td><b>${state.versions[tab] || '-'}</b></td>
+          <td><span class="${isReady?'badge-ready':'badge-pending'}">${isReady?'Ready':'Pending'}</span></td>
+          <td>${maxTime === '-' ? '-' : maxTime + 'ms'}</td>
+        </tr>`;
+      }).join('');
+
+      // Listeners Table
+      $('diagListenersBody').innerHTML = Object.entries(state.metrics).map(([name, m]) => `
+        <tr>
+          <td>${name}</td>
+          <td>${m.count}</td>
+          <td>${m.readyAt ? m.readyAt + 'ms' : '...'}</td>
+        </tr>`).join('');
+      
+      $('diagTotalDocs').textContent = Object.values(state.metrics).reduce((s, x) => s + x.count, 0);
+    }
+
+    onAuthStateChanged(auth, user => {
+      if(user) {
+        state.authMs = Math.round(performance.now() - state.startedAt);
+        ['branches','technicians','siteVisits','checklist_fields','windows_upgrades','branch_checklists'].forEach(listen);
       }
     });
 
-    // أحداث الأزرار
-    $('refreshDiagnosticsBtn').addEventListener('click', renderDiagnostics);
-    $('copyDiagnosticsBtn').addEventListener('click', () => {
-      $('diagJsonOutput').select();
-      document.execCommand('copy');
-      $('diagMessage').textContent = "تم نسخ التقرير!";
-      setTimeout(() => { $('diagMessage').textContent = "يمكنك نسخ هذا التقرير وإرساله للمطور..."; }, 2000);
-    });
-
-    // تحديث دوري للوقت
-    setInterval(renderDiagnostics, 5000);
-
+    setInterval(render, 2000);
   </script>
 </body>
 </html>
