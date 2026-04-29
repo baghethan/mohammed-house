@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام المجدوعي للسيارات | الماستر v1.2.6</title>
+    <title>Almajdouie Motors | Master v1.2.7</title>
     <style>
         :root { 
             --primary: #0d4b73; 
@@ -11,7 +11,6 @@
             --bg: #edf3f8; 
         }
         
-        /* ضبط الشاشة لتكون كاملة ومنع التمرير الخارجي */
         html, body { 
             height: 100%; 
             margin: 0; 
@@ -29,7 +28,6 @@
 
         .hidden { display: none !important; }
 
-        /* تأثير التوسع السلس عند فتح الصفحات */
         @keyframes expandPage {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -54,14 +52,13 @@
         }
         .tab.active { color: var(--primary); border-bottom-color: var(--primary); background: #f6fbff; }
 
-        /* حاوية المحتوى تأخذ باقي مساحة الشاشة تلقائياً */
         .main-content { 
             flex: 1; 
             padding: 12px; 
             display: flex; 
             flex-direction: column; 
             box-sizing: border-box;
-            overflow: hidden; /* يمنع ظهور شريط تمرير مزدوج */
+            overflow: hidden; 
         }
 
         #viewContainer { 
@@ -76,38 +73,49 @@
 
         #contentFrame { 
             width: 100%; 
-            flex: 1; /* التمدد لملء الحاوية */
+            flex: 1; 
             border: none; 
             display: block;
         }
 
-        /* شاشة تسجيل الدخول */
         #login-page { 
             height: 100vh; display: flex; align-items: center; justify-content: center; 
             background: linear-gradient(135deg, #0d4b73, #0a3b5a); position: fixed; width: 100%; z-index: 9999; 
         }
         .login-card { background: white; padding: 40px; border-radius: 24px; width: 90%; max-width: 380px; text-align: center; }
         .btn-log { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; }
+        
+        /* زر تبديل اللغة */
+        .lang-btn {
+            background: #444; color: white; border: 1px solid #666;
+            padding: 4px 12px; border-radius: 15px; cursor: pointer;
+            font-size: 11px; font-weight: bold; margin: 0 10px;
+        }
+        .lang-btn:hover { background: #555; }
     </style>
 </head>
 <body>
 
     <div id="login-page">
         <div class="login-card">
-            <h2 style="color:var(--primary); margin-bottom: 5px;">دخول النظام</h2>
-            <p style="color:#666; margin-bottom: 25px;">إدارة المجدوعي للسيارات</p>
-            <input type="email" id="emailField" placeholder="البريد الإلكتروني" value="baghethanmh@almajdouie.com" style="width:100%; padding:12px; margin-bottom:12px; border:1px solid #ddd; border-radius:10px;">
-            <input type="password" id="passField" placeholder="كلمة المرور" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:10px;">
-            <button class="btn-log" onclick="handleLogin()">تسجيل الدخول</button>
+            <button class="lang-btn" onclick="toggleLang()" id="loginLangBtn">عربي</button>
+            <h2 id="loginTitle" style="color:var(--primary); margin-top: 15px; margin-bottom: 5px;">System Login</h2>
+            <p id="systemSubTitle" style="color:#666; margin-bottom: 25px;">Almajdouie Motors Management</p>
+            <input type="email" id="emailField" placeholder="Email" value="baghethanmh@almajdouie.com" style="width:100%; padding:12px; margin-bottom:12px; border:1px solid #ddd; border-radius:10px;">
+            <input type="password" id="passField" placeholder="Password" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:10px;">
+            <button class="btn-log" id="loginBtn" onclick="handleLogin()">Login</button>
             <p id="msg" style="color:red; font-size:12px; margin-top:10px;"></p>
         </div>
     </div>
 
     <div id="dash-page" class="hidden" style="height: 100%; display: flex; flex-direction: column;">
         <header>
-            <div id="userDisplay" style="font-size: 13px;"></div>
-            <div style="font-weight: 800; letter-spacing: 0.5px;">نظام المجدوعي الموحد</div>
-            <button onclick="location.reload()" style="background:#d64545; color:white; border:none; padding:5px 15px; border-radius:20px; cursor:pointer; font-weight:bold; font-size: 11px;">خروج</button>
+            <div style="display: flex; align-items: center;">
+                <div id="userDisplay" style="font-size: 13px;"></div>
+                <button class="lang-btn" onclick="toggleLang()" id="dashLangBtn">عربي</button>
+            </div>
+            <div id="systemTitle" style="font-weight: 800; letter-spacing: 0.5px;">Unified Almajdouie System</div>
+            <button id="logoutBtn" onclick="location.reload()" style="background:#d64545; color:white; border:none; padding:5px 15px; border-radius:20px; cursor:pointer; font-weight:bold; font-size: 11px;">Logout</button>
         </header>
         
         <nav class="nav-tabs" id="tabsBox"></nav>
@@ -124,6 +132,92 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <script>
+        // الإعدادات وقاموس الترجمة
+        let currentLang = 'en';
+        const translations = {
+            en: {
+                dir: 'ltr',
+                loginTitle: 'System Login',
+                systemSub: 'Almajdouie Motors Management',
+                emailPlac: 'Email',
+                passPlac: 'Password',
+                loginBtn: 'Login',
+                logoutBtn: 'Logout',
+                welcome: 'Welcome: ',
+                systemTitle: 'Unified Almajdouie System',
+                langBtn: 'عربي',
+                pages: {
+                    'dashboard': 'Dashboard',
+                    'branches': 'Branches Management',
+                    'technicians': 'Technicians',
+                    'holidays': 'Holidays',
+                    'diagnostics': 'Diagnostics',
+                    'dynamicChecklistAdmin': 'Smart Checklist Admin',
+                    'permissions': 'Permissions',
+                    'visit': 'Visits',
+                    'reports': 'Reports',
+                    'upgradeWindows': 'Windows Upgrades',
+                    'brands': 'Brands',
+                    'checklist': 'Checklist'
+                }
+            },
+            ar: {
+                dir: 'rtl',
+                loginTitle: 'دخول النظام',
+                systemSub: 'إدارة المجدوعي للسيارات',
+                emailPlac: 'البريد الإلكتروني',
+                passPlac: 'كلمة المرور',
+                loginBtn: 'تسجيل الدخول',
+                logoutBtn: 'خروج',
+                welcome: 'مرحباً: ',
+                systemTitle: 'نظام المجدوعي الموحد',
+                langBtn: 'English',
+                pages: {
+                    'dashboard': 'لوحة التحكم',
+                    'branches': 'إدارة الفروع',
+                    'technicians': 'الفنيين',
+                    'holidays': 'الإجازات',
+                    'diagnostics': 'التشخيص',
+                    'dynamicChecklistAdmin': 'إدارة الفحص الذكي',
+                    'permissions': 'الصلاحيات',
+                    'visit': 'الزيارات',
+                    'reports': 'التقارير',
+                    'upgradeWindows': 'تحديثات الويندوز',
+                    'brands': 'العلامات التجارية',
+                    'checklist': 'قائمة الفحص'
+                }
+            }
+        };
+
+        function toggleLang() {
+            currentLang = currentLang === 'en' ? 'ar' : 'en';
+            applyTranslations();
+            if(window.currentUserData) showDash(); // إعادة تحميل التبويبات إذا كان مسجلاً للدخول
+        }
+
+        function applyTranslations() {
+            const t = translations[currentLang];
+            document.documentElement.lang = currentLang;
+            document.documentElement.dir = t.dir;
+            
+            // تحديث نصوص صفحة الدخول
+            document.getElementById('loginTitle').innerText = t.loginTitle;
+            document.getElementById('systemSubTitle').innerText = t.systemSub;
+            document.getElementById('emailField').placeholder = t.emailPlac;
+            document.getElementById('passField').placeholder = t.passPlac;
+            document.getElementById('loginBtn').innerText = t.loginBtn;
+            document.getElementById('loginLangBtn').innerText = t.langBtn;
+
+            // تحديث نصوص لوحة التحكم
+            document.getElementById('systemTitle').innerText = t.systemTitle;
+            document.getElementById('logoutBtn').innerText = t.logoutBtn;
+            document.getElementById('dashLangBtn').innerText = t.langBtn;
+            if(window.currentUserData) {
+                document.getElementById('userDisplay').innerHTML = `${t.welcome} <b>${window.currentUserData.name}</b>`;
+            }
+        }
+
+        // Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
             authDomain: "baghethan-ba325.firebaseapp.com",
@@ -143,7 +237,7 @@
             try { 
                 await window.appAuth.signInWithEmailAndPassword(e, p); 
             } catch { 
-                document.getElementById('msg').innerText = "بيانات الدخول غير صحيحة"; 
+                document.getElementById('msg').innerText = currentLang === 'en' ? "Invalid login data" : "بيانات الدخول غير صحيحة"; 
             }
         };
 
@@ -160,8 +254,10 @@
         function showDash() {
             document.getElementById('login-page').classList.add('hidden');
             document.getElementById('dash-page').classList.remove('hidden');
-            document.getElementById('dash-page').style.display = 'flex'; // لضمان عمل Flexbox
-            document.getElementById('userDisplay').innerHTML = `مرحباً: <b>${window.currentUserData.name}</b>`;
+            document.getElementById('dash-page').style.display = 'flex';
+            
+            const t = translations[currentLang];
+            document.getElementById('userDisplay').innerHTML = `${t.welcome} <b>${window.currentUserData.name}</b>`;
             
             const box = document.getElementById('tabsBox');
             box.innerHTML = '';
@@ -176,21 +272,7 @@
         }
 
         function translate(id) {
-            const names = { 
-                'dashboard': 'اللوحة التحكم', 
-                'branches': 'إدارة الفروع', 
-                'technicians': 'الفنيين', 
-                'holidays': 'الإجازات',
-                'diagnostics': 'التشخيص',
-                'dynamicChecklistAdmin': 'إدارة الفحص الذكي',
-                'permissions': 'الصلاحيات',
-                'visit': 'الزيارات',
-                'reports': 'التقارير',
-                'upgradeWindows': 'تحديثات الويندوز',
-                'brands': 'العلامات التجارية',
-                'checklist': 'قائمة الفحص'
-            };
-            return names[id] || id;
+            return translations[currentLang].pages[id] || id;
         }
 
         window.loadTab = (id, el) => {
@@ -199,11 +281,14 @@
             
             const frame = document.getElementById('contentFrame');
             frame.classList.remove('page-animation');
-            void frame.offsetWidth; // Force reflow لضمان إعادة تشغيل الأنميشن
+            void frame.offsetWidth; 
             
             frame.src = id + ".html";
             frame.classList.add('page-animation');
         };
+
+        // التشغيل الأول للترجمة
+        applyTranslations();
     </script>
 </body>
 </html>
