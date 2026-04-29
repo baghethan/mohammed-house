@@ -3,83 +3,119 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dynamic Check-List Admin Advanced v2.1.6 - Fixed & Integrated</title>
+  <title>Dynamic Check-List Admin Advanced v2.1.6 - Full Logic</title>
   <style>
     :root{--primary:#0d4b73;--green:#2f9e66;--danger:#d64545;--warning:#c47f00;--border:#d7e0ea;--text:#163247;--muted:#6e8192;--bg:#edf3f8;--card:#fff;--shadow:0 10px 30px rgba(18,48,74,.08);--radius:18px}
     *{box-sizing:border-box} body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg)}
-    .hidden{display:none!important}.rtl-en{display:inline-block;direction:ltr;unicode-bidi:embed}
+    .hidden{display:none!important}
     
-    /* إخفاء الهيدر عند العمل داخل نظام الماستر لمنع التكرار */
+    /* إخفاء الهيدر داخل الإطار */
     header { display: none !important; }
     .container { max-width:1600px; margin: 5px auto; padding:0 10px 20px; }
 
-    .grid-2{display:grid;grid-template-columns: 1fr 1fr; gap:16px}
-    /* تحسين شبكة الحقول لتكون مرنة ولا تتداخل */
-    .grid-fields{display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px}
+    .grid-main{display:grid; grid-template-columns: 1.2fr 0.8fr; gap:16px}
+    .grid-fields{display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px}
     
-    .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;overflow:hidden; height: fit-content;}
-    .card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:16px}
+    .card{background:#fff; border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin-bottom:16px; overflow:hidden}
+    .card h3{margin:-16px -16px 14px; padding:12px 16px; background:var(--primary); color:#fff; font-size:15px}
     
-    .field{display:flex; flex-direction: column; gap:6px}
-    .field label{font-size:13px; font-weight:700; color: var(--primary)}
-    .field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-family:inherit;font-size:13px;}
+    .field{display:flex; flex-direction: column; gap:4px}
+    .field label{font-size:12px; font-weight:700; color: var(--primary)}
+    .field input, .field select, .field textarea{width:100%; border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:13px;}
     
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-    .btn{border:1px solid var(--border);border-radius:999px;padding:8px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer;transition:all .2s; font-size: 13px;}
-    .btn.green{background:var(--green);border-color:var(--green);color:#fff}
-    .btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
-    .btn:hover{opacity:.8}
+    .logic-box{border:1px dashed var(--border); border-radius:12px; padding:12px; background:#fbfcfe; margin-top:10px}
+    .section-title{margin:15px 0 8px; font-weight:800; color:var(--primary); font-size:14px; border-inline-start:4px solid var(--primary); padding-inline-start:10px}
+    
+    .actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:15px}
+    .btn{border:1px solid var(--border); border-radius:999px; padding:8px 16px; background:#fff; color:var(--primary); font-weight:700; cursor:pointer; transition:0.2s; font-size:12px}
+    .btn.green{background:var(--green); border-color:var(--green); color:#fff}
+    .btn.warning{background:var(--warning); border-color:var(--warning); color:#fff}
+    .btn.danger{background:var(--danger); border-color:var(--danger); color:#fff}
 
-    .item{background:#fcfdff;border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px; display:flex; justify-content: space-between; align-items: center;}
-    .item-info strong{display:block; color:var(--primary); font-size:13px;}
-    .item-info small{color:var(--muted); font-size:11px;}
-
-    .section-title{margin:15px 0 8px;font-weight:800;color:var(--primary);font-size:14px;border-inline-start:4px solid var(--primary);padding-inline-start:10px}
+    .item-list{max-height:400px; overflow-y:auto; margin-top:10px}
+    .item{background:#fcfdff; border:1px solid var(--border); border-radius:12px; padding:10px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center}
     
-    .overlay{position:fixed;inset:0;background:rgba(13,75,115,0.05);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}
-    .login-card{width:400px;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;text-align:center;}
+    .overlay{position:fixed; inset:0; background:rgba(13,75,115,0.05); display:flex; align-items:center; justify-content:center; z-index:100}
+    .login-card{width:350px; background:#fff; border-radius:var(--radius); padding:25px; text-align:center; box-shadow:var(--shadow)}
 
-    /* تنسيق المعاينة الحية */
-    .dynamic-checklist-list{list-style:none;padding:0;margin:0;}
-    .dynamic-checklist-list>li{padding:10px; border-bottom:1px solid #eee; font-size: 13px;}
-    
-    @media (max-width:1000px){.grid-2{grid-template-columns:1fr}}
+    @media (max-width:1100px){.grid-main{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
+
   <div class="overlay" id="loginOverlay">
     <div class="login-card">
-      <h3 style="color:var(--primary)">تسجيل دخول الإدارة</h3>
-      <div class="field" style="margin-top:15px"><input id="loginEmail" type="email" placeholder="البريد الإلكتروني"></div>
-      <div class="field" style="margin-top:10px"><input id="loginPassword" type="password" placeholder="كلمة المرور"></div>
-      <button class="btn green" id="loginBtn" style="width:100%; margin-top:15px">دخول</button>
+      <h3 style="color:var(--primary)">دخول الإدارة</h3>
+      <input id="loginEmail" type="email" placeholder="البريد الإلكتروني" style="width:100%; padding:10px; margin-bottom:10px; border-radius:10px; border:1px solid #ddd;">
+      <input id="loginPassword" type="password" placeholder="كلمة المرور" style="width:100%; padding:10px; margin-bottom:15px; border-radius:10px; border:1px solid #ddd;">
+      <button class="btn green" id="loginBtn" style="width:100%">دخول</button>
       <p id="loginMessage" style="color:red; font-size:11px; margin-top:10px;"></p>
     </div>
   </div>
 
   <main class="container hidden" id="appRoot">
-    <div class="grid-2">
-      <div class="card">
-        <h3>إدارة بنود الفحص الديناميكية</h3>
-        <input type="hidden" id="builderEditingId">
-        <div class="grid-fields">
-          <div class="field"><label>اسم البند</label><input id="builderLabel" placeholder="مثال: حالة الجهاز"></div>
-          <div class="field"><label>نوع الحقل</label><select id="builderFieldType"><option value="text">نص</option><option value="number">رقم</option><option value="choice">خيارات</option></select></div>
-          <div class="field"><label>الترتيب</label><input id="builderOrder" type="number" value="1"></div>
-          <div class="field"><label>القسم</label><input id="builderSection" value="General"></div>
+    <div class="grid-main">
+      <div class="builder-side">
+        <div class="card">
+          <h3>إدارة البنود والإعدادات</h3>
+          <input type="hidden" id="builderEditingId">
+          
+          <div class="grid-fields">
+            <div class="field"><label>اسم البند</label><input id="builderLabel" placeholder="مثال: Upgrade Windows"></div>
+            <div class="field"><label>نوع الحقل</label><select id="builderFieldType" onchange="syncUI()">
+              <option value="text">نص (Text)</option>
+              <option value="number">رقم (Number)</option>
+              <option value="choice">خيارات (Choice)</option>
+              <option value="boolean">نعم/لا (Boolean)</option>
+            </select></div>
+            <div class="field"><label>الترتيب</label><input id="builderOrder" type="number" value="1"></div>
+            <div class="field"><label>القسم</label><input id="builderSection" value="General"></div>
+          </div>
+
+          <div class="section-title">الظهور الشرطي (Logic)</div>
+          <div class="logic-box">
+            <div class="grid-fields">
+              <div class="field"><label>تفعيل الشرط؟</label><select id="logicEnabled"><option value="false">لا</option><option value="true">نعم</option></select></div>
+              <div class="field"><label>يعتمد على بند</label><select id="logicFieldRef"><option value="">اختر بنداً</option></select></div>
+              <div class="field"><label>القيمة المطلوبة</label><input id="logicValue" placeholder="yes"></div>
+            </div>
+          </div>
+
+          <div class="section-title">التكرار حسب العدد (Repeat)</div>
+          <div class="logic-box">
+            <div class="grid-fields">
+              <div class="field"><label>تفعيل التكرار؟</label><select id="repeatEnabled"><option value="false">لا</option><option value="true">نعم</option></select></div>
+              <div class="field"><label>العدد من بند</label><select id="repeatCountRef"><option value="">اختر بنداً رقمياً</option></select></div>
+              <div class="field"><label>قالب التسمية</label><input id="repeatLabelTemplate" placeholder="الجهاز رقم {index}"></div>
+            </div>
+          </div>
+
+          <div class="section-title">الربط بعد الحفظ (Integration)</div>
+          <div class="logic-box">
+            <div class="grid-fields">
+              <div class="field"><label>الهدف</label><select id="integrationTarget"><option value="none">بدون</option><option value="windows_upgrades">windows_upgrades</option></select></div>
+              <div class="field"><label>الربط بواسطة</label><select id="integrationMatchBy"><option value="employeeId">رقم الموظف</option></select></div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn green" id="saveFieldBtn">حفظ الإعدادات</button>
+            <button class="btn" onclick="resetForm()">تنظيف</button>
+            <button class="btn warning" id="seedBtn">إنشاء مثال ترقية الويندوز</button>
+          </div>
         </div>
-        <div class="actions">
-          <button class="btn green" id="saveFieldBtn">حفظ البند</button>
-          <button class="btn" onclick="resetForm()">تنظيف</button>
+
+        <div class="card">
+          <h3>البنود المضافة حالياً</h3>
+          <div id="adminList" class="item-list"></div>
         </div>
-        
-        <div class="section-title">البنود المضافة حالياً</div>
-        <div id="adminList" style="max-height: 400px; overflow-y: auto;"></div>
       </div>
 
-      <div class="card">
-        <h3>المعاينة الحية (كيف سيراها الفني)</h3>
-        <div id="previewContainer" class="dynamic-checklist-list"></div>
+      <div class="preview-side">
+        <div class="card">
+          <h3>المعاينة الحية</h3>
+          <div id="previewContainer" style="font-size: 13px;"></div>
+        </div>
       </div>
     </div>
   </main>
@@ -87,7 +123,7 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     const firebaseConfig = {
         apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
@@ -102,8 +138,8 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
     const $ = id => document.getElementById(id);
+    let allFields = [];
 
-    // التحقق من الجلسة
     onAuthStateChanged(auth, user => {
       if(user){
         $('loginOverlay').classList.add('hidden');
@@ -111,7 +147,6 @@
         listenFields();
       } else {
         $('loginOverlay').classList.remove('hidden');
-        $('appRoot').classList.add('hidden');
       }
     });
 
@@ -119,58 +154,123 @@
       try {
         await setPersistence(auth, browserLocalPersistence);
         await signInWithEmailAndPassword(auth, $('loginEmail').value, $('loginPassword').value);
-      } catch (err) { $('loginMessage').textContent = "بيانات الدخول خاطئة"; }
+      } catch (err) { $('loginMessage').textContent = "خطأ في الدخول"; }
     };
 
     function listenFields() {
       onSnapshot(query(collection(db, 'checklist_fields'), orderBy('order')), snap => {
-        const fields = snap.docs.map(d => ({id: d.id, ...d.data()}));
-        
-        // تحديث القائمة
-        $('adminList').innerHTML = fields.map(f => `
-          <div class="item">
-            <div class="item-info">
-                <strong>${f.label}</strong>
-                <small>${f.section} | الترتيب: ${f.order}</small>
-            </div>
-            <button class="btn danger" style="padding:4px 10px" onclick="deleteF('${f.id}')">حذف</button>
-          </div>
-        `).join('');
-
-        // تحديث المعاينة الحية
-        $('previewContainer').innerHTML = fields.map(f => `
-            <li>
-                <label style="display:block; margin-bottom:5px; font-weight:bold">${f.label}</label>
-                ${f.fieldType === 'text' ? '<input type="text" style="width:100%; border:1px solid #ddd; padding:5px">' : 
-                  f.fieldType === 'number' ? '<input type="number" style="width:100%; border:1px solid #ddd; padding:5px">' : 
-                  '<select style="width:100%; border:1px solid #ddd; padding:5px"><option>خيار 1</option></select>'}
-            </li>
-        `).join('');
+        allFields = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        renderAdminList();
+        renderPreview();
+        populateSelects();
       });
     }
 
-    window.deleteF = async (id) => {
-        if(confirm('هل أنت متأكد من الحذف؟')) await deleteDoc(doc(db, 'checklist_fields', id));
-    };
+    function populateSelects() {
+        const opts = allFields.map(f => `<option value="${f.id}">${f.label}</option>`).join('');
+        $('logicFieldRef').innerHTML = '<option value="">اختر بنداً</option>' + opts;
+        $('repeatCountRef').innerHTML = '<option value="">اختر بنداً رقمياً</option>' + allFields.filter(f=>f.fieldType==='number').map(f=>`<option value="${f.id}">${f.label}</option>`).join('');
+    }
+
+    function renderAdminList() {
+        $('adminList').innerHTML = allFields.map(f => `
+            <div class="item">
+                <div><strong>${f.label}</strong><br><small>${f.section} | الترتيب: ${f.order}</small></div>
+                <div style="display:flex; gap:5px">
+                    <button class="btn" onclick="editF('${f.id}')">تعديل</button>
+                    <button class="btn danger" onclick="deleteF('${f.id}')">حذف</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function renderPreview() {
+        $('previewContainer').innerHTML = allFields.map(f => `
+            <div style="padding:10px; border-bottom:1px solid #eee">
+                <label style="font-weight:bold; display:block; margin-bottom:5px">${f.label}</label>
+                ${f.logic?.enabled ? `<small style="color:var(--warning)">[شرطي: يظهر عند ${f.logic.visibleWhen?.value}]</small>` : ''}
+                ${f.repeat?.enabled ? `<small style="color:var(--green)">[يتكرر حسب العدد]</small>` : ''}
+                <input type="${f.fieldType==='number'?'number':'text'}" style="width:100%; padding:5px" placeholder="معاينة...">
+            </div>
+        `).join('') || 'لا توجد بنود.';
+    }
 
     $('saveFieldBtn').onclick = async () => {
-        const label = $('builderLabel').value;
-        if(!label) return alert('أدخل اسم البند');
-        
-        await addDoc(collection(db, 'checklist_fields'), {
-            label: label,
+        const id = $('builderEditingId').value;
+        const payload = {
+            label: $('builderLabel').value,
             fieldType: $('builderFieldType').value,
             order: Number($('builderOrder').value),
             section: $('builderSection').value,
-            active: true
-        });
+            active: true,
+            logic: {
+                enabled: $('logicEnabled').value === 'true',
+                visibleWhen: {
+                    fieldId: $('logicFieldRef').value,
+                    value: $('logicValue').value,
+                    operator: 'equals'
+                }
+            },
+            repeat: {
+                enabled: $('repeatEnabled').value === 'true',
+                countFromFieldId: $('repeatCountRef').value,
+                labelTemplate: $('repeatLabelTemplate').value,
+                saveAsArray: true
+            },
+            integration: $('integrationTarget').value !== 'none' ? {
+                target: $('integrationTarget').value,
+                matchBy: $('integrationMatchBy').value
+            } : null
+        };
+
+        if(id) await setDoc(doc(db, 'checklist_fields', id), payload, {merge:true});
+        else await addDoc(collection(db, 'checklist_fields'), payload);
+        
+        alert('تم الحفظ بنجاح');
         resetForm();
     };
 
+    window.editF = (id) => {
+        const f = allFields.find(x => x.id === id);
+        if(!f) return;
+        $('builderEditingId').value = f.id;
+        $('builderLabel').value = f.label;
+        $('builderFieldType').value = f.fieldType;
+        $('builderOrder').value = f.order;
+        $('builderSection').value = f.section;
+        $('logicEnabled').value = String(f.logic?.enabled || false);
+        $('logicFieldRef').value = f.logic?.visibleWhen?.fieldId || '';
+        $('logicValue').value = f.logic?.visibleWhen?.value || '';
+        $('repeatEnabled').value = String(f.repeat?.enabled || false);
+        $('repeatCountRef').value = f.repeat?.countFromFieldId || '';
+        $('repeatLabelTemplate').value = f.repeat?.labelTemplate || '';
+        $('integrationTarget').value = f.integration?.target || 'none';
+    };
+
+    window.deleteF = async (id) => {
+        if(confirm('هل أنت متأكد من حذف البند؟')) await deleteDoc(doc(db, 'checklist_fields', id));
+    };
+
     window.resetForm = () => {
+        $('builderEditingId').value = '';
         $('builderLabel').value = '';
         $('builderOrder').value = '1';
-        $('builderSection').value = 'General';
+        $('logicEnabled').value = 'false';
+        $('repeatEnabled').value = 'false';
+        $('integrationTarget').value = 'none';
+    };
+
+    // زر الإنشاء التلقائي لتوفير الوقت
+    $('seedBtn').onclick = async () => {
+        const example = {
+            label: "عدد أجهزة Windows المراد ترقيتها",
+            fieldType: "number",
+            order: 29,
+            section: "Hardware Upgrade",
+            active: true
+        };
+        await addDoc(collection(db, 'checklist_fields'), example);
+        alert('تم إضافة مثال البند الرقمي. الآن يمكنك إضافة بند "رقم الموظف" وربطه بهذا البند عبر التكرار.');
     };
   </script>
 </body>
