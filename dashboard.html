@@ -1,216 +1,220 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" class="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة الفروع | المجدوعي للسيارات</title>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Almajdouie Motors Dashboard | v4.0</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --primary: #0d4b73;
-            --secondary: #6e8192;
-            --success: #2f9e66;
-            --danger: #d64545;
-            --bg: #f8fafc;
-            --card: #ffffff;
-            --border: #e2e8f0;
-        }
-        
-        body { 
-            margin: 0; 
-            font-family: 'Segoe UI', Tahoma, sans-serif; 
-            background: var(--bg); 
-            color: #1e293b;
-            padding: 20px;
-        }
-
-        /* تنسيق البطاقات الجمالي */
-        .card {
-            background: var(--card);
-            border-radius: 16px;
-            border: 1px solid var(--border);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-            overflow: hidden;
-        }
-
-        .card-header {
-            background: var(--primary);
-            color: white;
-            padding: 15px 20px;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .card-body { padding: 20px; }
-
-        /* تنظيم الحقول في شبكة (Grid) */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .field { display: flex; flex-direction: column; gap: 5px; }
-        .field label { font-size: 13px; font-weight: 600; color: var(--secondary); }
-        .field input {
-            padding: 10px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            outline: none;
-            transition: 0.3s;
-        }
-        .field input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(13, 75, 115, 0.1); }
-
-        /* الأزرار */
-        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
-        .btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-success { background: var(--success); color: white; }
-        .btn-danger { background: var(--danger); color: white; }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
-
-        /* تنسيق الجدول */
-        .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #f1f5f9; padding: 12px; text-align: right; font-size: 13px; color: var(--secondary); }
-        td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
-        tr:hover { background: #f8fafc; }
-
-        .search-box {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            margin-bottom: 20px;
-            background: white;
-        }
+        body { font-family: 'Cairo', sans-serif; }
+        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body>
+<body class="bg-[#f8f9ff] text-[#0b1c30] min-h-screen">
 
-    <div class="card">
-        <div class="card-header">
-            <span>إدارة الفروع واستيراد البيانات</span>
-            <div style="font-size: 11px; font-weight: normal;">المجدوعي للسيارات v1.2.5</div>
+<div class="flex flex-col lg:flex-row h-screen overflow-hidden">
+    
+    <aside class="w-full lg:w-[320px] bg-white border-l border-slate-200 flex flex-col shadow-sm z-20">
+        <div class="p-6 text-center border-b border-slate-100 bg-slate-50/50">
+            <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2" id="t-total-label">إجمالي الزيارات الميدانية</h2>
+            <div class="flex items-center justify-center gap-3">
+                <span class="text-6xl font-black text-[#001e40]" id="totalVisits">0</span>
+                <div class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full flex items-center">
+                    <span class="mr-1">LIVE</span>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <div style="background: #f0f7ff; padding: 15px; border-radius: 12px; margin-bottom: 25px; border: 1px dashed #0d4b73;">
-                <label style="font-weight: bold; display: block; margin-bottom: 10px;">استيراد من ملف Excel:</label>
-                <div class="btn-group">
-                    <input type="file" id="excelFile" accept=".xlsx, .xls" style="font-size: 12px;">
-                    <button class="btn btn-primary" onclick="importExcel()">رفع وتحديث القائمة</button>
-                    <button class="btn btn-success" onclick="exportExcel()">تصدير Excel الحالي</button>
+
+        <div class="flex-1 overflow-y-auto p-4 sidebar-scroll">
+            <h3 class="text-xs font-black text-[#001e40] mb-4 px-2" id="t-brands">إحصائيات البراندات النشطة</h3>
+            <div id="sideBrandList" class="space-y-3">
+                <div class="animate-pulse flex space-x-4 p-4">
+                    <div class="rounded-full bg-slate-200 h-10 w-10"></div>
+                    <div class="flex-1 space-y-6 py-1">
+                        <div class="h-2 bg-slate-200 rounded"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto p-6 lg:p-8">
+        <div class="max-w-7xl mx-auto space-y-6">
+            
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h1 class="text-2xl font-black text-[#001e40]" id="t-welcome">لوحة البيانات | Dashboard</h1>
+                    <p class="text-sm text-slate-500 font-bold" id="statusTxt">متصل عبر المحرك الرئيسي ✅</p>
+                </div>
+                <div class="text-xs font-bold bg-[#001e40] text-white px-4 py-2 rounded-lg">
+                    VERSION 4.0.0 TURBO
                 </div>
             </div>
 
-            <div class="grid">
-                <div class="field"><label>كود الفرع (ID)</label><input id="bId"></div>
-                <div class="field"><label>اسم الفرع</label><input id="bName"></div>
-                <div class="field"><label>العلامة التجارية</label><input id="bBrand"></div>
-                <div class="field"><label>المنطقة</label><input id="bRegion"></div>
-                <div class="field"><label>المدينة</label><input id="bCity"></div>
-                <div class="field"><label>الموقع</label><input id="bLoc"></div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 class="text-sm font-black text-[#001e40] mb-4" id="t-net">حالة أجهزة الشبكة</h3>
+                    <div class="h-[200px]"><canvas id="cNet"></canvas></div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 class="text-sm font-black text-[#001e40] mb-4" id="t-conn">جودة الاتصال</h3>
+                    <div class="h-[200px]"><canvas id="cConn"></canvas></div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative">
+                    <h3 class="text-sm font-black text-[#001e40] mb-4" id="t-ups">حالة الـ UPS</h3>
+                    <div class="h-[200px] flex items-center justify-center">
+                        <canvas id="cUps"></canvas>
+                        <div class="absolute inset-0 flex items-center justify-center pt-8">
+                            <span class="text-3xl font-black text-[#001e40]" id="upsPct">0%</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            
-            <div class="btn-group">
-                <button class="btn btn-primary" onclick="saveBranch()">حفظ البيانات</button>
-                <button class="btn btn-danger" onclick="clearForm()">تنظيف الحقول</button>
+
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-sm font-black text-[#001e40]" id="t-train">نظرة عامة على المتطلبات التدريبية</h3>
+                </div>
+                <div class="h-[300px]"><canvas id="cTrain"></canvas></div>
             </div>
         </div>
-    </div>
+    </main>
+</div>
 
-    <div class="card">
-        <div class="card-header" style="background: #334155;">الفروع المسجلة بالنظام</div>
-        <div class="card-body">
-            <input type="text" class="search-box" id="searchInput" placeholder="ابحث عن فرع، مدينة، أو منطقة..." oninput="filterTable()">
-            
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>كود الفرع</th>
-                            <th>اسم الفرع</th>
-                            <th>الماركة</th>
-                            <th>المنطقة/المدينة</th>
-                            <th>إجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="branchesBody">
-                        <tr><td colspan="5" style="text-align: center;">جاري تحميل البيانات...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+<script>
+(function(){
+    const $ = id => document.getElementById(id);
+    let charts = {}, state = { visits: [], brands: [], lang: 'ar' };
 
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script type="module">
-        // الارتباط بالصفحة الرئيسية (Master Page)
+    // نظام الترجمة المدمج
+    const i18n = {
+        ar: { welcome: "نظام إدارة الزيارات الميدانية", brands: "إحصائيات البراندات النشطة", totalLabel: "إجمالي الزيارات المنفذة", net: "حالة أجهزة الشبكة", conn: "جودة الاتصال والربط", ups: "كفاءة أجهزة الـ UPS", train: "تحليل المتطلبات التدريبية", inShape: "ممتاز", needArr: "يحتاج ترتيب" },
+        en: { welcome: "Field Visits Management System", brands: "Active Brand Statistics", totalLabel: "Total Executed Visits", net: "Network Appliances Status", conn: "Connectivity & Linking", ups: "UPS Efficiency", train: "Training Requirements Analysis", inShape: "In Shape", needArr: "Rearrange" }
+    };
+
+    function applyLanguage(lang) {
+        state.lang = lang;
+        document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        const d = i18n[lang];
+        $('t-welcome').innerText = d.welcome;
+        $('t-brands').innerText = d.brands;
+        $('t-total-label').innerText = d.totalLabel;
+        $('t-net').innerText = d.net;
+        $('t-conn').innerText = d.conn;
+        $('t-ups').innerText = d.ups;
+        $('t-train').innerText = d.train;
+        updateUI();
+    }
+
+    // الاستماع لرسائل تغيير اللغة من "المحرك الرئيسي"
+    window.addEventListener('message', e => { 
+        if (e.data.type === 'LANG_CHANGE') applyLanguage(e.data.lang); 
+    });
+
+    function boot(){
+        // الربط مع قاعدة البيانات عبر الأب (Site-Visit2.html)
         const db = window.parent.appDb;
-
-        // وظيفة جلب البيانات وعرضها في الجدول
-        async function loadBranches() {
-            db.collection('branches').orderBy('branchName').onSnapshot(snap => {
-                const tbody = document.getElementById('branchesBody');
-                tbody.innerHTML = '';
-                snap.forEach(doc => {
-                    const b = doc.data();
-                    tbody.innerHTML += `
-                        <tr>
-                            <td>${doc.id}</td>
-                            <td><b>${b.branchName}</b></td>
-                            <td>${b.brand}</td>
-                            <td>${b.region} - ${b.city}</td>
-                            <td>
-                                <button onclick="deleteBranch('${doc.id}')" style="color:red; border:none; background:none; cursor:pointer;">حذف</button>
-                            </td>
-                        </tr>
-                    `;
-                });
-            });
+        if (!db) { 
+            $('statusTxt').innerText = "⚠️ خطأ: المحرك الرئيسي غير جاهز";
+            setTimeout(boot, 1000); 
+            return; 
         }
 
-        // حفظ فرع يدوي
-        window.saveBranch = async () => {
-            const id = document.getElementById('bId').value;
-            if(!id) return alert("يرجى إدخال كود الفرع");
-            
-            await db.collection('branches').doc(id).set({
-                branchName: document.getElementById('bName').value,
-                brand: document.getElementById('bBrand').value,
-                region: document.getElementById('bRegion').value,
-                city: document.getElementById('bCity').value,
-                location: document.getElementById('bLoc').value,
-                updatedAt: new Date()
-            }, { merge: true });
-            alert("تم الحفظ بنجاح");
-            clearForm();
-        };
+        applyLanguage(window.parent.currentLang || 'ar');
 
-        window.clearForm = () => {
-            ['bId','bName','bBrand','bRegion','bCity','bLoc'].forEach(id => document.getElementById(id).value = '');
-        };
+        // جلب الشعارات من مجموعة brand_assets (استخدام logoData)
+        db.collection('brand_assets').onSnapshot(snap => {
+            state.brands = snap.docs.map(d => d.data());
+            updateUI();
+        });
 
-        window.deleteBranch = async (id) => {
-            if(confirm("هل أنت متأكد من حذف هذا الفرع؟")) {
-                await db.collection('branches').doc(id).delete();
+        // جلب الزيارات حياً من مجموعة branch_checklists
+        db.collection('branch_checklists').onSnapshot(snap => {
+            state.visits = snap.docs.map(d => d.data());
+            $('totalVisits').textContent = state.visits.length;
+            updateUI();
+        });
+    }
+
+    function updateUI() {
+        const counts = {};
+        state.visits.forEach(v => { const b = v.brand || 'Other'; counts[b] = (counts[b] || 0) + 1; });
+
+        // فلترة وعرض البراندات النشطة فقط كما طلبت
+        const activeBrands = state.brands.filter(b => (counts[b.brand] || 0) > 0);
+        
+        $('sideBrandList').innerHTML = activeBrands.map(b => {
+            const c = counts[b.brand];
+            const logo = b.logoData || b.logoUrl || 'https://placehold.jp/50x30.png';
+            return `
+                <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 hover:border-blue-200 transition-all">
+                    <div class="flex items-center gap-3">
+                        <img src="${logo}" class="w-10 h-7 object-contain bg-white rounded p-1 border border-slate-200">
+                        <span class="text-sm font-bold text-slate-700">${b.brand}</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-lg font-black text-[#001e40]">${c}</div>
+                    </div>
+                </div>`;
+        }).join('');
+
+        renderCharts();
+    }
+
+    function renderCharts() {
+        const total = state.visits.length, d = i18n[state.lang];
+        let s = { net: 0, conn: {a:0, w:0}, train: {} };
+
+        state.visits.forEach(v => {
+            const a = v.dynamicAnswers || {};
+            if(a["8LQ9F3Rj4MsNDkTbO5Pi"] === "in_shape") s.net++;
+            if(a["BcjdipZxDmVgodHk9t1B"] === "above_the_range") s.conn.a++;
+            if(a["BcjdipZxDmVgodHk9t1B"] === "within_the_range") s.conn.w++;
+            // استخراج المتطلبات التدريبية حياً
+            Object.keys(a).forEach(k => { if(k.toLowerCase().includes('train')) { let t = a[k]; if(t) s.train[t] = (s.train[t]||0)+1; }});
+        });
+
+        const calc = v => total > 0 ? Math.round((v/total)*100) : 0;
+        
+        drawBar('cNet', [d.inShape, d.needArr], [calc(s.net), 100-calc(s.net)], ['#10b981', '#cbd5e1']);
+        drawBar('cConn', ['Above', 'Within'], [calc(s.conn.a), calc(s.conn.w)], ['#10b981', '#f59e0b']);
+        drawDoughnut('cUps', 0);
+        
+        const tL = Object.keys(s.train), tD = Object.values(s.train);
+        drawBar('cTrain', tL.length ? tL : ['-'], tD.length ? tD : [0], ['#001e40'], true);
+    }
+
+    function drawBar(id, labels, data, colors, horiz = false) {
+        if (charts[id]) charts[id].destroy();
+        charts[id] = new Chart($(id), {
+            type: 'bar',
+            data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 8 }] },
+            options: { 
+                indexAxis: horiz ? 'x' : 'y', 
+                maintainAspectRatio: false,
+                plugins: { legend: {display:false} },
+                scales: { x: { grid:{display:false}, ticks:{font:{family:'Cairo'}} }, y: { grid:{display:false}, ticks:{font:{family:'Cairo'}} } }
             }
-        };
+        });
+    }
 
-        loadBranches();
-    </script>
+    function drawDoughnut(id, val) {
+        $('upsPct').innerText = val + "%";
+        if (charts[id]) charts[id].destroy();
+        charts[id] = new Chart($(id), {
+            type: 'doughnut',
+            data: { datasets: [{ data: [val, 100-val], backgroundColor: ['#001e40', '#e2e8f0'], borderWidth: 0 }] },
+            options: { cutout: '85%', maintainAspectRatio: false, plugins: { legend: {display:false} } }
+        });
+    }
+
+    boot();
+})();
+</script>
 </body>
 </html>
