@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dynamic Check-List Admin Advanced v2.1.6 - Fixed</title>
+  <title>Dynamic Check-List Admin Advanced v2.1.6 - Fixed & Integrated</title>
   <style>
     :root{--primary:#0d4b73;--green:#2f9e66;--danger:#d64545;--warning:#c47f00;--border:#d7e0ea;--text:#163247;--muted:#6e8192;--bg:#edf3f8;--card:#fff;--shadow:0 10px 30px rgba(18,48,74,.08);--radius:18px}
     *{box-sizing:border-box} body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg)}
@@ -11,24 +11,49 @@
     
     /* إخفاء الهيدر عند العمل داخل نظام الماستر لمنع التكرار */
     header { display: none !important; }
-    .container { max-width:1600px; margin: 10px auto; padding:0 14px 28px; }
+    .container { max-width:1600px; margin: 5px auto; padding:0 10px 20px; }
 
-    .grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-    .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;overflow:hidden}.card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:16px}
-    .field{display:grid;gap:8px}.field label{font-size:14px;font-weight:700}.field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-family:inherit;font-size:14px;color:var(--text)}
-    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.btn{border:1px solid var(--border);border-radius:999px;padding:10px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer;transition:all .2s}.btn.green{background:var(--green);border-color:var(--green);color:#fff}.btn:hover{opacity:.9}
-    .overlay{position:fixed;inset:0;background:rgba(13,75,115,0.1);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}.login-card{width:min(450px,96vw);background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:25px;text-align:center;}
+    .grid-2{display:grid;grid-template-columns: 1fr 1fr; gap:16px}
+    /* تحسين شبكة الحقول لتكون مرنة ولا تتداخل */
+    .grid-fields{display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px}
+    
+    .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;overflow:hidden; height: fit-content;}
+    .card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:16px}
+    
+    .field{display:flex; flex-direction: column; gap:6px}
+    .field label{font-size:13px; font-weight:700; color: var(--primary)}
+    .field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-family:inherit;font-size:13px;}
+    
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+    .btn{border:1px solid var(--border);border-radius:999px;padding:8px 16px;background:#fff;color:var(--primary);font-weight:700;cursor:pointer;transition:all .2s; font-size: 13px;}
+    .btn.green{background:var(--green);border-color:var(--green);color:#fff}
+    .btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+    .btn:hover{opacity:.8}
+
+    .item{background:#fcfdff;border:1px solid var(--border);border-radius:12px;padding:10px;margin-bottom:8px; display:flex; justify-content: space-between; align-items: center;}
+    .item-info strong{display:block; color:var(--primary); font-size:13px;}
+    .item-info small{color:var(--muted); font-size:11px;}
+
+    .section-title{margin:15px 0 8px;font-weight:800;color:var(--primary);font-size:14px;border-inline-start:4px solid var(--primary);padding-inline-start:10px}
+    
+    .overlay{position:fixed;inset:0;background:rgba(13,75,115,0.05);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100}
+    .login-card{width:400px;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;text-align:center;}
+
+    /* تنسيق المعاينة الحية */
+    .dynamic-checklist-list{list-style:none;padding:0;margin:0;}
+    .dynamic-checklist-list>li{padding:10px; border-bottom:1px solid #eee; font-size: 13px;}
+    
+    @media (max-width:1000px){.grid-2{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <div class="overlay" id="loginOverlay">
     <div class="login-card">
-      <h2 style="color:var(--primary)">تسجيل الدخول للإدارة</h2>
-      <p style="font-size:13px; color:#666; margin-bottom:20px;">الرجاء إدخال بيانات حساب المجدوعي الخاص بك</p>
-      <div class="field" style="margin-bottom:10px"><input id="loginEmail" type="email" placeholder="البريد الإلكتروني"></div>
-      <div class="field" style="margin-bottom:20px"><input id="loginPassword" type="password" placeholder="كلمة المرور"></div>
-      <button class="btn green" id="loginBtn" style="width:100%">دخول / Login</button>
-      <p id="loginMessage" style="margin-top:15px; font-size:12px; color:red;"></p>
+      <h3 style="color:var(--primary)">تسجيل دخول الإدارة</h3>
+      <div class="field" style="margin-top:15px"><input id="loginEmail" type="email" placeholder="البريد الإلكتروني"></div>
+      <div class="field" style="margin-top:10px"><input id="loginPassword" type="password" placeholder="كلمة المرور"></div>
+      <button class="btn green" id="loginBtn" style="width:100%; margin-top:15px">دخول</button>
+      <p id="loginMessage" style="color:red; font-size:11px; margin-top:10px;"></p>
     </div>
   </div>
 
@@ -37,21 +62,24 @@
       <div class="card">
         <h3>إدارة بنود الفحص الديناميكية</h3>
         <input type="hidden" id="builderEditingId">
-        <div class="grid-4">
-          <div class="field"><label>اسم البند</label><input id="builderLabel" placeholder="مثال: حالة الترقية"></div>
-          <div class="field"><label>النوع</label><select id="builderFieldType"><option value="text">نص</option><option value="choice">خيارات</option><option value="number">رقم</option></select></div>
+        <div class="grid-fields">
+          <div class="field"><label>اسم البند</label><input id="builderLabel" placeholder="مثال: حالة الجهاز"></div>
+          <div class="field"><label>نوع الحقل</label><select id="builderFieldType"><option value="text">نص</option><option value="number">رقم</option><option value="choice">خيارات</option></select></div>
           <div class="field"><label>الترتيب</label><input id="builderOrder" type="number" value="1"></div>
           <div class="field"><label>القسم</label><input id="builderSection" value="General"></div>
         </div>
         <div class="actions">
           <button class="btn green" id="saveFieldBtn">حفظ البند</button>
-          <button class="btn" id="resetFieldBtn">تنظيف</button>
+          <button class="btn" onclick="resetForm()">تنظيف</button>
         </div>
-        <div id="adminList" style="margin-top:20px"></div>
+        
+        <div class="section-title">البنود المضافة حالياً</div>
+        <div id="adminList" style="max-height: 400px; overflow-y: auto;"></div>
       </div>
+
       <div class="card">
-        <h3>المعاينة الحية</h3>
-        <div id="dynamicChecklistSections"></div>
+        <h3>المعاينة الحية (كيف سيراها الفني)</h3>
+        <div id="previewContainer" class="dynamic-checklist-list"></div>
       </div>
     </div>
   </main>
@@ -59,9 +87,8 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, collection, doc, onSnapshot, setDoc, addDoc, deleteDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    // تم تحديث البيانات هنا لتطابق مشروعك الأصلي تماماً (تصحيح الخطأ)
     const firebaseConfig = {
         apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
         authDomain: "baghethan-ba325.firebaseapp.com",
@@ -77,7 +104,7 @@
     const $ = id => document.getElementById(id);
 
     // التحقق من الجلسة
-    onAuthStateChanged(auth, async user => {
+    onAuthStateChanged(auth, user => {
       if(user){
         $('loginOverlay').classList.add('hidden');
         $('appRoot').classList.remove('hidden');
@@ -89,42 +116,61 @@
     });
 
     $('loginBtn').onclick = async () => {
-      const email = $('loginEmail').value;
-      const pass = $('loginPassword').value;
       try {
         await setPersistence(auth, browserLocalPersistence);
-        await signInWithEmailAndPassword(auth, email, pass);
-      } catch (err) {
-        $('loginMessage').textContent = "بيانات الدخول غير صحيحة لمشروع Checklist";
-      }
+        await signInWithEmailAndPassword(auth, $('loginEmail').value, $('loginPassword').value);
+      } catch (err) { $('loginMessage').textContent = "بيانات الدخول خاطئة"; }
     };
 
     function listenFields() {
-      onSnapshot(collection(db, 'checklist_fields'), snap => {
+      onSnapshot(query(collection(db, 'checklist_fields'), orderBy('order')), snap => {
         const fields = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        
+        // تحديث القائمة
         $('adminList').innerHTML = fields.map(f => `
-          <div style="padding:10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between">
-            <span>${f.label} (${f.section})</span>
-            <button class="btn" style="padding:4px 10px" onclick="deleteF('${f.id}')">حذف</button>
+          <div class="item">
+            <div class="item-info">
+                <strong>${f.label}</strong>
+                <small>${f.section} | الترتيب: ${f.order}</small>
+            </div>
+            <button class="btn danger" style="padding:4px 10px" onclick="deleteF('${f.id}')">حذف</button>
           </div>
+        `).join('');
+
+        // تحديث المعاينة الحية
+        $('previewContainer').innerHTML = fields.map(f => `
+            <li>
+                <label style="display:block; margin-bottom:5px; font-weight:bold">${f.label}</label>
+                ${f.fieldType === 'text' ? '<input type="text" style="width:100%; border:1px solid #ddd; padding:5px">' : 
+                  f.fieldType === 'number' ? '<input type="number" style="width:100%; border:1px solid #ddd; padding:5px">' : 
+                  '<select style="width:100%; border:1px solid #ddd; padding:5px"><option>خيار 1</option></select>'}
+            </li>
         `).join('');
       });
     }
 
     window.deleteF = async (id) => {
-        if(confirm('حذف؟')) await deleteDoc(doc(db, 'checklist_fields', id));
+        if(confirm('هل أنت متأكد من الحذف؟')) await deleteDoc(doc(db, 'checklist_fields', id));
     };
 
     $('saveFieldBtn').onclick = async () => {
-        const payload = {
-            label: $('builderLabel').value,
+        const label = $('builderLabel').value;
+        if(!label) return alert('أدخل اسم البند');
+        
+        await addDoc(collection(db, 'checklist_fields'), {
+            label: label,
             fieldType: $('builderFieldType').value,
             order: Number($('builderOrder').value),
             section: $('builderSection').value,
             active: true
-        };
-        await addDoc(collection(db, 'checklist_fields'), payload);
-        alert('تم الحفظ');
+        });
+        resetForm();
+    };
+
+    window.resetForm = () => {
+        $('builderLabel').value = '';
+        $('builderOrder').value = '1';
+        $('builderSection').value = 'General';
     };
   </script>
 </body>
