@@ -83,9 +83,11 @@
 
         /* شاشة تسجيل الدخول */
         #login-page { 
-            height: 100vh; display: flex; align-items: center; justify-content: center; 
+            height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column;
             background: linear-gradient(135deg, #0d4b73, #0a3b5a); position: fixed; width: 100%; z-index: 9999; 
         }
+        .lang-switch { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        [dir="ltr"] .lang-switch { left: auto; right: 20px; }
         .login-card { background: white; padding: 40px; border-radius: 24px; width: 90%; max-width: 380px; text-align: center; }
         .btn-log { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; }
     </style>
@@ -93,12 +95,13 @@
 <body>
 
     <div id="login-page">
+        <button id="langToggleBtn" class="lang-switch" onclick="toggleLang()">English</button>
         <div class="login-card">
-            <h2 style="color:var(--primary); margin-bottom: 5px;">دخول النظام</h2>
-            <p style="color:#666; margin-bottom: 25px;">إدارة المجدوعي للسيارات</p>
+            <h2 id="loginTitle" style="color:var(--primary); margin-bottom: 5px;">دخول النظام</h2>
+            <p id="loginSub" style="color:#666; margin-bottom: 25px;">إدارة المجدوعي للسيارات</p>
             <input type="email" id="emailField" placeholder="البريد الإلكتروني" value="baghethanmh@almajdouie.com" style="width:100%; padding:12px; margin-bottom:12px; border:1px solid #ddd; border-radius:10px;">
             <input type="password" id="passField" placeholder="كلمة المرور" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:10px;">
-            <button class="btn-log" onclick="handleLogin()">تسجيل الدخول</button>
+            <button id="loginBtn" class="btn-log" onclick="handleLogin()">تسجيل الدخول</button>
             <p id="msg" style="color:red; font-size:12px; margin-top:10px;"></p>
         </div>
     </div>
@@ -106,8 +109,11 @@
     <div id="dash-page" class="hidden" style="height: 100%; display: flex; flex-direction: column;">
         <header>
             <div id="userDisplay" style="font-size: 13px;"></div>
-            <div style="font-weight: 800; letter-spacing: 0.5px;">نظام المجدوعي الموحد</div>
-            <button onclick="location.reload()" style="background:#d64545; color:white; border:none; padding:5px 15px; border-radius:20px; cursor:pointer; font-weight:bold; font-size: 11px;">خروج</button>
+            <div id="sysTitle" style="font-weight: 800; letter-spacing: 0.5px;">نظام المجدوعي الموحد</div>
+            <div style="display: flex; gap: 10px;">
+                <button id="langToggleBtnDash" onclick="toggleLang()" style="background:#555; color:white; border:none; padding:5px 15px; border-radius:20px; cursor:pointer; font-weight:bold; font-size: 11px;">English</button>
+                <button id="logoutBtn" onclick="location.reload()" style="background:#d64545; color:white; border:none; padding:5px 15px; border-radius:20px; cursor:pointer; font-weight:bold; font-size: 11px;">خروج</button>
+            </div>
         </header>
         
         <nav class="nav-tabs" id="tabsBox"></nav>
@@ -143,7 +149,55 @@
             try { 
                 await window.appAuth.signInWithEmailAndPassword(e, p); 
             } catch { 
-                document.getElementById('msg').innerText = "بيانات الدخول غير صحيحة"; 
+                document.getElementById('msg').innerText = currentLang === 'ar' ? "بيانات الدخول غير صحيحة" : "Invalid login credentials"; 
+            }
+        };
+
+        let currentLang = 'ar';
+        const trans = {
+            loginTitle: { ar: "دخول النظام", en: "System Login" },
+            loginSub: { ar: "إدارة المجدوعي للسيارات", en: "Almajdouie Motors Management" },
+            emailPl: { ar: "البريد الإلكتروني", en: "Email" },
+            passPl: { ar: "كلمة المرور", en: "Password" },
+            loginBtn: { ar: "تسجيل الدخول", en: "Login" },
+            welcome: { ar: "مرحباً:", en: "Welcome:" },
+            sysTitle: { ar: "نظام المجدوعي الموحد", en: "Almajdouie Unified System" },
+            logoutBtn: { ar: "خروج", en: "Logout" },
+            langToggleBtn: { ar: "English", en: "عربي" }
+        };
+
+        const tabNames = {
+            'dashboard': { ar: 'لوحة التحكم', en: 'Dashboard' },
+            'branches': { ar: 'إدارة الفروع', en: 'Branches Management' },
+            'technicians': { ar: 'الفنيين', en: 'Technicians' },
+            'holidays': { ar: 'الإجازات', en: 'Holidays' },
+            'diagnostics': { ar: 'التشخيص', en: 'Diagnostics' },
+            'dynamicChecklistAdmin': { ar: 'إدارة الفحص الذكي', en: 'Dynamic Checklist Admin' },
+            'permissions': { ar: 'الصلاحيات', en: 'Permissions' },
+            'visit': { ar: 'الزيارات', en: 'Visits' },
+            'reports': { ar: 'التقارير', en: 'Reports' },
+            'upgradeWindows': { ar: 'تحديثات الويندوز', en: 'Windows Upgrades' },
+            'brands': { ar: 'العلامات التجارية', en: 'Brands' },
+            'checklist': { ar: 'قائمة الفحص', en: 'Checklist' }
+        };
+
+        window.toggleLang = () => {
+            currentLang = currentLang === 'ar' ? 'en' : 'ar';
+            document.documentElement.lang = currentLang;
+            document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            
+            document.getElementById('loginTitle').innerText = trans.loginTitle[currentLang];
+            document.getElementById('loginSub').innerText = trans.loginSub[currentLang];
+            document.getElementById('emailField').placeholder = trans.emailPl[currentLang];
+            document.getElementById('passField').placeholder = trans.passPl[currentLang];
+            document.getElementById('loginBtn').innerText = trans.loginBtn[currentLang];
+            document.getElementById('sysTitle').innerText = trans.sysTitle[currentLang];
+            document.getElementById('logoutBtn').innerText = trans.logoutBtn[currentLang];
+            document.getElementById('langToggleBtn').innerText = trans.langToggleBtn[currentLang];
+            document.getElementById('langToggleBtnDash').innerText = trans.langToggleBtn[currentLang];
+
+            if (window.currentUserData) {
+                renderTabs();
             }
         };
 
@@ -157,40 +211,25 @@
             }
         });
 
-        function showDash() {
-            document.getElementById('login-page').classList.add('hidden');
-            document.getElementById('dash-page').classList.remove('hidden');
-            document.getElementById('dash-page').style.display = 'flex'; // لضمان عمل Flexbox
-            document.getElementById('userDisplay').innerHTML = `مرحباً: <b>${window.currentUserData.name}</b>`;
-            
+        function renderTabs() {
+            document.getElementById('userDisplay').innerHTML = `${trans.welcome[currentLang]} <b>${window.currentUserData.name}</b>`;
             const box = document.getElementById('tabsBox');
             box.innerHTML = '';
             (window.currentUserData.pages || []).forEach(pID => {
                 const b = document.createElement('button');
                 b.className = 'tab';
-                b.innerText = translate(pID);
+                b.innerText = tabNames[pID] ? tabNames[pID][currentLang] : pID;
                 b.onclick = () => loadTab(pID, b);
                 box.appendChild(b);
             });
             if(box.firstChild) box.firstChild.click();
         }
 
-        function translate(id) {
-            const names = { 
-                'dashboard': 'الرئيسية', 
-                'branches': 'إدارة الفروع', 
-                'technicians': 'الفنيين', 
-                'holidays': 'الإجازات',
-                'diagnostics': 'التشخيص',
-                'dynamicChecklistAdmin': 'إدارة الفحص الذكي',
-                'permissions': 'الصلاحيات',
-                'visit': 'الزيارات',
-                'reports': 'التقارير',
-                'upgradeWindows': 'تحديثات الويندوز',
-                'brands': 'العلامات التجارية',
-                'checklist': 'قائمة الفحص'
-            };
-            return names[id] || id;
+        function showDash() {
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('dash-page').classList.remove('hidden');
+            document.getElementById('dash-page').style.display = 'flex'; // لضمان عمل Flexbox
+            renderTabs();
         }
 
         window.loadTab = (id, el) => {
