@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Diagnostics Tool v2.1.12</title>
+  <title>Diagnostics Tool v2.1.13</title>
   <style>
     :root{ --primary:#0d4b73; --green:#2f9e66; --danger:#d64545; --warning:#c47f00; --border:#d7e0ea; --text:#163247; --muted:#6e8192; --bg:#edf3f8; --card:#fff; --shadow:0 10px 30px rgba(18,48,74,.08); --radius:16px; }
     *{box-sizing:border-box}
     body{margin:0;font-family:Segoe UI,Tahoma,Arial,sans-serif;color:var(--text);background:var(--bg); padding: 10px !important;}
-    header{ display: none !important; } /* إخفاء الهيدر داخل النظام */
+    header{ display: none !important; }
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow); padding:16px; margin-bottom: 16px; overflow:hidden}
     .card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
     .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
@@ -29,7 +29,7 @@
 
   <main>
     <div class="card">
-      <h3>ملخص الحالة / Performance v2.1.12</h3>
+      <h3>ملخص الحالة / Performance v2.1.13</h3>
       <div class="grid-3">
         <div class="stat"><span class="label">مدة الجلسة</span><div class="value" id="diagSessionSeconds">0s</div></div>
         <div class="stat"><span class="label">زمن تعريف المستخدم</span><div class="value" id="diagAuthMs">0ms</div></div>
@@ -45,9 +45,9 @@
             <thead>
               <tr>
                 <th>التبويب (Tab)</th>
-                <th>الإصدار (Ver)</th>
-                <th>الحالة (Status)</th>
+                <th>الإصدار (Ver)</th> <th>الحالة (Status)</th>
                 <th>وقت الجاهزية</th>
+                <th>الاعتمادات (Deps)</th>
               </tr>
             </thead>
             <tbody id="diagTabsBody"></tbody>
@@ -76,9 +76,17 @@
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-    import { getFirestore, collection, onSnapshot, query, limit } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import { getFirestore, collection, onSnapshot, query, limit, getDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-    const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
+    const firebaseConfig = { 
+      apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', 
+      authDomain:'baghethan-ba325.firebaseapp.com', 
+      projectId:'baghethan-ba325', 
+      storageBucket:'baghethan-ba325.firebasestorage.app', 
+      messagingSenderId:'944819735112', 
+      appId:'1:944819735112:web:07315600da39377320667d' 
+    };
+    
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -87,25 +95,52 @@
       startedAt: performance.now(),
       authMs: 0,
       metrics: {},
-      versions: { dashboard:'v1.0.2', checklist:'v1.2.0', brands:'v1.0.0', upgradeWindows:'v2.1.7', reports:'v1.0.5', visit:'v1.1.0', branches:'v1.0.0', technicians:'v1.0.1', permissions:'v1.0.0', dynamicChecklistAdmin:'v2.1.6' },
+      userPages: [],
+      // مسميات الإصدارات الحالية
+      versions: { 
+        dashboard:'v1.0.2', 
+        checklist:'v1.2.0', 
+        brands:'v1.0.0', 
+        upgradeWindows:'v2.1.7', 
+        reports:'v1.0.5', 
+        visit:'v1.1.0', 
+        branches:'v1.0.0', 
+        technicians:'v1.0.1', 
+        permissions:'v1.0.0', 
+        dynamicChecklistAdmin:'v2.1.6',
+        diagnostics: 'v2.1.13'
+      },
+      // خرائط الاعتمادات لكل تبويب
       deps: { 
         dashboard:['branches','technicians','siteVisits'], 
         checklist:['technicians','siteVisits','checklist_fields'], 
         upgradeWindows:['windows_upgrades','branches'], 
         reports:['branch_checklists','siteVisits'],
-        dynamicChecklistAdmin:['checklist_fields']
+        dynamicChecklistAdmin:['checklist_fields'],
+        visit:['siteVisits','branches','technicians'],
+        branches:['branches'],
+        technicians:['technicians'],
+        permissions:['app_users'],
+        brands:['brand_assets']
       }
     };
 
     const $ = id => document.getElementById(id);
 
+    // دالة تحويل الأسماء البرمجية للأسماء التي تظهر في قاعدة البيانات
+    function getSafeKey(id) {
+        const map = { 'checklist': 'قائمة الفحص', 'dashboard': 'الرئيسية', 'upgradeWindows': 'ترقية أجهزة ويندوز', 'visit': 'الزيارات', 'reports': 'التقارير', 'dynamicChecklistAdmin': 'إدارة الفحص الذكي', 'diagnostics': 'التشخيص' };
+        return map[id] || id;
+    }
+
     function listen(name) {
+      if(state.metrics[name]) return;
       state.metrics[name] = { count: 0, readyAt: null };
       onSnapshot(query(collection(db, name), limit(1)), snap => {
         state.metrics[name].count = snap.size;
         if(!state.metrics[name].readyAt) state.metrics[name].readyAt = Math.round(performance.now() - state.startedAt);
         render();
-      });
+      }, err => console.warn(`Listener ${name} error:`, err));
     }
 
     function render() {
@@ -113,20 +148,23 @@
       $('diagSessionSeconds').textContent = elapsed + 's';
       $('diagAuthMs').textContent = state.authMs + 'ms';
 
-      // Tab Readiness Table
-      $('diagTabsBody').innerHTML = Object.entries(state.deps).map(([tab, deps]) => {
+      // عرض التبويبات التي يمتلك المستخدم صلاحية عليها فقط، أو عرض الكل إذا لم يتوفر ملف تعريف
+      const tabsToDisplay = state.userPages.length > 0 ? Object.keys(state.deps).filter(k => state.userPages.includes(getSafeKey(k)) || state.userPages.includes(k)) : Object.keys(state.deps);
+
+      $('diagTabsBody').innerHTML = tabsToDisplay.map(tab => {
+        const deps = state.deps[tab] || [];
         const readyDeps = deps.filter(d => state.metrics[d]?.readyAt);
         const isReady = readyDeps.length === deps.length;
         const maxTime = isReady ? Math.max(...deps.map(d => state.metrics[d].readyAt)) : '-';
+        
         return `<tr>
           <td>${tab}</td>
-          <td><b>${state.versions[tab] || '-'}</b></td>
-          <td><span class="${isReady?'badge-ready':'badge-pending'}">${isReady?'Ready':'Pending'}</span></td>
+          <td><b>${state.versions[tab] || '-'}</b></td> <td><span class="${isReady?'badge-ready':'badge-pending'}">${isReady?'Ready':'Pending'}</span></td>
           <td>${maxTime === '-' ? '-' : maxTime + 'ms'}</td>
+          <td style="font-size:10px; color:#999">${deps.join(', ')}</td>
         </tr>`;
       }).join('');
 
-      // Listeners Table
       $('diagListenersBody').innerHTML = Object.entries(state.metrics).map(([name, m]) => `
         <tr>
           <td>${name}</td>
@@ -137,14 +175,22 @@
       $('diagTotalDocs').textContent = Object.values(state.metrics).reduce((s, x) => s + x.count, 0);
     }
 
-    onAuthStateChanged(auth, user => {
+    onAuthStateChanged(auth, async user => {
       if(user) {
         state.authMs = Math.round(performance.now() - state.startedAt);
-        ['branches','technicians','siteVisits','checklist_fields','windows_upgrades','branch_checklists'].forEach(listen);
+        // قراءة صلاحيات المستخدم لمعرفة التبويبات "الموجودة" له
+        try {
+            const userDoc = await getDoc(doc(db, 'app_users', user.uid));
+            if(userDoc.exists()) state.userPages = userDoc.data().pages || [];
+        } catch(e) {}
+        
+        // تشغيل المستمعات للجداول الأساسية
+        ['branches','technicians','siteVisits','checklist_fields','windows_upgrades','branch_checklists','app_users','brand_assets'].forEach(listen);
+        render();
       }
     });
 
-    setInterval(render, 2000);
+    setInterval(render, 3000);
   </script>
 </body>
 </html>
