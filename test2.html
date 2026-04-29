@@ -20,11 +20,7 @@
             background: var(--bg);
         }
 
-        body { 
-            display: flex; 
-            flex-direction: column; 
-            height: 100vh;
-        }
+        body { display: flex; flex-direction: column; height: 100vh; }
 
         .hidden { display: none !important; }
 
@@ -37,8 +33,7 @@
         header { 
             background: var(--dark); color: white; padding: 10px 25px; 
             display: flex; justify-content: space-between; align-items: center; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2); flex-shrink: 0;
-            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2); flex-shrink: 0; z-index: 10;
         }
 
         .nav-tabs { 
@@ -53,30 +48,17 @@
         .tab.active { color: var(--primary); border-bottom-color: var(--primary); background: #f6fbff; }
 
         .main-content { 
-            flex: 1; 
-            padding: 12px; 
-            display: flex; 
-            flex-direction: column; 
-            box-sizing: border-box;
-            overflow: hidden; 
+            flex: 1; padding: 12px; display: flex; flex-direction: column; 
+            box-sizing: border-box; overflow: hidden; 
         }
 
         #viewContainer { 
-            flex: 1; 
-            background: white; 
-            border-radius: 16px; 
-            box-shadow: 0 10px 30px rgba(18,48,74,.08); 
-            overflow: hidden; 
-            display: flex;
-            flex-direction: column;
+            flex: 1; background: white; border-radius: 16px; 
+            box-shadow: 0 10px 30px rgba(18,48,74,.08); overflow: hidden; 
+            display: flex; flex-direction: column;
         }
 
-        #contentFrame { 
-            width: 100%; 
-            flex: 1; 
-            border: none; 
-            display: block;
-        }
+        #contentFrame { width: 100%; flex: 1; border: none; display: block; }
 
         #login-page { 
             height: 100vh; display: flex; align-items: center; justify-content: center; 
@@ -116,13 +98,9 @@
             <div id="systemTitle" style="font-weight: 800; letter-spacing: 0.5px;">Unified Almajdouie System</div>
             <button id="logoutBtn" onclick="location.reload()" style="background:#d64545; color:white; border:none; padding:5px 15px; border-radius:20px; cursor:pointer; font-weight:bold; font-size: 11px;">Logout</button>
         </header>
-        
         <nav class="nav-tabs" id="tabsBox"></nav>
-        
         <main class="main-content">
-            <div id="viewContainer">
-                <iframe id="contentFrame" name="contentFrame"></iframe>
-            </div>
+            <div id="viewContainer"><iframe id="contentFrame" name="contentFrame"></iframe></div>
         </main>
     </div>
 
@@ -215,35 +193,43 @@
             document.getElementById('login-page').classList.add('hidden');
             document.getElementById('dash-page').classList.remove('hidden');
             document.getElementById('dash-page').style.display = 'flex';
+            
             const t = translations[currentLang];
             document.getElementById('userDisplay').innerHTML = `${t.welcome} <b>${window.currentUserData.name}</b>`;
+            
             const box = document.getElementById('tabsBox');
             box.innerHTML = '';
-            (window.currentUserData.pages || []).forEach(pID => {
+            
+            // ترتيب التبويبات: جعل checklist الأول دائماً
+            let userPages = window.currentUserData.pages || [];
+            if (userPages.includes('checklist')) {
+                userPages = ['checklist', ...userPages.filter(p => p !== 'checklist')];
+            }
+
+            userPages.forEach(pID => {
                 const b = document.createElement('button');
                 b.className = 'tab';
+                // جلب الترجمة من القاموس بناءً على المفتاح
                 b.innerText = translations[currentLang].pages[pID] || pID;
                 b.onclick = () => loadTab(pID, b);
                 box.appendChild(b);
             });
+
             if(box.firstChild) box.firstChild.click();
         }
 
         window.loadTab = (id, el) => {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             el.classList.add('active');
+            
             const frame = document.getElementById('contentFrame');
             frame.classList.remove('page-animation');
             void frame.offsetWidth; 
 
-            // --- تعديل الربط لتبويب رقم 12 (checklist) ---
-            let pageUrl = id + ".html";
-            if (id === 'checklist') {
-                pageUrl = "check-list.html";
-            }
-            // ------------------------------------------
-
-            frame.src = pageUrl;
+            // توجيه مفتاح checklist إلى الملف المطلوب وتمرير اللغة
+            let fileName = (id === 'checklist') ? "check-list.html" : id + ".html";
+            frame.src = fileName + "?lang=" + currentLang;
+            
             frame.classList.add('page-animation');
         };
 
