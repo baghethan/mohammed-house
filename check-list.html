@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>check-list.html - MMC IT Updated</title>
+  <title>check-list.html - MMC IT Full Repair</title>
   <style>
     :root {
       --primary: #0d4b73; --primary-2: #0a3b5a; --green: #2f9e66; --danger: #d64545; --warning: #c47f00;
@@ -24,27 +24,26 @@
     .field input, .field select, .field textarea { width: 100%; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; font: inherit; background: #fbfcfe; }
     .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
     .btn { border: 1px solid var(--border); border-radius: 999px; padding: 10px 16px; background: #fff; color: var(--primary); font-weight: 700; cursor: pointer; }
-    .btn.green { background: var(--green); color: #fff; border-color: var(--green); }
+    .btn.green { background: var(--green); border-color: var(--green); color: #fff; }
     .section-title { margin: 18px 0 10px; font-weight: 800; color: var(--primary); font-size: 16px; border-inline-start: 4px solid var(--primary); padding-inline-start: 10px; }
     .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 12px 10px; border-bottom: 1px solid #edf2f7; text-align: start; white-space: nowrap; font-size: 13px; }
     th { background: #f8fbff; color: var(--primary); }
     tr.clickable { cursor: pointer; }
-    tr.clickable:hover { background: #f1f7fd; }
-    .toolbar { margin-bottom: 12px; }
+    .dynamic-checklist-list { list-style: none; padding: 0; margin: 0; }
+    .choice-option { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; background: #fff; margin-top: 5px; }
   </style>
 </head>
 <body>
   <main class="container">
-    <div id="sessionNotice" class="hidden">الرجاء تسجيل الدخول أولًا.</div>
     <div id="appRoot">
       <div class="grid-2">
-        <!-- نموذج الإدخال -->
         <section class="card">
-          <h3 id="formTitle">نموذج Check-List</h3>
+          <h3>نموذج Check-List</h3>
           <div class="card-body">
             <input id="editingChecklistId" type="hidden" />
+            
             <div class="section-title">المعلومات الأساسية</div>
             <div class="grid-4">
               <div class="field"><label>الفني</label><select id="cl_technician"></select></div>
@@ -52,33 +51,30 @@
               <div class="field"><label>Brand</label><input id="cl_brand" /></div>
               <div class="field"><label>Branch ID</label><input id="cl_branch_id" /></div>
             </div>
-            
-            <div class="section-title" id="dynamicTitle">Check-List الديناميكي</div>
-            <div id="dynamicChecklistSections" style="margin-top:14px"></div>
+
+            <div class="section-title">Check-List الديناميكي</div>
+            <div id="dynamicChecklistSections"></div>
 
             <div class="actions">
               <button class="btn green" id="saveChecklistBtn" type="button">حفظ Check-List</button>
               <button class="btn" id="clearChecklistBtn" type="button">تنظيف النموذج</button>
             </div>
+            <div id="checklistMessage" style="margin-top:10px; font-weight:bold; color:var(--primary);"></div>
           </div>
         </section>
 
-        <!-- السجلات المحفوظة مع العمود الجديد -->
         <aside class="card">
-          <h3 id="savedRecordsTitle">السجلات المحفوظة</h3>
+          <h3>السجلات المحفوظة</h3>
           <div class="card-body">
-            <div class="toolbar">
-              <input id="checklistSearch" placeholder="بحث..." style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd;" />
-            </div>
+            <input id="checklistSearch" placeholder="بحث..." style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; margin-bottom:10px;" />
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th id="thVisitDate">التاريخ</th>
-                    <th id="thTechnician">الفني</th>
-                    <th id="thLocation">الموقع</th>
-                    <!-- العمود الجديد لعرض ملخص الاختيارات الديناميكية -->
-                    <th id="thSummary">ملخص التقرير (Q28)</th>
+                    <th>تاريخ الزيارة</th>
+                    <th>الفني</th>
+                    <th>الموقع</th>
+                    <th>ملخص التقرير (Q28)</th>
                   </tr>
                 </thead>
                 <tbody id="checklistTableBody"></tbody>
@@ -92,54 +88,89 @@
 
   <script>
   (function(){
-    var state = { checklists: [], checklistFields: [], currentLang: 'ar', technicians: [], visits: [] };
+    var state = { currentUser: null, technicians: [], visits: [], checklists: [], checklistFields: [], currentLang: 'ar' };
+
     function $(id){ return document.getElementById(id); }
     function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, function(s){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]; }); }
 
-    // تحديث اللغات لتشمل تسمية العمود الجديد
-    var I18N = {
-      ar: { thSummary: 'ملخص التقرير (Q28)', noRecords: 'لا توجد سجلات' },
-      en: { thSummary: 'Report Summary (Q28)', noRecords: 'No records found' }
+    // --- وظائف عرض النماذج الديناميكية ---
+    function renderDynamicChecklistForm(values){
+      values = values || {};
+      var container = $('dynamicChecklistSections');
+      var fields = state.checklistFields.filter(f => f.active !== false);
+      container.innerHTML = '';
+      
+      fields.forEach(field => {
+        var val = values[field.id] || '';
+        var fieldHtml = '<div class="field" style="margin-top:10px"><label>'+esc(field.labelAr || field.label)+'</label>';
+        if(field.fieldType === 'choice'){
+          fieldHtml += '<select id="dcf_'+field.id+'" data-field-id="'+field.id+'"><option value="">اختر</option>';
+          (field.options || []).forEach(opt => {
+            fieldHtml += '<option value="'+opt.value+'" '+(val == opt.value ? 'selected' : '')+'>'+esc(opt.labelAr || opt.label)+'</option>';
+          });
+          fieldHtml += '</select>';
+        } else {
+          fieldHtml += '<input type="text" id="dcf_'+field.id+'" data-field-id="'+field.id+'" value="'+esc(val)+'" />';
+        }
+        fieldHtml += '</div>';
+        container.innerHTML += fieldHtml;
+      });
+    }
+
+    function collectAnswers(){
+      var ans = {};
+      state.checklistFields.forEach(f => {
+        var el = $('dcf_'+f.id);
+        if(el) ans[f.id] = el.value;
+      });
+      return ans;
+    }
+
+    // --- إدارة السجلات والجدول ---
+    function renderTable(){
+      var q = ($('checklistSearch').value || '').trim().toLowerCase();
+      var rows = state.checklists.filter(r => !q || [r.technicianName, r.locationSite, r.q28_serviceReportSummary].some(v => String(v||'').toLowerCase().includes(q)));
+      
+      $('checklistTableBody').innerHTML = rows.map(r => `
+        <tr class="clickable" onclick="window.editRow('${r.id}')">
+          <td>${esc(r.visitDate)}</td>
+          <td>${esc(r.technicianName)}</td>
+          <td>${esc(r.locationSite)}</td>
+          <td style="color:var(--primary); font-weight:bold;">${esc(r.q28_serviceReportSummary || '-')}</td>
+        </tr>
+      `).join('');
+    }
+
+    window.editRow = function(id){
+      var row = state.checklists.find(r => r.id === id);
+      if(!row) return;
+      $('editingChecklistId').value = row.id;
+      $('cl_technician').value = row.technicianDocId || '';
+      $('cl_brand').value = row.brand || '';
+      $('cl_branch_id').value = row.branchId || '';
+      renderDynamicChecklistForm(row.dynamicAnswers || {});
     };
 
-    function renderChecklistTable(){
-      var q = ($('checklistSearch').value || '').trim().toLowerCase();
-      var rows = state.checklists.filter(function(row){
-        return !q || [row.locationSite, row.technicianName, row.q28_serviceReportSummary].some(function(v){ return String(v||'').toLowerCase().indexOf(q) > -1; });
-      });
-
-      // إضافة عمود ملخص السؤال 28 في جسم الجدول
-      $('checklistTableBody').innerHTML = rows.length ? rows.map(function(row){
-        return '<tr class="clickable" data-id="'+esc(row.id)+'">'+
-          '<td>'+esc(row.visitDate || '')+'</td>'+
-          '<td>'+esc(row.technicianName || '')+'</td>'+
-          '<td>'+esc(row.locationSite || '')+'</td>'+
-          '<td style="color:#0d4b73; font-weight:bold;">'+esc(row.q28_serviceReportSummary || '-')+'</td>'+
-        '</tr>';
-      }).join('') : '<tr><td colspan="4">'+esc(I18N[state.currentLang].noRecords)+'</td></tr>';
-      
-      document.querySelectorAll('[data-id]').forEach(function(el){
-        el.onclick = function(){ openEdit(el.getAttribute('data-id')); };
-      });
-    }
-
-    // محاكاة الاتصال بـ Firestore بناءً على الكود المصدري
-    async function init(){
-      if (!window.parent.appDb) return;
+    // --- الربط مع Firebase ---
+    async function boot(){
       var db = window.parent.appDb;
-      
-      // الاستماع للبيانات الحية
-      db.collection('branch_checklists').orderBy('visitDate', 'desc').onSnapshot(function(snap){
-        state.checklists = snap.docs.map(function(d){ var data = d.data(); data.id = d.id; return data; });
-        renderChecklistTable();
+      if(!db) return;
+
+      db.collection('checklist_fields').onSnapshot(snap => {
+        state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        renderDynamicChecklistForm({});
       });
-      
-      // تفعيل البحث[cite: 1]
-      $('checklistSearch').oninput = renderChecklistTable;
-      $('thSummary').textContent = I18N[state.currentLang].thSummary;
+
+      db.collection('branch_checklists').orderBy('visitDate', 'desc').onSnapshot(snap => {
+        state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        renderTable();
+      });
+
+      $('checklistSearch').oninput = renderTable;
+      $('clearChecklistBtn').onclick = () => { $('editingChecklistId').value = ''; renderDynamicChecklistForm({}); };
     }
 
-    window.onload = init;
+    boot();
   })();
   </script>
 </body>
