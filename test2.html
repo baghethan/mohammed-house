@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- الإصدار v1.5.2 - إصلاح الشعار ومزامنة جلسة الـ Checklist -->
+<!-- الإصدار v1.5.3 - استعادة كافة التبويبات (10) وتفعيل نظام التحديثات -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors | Master v1.5.2</title>
+    <title>Almajdouie Motors | Master v1.5.3</title>
     <style>
         :root { 
             --primary: #0d4b73; 
@@ -26,7 +26,6 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 10; 
         }
 
-        /* إصلاح الشعار: إزالة الفلتر الذي يجعله أبيض بالكامل */
         .main-logo { height: 50px; object-fit: contain; }
 
         .nav-tabs { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(15px); display: flex; overflow-x: auto; z-index: 9; }
@@ -55,7 +54,7 @@
         .sub-item {
             padding: 8px 16px; font-size: 13px; font-weight: 700; color: #475569;
             cursor: pointer; border-radius: 8px; background: #fff; border: 1px solid #e2e8f0;
-            display: flex; align-items: center; gap: 8px;
+            display: flex; align-items: center; gap: 8px; white-space: nowrap;
         }
         .sub-item.active { background: var(--primary); color: #fff; }
         .sub-item.is-new { border: 1px solid var(--new-update); background: #fff5f5; }
@@ -71,11 +70,10 @@
 
     <header>
         <div style="display: flex; align-items: center; gap: 15px;">
-            <!-- الشعار الآن سيظهر بألوانه الأصلية -->
             <img src="LOGO-almajdouie.png" class="main-logo" alt="Almajdouie Logo" />
             <div id="userDisplay" style="font-size: 13px; border-inline-start: 1px solid rgba(255,255,255,0.3); padding-inline-start: 15px;"></div>
         </div>
-        <div id="masterVersion" style="font-weight: 900; font-size: 18px;">Unified Portal v1.5.2</div>
+        <div id="masterVersion" style="font-weight: 900; font-size: 18px;">Unified Portal v1.5.3</div>
         <button onclick="location.reload()" style="background:#fee2e2; color:#b91c1c; border:none; padding:6px 18px; border-radius:12px; cursor:pointer; font-weight:800;">Logout</button>
     </header>
 
@@ -90,14 +88,22 @@
         let currentLang = 'en';
         let activeMainTab = 'diagnostics';
 
+        // الهيكل الكامل لكافة التبويبات مع التواريخ المحدثة
         const hierarchy = {
             'schedule': { ar: 'الجدول', en: 'Schedule', file: 'Schedule1.html', ver: 'v10.10.0', date: '2026-04-30' },
             'diagnostics': { ar: 'التشخيص', en: 'Diagnostics', file: 'Diagnostics.html', ver: 'v2.1.16', date: '2026-04-30' },
             'site-visit': { 
-                ar: 'زيارة الموقع', en: 'Site-Visit', isParent: true, ver: 'v1.5.2', date: '2026-04-30',
+                ar: 'زيارة الموقع', en: 'Site-Visit', isParent: true, ver: 'v1.5.3', date: '2026-04-30',
                 children: [
                     { id: 'dashboard', ar: 'لوحة التحكم', en: 'Dashboard', file: 'dashboard.html', ver: 'v1.0.2', date: '2026-04-20' },
+                    { id: 'branches', ar: 'إدارة الفروع', en: 'Branches', file: 'branches.html', ver: 'v1.0.0', date: '2026-04-10' },
+                    { id: 'technicians', ar: 'الفنيين', en: 'Technicians', file: 'technicians.html', ver: 'v1.0.1', date: '2026-04-15' },
+                    { id: 'dynamicChecklistAdmin', ar: 'إدارة الفحص', en: 'Checklist Admin', file: 'dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html', ver: 'v2.1.6', date: '2026-04-30' },
+                    { id: 'permissions', ar: 'الصلاحيات', en: 'Permissions', file: 'permissions.html', ver: 'v1.0.0', date: '2026-04-01' },
+                    { id: 'visit', ar: 'زيارة الفرع', en: 'Visit Branch', file: 'visits.html', ver: 'v1.1.0', date: '2026-04-25' },
+                    { id: 'reports', ar: 'التقارير', en: 'Reports', file: 'windows-report.html', ver: 'v1.0.5', date: '2026-04-22' },
                     { id: 'upgradeWindows', ar: 'ترقية ويندوز', en: 'Upgrade Windows', file: 'upgrade-windows.html', ver: 'v2.1.7', date: '2026-04-30' },
+                    { id: 'brands', ar: 'العلامات التجارية', en: 'Brands', file: 'brands.html', ver: 'v1.0.0', date: '2026-04-01' },
                     { id: 'checklist', ar: 'قائمة الفحص', en: 'Checklist', file: 'check-list.html', ver: 'v1.2.0', date: '2026-04-30' }
                 ]
             }
@@ -106,20 +112,17 @@
         function isNew(dateStr) {
             const upDate = new Date(dateStr);
             const now = new Date();
-            // وسم جديد يظهر لمدة 48 ساعة لضمان رؤيته
             return (now - upDate) / (1000 * 60 * 60) <= 48;
         }
 
         function renderMainTabs() {
             const box = document.getElementById('mainTabsBox');
             box.innerHTML = '';
-            
             Object.entries(hierarchy).forEach(([id, info]) => {
                 const b = document.createElement('button');
                 b.className = `tab ${activeMainTab === id ? 'active' : ''}`;
                 const newTag = isNew(info.date) ? `<span class="badge-new">NEW</span>` : '';
                 b.innerHTML = `<span style="font-weight:800">${info.en}</span><span style="font-size:10px">${info.ver}</span>${newTag}`;
-                
                 b.onclick = () => {
                     activeMainTab = id;
                     renderMainTabs();
@@ -138,19 +141,15 @@
             const data = hierarchy[parentId];
             subBox.classList.remove('hidden');
             subBox.innerHTML = '';
-
             data.children.forEach(item => {
                 const s = document.createElement('div');
                 const isRecentlyUpdated = isNew(item.date);
                 s.className = `sub-item ${isRecentlyUpdated ? 'is-new' : ''}`;
-                
                 const newTag = isRecentlyUpdated ? `<span class="badge-new" style="margin:0">NEW</span>` : '';
                 s.innerHTML = `${item.en} <span style="font-size:10px;opacity:0.6">${item.ver}</span> ${newTag}`;
-                
                 s.onclick = () => {
                     document.querySelectorAll('.sub-item').forEach(si => si.classList.remove('active'));
                     s.classList.add('active');
-                    // حل مشكلة Checklist: تمرير معاملات الجلسة واللغة
                     const secureSrc = `${item.file}?lang=${currentLang}&auth=active`;
                     document.getElementById('contentFrame').src = secureSrc;
                 };
