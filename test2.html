@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+<!-- الإصدار v1.4.3 - إعادة تبويب التشخيص للشريط الرئيسي وتحديث الإصدارات -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Almajdouie Motors | Master v1.4.0</title>
+    <title>Almajdouie Motors | Master v1.4.3</title>
     <style>
         :root { 
             --primary: #0d4b73; 
@@ -26,8 +27,16 @@
             min-width: 120px;
         }
         .tab-text { font-weight: 700; font-size: 15px; }
-        .tab-ver { font-size: 12px; font-weight: 500; opacity: 0.7; margin-top: 3px; }
         
+        /* الإصدار بحجم أكبر (12px) */
+        .tab-ver { 
+            font-size: 12px; 
+            font-weight: 500; 
+            opacity: 0.7; 
+            margin-top: 3px; 
+        }
+        
+        /* تنبيه التحديث الجديد */
         .ver-new { 
             color: var(--new-update); 
             font-weight: 800; 
@@ -56,7 +65,6 @@
         <div class="login-card">
             <button class="lang-btn" onclick="toggleLang()" id="loginLangBtn">عربي</button>
             <h2 id="loginTitle" style="color:var(--primary); margin-top: 15px;">System Login</h2>
-            <p id="systemSubTitle" style="color:#666; margin-bottom: 25px;">Almajdouie Motors Management</p>
             <input type="email" id="emailField" placeholder="Email" value="baghethanmh@almajdouie.com" style="width:100%; padding:12px; margin-bottom:12px; border:1px solid #ddd; border-radius:10px;">
             <input type="password" id="passField" placeholder="Password" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:10px;">
             <button class="btn-log" onclick="handleLogin()">Login</button>
@@ -73,7 +81,9 @@
             <div id="systemTitle" style="font-weight: 800;">Unified Almajdouie System</div>
             <button id="logoutBtn" onclick="location.reload()" style="background:#d64545; color:white; border:none; padding:5px 15px; border-radius:20px; cursor:pointer; font-weight:bold; font-size: 11px;">Logout</button>
         </header>
+        
         <nav class="nav-tabs" id="tabsBox"></nav>
+        
         <main class="main-content">
             <div id="viewContainer"><iframe id="contentFrame" name="contentFrame"></iframe></div>
         </main>
@@ -86,7 +96,22 @@
     <script>
         let currentLang = 'en'; 
         let activeTabId = null;
-        let dynamicVersions = {}; // سيتم ملؤها من Firestore
+
+        // تم تثبيت إصدار التشخيص الجديد هنا v2.1.14 وتاريخ اليوم ليظهر باللون الأحمر
+        const pageVersions = {
+            'dashboard': { ver: 'v1.0.2', date: '2026-04-20' },
+            'branches': { ver: 'v1.0.0', date: '2026-04-10' },
+            'technicians': { ver: 'v1.0.1', date: '2026-04-15' },
+            'holidays': { ver: 'v1.0.0', date: '2026-04-01' },
+            'diagnostics': { ver: 'v2.1.14', date: '2026-04-30' }, 
+            'dynamicChecklistAdmin': { ver: 'v2.1.6', date: '2026-04-29' },
+            'permissions': { ver: 'v1.0.0', date: '2026-04-01' },
+            'visit': { ver: 'v1.1.0', date: '2026-04-25' },
+            'reports': { ver: 'v1.0.5', date: '2026-04-22' },
+            'upgradeWindows': { ver: 'v2.1.7', date: '2026-04-30' }, 
+            'brands': { ver: 'v1.0.0', date: '2026-04-01' },
+            'checklist': { ver: 'v1.2.0', date: '2026-04-28' }
+        };
 
         const translations = {
             en: { dir: 'ltr', loginTitle: 'System Login', welcome: 'Welcome: ', systemTitle: 'Unified Almajdouie System', langBtn: 'عربي', pages: { 'dashboard': 'Dashboard', 'branches': 'Branches', 'technicians': 'Technicians', 'holidays': 'Holidays', 'diagnostics': 'Diagnostics', 'dynamicChecklistAdmin': 'Checklist Admin', 'permissions': 'Permissions', 'visit': 'Visit Branch', 'reports': 'Reports Windows Upgrades', 'upgradeWindows': 'Upgrade Windows', 'brands': 'Brands', 'checklist': 'Checklist' } },
@@ -98,11 +123,11 @@
             return map[id] || id;
         }
 
-        // فحص الفرق الزمني (24 ساعة)
-        function isNewUpdate(lastUpdateDate) {
-            if(!lastUpdateDate) return false;
-            const updateDate = (lastUpdateDate.toDate) ? lastUpdateDate.toDate() : new Date(lastUpdateDate);
-            const diffInHours = (new Date() - updateDate) / (1000 * 60 * 60);
+        function isNewUpdate(dateStr) {
+            if(!dateStr) return false;
+            const updateDate = new Date(dateStr);
+            const now = new Date();
+            const diffInHours = (now - updateDate) / (1000 * 60 * 60);
             return diffInHours >= 0 && diffInHours <= 24;
         }
 
@@ -119,22 +144,12 @@
         firebase.initializeApp(firebaseConfig);
         window.appAuth = firebase.auth(); window.appDb = firebase.firestore();
 
-        // استماع ديناميكي لإصدارات الصفحات من Firestore
-        function listenToVersions() {
-            window.appDb.collection('system_versions').onSnapshot(snap => {
-                snap.forEach(doc => {
-                    dynamicVersions[doc.id] = doc.data();
-                });
-                if(window.currentUserData) showDash();
-            });
-        }
-
         window.handleLogin = async () => {
             const e = document.getElementById('emailField').value; const p = document.getElementById('passField').value;
             try { await window.appAuth.signInWithEmailAndPassword(e, p); } catch { document.getElementById('msg').innerText = "خطأ في الدخول"; }
         };
 
-        window.appAuth.onAuthStateChanged(async (user) => { if (user) { const snap = await window.appDb.collection('app_users').doc(user.uid).get(); if (snap.exists) { window.currentUserData = snap.data(); listenToVersions(); } } });
+        window.appAuth.onAuthStateChanged(async (user) => { if (user) { const snap = await window.appDb.collection('app_users').doc(user.uid).get(); if (snap.exists) { window.currentUserData = snap.data(); showDash(); } } });
 
         function showDash() {
             document.getElementById('login-page').classList.add('hidden'); document.getElementById('dash-page').classList.remove('hidden'); document.getElementById('dash-page').style.display = 'flex';
@@ -145,12 +160,11 @@
             pages.forEach(pID => {
                 const b = document.createElement('button'); b.className = 'tab'; b.setAttribute('data-id', pID);
                 const name = translations[currentLang].pages[pID] || pID;
+                const verInfo = pageVersions[pID] || { ver: 'v1.0.0', date: '' };
+                const isNew = isNewUpdate(verInfo.date);
+                const verText = isNew ? `${verInfo.ver} - NEW` : verInfo.ver;
                 
-                // جلب البيانات من الكائن الديناميكي
-                const info = dynamicVersions[pID] || { version: 'v1.0.0', updatedAt: null };
-                const isNew = isNewUpdate(info.updatedAt);
-                
-                b.innerHTML = `<span class="tab-text">${name}</span><span class="tab-ver ${isNew ? 'ver-new' : ''}">${info.version} ${isNew ? '- NEW' : ''}</span>`;
+                b.innerHTML = `<span class="tab-text">${name}</span><span class="tab-ver ${isNew ? 'ver-new' : ''}">${verText}</span>`;
                 b.onclick = () => loadTab(pID, b); box.appendChild(b);
             });
 
