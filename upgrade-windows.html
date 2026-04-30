@@ -3,97 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upgrade Windows Admin v2.1.9</title>
+    <title>Upgrade Windows Management v2.1.10</title>
     <style>
-        :root { --primary: #0d4b73; --dark: #0d2149; --bg: #edf3f8; --success: #22c55e; --warning: #c28100; --border: rgba(15,23,42,0.1); }
+        :root { --primary: #0d4b73; --dark: #0d2149; --bg: #edf3f8; --success: #22c55e; --warning: #c28100; --danger: #d64545; --border: rgba(15,23,42,0.1); }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: transparent; margin: 0; padding: 15px; color: #1e293b; font-size: 13px; }
         
-        .card { background: #fff; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; margin-bottom: 20px; }
-        .card-header { background: var(--primary); color: #fff; padding: 10px 20px; font-weight: 800; text-align: left; display: flex; justify-content: space-between; }
+        /* 1. ملخص سريع Upgrade Windows */
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #fff; padding: 15px; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; }
+        .stat-val { font-size: 24px; font-weight: 900; color: var(--primary); display: block; }
+        .stat-label { font-size: 11px; color: #64748b; font-weight: 700; }
+
+        /* 2. لستة أجهزة بضغط زر بأنه مكتمل */
+        .ready-section { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 16px; padding: 15px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+        .ready-info { display: flex; flex-direction: column; gap: 5px; }
+        .ready-title { font-weight: 900; color: #92400e; font-size: 14px; }
+        .btn-complete-all { background: var(--success); color: white; border: none; padding: 10px 25px; border-radius: 10px; font-weight: 800; cursor: pointer; animation: pulse-green 2s infinite; }
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
+
+        /* 3. سجلات Upgrade Windows وبيانات الجهاز */
+        .main-layout { display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; }
+        .card { background: #fff; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; }
+        .card-header { background: var(--primary); color: #fff; padding: 10px 20px; font-weight: 800; font-size: 13px; }
+
+        /* 4. Upgrade Windows (معلومات الأجهزة ورفع اكسيل) */
+        .excel-area { background: #f8fafc; padding: 15px; border-top: 1px solid #eee; }
+        .btn-excel-up { background: var(--warning); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer; width: 100%; margin-top: 10px; }
         
-        /* تنبيهات النظام */
-        .info-note { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 15px; margin: 15px; color: #64748b; line-height: 1.6; text-align: center; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; }
+        .field { display: flex; flex-direction: column; gap: 4px; }
+        .field label { font-size: 11px; font-weight: 700; color: #64748b; }
+        .field input, .field select { padding: 8px; border: 1px solid #ddd; border-radius: 8px; }
 
-        /* شبكة الحقول */
-        .form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 20px; }
-        .field-group { display: flex; flex-direction: column; gap: 5px; }
-        .field-group label { font-weight: 800; color: #334155; font-size: 12px; }
-        .field-group input, .field-group select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #fcfcfc; }
-        .field-group input:read-only { background: #f1f5f9; color: #94a3b8; }
-
-        /* منطقة الأزرار */
-        .action-area { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 15px; align-items: flex-end; }
-        .btn-row { display: flex; gap: 10px; width: 100%; justify-content: flex-end; }
-        
-        .btn { padding: 10px 25px; border-radius: 12px; border: none; font-weight: 800; cursor: pointer; transition: 0.2s; }
-        .btn-save { background: var(--success); color: white; }
-        .btn-clear { background: #fff; border: 1px solid #ddd; color: var(--primary); }
-        .btn-excel-up { background: var(--warning); color: white; flex: 1; }
-        .btn-excel-down { background: #fff; border: 1px solid #cbd5e1; color: var(--primary); flex: 1; }
-        .btn-checklist { background: var(--success); color: white; width: 100%; padding: 12px; }
-
-        /* قسم ملف Excel */
-        .excel-section { background: #f8fafc; padding: 20px; border-top: 1px solid #eee; display: flex; flex-direction: column; gap: 15px; }
-        .file-input-wrapper { display: flex; align-items: center; gap: 10px; background: white; padding: 5px; border: 1px solid #ddd; border-radius: 10px; }
-        .file-input-wrapper input { flex: 1; border: none; padding: 5px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { background: #f8fafc; padding: 10px; border-bottom: 2px solid var(--border); }
+        td { padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: center; }
+        .badge { padding: 4px 8px; border-radius: 6px; font-weight: 800; font-size: 10px; }
+        .bg-planned { background: #fef3c7; color: #92400e; }
+        .bg-progress { background: #e0f2fe; color: #075985; }
+        .bg-success { background: #dcfce7; color: #166534; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <div class="card-header">
-            <span>Upgrade Windows</span>
+    <!-- الجزء 3: ملخص سريع Upgrade Windows -->
+    <div class="summary-grid">
+        <div class="stat-card"><span class="stat-label">إجمالي الأجهزة</span><span class="stat-val">87</span></div>
+        <div class="stat-card"><span class="stat-label">أجهزة معلقة</span><span class="stat-val" style="color:var(--danger)">15</span></div>
+        <div class="stat-card"><span class="stat-label">قيد التنفيذ</span><span class="stat-val" style="color:var(--warning)">68</span></div>
+        <div class="stat-card"><span class="stat-label">أجهزة مكتملة</span><span class="stat-val" style="color:var(--success)">4</span></div>
+    </div>
+
+    <!-- الجزء 4: لستة أجهزة بضغط زر بأنه مكتمل -->
+    <div class="ready-section">
+        <div class="ready-info">
+            <div class="ready-title">أجهزة جاهزة للإغلاق (بعد تعبئة Checklist)</div>
+            <div style="font-size: 11px; color: #666;">يوجد 5 أجهزة بانتظار تأكيد الإغلاق النهائي.</div>
         </div>
+        <button class="btn-complete-all">نقل المختار لمكتمل آلياً</button>
+    </div>
 
-        <div class="info-note">
-            الصفحة الأساسية للإدخال اليدوي أو من Check-List. ارفع ملف الأجهزة أولاً، وبعد ذلك عند تعبئة السؤال 29 مع Employee ID سيتم تحديث نفس السجل إذا كان موجوداً.
-        </div>
-
-        <div class="form-grid">
-            <div class="field-group"><label>الفرع</label><select><option>اختر الفرع</option></select></div>
-            <div class="field-group"><label>الموظف موجود في هذا الفرع؟</label><select><option>Yes</option><option>No</option></select></div>
-            <div class="field-group"><label>Branch_ID</label><input type="text" placeholder="Branch_ID" readonly></div>
-            <div class="field-group"><label>Branch_Name</label><input type="text" placeholder="Branch_Name" readonly></div>
-            
-            <div class="field-group"><label>Brand</label><select><option>اختر البراند</option></select></div>
-            <div class="field-group"><label>function</label><input type="text" placeholder="الوظيفة"></div>
-            <div class="field-group"><label>City</label><input type="text" placeholder="المدينة" readonly></div>
-            <div class="field-group"><label>Region</label><input type="text" placeholder="المنطقة" readonly></div>
-
-            <div class="field-group"><label>اسم الموظف</label><input type="text" placeholder="اسم الموظف"></div>
-            <div class="field-group"><label>Employee ID</label><input type="text" placeholder="ID"></div>
-            <div class="field-group"><label>Device Name</label><input type="text" placeholder="اسم الجهاز"></div>
-            <div class="field-group"><label>عدد الأجهزة</label><input type="number" value="1"></div>
-
-            <div class="field-group"><label>تاريخ زيارة الفني</label><input type="date"></div>
-            <div class="field-group"><label>تاريخ حفظ Check-List</label><input type="date"></div>
-            <div class="field-group"><label>Status</label><select><option>Planned</option><option>Completed</option></select></div>
-            <div class="field-group"></div>
-
-            <div class="field-group" style="grid-column: span 4;"><label>Notes</label><textarea rows="3" style="border-radius:10px; border:1px solid #ddd; padding:10px;"></textarea></div>
-        </div>
-
-        <div class="action-area">
-            <div class="btn-row">
-                <button class="btn btn-clear">تنظيف</button>
-                <button class="btn btn-save">حفظ السجل</button>
+    <div class="main-layout">
+        <!-- الجزء 1: Upgrade Windows (معلومات ورفع الملف) -->
+        <div class="card">
+            <div class="card-header">إدارة بيانات الأجهزة ورفع Excel</div>
+            <div class="form-grid">
+                <div class="field"><label>الفرع</label><select><option>اختر الفرع</option></select></div>
+                <div class="field"><label>Brand</label><select><option>اختر البراند</option></select></div>
+                <div class="field"><label>اسم الموظف</label><input type="text"></div>
+                <div class="field"><label>Employee ID</label><input type="text"></div>
+                <div class="field" style="grid-column: span 2;"><label>Device Name</label><input type="text"></div>
+                <button class="btn-complete-all" style="grid-column: span 2; background:var(--primary); animation:none;">حفظ السجل يدوياً</button>
+            </div>
+            <div class="excel-area">
+                <div style="font-weight: 800; margin-bottom: 5px;">تحديث جماعي (Excel)</div>
+                <input type="file" style="font-size: 11px; width: 100%;">
+                <button class="btn-excel-up">رفع ملف Excel (يمسح القديم)</button>
             </div>
         </div>
 
-        <div class="excel-section">
-            <div style="font-weight: 800; color: var(--dark);">ملف Excel</div>
-            <div class="btn-row" style="align-items: center;">
-                <div class="file-input-wrapper" style="flex: 2;">
-                    <input type="file" id="excelFile">
-                </div>
-                <button class="btn btn-excel-up">رفع ملف Excel (يمسح القديم)</button>
-                <button class="btn btn-excel-down">تنزيل ملف Excel</button>
+        <!-- الجزء 2: سجلات Upgrade Windows -->
+        <div class="card">
+            <div class="card-header">سجلات Upgrade Windows</div>
+            <div style="padding: 10px; background: #f8fafc;"><input type="text" placeholder="بحث سريع..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px;"></div>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table>
+                    <thead>
+                        <tr><th>Branch</th><th>Employee</th><th>Status</th><th>إجراء</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>MMC-HSA</td><td>Ahmed Ali</td><td><span class="badge bg-progress">In-Progress</span></td><td><button>تعديل</button></td></tr>
+                        <tr><td>MMC-RUH</td><td>Saleh Omar</td><td><span class="badge bg-planned">Pending</span></td><td><button>تعديل</button></td></tr>
+                        <tr><td>MMC-JED</td><td>M. Hassan</td><td><span class="badge bg-success">Completed</span></td><td><button>تعديل</button></td></tr>
+                    </tbody>
+                </table>
             </div>
-            <button class="btn btn-checklist">تحديث من Check-List</button>
-        </div>
-
-        <div class="info-note" style="border: none; font-size: 11px;">
-            ارفع ملف الأجهزة أولاً، وبعد تعبئة Check-List سيتم تحديث نفس الأجهزة الموجودة في الملف إذا كان الـ Employee ID مطابقاً[cite: 1].
         </div>
     </div>
 
