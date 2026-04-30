@@ -3,41 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MMC IT | Windows Upgrades Sync v2.3.2</title>
+    <title>MMC IT | Windows Upgrades Pro v2.3.3</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #0d4b73; --dark: #0d2149; --success: #28a745; --warning: #c28100; --danger: #dc3545; --border: rgba(0,0,0,0.1); }
         body { font-family: 'Segoe UI', sans-serif; background: transparent; margin: 0; padding: 15px; color: #1e293b; font-size: 12px; }
-        
-        /* Stats */
         .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
-        .stat-card { background: #fff; padding: 15px; border-radius: 12px; border: 1px solid var(--border); text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .stat-card { background: #fff; padding: 15px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
         .stat-val { font-size: 24px; font-weight: 900; color: var(--primary); display: block; }
-
         .main-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; margin-bottom: 20px; }
         .card { background: #fff; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; }
         .card-header { background: var(--dark); color: #fff; padding: 10px; font-weight: 800; text-align: center; }
-
-        /* Form Styling */
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; }
         .field { display: flex; flex-direction: column; gap: 4px; }
         .field label { font-size: 10px; font-weight: 800; color: #64748b; }
         .field input, .field select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 11px; }
-
         .table-area { max-height: 450px; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #f8fafc; padding: 12px; border-bottom: 2px solid #eee; position: sticky; top: 0; z-index: 10; }
         td { padding: 12px; border-bottom: 1px solid #f1f5f9; text-align: center; }
-        
         .badge { padding: 4px 8px; border-radius: 5px; font-weight: 800; font-size: 10px; }
         .bg-planned { background: #dbeafe; color: #1e40af; }
         .bg-completed { background: #dcfce7; color: #166534; }
-        
         .btn-sync { background: var(--primary); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer; width: 100%; margin-top: 10px; }
     </style>
 </head>
 <body>
 
+    <!-- 1. Stats Dashboard -->
     <div class="summary-grid">
         <div class="stat-card"><span class="stat-label">Total Fleet</span><span class="stat-val" id="statTotal">0</span></div>
         <div class="stat-card"><span class="stat-label">Planned</span><span class="stat-val" id="statPlanned" style="color:var(--danger)">0</span></div>
@@ -46,7 +39,7 @@
     </div>
 
     <div class="main-layout">
-        <!-- تم إضافة حقل الحالة (Status) هنا -->
+        <!-- 2. Operations مع إضافة حقل الحالة (Status) -->
         <div class="card">
             <div class="card-header">Operations & Excel Management</div>
             <div class="form-grid">
@@ -62,14 +55,17 @@
                 <button onclick="saveManual()" style="grid-column: span 2; background: var(--dark); color: white; padding: 12px; border: none; border-radius: 8px; font-weight: 800; cursor: pointer;">Save Manual Entry</button>
             </div>
             <div style="padding: 15px; border-top: 1px solid #eee;">
+                <!-- زر المزامنة الذكي -->
                 <button class="btn-sync" onclick="syncWithChecklist()">🔄 Sync with Check-List (Auto-Complete)</button>
                 <div style="margin-top: 15px;">
                     <input type="file" id="excelInput" style="font-size: 11px; margin-bottom: 5px;">
                     <button onclick="uploadData()" style="width:100%; background: var(--warning); color: white; padding: 10px; border: none; border-radius: 8px; font-weight: 800;">Bulk Upload</button>
+                    <button onclick="exportData()" style="width:100%; margin-top:5px; background: #fff; color: var(--primary); border: 1px solid #ddd; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer;">Export Report</button>
                 </div>
             </div>
         </div>
 
+        <!-- 3. Logs -->
         <div class="card">
             <div class="card-header">Recent Activity Logs</div>
             <div class="table-area" style="max-height: 300px;">
@@ -81,6 +77,7 @@
         </div>
     </div>
 
+    <!-- 4. Master Inventory -->
     <div class="card">
         <div class="card-header">Master Device Inventory</div>
         <div class="table-area">
@@ -114,35 +111,26 @@
                     </tr>`;
                 });
                 document.getElementById('masterBody').innerHTML = masterRows;
-                updateStats(stats);
+                updateStatsUI(stats);
             });
         }
 
-        // الوظيفة الذكية: الربط مع صفحة Check-List
         async function syncWithChecklist() {
             alert("Starting Sync with Field Check-Lists...");
-            // جلب الـ Check-Lists المكتملة فقط
-            const checkListRef = db.collection("branch_checklists");
-            const snapshot = await checkListRef.get();
-            
+            const snapshot = await db.collection("branch_checklists").get();
             const batch = db.batch();
             let syncCount = 0;
 
             snapshot.forEach(doc => {
                 const checkData = doc.data();
-                // إذا وجدنا فحصاً يحمل اسم جهاز موجود في قائمة الترقية
                 if (checkData.deviceName) {
                     const upgradeRef = db.collection("windows_upgrades").doc(checkData.deviceName);
-                    batch.update(upgradeRef, { 
-                        status: 'completed', 
-                        lastUpdate: new Date().toISOString() 
-                    });
+                    batch.update(upgradeRef, { status: 'completed', lastUpdate: new Date().toISOString() });
                     syncCount++;
                 }
             });
-
             await batch.commit();
-            alert(`Sync Finished! ${syncCount} devices updated to Completed based on Check-Lists.`);
+            alert(`Sync Finished! ${syncCount} devices updated to Completed.`);
         }
 
         async function saveManual() {
@@ -154,10 +142,20 @@
             };
             if(!data.device_Name) return alert("Device SN is required!");
             await db.collection("windows_upgrades").doc(data.device_Name).set(data, { merge: true });
-            alert("Saved Successfully!");
+            alert("Saved!");
         }
 
-        function updateStats(s) {
+        async function exportData() {
+            const snapshot = await db.collection("windows_upgrades").get();
+            const data = [];
+            snapshot.forEach(doc => data.push(doc.data()));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+            XLSX.writeFile(wb, "MMC_Inventory_Pro.xlsx");
+        }
+
+        function updateStatsUI(s) {
             document.getElementById('statTotal').innerText = s.total;
             document.getElementById('statPlanned').innerText = s.planned;
             document.getElementById('statDone').innerText = s.done;
