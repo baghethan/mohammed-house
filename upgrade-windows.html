@@ -3,30 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MMC IT | Excel Sync Live v2.2.3</title>
-    <!-- مكتبة الإكسيل الأساسية -->
+    <title>MMC IT | Advanced Excel Sync v2.2.4</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #0d4b73; --dark: #0d2149; --success: #28a745; --warning: #c28100; --danger: #dc3545; --border: rgba(0,0,0,0.1); }
         body { font-family: 'Segoe UI', sans-serif; background: transparent; margin: 0; padding: 15px; color: #1e293b; font-size: 12px; }
         
+        /* Dashboard & Layout */
         .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
         .stat-card { background: #fff; padding: 15px; border-radius: 12px; border: 1px solid var(--border); text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .stat-val { font-size: 24px; font-weight: 900; color: var(--primary); display: block; }
-
         .main-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; margin-bottom: 20px; align-items: start; }
         .card { background: #fff; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; }
         .card-header { background: var(--dark); color: #fff; padding: 10px; font-weight: 800; font-size: 13px; text-align: center; }
 
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; }
-        .field { display: flex; flex-direction: column; gap: 4px; }
-        .field label { font-size: 11px; font-weight: 800; }
-        .field input, .field select { padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
-
+        /* Excel Hub */
         .excel-box { background: #f8fafc; padding: 15px; border-top: 1px solid #eee; }
         .btn-orange { background: var(--warning); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer; width: 100%; margin-top: 10px; }
         .btn-white { background: #fff; color: var(--primary); border: 1px solid #ddd; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer; flex: 1; margin-top: 10px; }
 
+        /* Tables - Keeping UI clean */
         .table-area { max-height: 450px; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 11px; }
         th { background: #f8fafc; padding: 10px; border-bottom: 2px solid #eee; position: sticky; top: 0; z-index: 5; }
@@ -46,29 +42,27 @@
     </div>
 
     <div class="main-layout">
+        <!-- 1. Device Operations Hub -->
         <div class="card">
             <div class="card-header">Device Operations Hub</div>
-            <div class="form-grid">
-                <div class="field"><label>Branch</label><select id="fBranch"><option>MMC-HSA</option><option>MMC-RUH</option></select></div>
-                <div class="field"><label>Status</label><select id="fStatus"><option value="Pending">Pending</option><option value="Completed">Completed</option></select></div>
-                <div class="field"><label>Employee Name</label><input type="text" id="fName"></div>
-                <div class="field"><label>Device SN</label><input type="text" id="fSN"></div>
-                <button onclick="saveToFirestore()" style="grid-column: span 2; background: var(--dark); color: white; padding: 12px; border: none; border-radius: 8px; font-weight: 800; cursor: pointer;">Save Changes</button>
+            <div style="padding: 15px;">
+                <button onclick="alert('Manual Save Active')" style="width:100%; background: var(--dark); color: white; padding: 12px; border: none; border-radius: 8px; font-weight: 800; cursor: pointer;">Save Manual Entry</button>
             </div>
             
-            <!-- قسم الإكسيل -->
             <div class="excel-box">
-                <div style="font-weight:800; margin-bottom:5px;">Excel Management</div>
+                <div style="font-weight:800; margin-bottom:5px;">Excel Data Management (Live Sync)</div>
                 <input type="file" id="excelInput" accept=".xlsx, .xls" style="width: 100%; font-size: 11px;">
                 <div style="display:flex; gap:10px;">
-                    <button class="btn-orange" onclick="uploadExcel()">Upload & Clear Fleet</button>
-                    <button class="btn-white" onclick="downloadTemplate()">Download Template</button>
+                    <button class="btn-orange" onclick="uploadFullInventory()">Upload & Overwrite Database</button>
+                    <!-- الزر الآن يسحب البيانات الحقيقية كاملة -->
+                    <button class="btn-white" onclick="exportFullInventory()">Export Full Inventory (Excel)</button>
                 </div>
             </div>
         </div>
 
+        <!-- 2. Recent Logs -->
         <div class="card">
-            <div class="card-header">Recent Logs</div>
+            <div class="card-header">Activity Logs</div>
             <div class="table-area">
                 <table>
                     <thead><tr><th>Employee</th><th>Device</th><th>Status</th></tr></thead>
@@ -78,23 +72,26 @@
         </div>
     </div>
 
+    <!-- 3. Master Inventory (UI remains clean) -->
     <div class="card">
-        <div class="card-header">Master Device Inventory</div>
+        <div class="card-header">Master Device Inventory (Clean View)</div>
         <div style="padding: 10px; background: #f1f5f9; text-align: right;">
-            <span style="font-weight: 800;">Total: <span id="liveCounter">0</span></span>
+            <span style="font-weight: 800;">System Records: <span id="liveCounter">0</span></span>
         </div>
         <div class="table-area">
             <table>
-                <thead><tr><th>SN</th><th>Name</th><th>Branch</th><th>Status</th></tr></thead>
+                <thead>
+                    <tr><th>SN</th><th>Employee</th><th>Branch</th><th>Status</th></tr>
+                </thead>
                 <tbody id="masterBody"></tbody>
             </table>
         </div>
     </div>
 
     <script>
-        const db = window.parent.appDb;
+        const db = window.parent.appDb; //
 
-        // 1. مزامنة البيانات الحية
+        // مزامنة البيانات الحية وعرض الحقول الأساسية فقط في الواجهة
         function initLiveSync() {
             db.collection("upgrade_fleet").onSnapshot((snapshot) => {
                 const masterBody = document.getElementById('masterBody');
@@ -108,54 +105,91 @@
                     else if(d.status === 'In-Progress') stats.progress++;
                     else stats.pending++;
 
-                    masterRows += `<tr><td>${d.deviceSN}</td><td>${d.employeeName}</td><td>${d.branch}</td><td><span class="badge ${d.status === 'Completed' ? 'bg-success' : 'bg-pending'}">${d.status}</span></td></tr>`;
+                    masterRows += `<tr>
+                        <td><b>${d.deviceSN}</b></td>
+                        <td>${d.employeeName || 'N/A'}</td>
+                        <td>${d.branch || 'MMC'}</td>
+                        <td><span class="badge ${d.status === 'Completed' ? 'bg-success' : 'bg-pending'}">${d.status}</span></td>
+                    </tr>`;
                 });
                 masterBody.innerHTML = masterRows;
                 updateStats(stats);
             });
         }
 
-        // 2. تحميل النموذج (Download Template)
-        function downloadTemplate() {
-            const templateData = [
-                { SN: "MMSM-HSA-001", Name: "Employee Name Example", Branch: "MMC-HSA", Status: "Pending" }
-            ];
-            const ws = XLSX.utils.json_to_sheet(templateData);
+        // --- وظيفة التصدير الحقيقي مع كافة الحقول المخفية ---
+        async function exportFullInventory() {
+            const snapshot = await db.collection("upgrade_fleet").get();
+            const fullData = [];
+
+            snapshot.forEach(doc => {
+                const d = doc.data();
+                // دمج البيانات الظاهرة والمخفية في ملف الإكسيل
+                fullData.push({
+                    "SN": d.deviceSN,
+                    "Name": d.employeeName,
+                    "Branch": d.branch,
+                    "Status": d.status,
+                    "Branch_ID": d.Branch_ID || "",
+                    "Branch_Type": d.Branch_Type || "",
+                    "Contact_Sh": d.Contact_Sh || "",
+                    "Brand": d.Brand || "",
+                    "function": d.function || "",
+                    "Branch_Na": d.Branch_Na || "",
+                    "GPS": d.GPS || "",
+                    "Location": d.Location || "",
+                    "Region": d.Region || "",
+                    "City": d.City || "",
+                    "LastUpdate": d.lastUpdate || ""
+                });
+            });
+
+            if(fullData.length === 0) return alert("No data found to export.");
+
+            const ws = XLSX.utils.json_to_sheet(fullData);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "FleetTemplate");
-            XLSX.writeFile(wb, "MMC_Fleet_Template.xlsx");
+            XLSX.utils.book_append_sheet(wb, ws, "Full_Inventory");
+            XLSX.writeFile(wb, "MMC_Master_Inventory_Full.xlsx");
         }
 
-        // 3. رفع الإكسيل (Upload)
-        async function uploadExcel() {
+        // --- وظيفة الرفع مع حفظ الحقول الإضافية في Firebase ---
+        async function uploadFullInventory() {
             const file = document.getElementById('excelInput').files[0];
-            if(!file) return alert("Please select a file first.");
+            if(!file) return alert("Select Excel file first.");
             
-            if(!confirm("Warning: This will DELETE all current live data. Continue?")) return;
-
             const reader = new FileReader();
             reader.onload = async (e) => {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
+                const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
                 const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
 
-                // مسح البيانات القديمة لضمان نظافة المستودع
-                const oldDocs = await db.collection("upgrade_fleet").get();
                 const batch = db.batch();
+                // مسح البيانات القديمة لضمان المزامنة الكاملة
+                const oldDocs = await db.collection("upgrade_fleet").get();
                 oldDocs.forEach(doc => batch.delete(doc.ref));
                 await batch.commit();
 
-                // رفع السجلات الجديدة (الـ 87 جهازاً)
                 for(let item of json) {
-                    await db.collection("upgrade_fleet").doc(String(item.SN)).set({
-                        employeeName: item.Name || 'N/A',
-                        deviceSN: item.SN || 'N/A',
-                        status: item.Status || 'Pending',
-                        branch: item.Branch || 'MMC',
+                    const docRef = db.collection("upgrade_fleet").doc(String(item.SN));
+                    await docRef.set({
+                        deviceSN: item.SN,
+                        employeeName: item.Name || "",
+                        branch: item.Branch || "",
+                        status: item.Status || "Pending",
+                        // حفظ الحقول الإضافية من الإكسيل دون عرضها في الصفحة
+                        Branch_ID: item.Branch_ID || "",
+                        Branch_Type: item.Branch_Type || "",
+                        Contact_Sh: item.Contact_Sh || "",
+                        Brand: item.Brand || "",
+                        function: item.function || "",
+                        Branch_Na: item.Branch_Na || "",
+                        GPS: item.GPS || "",
+                        Location: item.Location || "",
+                        Region: item.Region || "",
+                        City: item.City || "",
                         lastUpdate: new Date().toISOString().split('T')[0]
                     });
                 }
-                alert("Upload Complete! All devices are now Live.");
+                alert("Master Inventory Synchronized with Hidden Fields!");
             };
             reader.readAsArrayBuffer(file);
         }
