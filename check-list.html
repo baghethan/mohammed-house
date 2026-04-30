@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MMC IT | Smart Dynamic Check-List v1.1.7</title>
+  <title>MMC IT | Checklist Dynamic Engine v1.1.8</title>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
@@ -16,22 +16,19 @@
     .field { display: grid; gap: 8px; margin-bottom: 12px; }
     .field label { font-size: 13px; font-weight: 700; color: #334155; }
     .field input, .field select { padding: 10px; border: 1px solid var(--border); border-radius: 12px; font-size: 13px; background: #fbfcfe; }
-    .note { background: #f1f5f9; border-radius: 8px; padding: 10px; font-size: 11px; color: #475569; border: 1px dashed #cbd5e1; margin-bottom: 10px; }
-    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
+    .btn-save { background: var(--green); color: #fff; border: none; padding: 12px 24px; border-radius: 20px; font-weight: 700; cursor: pointer; width: 100%; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 12px 10px; border-bottom: 1px solid #edf2f7; text-align: start; font-size: 12px; }
-    th { background: #f8fbff; color: var(--primary); position: sticky; top: 0; }
-    tr.clickable { cursor: pointer; transition: 0.2s; }
-    tr.clickable:hover { background: #f1f7fd; }
-    .btn-green { background: var(--green); color: #fff; border: none; padding: 12px 24px; border-radius: 20px; font-weight: 700; cursor: pointer; }
+    th { background: #f8fbff; color: var(--primary); }
+    tr.clickable { cursor: pointer; }
   </style>
 </head>
 <body>
   <main class="container">
     <div class="grid-2">
-      <!-- 1. نموذج الإدخال الذكي -->
+      <!-- نموذج الإدخال -->
       <section class="card">
-        <h3>نموذج Check-List (تفعيل الشرط والتكرار)</h3>
+        <h3>نموذج Check-List (مطابق للصور)</h3>
         <div class="card-body">
           <input id="editingChecklistId" type="hidden" />
           
@@ -39,37 +36,25 @@
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="field"><label>الفني</label><select id="cl_technician"></select></div>
             <div class="field"><label>الزيارة</label><select id="cl_visit_ref"></select></div>
-            <div class="field"><label>Brand</label><input id="cl_brand" /></div>
-            <div class="field"><label>Branch ID</label><input id="cl_branch_id" /></div>
           </div>
 
-          <!-- المنطقة الديناميكية: تدعم (سؤال -> شرط -> عدد -> تكرار) -->
-          <div class="section-title">Check-List الميداني (Dynamic Logic)</div>
-          <div class="note">سيتم إظهار الحقول بناءً على إجاباتك (مثل Q29A و Q29B)</div>
+          <div class="section-title">Check-List الديناميكي (Logic Engine)</div>
           <div id="dynamicChecklistSections"></div>
 
           <div style="margin-top:20px;">
-            <button class="btn-green" id="saveChecklistBtn">حفظ Check-List</button>
-            <button id="clearChecklistBtn" style="background:#eee; border:none; padding:12px; border-radius:20px; cursor:pointer;">تنظيف</button>
+            <button class="btn-save" id="saveChecklistBtn">حفظ Check-List</button>
           </div>
-          <div id="checklistMessage" style="margin-top:10px; font-weight:bold;"></div>
         </div>
       </section>
 
-      <!-- 2. السجلات المحفوظة -->
+      <!-- سجلات المحفوظة -->
       <aside class="card">
         <h3>السجلات المحفوظة</h3>
         <div class="card-body">
-          <input id="checklistSearch" placeholder="بحث..." style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; margin-bottom:12px;" />
-          <div class="table-wrap">
+          <div style="overflow:auto; max-height:500px;">
             <table>
               <thead>
-                <tr>
-                  <th>تاريخ الزيارة</th>
-                  <th>الفني</th>
-                  <th>الموقع</th>
-                  <th>ملخص Q28</th>
-                </tr>
+                <tr><th>التاريخ</th><th>الموقع</th><th>ملخص Q28</th></tr>
               </thead>
               <tbody id="checklistTableBody"></tbody>
             </table>
@@ -81,101 +66,73 @@
 
   <script>
   (function(){
-    var state = { checklists: [], checklistFields: [], currentLang: 'ar' };
+    var state = { checklists: [], checklistFields: [] };
     const $ = (id) => document.getElementById(id);
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 
-    // --- محرك المنطق الديناميكي ---
+    // --- محرك المنطق بناءً على إعدادات "إدارة البنود" في الصور ---
 
-    // 1. منطق الظهور الشرطي
-    function shouldShowField(field, answers) {
-      const rule = field.logic && field.logic.visibleWhen;
-      if (!rule || !field.logic.enabled) return true;[cite: 1]
-      
-      const sourceValue = answers[rule.fieldId];
-      if (rule.operator === 'equals') {
-        return String(sourceValue || '').toLowerCase() === String(rule.value || '').toLowerCase();[cite: 1]
-      }
-      return true;
-    }
-
-    // 2. منطق تكرار الحقول بناءً على العدد
-    function getRepeatCount(field, answers) {
-      if (!field.repeat || !field.repeat.enabled) return 0;[cite: 1]
-      const count = Number(answers[field.repeat.countFromFieldId] || 0);[cite: 1]
-      return count > 0 ? count : 0;
-    }
-
-    // 3. بناء واجهة المستخدم المتفاعلة
-    function renderDynamicForm(currentAnswers = {}) {
+    function renderDynamicForm(answers = {}) {
       const container = $('dynamicChecklistSections');
       container.innerHTML = '';
       
       state.checklistFields.forEach(field => {
-        // التحقق من الشرط أولاً
-        if (!shouldShowField(field, currentAnswers)) return;
+        // 1. منطق الظهور الشرطي (كما في الصورة 2)
+        const rule = field.logic && field.logic.visibleWhen;
+        if (field.logic && field.logic.enabled && rule) {
+          const sourceValue = answers[rule.fieldId] || answers[rule.fieldLabel]; 
+          if (String(sourceValue || '').toLowerCase() !== String(rule.value || '').toLowerCase()) return; 
+        }
 
         let fieldHtml = `<div class="field"><label>${esc(field.labelAr || field.label)}</label>`;
         
-        // إذا كان الحقل "تكراري" (مثل Q29B الذي يتكرر حسب Q29A)
-        const repeatCount = getRepeatCount(field, currentAnswers);
-        if (repeatCount > 0) {
-          for (let i = 0; i < repeatCount; i++) {
-            const val = (Array.isArray(currentAnswers[field.id]) ? currentAnswers[field.id][i] : '');
-            fieldHtml += `<input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(val)}" placeholder="إدخال #${i+1}" style="margin-bottom:5px;" />`;
+        // 2. منطق التكرار حسب العدد (كما في الصورة 3)
+        if (field.repeat && field.repeat.enabled) {
+          const count = Number(answers[field.repeat.countFromFieldId] || answers[field.repeat.countFromFieldLabel] || 0);
+          for (let i = 0; i < count; i++) {
+            const val = (answers[field.id] && answers[field.id][i]) || '';
+            fieldHtml += `<input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(val)}" placeholder="Employee ID ${i+1}" style="margin-bottom:5px;" />`;
           }
-        } else if (field.repeat && field.repeat.enabled) {
-          fieldHtml += `<div style="font-size:10px; color:red;">أدخل عدداً في الحقل المرتبط لإظهار هذه الحقول.</div>`;
         } else {
-          // الحقل الطبيعي (نص أو خيار)
-          const val = currentAnswers[field.id] || '';
+          // الحقول العادية
+          const val = answers[field.id] || '';
           if (field.fieldType === 'choice') {
             fieldHtml += `<select class="dyn-input" data-id="${field.id}"><option value="">اختر</option>`;
             (field.options || []).forEach(o => fieldHtml += `<option value="${o.value}" ${val==o.value?'selected':''}>${esc(o.labelAr || o.label)}</option>`);
             fieldHtml += `</select>`;
           } else {
-            fieldHtml += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" />`;
+            fieldHtml += `<input type="${field.fieldType === 'number' ? 'number' : 'text'}" class="dyn-input" data-id="${field.id}" value="${esc(val)}" />`;
           }
         }
         
-        fieldHtml += `</div>`;
-        container.innerHTML += fieldHtml;
+        container.innerHTML += fieldHtml + `</div>`;
       });
 
-      // ربط التفاعلية: إعادة الرصد عند تغيير أي قيمة لتحديث الشروط والعدد فوراً[cite: 1]
+      // إعادة رسم النموذج عند تغيير القيم لتطبيق الشروط فوراً
       document.querySelectorAll('.dyn-input').forEach(el => {
         el.onchange = () => renderDynamicForm(collectAnswers());
       });
     }
 
     function collectAnswers() {
-      const answers = {};
+      const ans = {};
       document.querySelectorAll('.dyn-input').forEach(el => {
         const id = el.dataset.id;
         if (el.dataset.index !== undefined) {
-          if (!answers[id]) answers[id] = [];
-          answers[id][el.dataset.index] = el.value;
+          if (!ans[id]) ans[id] = [];
+          ans[id][el.dataset.index] = el.value;
         } else {
-          answers[id] = el.value;
+          ans[id] = el.value;
         }
       });
-      return answers;
+      return ans;
     }
 
-    window.openChecklistForEdit = (id) => {
-      const row = state.checklists.find(r => r.id === id);
-      if (row) {
-        $('editingChecklistId').value = row.id;
-        renderDynamicForm(row.dynamicAnswers || {});[cite: 1]
-      }
-    };
-
-    // --- الربط مع Firebase[cite: 1] ---
+    // --- الربط مع Firebase ---
     async function boot() {
       const db = window.parent.appDb;
       if (!db) return;
 
-      // تحميل تعريفات الحقول (الشروط والعدد)[cite: 1]
       db.collection('checklist_fields').onSnapshot(snap => {
         state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (a.order||0)-(b.order||0));
         renderDynamicForm();
@@ -188,11 +145,9 @@
     }
 
     function renderTable() {
-      const q = ($('checklistSearch').value || '').toLowerCase();
-      const filtered = state.checklists.filter(r => !q || r.locationSite.toLowerCase().includes(q));
-      $('checklistTableBody').innerHTML = filtered.map(r => `
-        <tr class="clickable" onclick="openChecklistForEdit('${r.id}')">
-          <td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.q28_serviceReportSummary || '-')}</td>
+      $('checklistTableBody').innerHTML = state.checklists.map(r => `
+        <tr class="clickable" onclick="renderDynamicForm(${JSON.stringify(r.dynamicAnswers).replace(/"/g, '&quot;')})">
+          <td>${esc(r.visitDate)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.q28_serviceReportSummary || '-')}</td>
         </tr>
       `).join('');
     }
