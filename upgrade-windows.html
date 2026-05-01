@@ -2,13 +2,12 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>MMC IT | Windows 11 Instant Sync v2.5.5</title>
+    <title>MMC IT | Windows 11 Instant Sync v2.6.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #0d4b73; --success: #10b981; --danger: #ef4444; --bg: #edf3f8; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 15px; font-size: 12px; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); margin: 0; padding: 15px; font-size: 12px; }
         
-        /* شريط الحالة الفورية */
         .live-status { background: var(--primary); color: #fff; padding: 10px; border-radius: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .dot { width: 10px; height: 10px; background: #34d399; border-radius: 50%; display: inline-block; animation: blink 1s infinite; margin-left: 8px; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
@@ -25,94 +24,109 @@
         .badge { padding: 4px 8px; border-radius: 4px; font-weight: 800; font-size: 10px; }
         .bg-planned { background: #dbeafe; color: #1e40af; }
         .bg-completed { background: #dcfce7; color: #166534; }
+        
+        /* سجل المزامنة أسفل الجدول */
+        .sync-log { background: #111827; color: #34d399; padding: 10px; border-radius: 8px; font-family: monospace; height: 80px; overflow-y: auto; margin-top: 10px; font-size: 10px; }
     </style>
 </head>
 <body>
 
     <div class="live-status">
-        <span><span class="dot"></span> إصدار التحديث اللحظي (v2.5.5) نشط الآن</span>
-        <button onclick="exportToExcel()" style="background:#fff; color:var(--primary); border:none; padding:6px 15px; border-radius:6px; cursor:pointer; font-weight:bold;">تصدير البيانات</button>
+        <span><span class="dot"></span> إصدار التحديث التلقائي (v2.6.0) متصل الآن</span>
+        <button onclick="exportToExcel()" style="background:#fff; color:var(--primary); border:none; padding:6px 15px; border-radius:6px; cursor:pointer; font-weight:bold;">تصدير Excel</button>
     </div>
 
     <div class="summary-grid">
         <div class="stat-card"><span>الإجمالي</span><span class="stat-val" id="statTotal">0</span></div>
-        <div class="stat-card"><span>مخطط (Planned)</span><span class="stat-val" id="statPlanned" style="color:var(--danger)">0</span></div>
-        <div class="stat-card"><span>مكتمل (Done)</span><span class="stat-val" id="statDone" style="color:var(--success)">0</span></div>
+        <div class="stat-card"><span>Planned</span><span class="stat-val" id="statPlanned" style="color:var(--danger)">0</span></div>
+        <div class="stat-card"><span>Completed</span><span class="stat-val" id="statDone" style="color:var(--success)">0</span></div>
     </div>
 
     <div class="card">
-        <div style="max-height: 500px; overflow-y: auto;">
+        <div style="max-height: 400px; overflow-y: auto;">
             <table>
-                <thead>
-                    <tr><th>Device Name</th><th>Employee ID</th><th>Region</th><th>Status</th></tr>
-                </thead>
+                <thead><tr><th>الجهاز</th><th>الموظف</th><th>الحالة</th></tr></thead>
                 <tbody id="masterBody"></tbody>
             </table>
         </div>
     </div>
+
+    <div class="sync-log" id="syncLog">> النظام يراقب التحديثات حالياً...</div>
 
     <script>
         const db = window.parent.appDb;
         let fleetData = [];
         let isProcessing = false;
 
-        // 1. مراقبة مستودع الأجهزة (Inventory) بشكل حي
+        // وظيفة تنظيف البيانات لحل خطأ Firebase الظاهر في صورتك
+        function cleanData(obj) {
+            return JSON.parse(JSON.stringify(obj));
+        }
+
+        function addLog(msg) {
+            const log = document.getElementById('syncLog');
+            log.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // 1. مراقبة المستودع (Inventory) بشكل حي
         function startInventoryWatch() {
             db.collection("windows_upgrades").onSnapshot(snap => {
                 fleetData = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                renderUI();
+                updateDashboard();
+                renderTable();
             });
         }
 
-        // 2. مراقبة تقارير الـ Checklist "فورياً" وبدون تدخل يدوي
-        function startAutoSync() {
+        // 2. المزامنة التلقائية الفورية (بدون أزرار)
+        function startInstantSync() {
             db.collection("branch_checklists").onSnapshot(async (snap) => {
                 if (isProcessing) return;
                 isProcessing = true;
                 
                 const batch = db.batch();
-                let changesFound = false;
+                let hasChanges = false;
 
                 snap.forEach(doc => {
                     const answers = doc.data().dynamicAnswers || {};
-                    // فحص كل القيم داخل التقرير للبحث عن تطابق مع الأرقام الوظيفية
+                    // فحص جميع القيم داخل التقرير
                     Object.values(answers).forEach(val => {
                         const ids = String(val).split(/[\n,]+/).map(s => s.trim()).filter(id => id.length > 3);
                         
                         ids.forEach(empId => {
-                            // البحث عن الموظف في المستودع (بناءً على employee_ID كما في صورتك)
                             const target = fleetData.find(d => 
                                 String(d.employee_ID || d.employeeId || '').trim() === empId && d.status === 'planned'
                             );
                             if (target) {
-                                batch.update(db.collection("windows_upgrades").doc(target.id), {
+                                // استخدام cleanData لمنع خطأ "custom Object"
+                                batch.update(db.collection("windows_upgrades").doc(target.id), cleanData({
                                     status: 'completed',
-                                    sync_time: new Date().toISOString()
-                                });
-                                changesFound = true;
+                                    sync_type: 'Instant_v2.6.0',
+                                    lastSync: new Date().toISOString()
+                                }));
+                                hasChanges = true;
+                                addLog(`تم تحديث الموظف ${empId} تلقائياً.`);
                             }
                         });
                     });
                 });
 
-                if (changesFound) {
-                    await batch.commit();
-                    console.log("تمت المزامنة الفورية بنجاح.");
-                }
+                if (hasChanges) await batch.commit();
                 isProcessing = false;
             });
         }
 
-        function renderUI() {
+        function updateDashboard() {
             document.getElementById('statTotal').innerText = fleetData.length;
             document.getElementById('statPlanned').innerText = fleetData.filter(d => d.status === 'planned').length;
             document.getElementById('statDone').innerText = fleetData.filter(d => d.status === 'completed').length;
-            
-            document.getElementById('masterBody').innerHTML = fleetData.slice(0, 100).map(d => `
+        }
+
+        function renderTable() {
+            document.getElementById('masterBody').innerHTML = fleetData.slice(0, 50).map(d => `
                 <tr>
                     <td><b>${d.device_Name || d.id}</b></td>
                     <td>${d.employee_ID || '-'}</td>
-                    <td>${d.region || '-'}</td>
                     <td><span class="badge ${d.status==='completed'?'bg-completed':'bg-planned'}">${d.status}</span></td>
                 </tr>
             `).join('');
@@ -122,13 +136,13 @@
             const ws = XLSX.utils.json_to_sheet(fleetData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Inventory");
-            XLSX.writeFile(wb, "MMC_Upgrade_Live_Report.xlsx");
+            XLSX.writeFile(wb, "MMC_Inventory_Live.xlsx");
         }
 
         window.onload = () => {
             if (!db) return;
             startInventoryWatch();
-            startAutoSync(); // تفعيل التحديث التلقائي الفوري
+            startInstantSync();
         };
     </script>
 </body>
