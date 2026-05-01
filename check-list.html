@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List | المجدوعي للسيارات v1.2.5</title>
+  <title>Check-List | المجدوعي للسيارات v1.2.1</title>
   <style>
+    /* نفس تصميمك الأصلي بالضبط */
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
     .container { max-width: 1350px; margin: 18px auto; padding: 0 14px 28px; }
@@ -25,7 +26,6 @@
     tr.clickable { cursor: pointer; transition: 0.2s; }
     tr.clickable:hover { background: #f1f7fd; }
     .btn-save { background: var(--green); color: #fff; border: none; padding: 12px 30px; border-radius: 25px; font-weight: 700; cursor: pointer; width: 100%; font-size: 14px; }
-    .btn-save:disabled { background: #ccc; }
   </style>
 </head>
 <body>
@@ -62,7 +62,7 @@
           <div id="dynamicChecklistSections"></div>
 
           <div style="margin-top:25px;">
-            <button class="btn-save" id="saveChecklistBtn">حفظ Check-List وتحديث الترقية ✅</button>
+            <button class="btn-save" id="saveChecklistBtn">حفظ Check-List</button>
           </div>
         </div>
       </section>
@@ -88,19 +88,20 @@
     const $ = (id) => document.getElementById(id);
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 
-    // تنظيف البيانات لـ Firebase
-    function clean(obj) { return JSON.parse(JSON.stringify(obj)); }
+    // وظيفة تنظيف البيانات لمنع خطأ Firebase
+    function cleanData(obj) { return JSON.parse(JSON.stringify(obj)); }
 
     async function boot() {
       const db = window.parent.appDb;
       if (!db) return;
 
-      // تحميل الفنيين والزيارات بنفس طريقتك القديمة
+      // تحميل قائمة الفنيين
       db.collection('technicians').onSnapshot(snap => {
         state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()}));
         $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
       });
 
+      // جلب بيانات الفني والزيارة
       $('cl_technician').onchange = async function() {
         const tech = state.technicians.find(t => t.id === this.value);
         if (tech) {
@@ -131,7 +132,7 @@
         renderDynamicForm();
       });
 
-      db.collection('branch_checklists').orderBy('createdAt', 'desc').onSnapshot(snap => {
+      db.collection('branch_checklists').orderBy('visitDate', 'desc').onSnapshot(snap => {
         state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()}));
         renderTable();
       });
@@ -168,11 +169,11 @@
       return ans;
     }
 
+    // وظيفة الحفظ مع الربط التلقائي
     async function saveChecklist() {
       const db = window.parent.appDb;
       const btn = $('saveChecklistBtn');
       btn.disabled = true;
-      btn.innerText = "جاري الحفظ وتحديث الترقية...";
 
       const answers = collectAnswers();
       const payload = {
@@ -185,34 +186,30 @@
       };
 
       try {
-        // 1. حفظ التقرير الأساسي
-        await db.collection('branch_checklists').add(clean(payload));
+        await db.collection('branch_checklists').add(cleanData(payload));
 
-        // 2. المحرك الذكي: البحث عن أرقام الموظفين وتحديث جدول الترقية فوراً
+        // محرك الربط مع upgrade-windows[cite: 1]
         const batch = db.batch();
-        let updateCount = 0;
-
+        let updated = 0;
         for (let key in answers) {
           const ids = (Array.isArray(answers[key]) ? answers[key] : String(answers[key]).split(/[\n,]+/)).map(id => id.trim()).filter(id => id.length > 2);
           for (const empId of ids) {
-            // البحث عن الموظف في جدول windows_upgrades (الحقل employee_ID)
             const q = await db.collection("windows_upgrades").where("employee_ID", "==", empId).get();
-            q.forEach(doc => {
-              batch.update(doc.ref, { status: 'completed', lastSync: new Date().toISOString() });
-              updateCount++;
+            q.forEach(d => {
+              batch.update(d.ref, { status: 'completed', lastSync: new Date().toISOString() });
+              updated++;
             });
           }
         }
-
-        if (updateCount > 0) await batch.commit();
-        alert(`تم الحفظ بنجاح! تم تحديث ${updateCount} جهاز في جدول الترقية.`);
+        if (updated > 0) await batch.commit();
+        alert("تم الحفظ بنجاح وتحديث " + updated + " جهاز في الترقية.");
+        location.reload(); 
       } catch (e) { alert("Error: " + e.message); }
       btn.disabled = false;
-      btn.innerText = "حفظ Check-List وتحديث الترقية ✅";
     }
 
     function renderTable() {
-      $('checklistTableBody').innerHTML = state.checklists.slice(0, 20).map(r => `
+      $('checklistTableBody').innerHTML = state.checklists.slice(0, 15).map(r => `
         <tr><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.locationSite)}</td><td>✅</td></tr>
       `).join('');
     }
