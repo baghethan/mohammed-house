@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<!-- الإصدار v2.4.0 - المزامنة المحلية الذكية وتصدير البيانات الكاملة -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <title>MMC IT | Windows 11 Upgrade Hub v2.4.0</title>
+    <title>MMC IT | Windows 11 Upgrade Hub v2.4.1</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        :root { --primary: #0d4b73; --dark: #0d2149; --success: #28a745; --warning: #c28100; --danger: #dc3545; --border: rgba(0,0,0,0.1); }
+        :root { --primary: #0d4b73; --dark: #0d2149; --success: #28a745; --danger: #dc3545; --border: rgba(0,0,0,0.1); }
         body { font-family: 'Segoe UI', sans-serif; background: transparent; margin: 0; padding: 15px; color: #1e293b; font-size: 12px; }
         .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
         .stat-card { background: #fff; padding: 15px; border-radius: 12px; border: 1px solid var(--border); text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
@@ -14,13 +13,12 @@
         .main-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; margin-bottom: 20px; }
         .card { background: #fff; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; }
         .card-header { background: var(--dark); color: #fff; padding: 10px; font-weight: 800; text-align: center; }
-        .btn-sync { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 800; cursor: pointer; width: 100%; transition: 0.3s; }
-        .btn-sync:hover { background: #0a3b5a; }
-        .btn-export { width: 100%; background: #fff; color: var(--primary); border: 2px solid var(--primary); padding: 12px; border-radius: 8px; font-weight: 800; cursor: pointer; margin-top: 15px; }
-        .table-area { max-height: 480px; overflow-y: auto; }
+        .btn-sync { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: 800; cursor: pointer; width: 100%; }
+        .sync-log { background: #1e293b; color: #10b981; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 11px; height: 150px; overflow-y: auto; margin-top: 10px; }
+        .table-area { max-height: 400px; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; border-bottom: 1px solid #f1f5f9; text-align: center; }
-        .badge { padding: 4px 10px; border-radius: 6px; font-weight: 800; font-size: 10px; }
+        th, td { padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: center; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-weight: 800; }
         .bg-planned { background: #dbeafe; color: #1e40af; }
         .bg-completed { background: #dcfce7; color: #166534; }
     </style>
@@ -30,30 +28,24 @@
     <div class="summary-grid">
         <div class="stat-card"><span>Total Fleet</span><span class="stat-val" id="statTotal">0</span></div>
         <div class="stat-card"><span>Planned</span><span class="stat-val" id="statPlanned" style="color:var(--danger)">0</span></div>
-        <div class="stat-card"><span>In-Progress</span><span class="stat-val" id="statProgress" style="color:var(--warning)">0</span></div>
         <div class="stat-card"><span>Completed</span><span class="stat-val" id="statDone" style="color:var(--success)">0</span></div>
     </div>
 
     <div class="main-layout">
         <div class="card">
-            <div class="card-header">Database Management & Sync</div>
-            <div style="padding: 20px;">
-                <!-- زر المزامنة المحلية المطورة -->
-                <button class="btn-sync" onclick="smartLocalSync()">🔄 Smart Local Sync (Fast Match)</button>
+            <div class="card-header">Sync Console & Controls</div>
+            <div style="padding: 15px;">
+                <button class="btn-sync" onclick="smartLocalSync()">🔄 Run Smart Sync & Debug</button>
+                <button onclick="exportData()" style="width:100%; margin-top:10px; padding:10px; border-radius:8px; border:1px solid #ddd; cursor:pointer; font-weight:bold;">📥 Download Database (Excel)</button>
                 
-                <!-- زر تحميل قاعدة البيانات للتأكد -->
-                <button class="btn-export" onclick="exportData()">📥 Download Full Database (Excel)</button>
-                
-                <p style="font-size: 10px; color: #666; margin-top: 15px; text-align: center;">
-                    * زر التحميل سيسمح لك بمراجعة كافة الأرقام الوظيفية المسجلة حالياً.
-                </p>
+                <div class="sync-log" id="syncLog">-- جاهز لبدء المزامنة --</div>
             </div>
         </div>
 
         <div class="card">
-            <div class="card-header">Live Inventory Preview</div>
+            <div class="card-header">Inventory Preview</div>
             <div class="table-area">
-                <table id="masterTable">
+                <table>
                     <thead><tr><th>Device</th><th>Employee ID</th><th>Status</th></tr></thead>
                     <tbody id="masterBody"></tbody>
                 </table>
@@ -65,88 +57,91 @@
         const db = window.parent.appDb;
         let fleetData = [];
 
-        function initSync() {
+        function addLog(msg) {
+            const log = document.getElementById('syncLog');
+            log.innerHTML += `<div>> ${msg}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function init() {
             db.collection("windows_upgrades").onSnapshot((snapshot) => {
-                fleetData = [];
-                let stats = { total: 0, planned: 0, progress: 0, done: 0 };
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    data.id = doc.id;
-                    fleetData.push(data);
-                    stats.total++;
-                    if(data.status === 'planned') stats.planned++;
-                    else if(data.status === 'completed') stats.done++;
-                });
-                updateUI(stats);
+                fleetData = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+                document.getElementById('statTotal').innerText = fleetData.length;
+                document.getElementById('statPlanned').innerText = fleetData.filter(d => d.status === 'planned').length;
+                document.getElementById('statDone').innerText = fleetData.filter(d => d.status === 'completed').length;
                 renderTable();
             });
         }
 
-        // المزامنة المحلية الذكية: تبحث في المصفوفة المحملة مسبقاً لتجنب مشاكل الـ Data Type
         async function smartLocalSync() {
-            alert("بدء المزامنة المحلية الذكية لضمان مطابقة كافة الأرقام...");
+            document.getElementById('syncLog').innerHTML = "بدء عملية الفحص...<br>";
             const snapshot = await db.collection("branch_checklists").get();
             const batch = db.batch();
-            let updatedCount = 0;
+            let matches = 0;
+
+            addLog(`تم العثور على ${snapshot.size} تقرير في Checklist.`);
 
             snapshot.forEach(doc => {
                 const answers = doc.data().dynamicAnswers || {};
-                let q29bValue = "";
-                for(let k in answers) if(k.includes("Q29B")) q29bValue = answers[k];
+                let idsString = "";
+                // البحث عن حقل Q29B في التقرير
+                for(let k in answers) if(k.includes("Q29B")) idsString = answers[k];
 
-                if(q29bValue) {
-                    const ids = String(q29bValue).split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+                if(idsString) {
+                    const ids = String(idsString).split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
                     ids.forEach(empId => {
-                        // البحث محلياً في fleetData لضمان التطابق التام
-                        const target = fleetData.find(d => 
-                            String(d.employee_ID || d.employeeId || d.employeeid || '').trim() === String(empId).trim()
-                        );
-                        if(target && target.status === 'planned') {
-                            batch.update(db.collection("windows_upgrades").doc(target.id), {
-                                status: 'completed',
-                                lastUpdate: new Date().toISOString(),
-                                sync_source: "Smart Local Sync"
-                            });
-                            updatedCount++;
+                        addLog(`فحص الموظف رقم: [${empId}]...`);
+                        
+                        // محاولة مطابقة الرقم مع كافة الحقول الممكنة في المستودع
+                        const target = fleetData.find(d => {
+                            const dbId = String(d.employee_ID || d.employeeId || d.employeeid || '').trim();
+                            return dbId === String(empId);
+                        });
+
+                        if(target) {
+                            if(target.status === 'planned') {
+                                addLog(`✅ تم إيجاد تطابق للجهاز: ${target.device_Name}`);
+                                batch.update(db.collection("windows_upgrades").doc(target.id), {
+                                    status: 'completed',
+                                    lastSync: new Date().toISOString()
+                                });
+                                matches++;
+                            } else {
+                                addLog(`ℹ️ الموظف موجود ولكن الحالة مكتملة مسبقاً.`);
+                            }
+                        } else {
+                            addLog(`❌ لم يتم العثور على [${empId}] في المستودع.`);
                         }
                     });
                 }
             });
 
-            if(updatedCount > 0) {
+            if(matches > 0) {
                 await batch.commit();
-                alert(`نجاح! تم تحديث ${updatedCount} جهاز بناءً على تطابق الأرقام الوظيفية.`);
+                alert(`نجاح! تم تحديث ${matches} جهاز.`);
             } else {
-                alert("لم يتم العثور على أرقام جديدة للمطابقة. تأكد من أن الأرقام في الإكسيل تطابق تماماً ما يتم إدخاله في الـ Checklist.");
+                addLog("لم يتم إجراء أي تحديثات جديدة.");
             }
         }
 
         function renderTable() {
-            document.getElementById('masterBody').innerHTML = fleetData.map(d => `
+            document.getElementById('masterBody').innerHTML = fleetData.slice(0, 50).map(d => `
                 <tr>
-                    <td><b>${d.device_Name || d.id}</b></td>
+                    <td>${d.device_Name || d.id}</td>
                     <td>${d.employee_ID || d.employeeId || '-'}</td>
                     <td><span class="badge ${d.status === 'completed' ? 'bg-completed' : 'bg-planned'}">${d.status}</span></td>
                 </tr>
             `).join('');
         }
 
-        function updateUI(s) {
-            document.getElementById('statTotal').innerText = s.total;
-            document.getElementById('statPlanned').innerText = s.planned;
-            document.getElementById('statDone').innerText = s.done;
-        }
-
-        // دالة تحميل قاعدة البيانات للتأكد منها
         function exportData() {
-            if(!fleetData.length) return alert("لا توجد بيانات لتحميلها حالياً.");
             const ws = XLSX.utils.json_to_sheet(fleetData);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Database_Verify");
-            XLSX.writeFile(wb, "MMC_Upgrade_Database_Check.xlsx");
+            XLSX.utils.book_append_sheet(wb, ws, "Database");
+            XLSX.writeFile(wb, "MMC_IT_Inventory_Full.xlsx");
         }
 
-        window.onload = initSync;
+        window.onload = init;
     </script>
 </body>
 </html>
