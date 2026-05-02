@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>MMC IT | Windows 11 Master Dashboard v2.8.7</title>
+    <title>MMC IT | Windows 11 Deep Sync v2.8.8</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #0d4b73; --success: #10b981; --danger: #ef4444; --bg: #edf3f8; --dark: #1e293b; }
@@ -14,10 +14,9 @@
         .main-container { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; }
         .card { background: #fff; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 20px; }
         .card-header { background: var(--dark); color: #fff; padding: 12px; font-weight: 800; text-align: center; }
-        .btn-full-sync { background: var(--primary); color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 800; cursor: pointer; width: 100%; margin-bottom: 10px; transition: 0.3s; }
-        .btn-full-sync:hover { background: #0a3a5a; }
-        .btn-bulk { background: var(--success); color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 800; cursor: pointer; width: 100%; }
-        textarea { width: 100%; height: 80px; border-radius: 8px; border: 1px solid #cbd5e1; padding: 10px; font-size: 11px; resize: none; margin-bottom: 10px; outline: none; box-sizing: border-box; }
+        .btn-full-sync { background: var(--primary); color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 800; cursor: pointer; width: 100%; transition: 0.3s; }
+        .btn-bulk { background: var(--success); color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer; width: 100%; }
+        textarea { width: 100%; height: 60px; border-radius: 8px; border: 1px solid #cbd5e1; padding: 10px; font-size: 11px; resize: none; margin-bottom: 10px; outline: none; box-sizing: border-box; }
         .table-area { max-height: 450px; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px; border-bottom: 1px solid #f1f5f9; text-align: center; }
@@ -25,13 +24,13 @@
         .badge { padding: 4px 10px; border-radius: 6px; font-weight: 800; font-size: 10px; }
         .bg-planned { background: #dbeafe; color: #1e40af; }
         .bg-completed { background: #dcfce7; color: #166534; }
-        .sync-log { background: #0f172a; color: #34d399; padding: 12px; border-radius: 10px; font-family: monospace; font-size: 10px; height: 130px; overflow-y: auto; }
+        .sync-log { background: #0f172a; color: #34d399; padding: 12px; border-radius: 10px; font-family: monospace; font-size: 10px; height: 150px; overflow-y: auto; }
     </style>
 </head>
 <body>
 
     <div class="status-header">
-        <span>نظام التحكم الموحد (v2.8.7) - حل نهائي لمشكلة Iframe</span>
+        <span>نظام المزامنة الذكي (v2.8.8) - تنظيف البيانات والمطابقة العميقة</span>
         <button onclick="exportToExcel()" style="background:#fff; color:var(--primary); border:none; padding:6px 15px; border-radius:6px; cursor:pointer; font-weight:bold;">تصدير Excel</button>
     </div>
 
@@ -54,17 +53,18 @@
 
         <section>
             <div class="card">
-                <div class="card-header">أدوات المزامنة</div>
+                <div class="card-header">أدوات المزامنة العميقة</div>
                 <div style="padding: 15px;">
-                    <button class="btn-full-sync" id="btnFullSync" onclick="runFullHistorySync()">🔄 تشغيل المزامنة التاريخية (Full History)</button>
-                    <textarea id="manualIds" placeholder="أو الصق أرقام وظيفية يدوياً هنا..."></textarea>
-                    <button class="btn-bulk" onclick="manualBulkUpdate()">تحديث الأرقام يدوياً ✅</button>
+                    <button class="btn-full-sync" id="btnFullSync" onclick="runDeepHistorySync()">🔍 تشغيل فحص عميق للسجلات (Deep Scan)</button>
+                    <p style="font-size:10px; color:#64748b; margin:10px 0;">سيقوم هذا الفحص بتنظيف المسافات ومطابقة كافة الأرقام الوظيفية المسجلة سابقاً.</p>
+                    <textarea id="manualIds" placeholder="أدخل أرقام وظيفية يدوياً هنا..."></textarea>
+                    <button class="btn-bulk" onclick="manualBulkUpdate()">تحديث يدوي ✅</button>
                 </div>
             </div>
             
             <div class="card">
-                <div class="card-header">سجل المزامنة الحية</div>
-                <div class="sync-log" id="syncLog">> جاهز للعمل...</div>
+                <div class="card-header">سجل المزامنة التفصيلي</div>
+                <div class="sync-log" id="syncLog">> النظام جاهز للفحص العميق...</div>
             </div>
         </section>
     </div>
@@ -73,18 +73,10 @@
         const db = window.parent.appDb;
         let fleetData = [];
 
-        // أهم تعديل: إجبار الكائن على الانتماء للصفحة الرئيسية لحل الخطأ الأحمر
         function forcePlainObject(data) {
-            try {
-                // إنشاء كائن جديد باستخدام منشئ الكائنات في الصفحة الرئيسية (Parent)
-                const parentObj = new window.parent.Object();
-                for (const key in data) {
-                    parentObj[key] = data[key];
-                }
-                return parentObj;
-            } catch (e) {
-                return data;
-            }
+            const parentObj = new window.parent.Object();
+            for (const key in data) parentObj[key] = data[key];
+            return parentObj;
         }
 
         function addLog(msg) {
@@ -94,7 +86,6 @@
         }
 
         function init() {
-            if(!db) return addLog("خطأ: تعذر الاتصال بـ appDb في الصفحة الرئيسية.");
             db.collection("windows_upgrades").onSnapshot(snap => {
                 fleetData = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 updateDashboard();
@@ -102,55 +93,62 @@
             });
         }
 
-        async function runFullHistorySync() {
+        // المحرك المطور للمزامنة العميقة
+        async function runDeepHistorySync() {
             const btn = document.getElementById('btnFullSync');
             btn.disabled = true;
-            btn.innerText = "جاري البحث في السجلات...";
-            addLog("بدء المزامنة الشاملة...");
+            addLog("بدء الفحص العميق لكافة التقارير...");
             
             try {
                 const reports = await db.collection("branch_checklists").get();
                 const batch = db.batch();
                 let matches = 0;
+                let foundIdsInReports = new Set();
 
                 reports.forEach(doc => {
                     const answers = doc.data().dynamicAnswers || {};
                     Object.values(answers).forEach(val => {
-                        // استخراج الأرقام الوظيفية من النصوص أو المصفوفات
-                        const ids = String(val).split(/[\n,]+/).map(s => s.trim()).filter(id => id.length > 3);
-                        ids.forEach(empId => {
-                            const target = fleetData.find(d => String(d.employee_ID || '').trim() === empId && d.status === 'planned');
-                            if (target) {
-                                // تطبيق الحل النهائي هنا
-                                const updateData = forcePlainObject({
-                                    status: 'completed',
-                                    sync_time: new Date().toISOString(),
-                                    sync_type: 'MasterSync_v2.8.7'
-                                });
-                                batch.update(db.collection("windows_upgrades").doc(target.id), updateData);
-                                matches++;
-                            }
-                        });
+                        // تنظيف متقدم: تقسيم حسب (فاصلة، سطر جديد، مسافة، أو سيميكولون)
+                        const rawIds = String(val).split(/[\n,\s;]+/).map(s => s.trim()).filter(id => id.length > 2);
+                        rawIds.forEach(id => foundIdsInReports.add(id));
                     });
+                });
+
+                addLog(`تم العثور على ${foundIdsInReports.size} رقم وظيفي في التقارير. جاري المطابقة مع المستودع...`);
+
+                foundIdsInReports.forEach(empId => {
+                    // مطابقة ذكية (تجاهل المسافات واختلاف الأنواع)
+                    const target = fleetData.find(d => 
+                        String(d.employee_ID || '').trim() === String(empId).trim() && 
+                        d.status === 'planned'
+                    );
+
+                    if (target) {
+                        batch.update(db.collection("windows_upgrades").doc(target.id), forcePlainObject({
+                            status: 'completed',
+                            sync_ref: 'DeepScan_v2.8.8',
+                            sync_date: new Date().toISOString()
+                        }));
+                        matches++;
+                    }
                 });
 
                 if (matches > 0) {
                     await batch.commit();
-                    addLog(`✅ نجاح! تم تحديث ${matches} سجل قديم.`);
+                    addLog(`✅ نجاح باهر! تم تحديث ${matches} سجل جديد ليصبح المجموع ${fleetData.filter(d => d.status === 'completed').length + matches}.`);
                 } else {
-                    addLog("لم يتم العثور على أجهزة جديدة لتحديثها.");
+                    addLog("لم يتم العثور على أرقام جديدة مطابقة في هذه الدورة.");
                 }
             } catch (err) {
-                addLog("خطأ أثناء المزامنة: " + err.message);
+                addLog("خطأ: " + err.message);
             }
             btn.disabled = false;
-            btn.innerText = "🔄 تشغيل المزامنة التاريخية (Full History)";
         }
 
         async function manualBulkUpdate() {
             const input = document.getElementById('manualIds').value;
             if(!input.trim()) return;
-            const ids = input.split(/[\n,]+/).map(id => id.trim()).filter(id => id.length > 2);
+            const ids = input.split(/[\n,\s;]+/).map(id => id.trim()).filter(id => id.length > 2);
             const batch = db.batch();
             let updated = 0;
 
@@ -173,7 +171,7 @@
 
         function renderTable() {
             document.getElementById('masterBody').innerHTML = fleetData.slice(0, 50).map(d => `
-                <tr><td><b>${d.device_Name || d.id}</b></td><td>${d.employee_ID || '-'}</td>
+                <tr><td><b>${d.device_Name || '-'}</b></td><td>${d.employee_ID || '-'}</td>
                 <td><span class="badge ${d.status==='completed'?'bg-completed':'bg-planned'}">${d.status}</span></td></tr>
             `).join('');
         }
@@ -182,7 +180,7 @@
             const ws = XLSX.utils.json_to_sheet(fleetData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Inventory");
-            XLSX.writeFile(wb, "MMC_Upgrade_Tracker.xlsx");
+            XLSX.writeFile(wb, "MMC_Upgrade_Report.xlsx");
         }
 
         window.onload = init;
