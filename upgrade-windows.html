@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>MMC IT | Windows 11 Master Dashboard v2.8.5</title>
+    <title>MMC IT | Windows 11 Master Dashboard v2.8.6</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #0d4b73; --success: #10b981; --danger: #ef4444; --bg: #edf3f8; --dark: #1e293b; }
@@ -30,7 +30,7 @@
 <body>
 
     <div class="status-header">
-        <span>نظام التحكم الموحد (v2.8.5) - تحديث السجلات القديمة والجديدة</span>
+        <span>نظام التحكم الموحد (v2.8.6) - مصلح الأخطاء</span>
         <button onclick="exportToExcel()" style="background:#fff; color:var(--primary); border:none; padding:6px 15px; border-radius:6px; cursor:pointer; font-weight:bold;">تصدير Excel</button>
     </div>
 
@@ -41,7 +41,6 @@
     </div>
 
     <div class="main-container">
-        <!-- جدول البيانات (Inventory Status) -->
         <section class="card">
             <div class="card-header">Master Inventory Status</div>
             <div class="table-area">
@@ -52,7 +51,6 @@
             </div>
         </section>
 
-        <!-- أدوات التحكم والمزامنة -->
         <section>
             <div class="card">
                 <div class="card-header">أدوات الربط والمزامنة</div>
@@ -65,7 +63,7 @@
             
             <div class="card">
                 <div class="card-header">سجل العمليات (Sync Log)</div>
-                <div class="sync-log" id="syncLog">> بانتظار بدء المزامنة...</div>
+                <div class="sync-log" id="syncLog">> جاهز للمزامنة...</div>
             </div>
         </section>
     </div>
@@ -73,6 +71,9 @@
     <script>
         const db = window.parent.appDb;
         let fleetData = [];
+
+        // حل مشكلة "custom Object" الظاهرة في صورتك
+        function clean(obj) { return JSON.parse(JSON.stringify(obj)); }
 
         function addLog(msg) {
             const log = document.getElementById('syncLog');
@@ -88,7 +89,6 @@
             });
         }
 
-        // الوظيفة الأساسية لتحديث السجلات التي سجلت "من قبل"
         async function runFullHistorySync() {
             addLog("بدء مسح شامل لكافة تقارير الفحص السابقة...");
             const reports = await db.collection("branch_checklists").get();
@@ -102,11 +102,11 @@
                     ids.forEach(empId => {
                         const target = fleetData.find(d => String(d.employee_ID || '').trim() === empId && d.status === 'planned');
                         if (target) {
-                            batch.update(db.collection("windows_upgrades").doc(target.id), {
+                            // استخدام دالة clean() لحل الخطأ الأحمر[cite: 1]
+                            batch.update(db.collection("windows_upgrades").doc(target.id), clean({
                                 status: 'completed',
-                                sync_source: 'History_ReSync_v2.8.5',
                                 last_sync: new Date().toISOString()
-                            });
+                            }));
                             matches++;
                         }
                     });
@@ -115,11 +115,9 @@
 
             if (matches > 0) {
                 await batch.commit();
-                addLog(`✅ نجاح! تم تحديث ${matches} سجل قديم بنجاح.`);
-                alert(`تم العثور على ${matches} سجل وتحديثهم!`);
+                addLog(`✅ نجاح! تم تحديث ${matches} سجل قديم.`);
             } else {
-                addLog("لم يتم العثور على سجلات جديدة غير مكتملة في التاريخ.");
-                alert("كافة السجلات المسجلة مسبقاً محدثة بالفعل.");
+                addLog("لم يتم العثور على أجهزة جديدة تحتاج لتحديث.");
             }
         }
 
@@ -133,12 +131,12 @@
             ids.forEach(empId => {
                 const target = fleetData.find(d => String(d.employee_ID || '').trim() === empId);
                 if(target) {
-                    batch.update(db.collection("windows_upgrades").doc(target.id), { status: 'completed' });
+                    batch.update(db.collection("windows_upgrades").doc(target.id), clean({ status: 'completed' }));
                     updated++;
                 }
             });
 
-            if(updated > 0) { await batch.commit(); alert(`تم تحديث ${updated} سجل.`); document.getElementById('manualIds').value = ""; }
+            if(updated > 0) { await batch.commit(); addLog(`تم تحديث ${updated} سجل يدوياً.`); document.getElementById('manualIds').value = ""; }
         }
 
         function updateDashboard() {
@@ -158,7 +156,7 @@
             const ws = XLSX.utils.json_to_sheet(fleetData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Inventory");
-            XLSX.writeFile(wb, "MMC_Inventory_Master.xlsx");
+            XLSX.writeFile(wb, "MMC_Windows_Upgrade.xlsx");
         }
 
         window.onload = init;
