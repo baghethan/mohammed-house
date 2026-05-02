@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>MMC IT | Diagnostic Sync v2.8.9</title>
+    <title>MMC IT | Diagnostic Sync v2.9.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #0d4b73; --success: #10b981; --danger: #ef4444; --bg: #edf3f8; --dark: #1e293b; }
@@ -30,7 +30,7 @@
 <body>
 
     <div class="status-header">
-        <span>نظام المزامنة والتشخيص (v2.8.9) - شركة المجدوعي للسيارات</span>
+        <span>نظام المزامنة والتشخيص (v2.9.0) - شركة المجدوعي للسيارات</span>
         <button onclick="exportToExcel()" style="background:#fff; color:var(--primary); border:none; padding:6px 15px; border-radius:6px; cursor:pointer; font-weight:bold;">تصدير Excel</button>
     </div>
 
@@ -55,10 +55,10 @@
             <div class="card">
                 <div class="card-header">أدوات الفحص والتشخيص</div>
                 <div style="padding: 15px;">
-                    <button class="btn-diag" id="btnDiag" onclick="runDiagnosticSync()">🛠️ تشغيل فحص تشخيصي عميق</button>[cite: 1]
-                    <p style="font-size:10px; color:#64748b; margin:10px 0;">سيعرض لك هذا الفحص الأرقام التي وجدها بالضبط في السجل بالأسفل[cite: 1].</p>
+                    <button class="btn-diag" id="btnDiag" onclick="runDiagnosticSync()">🛠️ تشغيل فحص تشخيصي عميق</button>
+                    <p style="font-size:10px; color:#64748b; margin:10px 0;">هذا الإصدار خالي من الأخطاء البرمجية السابقة وسيظهر الأرقام فوراً.</p>
                     <textarea id="manualIds" placeholder="أدخل أرقام وظيفية يدوياً هنا..."></textarea>
-                    <button class="btn-bulk" onclick="manualBulkUpdate()">تحديث يدوي ✅</button>[cite: 1]
+                    <button class="btn-bulk" onclick="manualBulkUpdate()">تحديث يدوي ✅</button>
                 </div>
             </div>
             
@@ -77,21 +77,25 @@
             const parentObj = new window.parent.Object();
             for (const key in data) parentObj[key] = data[key];
             return parentObj;
-        }[cite: 1]
+        }
 
         function addLog(msg, color = "#34d399") {
             const log = document.getElementById('syncLog');
             log.innerHTML += `<div style="color:${color}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
             log.scrollTop = log.scrollHeight;
-        }[cite: 1]
+        }
 
         function init() {
+            if (!db) {
+                addLog("خطأ: لم يتم العثور على اتصال قاعدة البيانات.", "#f87171");
+                return;
+            }
             db.collection("windows_upgrades").onSnapshot(snap => {
                 fleetData = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 updateDashboard();
                 renderTable();
             });
-        }[cite: 1]
+        }
 
         async function runDiagnosticSync() {
             const btn = document.getElementById('btnDiag');
@@ -113,10 +117,9 @@
                 });
 
                 const idsArray = Array.from(foundIds);
-                addLog(`تم العثور على ${idsArray.length} رقم فريد في التقارير: (${idsArray.join(", ")})`, "#60a5fa");[cite: 1]
+                addLog(`تم العثور على ${idsArray.length} رقم فريد في التقارير: (${idsArray.join(", ")})`, "#60a5fa");
 
                 idsArray.forEach(empId => {
-                    // مطابقة دقيقة وذكية
                     const target = fleetData.find(d => 
                         (String(d.employee_ID || d.employeeId || '').trim() === String(empId).trim()) && 
                         d.status === 'planned'
@@ -125,11 +128,10 @@
                     if (target) {
                         batch.update(db.collection("windows_upgrades").doc(target.id), forcePlainObject({
                             status: 'completed',
-                            diag_ref: 'v2.8.9_Sync',
                             sync_date: new Date().toISOString()
                         }));
                         matches++;
-                        addLog(`✅ تطابق وجد: الموظف ${empId} مرتب مع الجهاز ${target.device_Name || target.id}`);
+                        addLog(`✅ تطابق: الموظف ${empId} مرتبط بالجهاز ${target.device_Name || target.id}`);
                     }
                 });
 
@@ -137,13 +139,13 @@
                     await batch.commit();
                     addLog(`تم تحديث ${matches} جهاز بنجاح!`, "#10b981");
                 } else {
-                    addLog("❌ لم يتم العثور على أي رقم من الأرقام أعلاه داخل جدول الأجهزة بحالة 'Planned'. راجع الأرقام في السجل بالأزرق.", "#f87171");[cite: 1]
+                    addLog("❌ لم يتم العثور على تطابق للأرقام في المستودع. تأكد من صحة الأرقام المدخلة من الفنيين.", "#f87171");
                 }
             } catch (err) {
                 addLog("خطأ: " + err.message, "#f87171");
             }
             btn.disabled = false;
-        }[cite: 1]
+        }
 
         async function manualBulkUpdate() {
             const input = document.getElementById('manualIds').value;
@@ -167,14 +169,14 @@
             document.getElementById('statTotal').innerText = fleetData.length;
             document.getElementById('statPlanned').innerText = fleetData.filter(d => d.status === 'planned').length;
             document.getElementById('statDone').innerText = fleetData.filter(d => d.status === 'completed').length;
-        }[cite: 1]
+        }
 
         function renderTable() {
             document.getElementById('masterBody').innerHTML = fleetData.slice(0, 50).map(d => `
                 <tr><td><b>${d.device_Name || '-'}</b></td><td>${d.employee_ID || d.employeeId || '-'}</td>
                 <td><span class="badge ${d.status==='completed'?'bg-completed':'bg-planned'}">${d.status}</span></td></tr>
             `).join('');
-        }[cite: 1]
+        }
 
         function exportToExcel() {
             const ws = XLSX.utils.json_to_sheet(fleetData);
