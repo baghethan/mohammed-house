@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>MMC IT | Windows 11 Deep Sync v2.8.8</title>
+    <title>MMC IT | Diagnostic Sync v2.8.9</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #0d4b73; --success: #10b981; --danger: #ef4444; --bg: #edf3f8; --dark: #1e293b; }
@@ -14,7 +14,7 @@
         .main-container { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; }
         .card { background: #fff; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 20px; }
         .card-header { background: var(--dark); color: #fff; padding: 12px; font-weight: 800; text-align: center; }
-        .btn-full-sync { background: var(--primary); color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 800; cursor: pointer; width: 100%; transition: 0.3s; }
+        .btn-diag { background: #f59e0b; color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 800; cursor: pointer; width: 100%; margin-bottom: 10px; }
         .btn-bulk { background: var(--success); color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: 800; cursor: pointer; width: 100%; }
         textarea { width: 100%; height: 60px; border-radius: 8px; border: 1px solid #cbd5e1; padding: 10px; font-size: 11px; resize: none; margin-bottom: 10px; outline: none; box-sizing: border-box; }
         .table-area { max-height: 450px; overflow-y: auto; }
@@ -24,19 +24,19 @@
         .badge { padding: 4px 10px; border-radius: 6px; font-weight: 800; font-size: 10px; }
         .bg-planned { background: #dbeafe; color: #1e40af; }
         .bg-completed { background: #dcfce7; color: #166534; }
-        .sync-log { background: #0f172a; color: #34d399; padding: 12px; border-radius: 10px; font-family: monospace; font-size: 10px; height: 150px; overflow-y: auto; }
+        .sync-log { background: #0f172a; color: #34d399; padding: 12px; border-radius: 10px; font-family: monospace; font-size: 10px; height: 180px; overflow-y: auto; }
     </style>
 </head>
 <body>
 
     <div class="status-header">
-        <span>نظام المزامنة الذكي (v2.8.8) - تنظيف البيانات والمطابقة العميقة</span>
+        <span>نظام المزامنة والتشخيص (v2.8.9) - شركة المجدوعي للسيارات</span>
         <button onclick="exportToExcel()" style="background:#fff; color:var(--primary); border:none; padding:6px 15px; border-radius:6px; cursor:pointer; font-weight:bold;">تصدير Excel</button>
     </div>
 
     <div class="summary-grid">
         <div class="stat-card"><span>إجمالي الأجهزة</span><span class="stat-val" id="statTotal">0</span></div>
-        <div class="stat-card"><span>قيد التنفيذ (Planned)</span><span class="stat-val" id="statPlanned" style="color:var(--danger)">0</span></div>
+        <div class="stat-card"><span>قيد التنفيذ</span><span class="stat-val" id="statPlanned" style="color:var(--danger)">0</span></div>
         <div class="stat-card"><span>مكتمل (Completed)</span><span class="stat-val" id="statDone" style="color:var(--success)">0</span></div>
     </div>
 
@@ -53,18 +53,18 @@
 
         <section>
             <div class="card">
-                <div class="card-header">أدوات المزامنة العميقة</div>
+                <div class="card-header">أدوات الفحص والتشخيص</div>
                 <div style="padding: 15px;">
-                    <button class="btn-full-sync" id="btnFullSync" onclick="runDeepHistorySync()">🔍 تشغيل فحص عميق للسجلات (Deep Scan)</button>
-                    <p style="font-size:10px; color:#64748b; margin:10px 0;">سيقوم هذا الفحص بتنظيف المسافات ومطابقة كافة الأرقام الوظيفية المسجلة سابقاً.</p>
+                    <button class="btn-diag" id="btnDiag" onclick="runDiagnosticSync()">🛠️ تشغيل فحص تشخيصي عميق</button>[cite: 1]
+                    <p style="font-size:10px; color:#64748b; margin:10px 0;">سيعرض لك هذا الفحص الأرقام التي وجدها بالضبط في السجل بالأسفل[cite: 1].</p>
                     <textarea id="manualIds" placeholder="أدخل أرقام وظيفية يدوياً هنا..."></textarea>
-                    <button class="btn-bulk" onclick="manualBulkUpdate()">تحديث يدوي ✅</button>
+                    <button class="btn-bulk" onclick="manualBulkUpdate()">تحديث يدوي ✅</button>[cite: 1]
                 </div>
             </div>
             
             <div class="card">
-                <div class="card-header">سجل المزامنة التفصيلي</div>
-                <div class="sync-log" id="syncLog">> النظام جاهز للفحص العميق...</div>
+                <div class="card-header">سجل التشخيص (Diagnostic Log)</div>
+                <div class="sync-log" id="syncLog">> بانتظار بدء التشخيص...</div>
             </div>
         </section>
     </div>
@@ -77,13 +77,13 @@
             const parentObj = new window.parent.Object();
             for (const key in data) parentObj[key] = data[key];
             return parentObj;
-        }
+        }[cite: 1]
 
-        function addLog(msg) {
+        function addLog(msg, color = "#34d399") {
             const log = document.getElementById('syncLog');
-            log.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            log.innerHTML += `<div style="color:${color}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
             log.scrollTop = log.scrollHeight;
-        }
+        }[cite: 1]
 
         function init() {
             db.collection("windows_upgrades").onSnapshot(snap => {
@@ -91,59 +91,59 @@
                 updateDashboard();
                 renderTable();
             });
-        }
+        }[cite: 1]
 
-        // المحرك المطور للمزامنة العميقة
-        async function runDeepHistorySync() {
-            const btn = document.getElementById('btnFullSync');
+        async function runDiagnosticSync() {
+            const btn = document.getElementById('btnDiag');
             btn.disabled = true;
-            addLog("بدء الفحص العميق لكافة التقارير...");
+            addLog("بدء الفحص التشخيصي الشامل...", "#fbbf24");
             
             try {
                 const reports = await db.collection("branch_checklists").get();
                 const batch = db.batch();
+                let foundIds = new Set();
                 let matches = 0;
-                let foundIdsInReports = new Set();
 
                 reports.forEach(doc => {
                     const answers = doc.data().dynamicAnswers || {};
                     Object.values(answers).forEach(val => {
-                        // تنظيف متقدم: تقسيم حسب (فاصلة، سطر جديد، مسافة، أو سيميكولون)
-                        const rawIds = String(val).split(/[\n,\s;]+/).map(s => s.trim()).filter(id => id.length > 2);
-                        rawIds.forEach(id => foundIdsInReports.add(id));
+                        const raw = String(val).split(/[\n,\s;]+/).map(s => s.trim()).filter(id => id.length > 2);
+                        raw.forEach(id => foundIds.add(id));
                     });
                 });
 
-                addLog(`تم العثور على ${foundIdsInReports.size} رقم وظيفي في التقارير. جاري المطابقة مع المستودع...`);
+                const idsArray = Array.from(foundIds);
+                addLog(`تم العثور على ${idsArray.length} رقم فريد في التقارير: (${idsArray.join(", ")})`, "#60a5fa");[cite: 1]
 
-                foundIdsInReports.forEach(empId => {
-                    // مطابقة ذكية (تجاهل المسافات واختلاف الأنواع)
+                idsArray.forEach(empId => {
+                    // مطابقة دقيقة وذكية
                     const target = fleetData.find(d => 
-                        String(d.employee_ID || '').trim() === String(empId).trim() && 
+                        (String(d.employee_ID || d.employeeId || '').trim() === String(empId).trim()) && 
                         d.status === 'planned'
                     );
 
                     if (target) {
                         batch.update(db.collection("windows_upgrades").doc(target.id), forcePlainObject({
                             status: 'completed',
-                            sync_ref: 'DeepScan_v2.8.8',
+                            diag_ref: 'v2.8.9_Sync',
                             sync_date: new Date().toISOString()
                         }));
                         matches++;
+                        addLog(`✅ تطابق وجد: الموظف ${empId} مرتب مع الجهاز ${target.device_Name || target.id}`);
                     }
                 });
 
                 if (matches > 0) {
                     await batch.commit();
-                    addLog(`✅ نجاح باهر! تم تحديث ${matches} سجل جديد ليصبح المجموع ${fleetData.filter(d => d.status === 'completed').length + matches}.`);
+                    addLog(`تم تحديث ${matches} جهاز بنجاح!`, "#10b981");
                 } else {
-                    addLog("لم يتم العثور على أرقام جديدة مطابقة في هذه الدورة.");
+                    addLog("❌ لم يتم العثور على أي رقم من الأرقام أعلاه داخل جدول الأجهزة بحالة 'Planned'. راجع الأرقام في السجل بالأزرق.", "#f87171");[cite: 1]
                 }
             } catch (err) {
-                addLog("خطأ: " + err.message);
+                addLog("خطأ: " + err.message, "#f87171");
             }
             btn.disabled = false;
-        }
+        }[cite: 1]
 
         async function manualBulkUpdate() {
             const input = document.getElementById('manualIds').value;
@@ -153,7 +153,7 @@
             let updated = 0;
 
             ids.forEach(empId => {
-                const target = fleetData.find(d => String(d.employee_ID || '').trim() === empId);
+                const target = fleetData.find(d => String(d.employee_ID || d.employeeId || '').trim() === empId);
                 if(target) {
                     batch.update(db.collection("windows_upgrades").doc(target.id), forcePlainObject({ status: 'completed' }));
                     updated++;
@@ -167,20 +167,20 @@
             document.getElementById('statTotal').innerText = fleetData.length;
             document.getElementById('statPlanned').innerText = fleetData.filter(d => d.status === 'planned').length;
             document.getElementById('statDone').innerText = fleetData.filter(d => d.status === 'completed').length;
-        }
+        }[cite: 1]
 
         function renderTable() {
             document.getElementById('masterBody').innerHTML = fleetData.slice(0, 50).map(d => `
-                <tr><td><b>${d.device_Name || '-'}</b></td><td>${d.employee_ID || '-'}</td>
+                <tr><td><b>${d.device_Name || '-'}</b></td><td>${d.employee_ID || d.employeeId || '-'}</td>
                 <td><span class="badge ${d.status==='completed'?'bg-completed':'bg-planned'}">${d.status}</span></td></tr>
             `).join('');
-        }
+        }[cite: 1]
 
         function exportToExcel() {
             const ws = XLSX.utils.json_to_sheet(fleetData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Inventory");
-            XLSX.writeFile(wb, "MMC_Upgrade_Report.xlsx");
+            XLSX.writeFile(wb, "MMC_Upgrade_Tracker.xlsx");
         }
 
         window.onload = init;
