@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Master Permissions Management v3.0.0</title>
+  <style>
+    :root{--primary:#0d2149;--accent:#1b4fa3;--success:#2f9e66;--error:#ef4444;--bg:#f8fafc;--border:#cbd5e1}
+    body{font-family:'Segoe UI', sans-serif; background:var(--bg); padding:20px; color:#1e293b}
+    .card{background:#fff; border-radius:12px; padding:25px; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid var(--border); max-width:1100px; margin:auto}
+    .status-indicator{padding:12px; border-radius:8px; text-align:center; font-weight:bold; margin-bottom:20px; font-size:14px; display:none}
+    .status-loading{background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd}
+    .status-success{background:#dcfce7; color:#166534; border:1px solid #bbf7d0}
+    .status-error{background:#fee2e2; color:#b91c1c; border:1px solid #fecaca}
+    
+    .input-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; background:#f8fbff; padding:15px; border-radius:12px; border:1px solid #e2e8f0 }
+    label{display:block; margin-bottom:6px; font-weight:700; color:var(--primary); font-size:12px}
+    input, select {width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; outline:none; box-sizing: border-box; font-size: 13px;}
+    
+    .permissions-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
+    .perm-group { background:#fff; border:1px solid var(--border); border-radius:12px; padding:15px; }
+    .perm-group h3 { margin-top:0; font-size:15px; color:var(--accent); border-bottom:2px solid #f1f5f9; padding-bottom:8px; margin-bottom:12px; display:flex; align-items:center; gap:8px }
+    
+    .perms-grid{display:grid; grid-template-columns: 1fr; gap:8px;}
+    .perm-card{background:#f9fafb; border:1px solid #f1f5f9; padding:8px 12px; border-radius:8px; display:flex; align-items:center; gap:10px; cursor:pointer; font-size:13px; transition:0.2s}
+    .perm-card:hover { background:#f1f5f9; border-color:var(--border) }
+    .perm-card input { width:18px; height:18px; cursor:pointer }
+
+    .btn-save{width:100%; padding:16px; background:var(--primary); color:#fff; border:none; border-radius:10px; font-weight:bold; cursor:pointer; font-size:16px; transition: 0.3s; box-shadow: 0 4px 12px rgba(13,33,73,0.2)}
+    .btn-save:hover { background: var(--accent); transform: translateY(-1px) }
+
+    .table-container{max-height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; margin-top:15px}
+    table{width:100%; border-collapse:collapse}
+    th{position:sticky; top:0; background:#f8fafc; padding:12px; text-align:left; font-size:11px; border-bottom:2px solid var(--border); text-transform: uppercase; color: #64748b;}
+    td{padding:10px 12px; border-bottom:1px solid #edf2f7; font-size:12px; cursor:pointer}
+    tr:hover{background:#f1f5f9}
+    .badge { padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; }
+    .badge-active { background: #dcfce7; color: #166534; }
+    .badge-inactive { background: #fee2e2; color: #b91c1c; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+    <div id="statusBox" class="status-indicator"></div>
+    <div style="text-align:center; margin-bottom:20px">
+        <h2 style="color:var(--primary); margin:0">Unified Permissions Management (Secure)</h2>
+        <p style="color:#64748b; font-size:11px; margin-top:5px">v3.0.0 - Schedule & Site-Visit Integrated Control - Al-Majdouie Motors</p>
+    </div>
+
+    <!-- 1. Shared User Data Profile -->
+    <div class="input-grid">
+        <div><label>Employee Name</label><input id="uName" type="text" readonly style="background:#f1f5f9"></div>
+        <div><label>Email Address</label><input id="uEmail" type="email" readonly style="background:#f1f5f9"></div>
+        <div><label>UID</label><input id="uUidDisplay" type="text" readonly style="background:#f1f5f9; font-size: 10px;"></div>
+        <div><label>Technician ID / Code</label><input id="uTechId" type="text" placeholder="Enter Tech ID"></div>
+        <div><label>Role</label><select id="uRole"><option value="technician">Technician</option><option value="supervisor">Supervisor</option><option value="admin">Admin</option></select></div>
+        <div style="display:flex; align-items:center; gap:10px; padding-top:25px"><input type="checkbox" id="uActive" style="width:20px; height:20px"><label style="margin:0" for="uActive">Account Active Status</label></div>
+    </div>
+    <input id="uId" type="hidden">
+
+    <!-- 2. Dual Permissions Grids -->
+    <div class="permissions-container">
+        <!-- Group A: Schedule -->
+        <div class="perm-group">
+            <h3>🗓️ Schedule Permissions</h3>
+            <div class="perms-grid" id="scheduleGrid"></div>
+        </div>
+        <!-- Group B: Site-Visit -->
+        <div class="perm-group">
+            <h3>📍 Site-Visit Permissions</h3>
+            <div class="perms-grid" id="siteVisitGrid"></div>
+        </div>
+    </div>
+
+    <button class="btn-save" id="saveBtn">💾 Save All Security & Permission Changes</button>
+
+    <!-- 3. Integrated Registry -->
+    <div style="margin-top:25px; border-top:1px solid #eee; padding-top:15px">
+        <div style="display:flex; justify-content:space-between; align-items:center"><h3 style="font-size:14px; margin:0">👥 Integrated User Registry:</h3><button id="reloadBtn" style="padding:6px 15px; border-radius:6px; cursor:pointer; background:#fff; border:1px solid #ccc; font-size:12px">🔄 Refresh List</button></div>
+        <div class="table-container"><table><thead><tr><th>Tech ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>UID</th></tr></thead><tbody id="usersTbody"></tbody></table></div>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { initializeFirestore, doc, setDoc, getDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
+const app = initializeApp(firebaseConfig);
+const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+const auth = getAuth(app);
+
+// Data Mapping
+const SCH_PAGES = { dashboard: "Dashboard", schedule: "Schedule", employees: "Employees", annual: "Annual Leave", planVacation: "Plan-Vacation", settings: "Settings", permSchedule: "Permissions-Schedule" };
+const SITE_PAGES = { dashboard: "Dashboard", checklist: "Check-List", brands: "Brands", upgrade: "Upgrade Windows", visit: "Visits Entry", branches: "Branches", technicians: "Tech Management", permissions: "Permissions", dynamic: "Dynamic Check-List (Admin)" };
+
+// Render Grids
+document.getElementById('scheduleGrid').innerHTML = Object.keys(SCH_PAGES).map(k => `<label class="perm-card"><input type="checkbox" class="sch-check" data-id="${k}"> <span>${SCH_PAGES[k]}</span></label>`).join('');
+document.getElementById('siteVisitGrid').innerHTML = Object.keys(SITE_PAGES).map(k => `<label class="perm-card"><input type="checkbox" class="sv-check" data-id="${k}"> <span>${SITE_PAGES[k]}</span></label>`).join('');
+
+const statusBox = document.getElementById('statusBox');
+const updateStatus = (t, m='loading') => { statusBox.innerText = t; statusBox.className = 'status-indicator status-' + m; statusBox.style.display = 'block'; };
+
+onAuthStateChanged(auth, (user) => { if (user) fetchAll(); else updateStatus("Auth Required", 'error'); });
+
+async function fetchAll() {
+    try {
+        const snap = await getDocs(collection(db, 'app_users'));
+        document.getElementById('usersTbody').innerHTML = snap.docs.map(doc => {
+            const d = doc.data(); const isActive = d.active !== false;
+            return `<tr onclick="window.loadUser('${doc.id}')"><td><b>${d.technicianId || '-'}</b></td><td>${d.name || ''}</td><td>${d.email || ''}</td><td>${d.role || ''}</td><td><span class="badge ${isActive?'badge-active':'badge-inactive'}">${isActive?'ACTIVE':'INACTIVE'}</span></td><td style="font-size:10px">${doc.id}</td></tr>`;
+        }).join('');
+    } catch(e) { updateStatus("Fetch error: Check Rules", 'error'); }
+}
+document.getElementById('reloadBtn').onclick = fetchAll;
+
+window.loadUser = async (id) => {
+    updateStatus("Syncing Profile...");
+    const d = await getDoc(doc(db, 'app_users', id));
+    if(d.exists()) {
+        const u = d.data();
+        document.getElementById('uId').value = id; document.getElementById('uUidDisplay').value = id;
+        document.getElementById('uName').value = u.name || ""; document.getElementById('uEmail').value = u.email || "";
+        document.getElementById('uTechId').value = u.technicianId || ""; document.getElementById('uRole').value = u.role || "technician";
+        document.getElementById('uActive').checked = u.active !== false;
+
+        // Check Schedule Array[cite: 2]
+        document.querySelectorAll('.sch-check').forEach(c => { c.checked = Array.isArray(u.permissions_schedule) && u.permissions_schedule.includes(c.dataset.id); });
+        // Check Site-Visit Array
+        document.querySelectorAll('.sv-check').forEach(c => { c.checked = Array.isArray(u.permissions_site_visit) && u.permissions_site_visit.includes(c.dataset.id); });
+        
+        updateStatus("Profile Ready", 'success');
+        setTimeout(() => statusBox.style.display = 'none', 1000);
+    }
+};
+
+document.getElementById('saveBtn').onclick = async () => {
+    const id = document.getElementById('uId').value; if(!id) return alert("Select user");
+    updateStatus("Deploying Integrated Security...");
+    
+    const schPerms = Array.from(document.querySelectorAll('.sch-check:checked')).map(c => c.dataset.id);
+    const svPerms = Array.from(document.querySelectorAll('.sv-check:checked')).map(c => c.dataset.id);
+
+    try {
+        // Resolve Database restriction error using clean JSON
+        const payload = JSON.parse(JSON.stringify({
+            technicianId: document.getElementById('uTechId').value,
+            role: document.getElementById('uRole').value,
+            active: document.getElementById('uActive').checked,
+            permissions_schedule: schPerms,
+            permissions_site_visit: svPerms,
+            updatedAt: new Date().toISOString()
+        }));
+        
+        await setDoc(doc(db, 'app_users', id), payload, { merge: true });
+        updateStatus("✅ All Permissions Synchronized Successfully", 'success');
+        fetchAll();
+        setTimeout(() => statusBox.style.display = 'none', 2000);
+    } catch(e) { updateStatus("Save Failed: " + e.message, 'error'); }
+};
+</script>
+</body>
+</html>
