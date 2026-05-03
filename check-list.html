@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v1.9.7</title>
+  <title>Check-List Master | المجدوعي للسيارات v1.9.8</title>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; --orange: #f59e0b; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
@@ -18,6 +18,7 @@
     .field label { font-size: 12px; font-weight: 700; color: #475569; }
     .field input, .field select { padding: 10px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: #fbfcfe; outline: none; }
     
+    /* بطاقات التدريب pills */
     .training-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .pill-box { border: 1px solid var(--border); border-radius: 30px; padding: 6px 15px; display: flex; align-items: center; gap: 8px; background: #fff; cursor: pointer; transition: 0.2s; min-width: 120px; }
     .pill-box span { font-size: 11px; font-weight: 700; color: var(--primary); }
@@ -38,7 +39,7 @@
   <main class="container">
     <div class="grid-2">
       <section class="card">
-        <h3>نموذج Check-List المجدوعي v1.9.7 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
+        <h3>نموذج Check-List المجدوعي v1.9.8 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
         <div class="card-body">
           <div id="permissionNotice" class="permission-banner"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -94,8 +95,8 @@
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 
     function resolveRef(fieldId, fieldLabel) {
-        return (fieldId && state.checklistFields.find(f => f.id === fieldId)) || 
-               (fieldLabel && state.checklistFields.find(f => f.label === fieldLabel)) || null;
+      return (fieldId && state.checklistFields.find(f => f.id === fieldId)) || 
+             (fieldLabel && state.checklistFields.find(f => f.label === fieldLabel)) || null;
     }
 
     function cleanForFirestore(obj) { return window.parent.JSON.parse(window.parent.JSON.stringify(obj)); }
@@ -105,10 +106,10 @@
       const db = window.parent.appDb;
       auth.onAuthStateChanged(async (user) => {
         if (user) {
-          const doc = await db.collection('app_users').doc(user.uid).get();[cite: 1]
+          const doc = await db.collection('app_users').doc(user.uid).get();
           if (doc.exists) {
             state.userProfile = doc.data();
-            state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor');[cite: 1]
+            state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor');
             updatePermissionUI(state.userProfile.role || 'user');
           }
           boot();
@@ -119,18 +120,18 @@
     function updatePermissionUI(role) {
       const notice = $('permissionNotice');
       notice.style.display = 'block';
-      if (state.canEdit) { notice.className = "permission-banner edit-mode"; notice.innerText = "✅ وضع التعديل متاح للأدمن."; }[cite: 1]
-      else { notice.className = "permission-banner read-only-mode"; notice.innerText = "👁️ وضع القراءة للفنيين."; }[cite: 1]
+      if (state.canEdit) { notice.className = "permission-banner edit-mode"; notice.innerText = "✅ وضع التعديل متاح للأدمن."; }
+      else { notice.className = "permission-banner read-only-mode"; notice.innerText = "👁️ وضع القراءة للفنيين."; }
     }
 
     async function boot() {
       const db = window.parent.appDb;
-      db.collection('technicians').onSnapshot(snap => {[cite: 2]
+      db.collection('technicians').onSnapshot(snap => {
         state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()}));
         $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
       });
 
-      db.collection('checklist_fields').onSnapshot(snap => {[cite: 2]
+      db.collection('checklist_fields').onSnapshot(snap => {
         state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0));
         renderDynamicForm();
       });
@@ -166,7 +167,7 @@
       const currentAnswers = Object.keys(answers).length ? answers : collectAnswers();
 
       state.checklistFields.forEach(field => {
-        if (field.logic?.enabled && field.logic?.visibleWhen) {[cite: 2]
+        if (field.logic?.enabled && field.logic?.visibleWhen) {
           const rule = field.logic.visibleWhen;
           const srcField = resolveRef(rule.fieldId, rule.fieldLabel);
           const val = srcField ? currentAnswers[srcField.id] : '';
@@ -176,30 +177,30 @@
         let html = `<div class="field" style="margin-top:15px"><label>${esc(field.labelAr || field.label)}</label>`;
 
         if (field.label === "Training Requirement") {
-            html += `<div class="training-grid">`;
-            (field.options || []).forEach(opt => {
-                const isChecked = Array.isArray(currentAnswers[field.id]) ? currentAnswers[field.id].includes(opt.value) : currentAnswers[field.id] === opt.value;
-                html += `<div class="pill-box ${isChecked?'selected':''}" onclick="this.querySelector('input').click()"><span>${esc(opt.label)}</span><input type="checkbox" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} ${isLocked?'disabled':''} onclick="event.stopPropagation(); renderDynamicForm(collectAnswers())"></div>`;
-            });
-            html += `</div>`;
+          html += `<div class="training-grid">`;
+          (field.options || []).forEach(opt => {
+            const isChecked = Array.isArray(currentAnswers[field.id]) ? currentAnswers[field.id].includes(opt.value) : currentAnswers[field.id] === opt.value;
+            html += `<div class="pill-box ${isChecked?'selected':''}" onclick="this.querySelector('input').click()"><span>${esc(opt.label)}</span><input type="checkbox" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} ${isLocked?'disabled':''} onclick="event.stopPropagation(); renderDynamicForm(collectAnswers())"></div>`;
+          });
+          html += `</div>`;
         } 
-        else if (field.repeat?.enabled) {[cite: 2]
-            const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel);
-            const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
-            for (let i = 0; i < count; i++) {
-                const label = String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1);
-                const val = (currentAnswers[field.id] && currentAnswers[field.id][i]) || '';
-                html += `<div class="field" style="margin-top:5px;"><label>${esc(label)}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} /></div>`;
-            }
+        else if (field.repeat?.enabled) {
+          const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel);
+          const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
+          for (let i = 0; i < count; i++) {
+            const label = String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1);
+            const val = (currentAnswers[field.id] && currentAnswers[field.id][i]) || '';
+            html += `<div class="field" style="margin-top:5px;"><label>${esc(label)}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} /></div>`;
+          }
         } else {
-            const val = currentAnswers[field.id] || '';
-            if (field.fieldType === 'choice') {
-                html += `<select class="dyn-input" data-id="${field.id}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())"><option value="">اختر</option>`;
-                (field.options || []).forEach(o => html += `<option value="${o.value}" ${val==o.value?'selected':''}>${esc(o.label)}</option>`);
-                html += `</select>`;
-            } else {
-                html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())" />`;
-            }
+          const val = currentAnswers[field.id] || '';
+          if (field.fieldType === 'choice') {
+            html += `<select class="dyn-input" data-id="${field.id}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())"><option value="">اختر</option>`;
+            (field.options || []).forEach(o => html += `<option value="${o.value}" ${val==o.value?'selected':''}>${esc(o.label)}</option>`);
+            html += `</select>`;
+          } else {
+            html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())" />`;
+          }
         }
         container.innerHTML += html + `</div>`;
       });
@@ -221,7 +222,7 @@
       const db = window.parent.appDb;
       const answers = collectAnswers();
       const techDropdown = $('cl_technician');
-      const techName = techDropdown.options[techDropdown.selectedIndex].text;[cite: 1]
+      const techName = techDropdown.options[techDropdown.selectedIndex].text;
       
       const payload = cleanForFirestore({
         technicianDocId: techDropdown.value,
@@ -250,30 +251,30 @@
         
         const batch = db.batch();
         for (const field of state.checklistFields) {
-            if (field.integration?.target === 'windows_upgrades') {[cite: 2]
-                const triggerRef = resolveRef(field.integration.triggerFieldId, field.integration.triggerFieldLabel);
-                const triggerVal = triggerRef ? answers[triggerRef.id] : '';
-                
-                if (String(triggerVal).toLowerCase() === String(field.integration.triggerValue).toLowerCase()) {[cite: 2]
-                    const empIds = (Array.isArray(answers[field.id]) ? answers[field.id] : [answers[field.id]]).filter(Boolean);
-                    for (const empId of empIds) {
-                        const q = await db.collection("windows_upgrades").where("employee_ID", "==", String(empId).trim()).get();
-                        q.forEach(doc => {
-                            batch.update(doc.ref, cleanForFirestore({
-                                status: 'completed',
-                                region: $('cl_region').value,
-                                city: $('cl_city').value,
-                                brand: $('cl_brand').value,
-                                branchId: $('cl_branch_id').value,
-                                branchName: $('cl_location').value,
-                                technician_Name: techName,[cite: 1, 2] // "يسمع" في ملف تحديث ويندوز
-                                sync_time: new Date().toISOString(),
-                                record_ID: editId || 'NEW_ENTRY'
-                            }));
-                        });
-                    }
-                }
+          if (field.integration?.target === 'windows_upgrades') {
+            const triggerRef = resolveRef(field.integration.triggerFieldId, field.integration.triggerFieldLabel);
+            const triggerVal = triggerRef ? answers[triggerRef.id] : '';
+            
+            if (String(triggerVal).toLowerCase() === String(field.integration.triggerValue).toLowerCase()) {
+              const empIds = (Array.isArray(answers[field.id]) ? answers[field.id] : [answers[field.id]]).filter(Boolean);
+              for (const empId of empIds) {
+                const q = await db.collection("windows_upgrades").where("employee_ID", "==", String(empId).trim()).get();
+                q.forEach(doc => {
+                  batch.update(doc.ref, cleanForFirestore({
+                    status: 'completed',
+                    region: $('cl_region').value,
+                    city: $('cl_city').value,
+                    brand: $('cl_brand').value,
+                    branchId: $('cl_branch_id').value,
+                    branchName: $('cl_location').value,
+                    technician_Name: techName,
+                    sync_time: new Date().toISOString(),
+                    record_ID: editId || 'NEW_ENTRY'
+                  }));
+                });
+              }
             }
+          }
         }
         await batch.commit();
         alert("تم الحفظ وتحديث بيانات ويندوز بنجاح!"); location.reload();
@@ -286,9 +287,16 @@
       $('editingChecklistId').value = row.id;
       $('cl_technician').value = row.technicianDocId || '';
       await loadVisitsForTech(row.technicianDocId, row.visitDocId);
-      ['technician_email','technician_id','city','region','brand','brandKey','branch_id','location','visit_date','month'].forEach(k => {
-          const el = $('cl_' + k); if(el) el.value = row[k.replace('technician_','technician').replace('branch_id','branchId').replace('location','locationSite')] || '';
-      });
+      $('cl_technician_email').value = row.technicianEmail || '';
+      $('cl_technician_id').value = row.technicianAuthId || '';
+      $('cl_city').value = row.city || '';
+      $('cl_region').value = row.region || '';
+      $('cl_brand').value = row.brand || '';
+      $('cl_brandKey').value = row.brandKey || '';
+      $('cl_branch_id').value = row.branchId || '';
+      $('cl_location').value = row.locationSite || '';
+      $('cl_visit_date').value = row.visitDate || '';
+      $('cl_month').value = row.month || '';
       if (!state.canEdit) {
         $('saveChecklistBtn').style.display = 'none';
         $('newFormBtn').style.display = 'block';
