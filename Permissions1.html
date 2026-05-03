@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
   <title>Permissions v2.5.0 - Secure Auth Mode</title>
@@ -13,13 +13,13 @@
     .status-success{background:#dcfce7; color:#166534; border:1px solid #bbf7d0}
     .input-group{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px}
     label{display:block; margin-bottom:6px; font-weight:700; color:var(--primary); font-size:13px}
-    input{width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; outline:none}
+    input{width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; outline:none; box-sizing: border-box;}
     .perms-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:12px; background:#f1f5f9; padding:15px; border-radius:10px}
     .perm-card{background:#fff; border:1px solid var(--border); padding:10px; border-radius:8px; display:flex; align-items:center; gap:8px; cursor:pointer}
     .btn-action{width:100%; padding:14px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:15px}
     .table-container{max-height:250px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; margin-top:10px}
     table{width:100%; border-collapse:collapse}
-    th{position:sticky; top:0; background:#f8fafc; padding:12px; text-align:right; font-size:12px; border-bottom:2px solid var(--border)}
+    th{position:sticky; top:0; background:#f8fafc; padding:12px; text-align:left; font-size:12px; border-bottom:2px solid var(--border)}
     td{padding:12px; border-bottom:1px solid #edf2f7; font-size:13px; cursor:pointer}
     tr:hover{background:#f1f5f9}
   </style>
@@ -30,31 +30,31 @@
     <div id="statusBox" class="status-indicator"></div>
     
     <div style="text-align:center; margin-bottom:25px">
-        <h2 style="color:var(--primary); margin:0">إدارة صلاحيات الموظفين (المؤمنة)</h2>
-        <p style="color:#64748b; font-size:11px; margin-top:5px">v2.5.0 - نظام التحقق من الهوية المزدوج - المجدوعي</p>
+        <h2 style="color:var(--primary); margin:0">Employee Permissions Management (Secure)</h2>
+        <p style="color:#64748b; font-size:11px; margin-top:5px">v2.5.0 - Dual Identity Verification System - Al-Majdouie</p>
     </div>
 
     <div class="input-group">
-        <div><label>اسم الموظف</label><input id="uName" type="text" readonly style="background:#f1f5f9"></div>
-        <div><label>البريد الإلكتروني</label><input id="uEmail" type="email" readonly style="background:#f1f5f9"></div>
+        <div><label>Employee Name</label><input id="uName" type="text" readonly style="background:#f1f5f9"></div>
+        <div><label>Email Address</label><input id="uEmail" type="email" readonly style="background:#f1f5f9"></div>
     </div>
     <input id="uId" type="hidden">
 
-    <label>صلاحيات الوصول:</label>
+    <label>Access Permissions:</label>
     <div class="perms-grid" id="permsDisplay"></div>
 
-    <button class="btn-action" id="saveBtn" style="margin-top:20px">💾 حفظ تعديلات الصلاحية</button>
+    <button class="btn-action" id="saveBtn" style="margin-top:20px">💾 Save Permission Changes</button>
 
     <div style="margin-top:25px; border-top:1px solid #eee; padding-top:15px">
         <div style="display:flex; justify-content:space-between; align-items:center">
-            <h3 style="font-size:14px; margin:0">👥 اختر موظفاً للتعديل:</h3>
-            <button id="reloadBtn" style="padding:5px 12px; border-radius:5px; cursor:pointer; background:#fff; border:1px solid #ccc">🔄 تحديث القائمة</button>
+            <h3 style="font-size:14px; margin:0">👥 Select an employee to edit:</h3>
+            <button id="reloadBtn" style="padding:5px 12px; border-radius:5px; cursor:pointer; background:#fff; border:1px solid #ccc">🔄 Refresh List</button>
         </div>
         <div class="table-container">
             <table>
-                <thead><tr><th>الموظف</th><th>الحالة</th></tr></thead>
+                <thead><tr><th>Employee Name</th><th>Email Address</th></tr></thead>
                 <tbody id="usersTbody">
-                    <tr><td colspan="2" style="text-align:center; padding:20px">جاري التأكد من هويتك...</td></tr>
+                    <tr><td colspan="2" style="text-align:center; padding:20px">Verifying your identity...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -79,9 +79,10 @@ const app = initializeApp(firebaseConfig);
 const db = initializeFirestore(app, { experimentalForceLongPolling: true, useFetchStreams: false });
 const auth = getAuth(app);
 
+// Translated Permissions Options
 const PAGES = {
-    dashboard: "لوحة التحكم", schedule: "الجدول", employees: "الموظفون", 
-    annual: "الإجازات", planning: "الخطة", settings: "الإعدادات", permissions: "الصلاحيات"
+    dashboard: "Dashboard", schedule: "Schedule", employees: "Employees", 
+    annual: "Annual Leave", planning: "Planning", settings: "Settings", permissions: "Permissions"
 };
 
 document.getElementById('permsDisplay').innerHTML = Object.keys(PAGES).map(k => `
@@ -95,34 +96,34 @@ const updateStatus = (t, m='loading') => {
     statusBox.style.display = 'block';
 };
 
-// --- نظام التحقق من الهوية قبل البدء ---
+// --- Identity Verification System ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        updateStatus("مرحباً بك. تم التأكد من هويتك.", 'success');
+        updateStatus("Welcome. Identity verified.", 'success');
         setTimeout(() => { statusBox.style.display='none'; fetchAll(); }, 1500);
     } else {
-        updateStatus("تنبيه: يجب تسجيل الدخول من الصفحة الرئيسية أولاً", 'error');
-        document.getElementById('usersTbody').innerHTML = '<tr><td colspan="2" style="color:red; text-align:center">يرجى تسجيل الدخول للوصول لهذه البيانات</td></tr>';
+        updateStatus("Warning: You must log in from the main page first.", 'error');
+        document.getElementById('usersTbody').innerHTML = '<tr><td colspan="2" style="color:red; text-align:center">Please log in to access this data</td></tr>';
     }
 });
 
 async function fetchAll() {
-    updateStatus("جاري جلب قائمة الموظفين...");
+    updateStatus("Fetching employee list...");
     try {
         const snap = await getDocs(collection(db, 'app_users'));
         document.getElementById('usersTbody').innerHTML = snap.docs.map(doc => {
             const d = doc.data();
-            return `<tr onclick="window.loadUser('${doc.id}')"><td><b>${d.name || 'مستخدم'}</b></td><td>${d.email || '-'}</td></tr>`;
+            return `<tr onclick="window.loadUser('${doc.id}')"><td><b>${d.name || 'User'}</b></td><td>${d.email || '-'}</td></tr>`;
         }).join('');
-        updateStatus("تم تحديث القائمة", 'success');
+        updateStatus("List updated successfully.", 'success');
         setTimeout(() => statusBox.style.display = 'none', 1000);
-    } catch(e) { updateStatus("فشل الجلب: تأكد من اتصال الشبكة", 'error'); }
+    } catch(e) { updateStatus("Fetch failed: Check your network connection.", 'error'); }
 }
 
 document.getElementById('reloadBtn').onclick = fetchAll;
 
 window.loadUser = async (id) => {
-    updateStatus("جاري تحميل صلاحيات الموظف...");
+    updateStatus("Loading employee permissions...");
     try {
         const d = await getDoc(doc(db, 'app_users', id));
         if(d.exists()) {
@@ -133,17 +134,17 @@ window.loadUser = async (id) => {
             document.querySelectorAll('.perm-check').forEach(c => {
                 c.checked = u.permissions && u.permissions[c.dataset.id]?.view;
             });
-            updateStatus("جاهز للتعديل", 'success');
+            updateStatus("Ready to edit.", 'success');
             setTimeout(() => statusBox.style.display = 'none', 1000);
         }
-    } catch(e) { updateStatus("خطأ في التحميل", 'error'); }
+    } catch(e) { updateStatus("Error loading user data.", 'error'); }
 };
 
 document.getElementById('saveBtn').onclick = async () => {
     const id = document.getElementById('uId').value;
-    if(!id) return alert("اختر موظفاً من القائمة أولاً");
+    if(!id) return alert("Please select an employee from the list first.");
     
-    updateStatus("جاري حفظ الصلاحيات الجديدة...");
+    updateStatus("Saving new permissions...");
     const perms = {};
     document.querySelectorAll('.perm-check').forEach(c => { 
         if(c.checked) perms[c.dataset.id] = {view:true, add:true}; 
@@ -154,9 +155,9 @@ document.getElementById('saveBtn').onclick = async () => {
             permissions: perms,
             updatedAt: new Date()
         }, { merge: true });
-        updateStatus("✅ تم تحديث الصلاحيات بنجاح", 'success');
+        updateStatus("✅ Permissions updated successfully.", 'success');
         setTimeout(() => statusBox.style.display = 'none', 2000);
-    } catch(e) { updateStatus("فشل الحفظ: جدار حماية الشبكة منع العملية", 'error'); }
+    } catch(e) { updateStatus("Save failed: Network firewall prevented the operation.", 'error'); }
 };
 </script>
 </body>
