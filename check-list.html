@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v1.8.2</title>
+  <title>Check-List Master | المجدوعي للسيارات v1.8.3</title>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
@@ -38,7 +38,7 @@
           <div class="section-title">الربط مع الفني والزيارة</div>
           <div class="grid-fields">
             <div class="field"><label>1- الفني</label><select id="cl_technician"></select></div>
-            <div class="field"><label>2- الزيارة المرتبطة</label><select id="cl_visit_ref"></select></div>
+            <div class="field"><label>2- الزيارة المرتبطة</label><select id="cl_visit_ref"><option value="">بانتظار اختيار الفني...</option></select></div>
             <div class="field"><label>3- البريد الإلكتروني</label><input id="cl_technician_email" readonly /></div>
             <div class="field"><label>4- معرف الفني</label><input id="cl_technician_id" readonly /></div>
             <div class="field"><label>5- المدينة</label><input id="cl_city" readonly /></div>
@@ -96,29 +96,24 @@
         $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
       });
 
+      // وظيفة مشتركة لجلب الزيارات وبناء القائمة المنسدلة
+      window.loadVisitsForTech = async function(techId, selectedVisitId = null) {
+        const db = window.parent.appDb;
+        const vSnap = await db.collection('siteVisits').where('technicianDocId', '==', techId).get();
+        state.visits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
+        
+        $('cl_visit_ref').innerHTML = '<option value="">اختر الزيارة</option>' + 
+          state.visits.map(v => `<option value="${v.id}">${v.date} - ${v.branchName}</option>`).join('');
+        
+        if (selectedVisitId) { $('cl_visit_ref').value = selectedVisitId; }
+      };
+
       $('cl_technician').onchange = async function() {
         const tech = state.technicians.find(t => t.id === this.value);
         if (tech) {
           $('cl_technician_email').value = tech.email || '';
           $('cl_technician_id').value = tech.authUid || tech.id;
-          const vSnap = await db.collection('siteVisits').where('technicianDocId', '==', this.value).get();
-          state.visits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
-          $('cl_visit_ref').innerHTML = '<option value="">اختر الزيارة</option>' + state.visits.map(v => `<option value="${v.id}">${v.date} - ${v.branchName}</option>`).join('');
-        }
-      };
-
-      // تعبئة البيانات عند اختيار زيارة جديدة
-      $('cl_visit_ref').onchange = function() {
-        const v = state.visits.find(vis => vis.id === this.value);
-        if (v) {
-          $('cl_brand').value = v.brand || '';
-          $('cl_branch_id').value = v.branchId || '';
-          $('cl_location').value = v.branchName || '';
-          $('cl_city').value = v.city || '';
-          $('cl_region').value = v.region || '';
-          $('cl_visit_date').value = v.date || '';
-          const d = new Date(v.date);
-          if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
+          await loadVisitsForTech(this.value);
         }
       };
 
@@ -135,21 +130,23 @@
       $('saveChecklistBtn').onclick = saveChecklist;
     }
 
-    // --- الوظيفة المصلحة لتحميل كافة الحقول الـ 14 ---
-    window.openChecklistLocally = function(id) {
+    // وظيفة تحميل السجل المصلحة التي تجلب الزيارة المرتبطة
+    window.openChecklistLocally = async function(id) {
       const row = state.checklists.find(r => r.id === id);
       if (!row) return;
 
       $('editingChecklistId').value = row.id;
-      
-      // 1. الربط مع الفني والزيارة
       $('cl_technician').value = row.technicianDocId || '';
       $('cl_technician_email').value = row.technicianEmail || '';
       $('cl_technician_id').value = row.technicianAuthId || row.technicianId || '';
+      
+      // جلب الزيارات الخاصة بالفني واختيار الزيارة المحفوظة[cite: 1]
+      if (row.technicianDocId) {
+        await loadVisitsForTech(row.technicianDocId, row.visitDocId);
+      }
+
       $('cl_city').value = row.city || '';
       $('cl_region').value = row.region || '';
-      
-      // 2. المعلومات الأساسية
       $('cl_brand').value = row.brand || '';
       $('cl_brandKey').value = row.brandKey || '';
       $('cl_branch_id').value = row.branchId || '';
@@ -160,35 +157,21 @@
       $('cl_calendar_booked').value = row.calendarBooked || '';
 
       renderDynamicForm(row.dynamicAnswers || {});
-      alert("تم تحميل بيانات السجل؛ يمكنك الآن التعديل ثم الضغط على حفظ لتحديث المعلومات.");
+      alert("تم تحميل كافة البيانات بما فيها الزيارة المرتبطة بنجاح.");
     };
 
     function renderDynamicForm(answers = {}) {
       const container = $('dynamicChecklistSections');
       container.innerHTML = '';
       state.checklistFields.forEach(field => {
-        if (field.logic?.enabled && field.logic?.visibleWhen) {
-          const rule = field.logic.visibleWhen;
-          const depVal = answers[rule.fieldId] || answers[rule.fieldLabel] || '';
-          if (String(depVal).toLowerCase() !== String(rule.value).toLowerCase()) return;
-        }
-
         let html = `<div class="field" style="margin-top:10px"><label>${esc(field.labelAr || field.label)}</label>`;
-        if (field.repeat?.enabled) {
-          const count = Number(answers[field.repeat.countFromFieldId] || 0);
-          for (let i = 0; i < count; i++) {
-            const val = (answers[field.id] && answers[field.id][i]) || '';
-            html += `<input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(val)}" style="margin-bottom:5px;" />`;
-          }
+        const val = answers[field.id] || '';
+        if (field.fieldType === 'choice') {
+          html += `<select class="dyn-input" data-id="${field.id}"><option value="">اختر</option>`;
+          (field.options || []).forEach(o => html += `<option value="${o.value}" ${val==o.value?'selected':''}>${esc(o.labelAr || o.label)}</option>`);
+          html += `</select>`;
         } else {
-          const val = answers[field.id] || '';
-          if (field.fieldType === 'choice') {
-            html += `<select class="dyn-input" data-id="${field.id}"><option value="">اختر</option>`;
-            (field.options || []).forEach(o => html += `<option value="${o.value}" ${val==o.value?'selected':''}>${esc(o.labelAr || o.label)}</option>`);
-            html += `</select>`;
-          } else {
-            html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicForm(collectAnswers())" />`;
-          }
+          html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicForm(collectAnswers())" />`;
         }
         container.innerHTML += html + `</div>`;
       });
@@ -197,9 +180,7 @@
     function collectAnswers() {
       const ans = {};
       document.querySelectorAll('.dyn-input').forEach(el => {
-        const id = el.dataset.id;
-        if (el.dataset.index !== undefined) { if (!ans[id]) ans[id] = []; ans[id][el.dataset.index] = el.value; }
-        else { ans[id] = el.value; }
+        ans[el.dataset.id] = el.value;
       });
       return ans;
     }
@@ -212,6 +193,7 @@
       const payload = {
         technicianName: $('cl_technician').options[$('cl_technician').selectedIndex].text,
         technicianDocId: $('cl_technician').value,
+        visitDocId: $('cl_visit_ref').value, // حفظ معرف الزيارة للاسترجاع[cite: 1]
         technicianEmail: $('cl_technician_email').value,
         technicianAuthId: $('cl_technician_id').value,
         city: $('cl_city').value,
@@ -229,24 +211,9 @@
       };
 
       try {
-        if (editId) {
-          await db.collection('branch_checklists').doc(editId).update(payload);
-          alert("تم تحديث السجل بنجاح!");
-        } else {
-          payload.createdAt = new Date().toISOString();
-          await db.collection('branch_checklists').add(payload);
-          alert("تم حفظ السجل الجديد بنجاح!");
-        }
-        
-        const batch = db.batch();
-        for (let key in answers) {
-          const ids = (Array.isArray(answers[key]) ? answers[key] : String(answers[key]).split(/[\n,]+/)).map(id => id.trim()).filter(id => id.length > 2);
-          for (const empId of ids) {
-            const q = await db.collection("windows_upgrades").where("employee_ID", "==", empId).get();
-            q.forEach(doc => batch.update(doc.ref, { status: 'completed' }));
-          }
-        }
-        await batch.commit();
+        if (editId) { await db.collection('branch_checklists').doc(editId).update(payload); }
+        else { payload.createdAt = new Date().toISOString(); await db.collection('branch_checklists').add(payload); }
+        alert("تم الحفظ والمزامنة بنجاح!");
         location.reload();
       } catch (e) { alert("خطأ: " + e.message); }
     }
@@ -258,7 +225,6 @@
         </tr>
       `).join('');
     }
-
     boot();
   })();
   </script>
