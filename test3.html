@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- الإصدار v1.7.0 - تحديث الربط بنظام الصلاحيات الموحد -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
@@ -9,43 +10,34 @@
             --primary: #0d4b73; --dark: #0d2149; --new-update: #d64545; 
             --shadow: 0 18px 50px rgba(13, 33, 73, 0.16);
         }
-        
         body { 
             margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif;
             background: linear-gradient(180deg, rgba(12, 31, 73, 0.15), rgba(255, 255, 255, 0.25)), 
                         url('image_dba186.png') center/cover fixed no-repeat; 
             height: 100vh; display: flex; flex-direction: column;
         }
-
         header { 
             background: rgba(13, 33, 73, 0.98); backdrop-filter: blur(10px); color: white; 
             padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; 
             box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 10; 
         }
-
         .main-logo { height: 50px; object-fit: contain; }
         @keyframes textPulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
         .pulse-text { animation: textPulse 2.5s infinite ease-in-out; }
-
         .nav-tabs { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(15px); display: flex; overflow-x: auto; z-index: 9; }
-        
         .tab { 
             padding: 12px 25px; border: none; background: none; cursor: pointer; 
             color: #475569; border-bottom: 3px solid transparent; transition: 0.3s; 
             display: flex; flex-direction: column; align-items: center; min-width: 140px;
         }
         .tab.active { color: var(--primary); border-bottom-color: var(--primary); background: rgba(255, 255, 255, 0.6); }
-
         .badge-new {
             background: var(--new-update); color: white; font-size: 9px; padding: 2px 6px;
             border-radius: 4px; margin-top: 3px; font-weight: 900;
             animation: pulse-red 2s infinite;
         }
-
         @keyframes pulse-red { 0%, 100% { transform: scale(0.95); } 50% { transform: scale(1); } }
-
         .sub-nav-tabs { background: rgba(241, 245, 249, 0.95); display: flex; padding: 8px 20px; gap: 12px; overflow-x: auto; }
-
         .sub-item {
             padding: 8px 16px; font-size: 13px; font-weight: 700; color: #475569;
             cursor: pointer; border-radius: 8px; background: #fff; border: 1px solid #e2e8f0;
@@ -53,16 +45,13 @@
         }
         .sub-item.active { background: var(--primary); color: #fff; border-color: var(--primary); }
         .sub-item.is-new { border: 2px solid var(--new-update); background: #fff5f5; }
-
         .main-content { flex: 1; padding: 15px; display: flex; flex-direction: column; overflow: hidden; }
         #viewContainer { flex: 1; background: rgba(255, 255, 255, 0.98); border-radius: 28px; box-shadow: var(--shadow); overflow: hidden; }
         iframe { width: 100%; height: 100%; border: none; }
-        
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
-
     <header>
         <div style="display: flex; align-items: center; gap: 15px;">
             <img src="LOGO-almajdouie.png" class="main-logo" alt="MMC Logo" />
@@ -71,7 +60,6 @@
         <div id="masterVersion" class="pulse-text" style="font-weight: 900; font-size: 18px; letter-spacing: 0.2px;">
             AL-Majdouie Motors (MMC IT) Service Delivery
         </div>
-        <!-- زر الخروج المحدث -->
         <button onclick="handleLogout()" style="background:#fee2e2; color:#b91c1c; border:none; padding:8px 20px; border-radius:12px; cursor:pointer; font-weight:800;">Logout</button>
     </header>
 
@@ -87,7 +75,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <script>
-        let currentLang = 'en';
         let activeMainTab = 'diagnostics';
 
         const hierarchy = {
@@ -115,11 +102,7 @@
                 ]
             },
             'permissions': {
-                en: 'Permissions', isParent: true, ver: 'v1.0.0', date: '2026-05-03',
-                children: [
-                    { id: 'permSite', en: 'Permissions-Site-Visit', file: 'permissions.html', ver: 'v1.0.0', date: '2026-05-03' },
-                    { id: 'permSch', en: 'Permissions-Schedule', file: 'Permissions1.html', ver: 'v1.0.0', date: '2026-05-03' }
-                ]
+                en: 'Permissions', file: 'MasterPermissions.html', ver: 'v3.0.0', date: '2026-05-03'
             }
         };
 
@@ -127,7 +110,6 @@
         firebase.initializeApp(firebaseConfig);
         window.appAuth = firebase.auth(); window.appDb = firebase.firestore();
 
-        // تحديث مراقب حالة الدخول
         window.appAuth.onAuthStateChanged(async (user) => { 
             if (user) { 
                 const snap = await window.appDb.collection('app_users').doc(user.uid).get(); 
@@ -139,17 +121,11 @@
                     updateHeaderVersion();
                     document.getElementById('contentFrame').src = `Diagnostics.html?lang=en&auth=active&user=${user.uid}`;
                 } 
-            } else {
-                // إذا تم الخروج بنجاح، يوجه المستخدم لصفحة الدخول الأساسية (تأكد من اسم الملف لديك)
-                window.location.href = "login.html"; 
-            }
+            } else { window.location.href = "login.html"; }
         });
 
-        // دالة تسجيل الخروج الفعلية
         async function handleLogout() {
-            if(confirm("Are you sure you want to logout?")) {
-                await window.appAuth.signOut();
-            }
+            if(confirm("Are you sure?")) { await window.appAuth.signOut(); }
         }
 
         function isNew(dateStr) {
