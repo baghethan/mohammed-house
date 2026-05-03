@@ -1,38 +1,34 @@
 <!DOCTYPE html>
+<!-- الإصدار v1.9.0 - التوجيه الذكي المستقر -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <title>AL-Majdouie Motors | MMC IT Service Delivery</title>
+    <title>AL-Majdouie Motors | Service Delivery v1.9.0</title>
     <style>
-        :root { --primary: #0d4b73; --dark: #0d2149; --new-update: #d64545; --shadow: 0 18px 50px rgba(13, 33, 73, 0.16); }
-        body { margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #f1f5f9; height: 100vh; display: flex; flex-direction: column; }
-        header { background: var(--dark); color: white; padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; z-index: 10; }
-        .nav-tabs { background: #fff; display: flex; overflow-x: auto; border-bottom: 1px solid #e2e8f0; }
-        .tab { padding: 12px 25px; border: none; background: none; cursor: pointer; color: #475569; border-bottom: 3px solid transparent; transition: 0.3s; min-width: 140px; font-weight: bold; }
-        .tab.active { color: var(--primary); border-bottom-color: var(--primary); background: #f8fafc; }
-        .sub-nav-tabs { background: #f8fafc; display: flex; padding: 8px 20px; gap: 10px; border-bottom: 1px solid #e2e8f0; }
-        .sub-item { padding: 6px 15px; font-size: 13px; cursor: pointer; border-radius: 6px; background: #fff; border: 1px solid #cbd5e1; white-space: nowrap; }
-        .sub-item.active { background: var(--primary); color: #fff; }
-        .main-content { flex: 1; padding: 10px; display: flex; flex-direction: column; }
-        #viewContainer { flex: 1; background: #fff; border-radius: 15px; box-shadow: var(--shadow); overflow: hidden; }
+        :root { --primary: #0d4b73; --dark: #0d2149; --shadow: 0 15px 35px rgba(0,0,0,0.1); }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        header { background: var(--dark); color: white; padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; }
+        .tab-bar { background: #fff; display: flex; border-bottom: 1px solid #e2e8f0; overflow-x: auto; }
+        .tab-btn { padding: 15px 25px; border: none; background: none; cursor: pointer; font-weight: bold; color: #64748b; border-bottom: 3px solid transparent; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: #f8fafc; }
+        .main-frame { flex: 1; padding: 10px; background: #f1f5f9; }
+        #viewContainer { width: 100%; height: 100%; background: #fff; border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
         iframe { width: 100%; height: 100%; border: none; }
-        .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <header>
         <div style="display:flex; align-items:center; gap:15px">
-            <img src="LOGO-almajdouie.png" height="40" alt="Logo">
-            <div id="userDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px"></div>
+            <img src="LOGO-almajdouie.png" height="35">
+            <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">جاري التحميل...</div>
         </div>
-        <div style="font-weight:900">MMC IT Service Delivery v1.8.0</div>
-        <button onclick="handleLogout()" style="background:#ef4444; color:#fff; border:none; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold">Logout</button>
+        <div style="font-weight:900; letter-spacing:1px">MMC IT SERVICE DELIVERY v1.9.0</div>
+        <button onclick="logout()" style="background:#ef4444; color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:bold">Logout</button>
     </header>
 
-    <nav class="nav-tabs" id="mainTabsBox"></nav>
-    <nav class="sub-nav-tabs hidden" id="subTabsBox"></nav>
+    <nav class="tab-bar" id="tabsBox"></nav>
     
-    <main class="main-content">
+    <main class="main-frame">
         <div id="viewContainer"><iframe id="contentFrame"></iframe></div>
     </main>
 
@@ -41,78 +37,44 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
     <script>
-        // خريطة الربط بين الصلاحية والملف
-        const pageMap = {
-            'dashboard': 'dashboard.html', 'checklist': 'check-list.html', 'brands': 'brands.html',
-            'upgrade': 'upgrade-windows.html', 'visit': 'visit.html', 'permissions': 'MasterPermissions.html',
-            'schedule': 'Weekly-Schedule.html', 'employees': 'employee-Schedule.html', 'annual': 'Annual-Leave.html'
-        };
-
-        const hierarchy = {
-            'diagnostics': { en: 'Diagnostics', file: 'Diagnostics.html' },
-            'site-visit': { en: 'Site-Visit', isParent: true, children: [
-                { id: 'dashboard', en: 'Dashboard', file: 'dashboard.html' },
-                { id: 'checklist', en: 'Checklist', file: 'check-list.html' },
-                { id: 'visit', en: 'Visits Entry', file: 'visit.html' }
-            ]},
-            'permissions': { en: 'Permissions', file: 'MasterPermissions.html' }
-        };
-
-        const firebaseConfig = { apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs", authDomain: "baghethan-ba325.firebaseapp.com", projectId: "baghethan-ba325", storageBucket: "baghethan-ba325.firebasestorage.app", messagingSenderId: "944819735112", appId: "1:944819735112:web:07315600da39377320667d" };
-        firebase.initializeApp(firebaseConfig);
+        const config = { apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs", authDomain: "baghethan-ba325.firebaseapp.com", projectId: "baghethan-ba325" };
+        firebase.initializeApp(config);
         const auth = firebase.auth(); const db = firebase.firestore();
 
-        auth.onAuthStateChanged(async (user) => { 
-            if (user) { 
-                const snap = await db.collection('app_users').doc(user.uid).get(); 
-                if (snap.exists) { 
-                    const userData = snap.data();
-                    document.getElementById('userDisplay').innerHTML = `User: <b>${userData.name}</b>`;
-                    
-                    // التوجيه الذكي حسب أول صلاحية مسموحة
-                    let startPage = "Diagnostics.html";
-                    const allPerms = [...(userData.permissions_site_visit || []), ...(userData.permissions_schedule || [])];
-                    if (allPerms.length > 0) startPage = pageMap[allPerms[0]] || "Diagnostics.html";
+        const pMap = { 'dashboard': 'dashboard.html', 'checklist': 'check-list.html', 'permissions': 'MasterPermissions.html' };
 
-                    document.getElementById('contentFrame').src = `${startPage}?user=${user.uid}`;
-                    renderTabs();
-                } 
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                const snap = await db.collection('app_users').doc(user.uid).get();
+                if (snap.exists) {
+                    const data = snap.data();
+                    document.getElementById('uDisplay').innerHTML = `User: <b>${data.name}</b>`;
+                    
+                    // توجيه تلقائي بناءً على الصلاحيات المحددة في MasterPermissions
+                    const perms = data.permissions_site_visit || [];
+                    let start = perms.length > 0 ? (pMap[perms[0]] || 'Diagnostics.html') : 'Diagnostics.html';
+                    document.getElementById('contentFrame').src = start;
+                    renderTabs(perms);
+                }
             } else { window.location.replace("login.html"); }
         });
 
-        async function handleLogout() {
-            if(confirm("Logout?")) { 
-                await auth.signOut(); 
-                window.location.replace("login.html"); 
-            }
-        }
+        function logout() { auth.signOut().then(() => window.location.replace("login.html")); }
 
-        function renderTabs() {
-            const box = document.getElementById('mainTabsBox');
-            box.innerHTML = '';
-            Object.entries(hierarchy).forEach(([id, info]) => {
-                const b = document.createElement('button');
-                b.className = 'tab';
-                b.innerText = info.en;
-                b.onclick = () => {
-                    if (info.isParent) renderSub(info.children);
-                    else document.getElementById('contentFrame').src = info.file;
-                };
-                box.appendChild(b);
+        function renderTabs(perms) {
+            const box = document.getElementById('tabsBox');
+            box.innerHTML = '<button class="tab-btn" onclick="load(\'Diagnostics.html\')">Diagnostics</button>';
+            perms.forEach(p => {
+                if(pMap[p]) {
+                    const btn = document.createElement('button');
+                    btn.className = 'tab-btn';
+                    btn.innerText = p.toUpperCase();
+                    btn.onclick = () => load(pMap[p]);
+                    box.appendChild(btn);
+                }
             });
         }
-
-        function renderSub(children) {
-            const sBox = document.getElementById('subTabsBox');
-            sBox.classList.remove('hidden'); sBox.innerHTML = '';
-            children.forEach(c => {
-                const d = document.createElement('div');
-                d.className = 'sub-item';
-                d.innerText = c.en;
-                d.onclick = () => document.getElementById('contentFrame').src = c.file;
-                sBox.appendChild(d);
-            });
-        }
+        function load(file) { document.getElementById('contentFrame').src = file; }
     </script>
 </body>
 </html>
