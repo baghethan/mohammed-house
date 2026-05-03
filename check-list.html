@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v1.8.1</title>
+  <title>Check-List Master | المجدوعي للسيارات v1.8.2</title>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
@@ -33,7 +33,6 @@
       <section class="card">
         <h3>نموذج Check-List (مرتبط بالفنيين والزيارة)</h3>
         <div class="card-body">
-          <!-- حقل مخفي لتخزين ID السجل عند التعديل -->
           <input id="editingChecklistId" type="hidden" />
           
           <div class="section-title">الربط مع الفني والزيارة</div>
@@ -62,7 +61,7 @@
           <div id="dynamicChecklistSections"></div>
 
           <div style="margin-top:25px;">
-            <button class="btn-save" id="saveChecklistBtn">حفظ التقرير والتحديث</button>
+            <button class="btn-save" id="saveChecklistBtn">حفظ التقرير والتحديث ✅</button>
           </div>
         </div>
       </section>
@@ -73,9 +72,7 @@
           <input id="checklistSearch" placeholder="بحث سريع..." style="width:100%; padding:10px; margin-bottom:12px; border-radius:10px; border:1px solid #ddd;" />
           <div class="table-wrap">
             <table>
-              <thead>
-                <tr><th>التاريخ</th><th>الفني</th><th>الموقع</th></tr>
-              </thead>
+              <thead><tr><th>التاريخ</th><th>الفني</th><th>الموقع</th></tr></thead>
               <tbody id="checklistTableBody"></tbody>
             </table>
           </div>
@@ -110,6 +107,21 @@
         }
       };
 
+      // تعبئة البيانات عند اختيار زيارة جديدة
+      $('cl_visit_ref').onchange = function() {
+        const v = state.visits.find(vis => vis.id === this.value);
+        if (v) {
+          $('cl_brand').value = v.brand || '';
+          $('cl_branch_id').value = v.branchId || '';
+          $('cl_location').value = v.branchName || '';
+          $('cl_city').value = v.city || '';
+          $('cl_region').value = v.region || '';
+          $('cl_visit_date').value = v.date || '';
+          const d = new Date(v.date);
+          if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
+        }
+      };
+
       db.collection('checklist_fields').onSnapshot(snap => {
         state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (a.order||0)-(b.order||0));
         renderDynamicForm();
@@ -123,16 +135,30 @@
       $('saveChecklistBtn').onclick = saveChecklist;
     }
 
-    // وظيفة فتح السجل عند الضغط عليه في الجدول للتعديل
+    // --- الوظيفة المصلحة لتحميل كافة الحقول الـ 14 ---
     window.openChecklistLocally = function(id) {
       const row = state.checklists.find(r => r.id === id);
       if (!row) return;
 
       $('editingChecklistId').value = row.id;
-      $('cl_technician').value = row.technicianDocId || '';
-      $('cl_location').value = row.locationSite || '';
-      $('cl_visit_date').value = row.visitDate || '';
       
+      // 1. الربط مع الفني والزيارة
+      $('cl_technician').value = row.technicianDocId || '';
+      $('cl_technician_email').value = row.technicianEmail || '';
+      $('cl_technician_id').value = row.technicianAuthId || row.technicianId || '';
+      $('cl_city').value = row.city || '';
+      $('cl_region').value = row.region || '';
+      
+      // 2. المعلومات الأساسية
+      $('cl_brand').value = row.brand || '';
+      $('cl_brandKey').value = row.brandKey || '';
+      $('cl_branch_id').value = row.branchId || '';
+      $('cl_location').value = row.locationSite || '';
+      $('cl_visit_scheduled').value = row.visitScheduled || '';
+      $('cl_visit_date').value = row.visitDate || '';
+      $('cl_month').value = row.month || '';
+      $('cl_calendar_booked').value = row.calendarBooked || '';
+
       renderDynamicForm(row.dynamicAnswers || {});
       alert("تم تحميل بيانات السجل؛ يمكنك الآن التعديل ثم الضغط على حفظ لتحديث المعلومات.");
     };
@@ -186,8 +212,18 @@
       const payload = {
         technicianName: $('cl_technician').options[$('cl_technician').selectedIndex].text,
         technicianDocId: $('cl_technician').value,
+        technicianEmail: $('cl_technician_email').value,
+        technicianAuthId: $('cl_technician_id').value,
+        city: $('cl_city').value,
+        region: $('cl_region').value,
+        brand: $('cl_brand').value,
+        brandKey: $('cl_brandKey').value,
+        branchId: $('cl_branch_id').value,
         locationSite: $('cl_location').value,
+        visitScheduled: $('cl_visit_scheduled').value,
         visitDate: $('cl_visit_date').value,
+        month: $('cl_month').value,
+        calendarBooked: $('cl_calendar_booked').value,
         dynamicAnswers: answers,
         updatedAt: new Date().toISOString()
       };
@@ -202,7 +238,6 @@
           alert("تم حفظ السجل الجديد بنجاح!");
         }
         
-        // تحديث جدول الترقية تلقائياً
         const batch = db.batch();
         for (let key in answers) {
           const ids = (Array.isArray(answers[key]) ? answers[key] : String(answers[key]).split(/[\n,]+/)).map(id => id.trim()).filter(id => id.length > 2);
