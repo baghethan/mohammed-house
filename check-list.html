@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v2.2.7</title>
+  <title>Check-List Master | المجدوعي للسيارات v2.2.8</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; }
@@ -42,7 +42,7 @@
   <main class="container">
     <div id="mainLayout" class="grid-main">
       <section class="card">
-        <h3>نموذج الفحص v2.2.7 (إصلاح المزامنة النهائي) <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v2.2.8 (Cross-Window Sync) <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <input id="editingChecklistId" type="hidden" />
           <div class="section-title">1- الربط مع الفني والزيارة</div>
@@ -85,10 +85,17 @@
 
   <script>
   (function(){
-    // دالة التطهير النهائية: تجبر الكائنات على أن تكون Plain Objects لـ Firebase
-    const clean = (obj) => JSON.parse(JSON.stringify(obj));
+    // دالة التطهير المحسنة: تستخدم أدوات النافذة الرئيسية (Parent) لضمان توافق Firebase بنسبة 100%
+    const clean = (obj) => {
+      try {
+        const json = window.parent.JSON.stringify(obj);
+        return window.parent.JSON.parse(json);
+      } catch (e) {
+        return JSON.parse(JSON.stringify(obj));
+      }
+    };
+
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
-    
     var state = { checklists: [], checklistFields: [], technicians: [], userProfile: null, canEdit: false };
     const $ = (id) => document.getElementById(id);
     function resolveRef(id, lbl) { return (id && state.checklistFields.find(f => f.id === id)) || (lbl && state.checklistFields.find(f => f.label === lbl)) || null; }
@@ -136,18 +143,17 @@
         let count = 0;
         for (const row of rows) {
           if (row.ID) {
-            // بناء كائن التحديث أولاً
             const updates = { locationSite: row["Location/Site"]||'', branchManager: row["مدير الفرع"]||'', dynamicAnswers: {} };
             state.checklistFields.forEach(f => {
               const col = f.labelAr || f.label;
               if (row[col] !== undefined) updates.dynamicAnswers[f.id] = row[col];
             });
-            // تنظيف الكائن بالكامل قبل الإرسال مباشرة
+            // التطهير النهائي باستخدام أدوات النافذة الرئيسية
             await db.collection('branch_checklists').doc(row.ID).update(clean(updates));
             count++;
           }
         }
-        alert(`تم تحديث ${count} سجل!`); location.reload();
+        alert(`تم تحديث ${count} سجل بنجاح!`); location.reload();
       };
       reader.readAsArrayBuffer(file);
     }
@@ -202,9 +208,26 @@
       };
       try { 
         const id = $('editingChecklistId').value; 
-        if (id) await db.collection('branch_checklists').doc(id).update(clean(payload)); 
-        else await db.collection('branch_checklists').add(clean(payload)); 
-        alert("تم الحفظ بنجاح!"); location.reload(); 
+        const cleanedData = clean(payload); // التطهير قبل الإرسال
+        if (id) await db.collection('branch_checklists').doc(id).update(cleanedData); 
+        else await db.collection('branch_checklists').add(cleanedData); 
+
+        // مزامنة حالة الويندوز
+        const batch = db.batch();
+        for (const f of state.checklistFields) {
+          if (f.integration?.target === 'windows_upgrades') {
+            const trigger = resolveRef(f.integration.triggerFieldId, f.integration.triggerFieldLabel);
+            if (String(answers[trigger?.id]) === String(f.integration.triggerValue)) {
+              const ids = (Array.isArray(answers[f.id]) ? answers[f.id] : [answers[f.id]]).filter(Boolean);
+              for (const empId of ids) {
+                const q = await db.collection("windows_upgrades").where("employee_ID", "==", String(empId).trim()).get();
+                q.forEach(doc => batch.update(doc.ref, clean({ status: 'completed', technician_Name: payload.technicianName, sync_time: new Date().toISOString() })));
+              }
+            }
+          }
+        }
+        await batch.commit();
+        alert("تم الحفظ والمزامنة بنجاح!"); location.reload(); 
       } catch (e) { alert("خطأ: " + e.message); }
     }
 
