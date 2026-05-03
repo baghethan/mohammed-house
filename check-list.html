@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List | المجدوعي للسيارات v1.8.6</title>
+  <title>Check-List Master | المجدوعي للسيارات v1.8.7</title>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; --orange: #f59e0b; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
@@ -18,8 +18,13 @@
     .field label { font-size: 12px; font-weight: 700; color: #475569; }
     .field input, .field select { padding: 10px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: #fbfcfe; outline: none; }
     .field input[readonly], .field select[disabled] { background: #f1f5f9; cursor: not-allowed; }
+    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 14px; background: #fff; max-height: 600px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px 10px; border-bottom: 1px solid #edf2f7; text-align: start; font-size: 12px; }
+    th { background: #f8fbff; color: var(--primary); position: sticky; top: 0; z-index: 10; }
+    tr.clickable { cursor: pointer; transition: 0.2s; }
+    tr.clickable:hover { background: #f1f7fd; }
     .btn-save { background: var(--green); color: #fff; border: none; padding: 12px 30px; border-radius: 25px; font-weight: 700; cursor: pointer; width: 100%; font-size: 14px; }
-    .btn-save:disabled { background: #cbd5e1; cursor: not-allowed; }
     .permission-banner { padding: 10px; border-radius: 10px; font-size: 12px; margin-bottom: 15px; font-weight: 700; text-align: center; border: 1px solid transparent; display: none; }
     .read-only-mode { background: #fffbeb; color: var(--orange); border-color: #fef3c7; }
     .edit-mode { background: #f0fdf4; color: var(--green); border-color: #dcfce7; }
@@ -31,13 +36,11 @@
     <div class="grid-2">
       <section class="card">
         <h3>
-          نموذج Check-List (إدارة الصلاحيات)
-          <span id="roleBadge" class="badge-role">التحقق من الهوية...</span>
+          نموذج Check-List المطور v1.8.7
+          <span id="roleBadge" class="badge-role">التحقق من الصلاحية...</span>
         </h3>
         <div class="card-body">
-          <!-- تنبيه وضع الصلاحية -->
           <div id="permissionNotice" class="permission-banner"></div>
-          
           <input id="editingChecklistId" type="hidden" />
           
           <div class="section-title">بيانات الفني والزيارة</div>
@@ -46,6 +49,8 @@
             <div class="field"><label>2- الزيارة المرتبطة</label><select id="cl_visit_ref"></select></div>
             <div class="field"><label>3- البريد الإلكتروني</label><input id="cl_technician_email" readonly /></div>
             <div class="field"><label>4- معرف الفني</label><input id="cl_technician_id" readonly /></div>
+            <div class="field"><label>5- المدينة</label><input id="cl_city" readonly /></div>
+            <div class="field"><label>6- المنطقة</label><input id="cl_region" readonly /></div>
           </div>
 
           <div class="section-title">Basic Information</div>
@@ -58,11 +63,12 @@
             <div class="field"><label>6- Month</label><input id="cl_month" readonly /></div>
           </div>
 
-          <div class="section-title">Dynamic Check-List</div>
+          <div class="section-title">Dynamic Check-List (الأسئلة والمنطق)</div>
           <div id="dynamicChecklistSections"></div>
 
           <div style="margin-top:25px;">
             <button class="btn-save" id="saveChecklistBtn">حفظ التعديلات ✅</button>
+            <button class="btn-save" id="newFormBtn" style="background:var(--primary); margin-top:10px; display:none;" onclick="location.reload()">إنشاء تقرير جديد ➕</button>
           </div>
         </div>
       </section>
@@ -83,65 +89,45 @@
 
   <script>
   (function(){
-    var state = { 
-        checklists: [], 
-        checklistFields: [], 
-        technicians: [], 
-        userProfile: null,
-        canEdit: false // الحالة الافتراضية هي قراءة فقط
-    };
-    
+    var state = { checklists: [], checklistFields: [], technicians: [], visits: [], userProfile: null, canEdit: false };
     const $ = (id) => document.getElementById(id);
+    const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 
-    async function checkAuthAndPermissions() {
+    async function checkAuth() {
       const auth = window.parent.appAuth;
       const db = window.parent.appDb;
-      
       auth.onAuthStateChanged(async (user) => {
         if (user) {
-          // جلب الصلاحية من app_users المربوط بصفحة Permissions
           const doc = await db.collection('app_users').doc(user.uid).get();
           if (doc.exists) {
             state.userProfile = doc.data();
             const role = state.userProfile.role || 'user';
-            
-            // تحديد صلاحية التعديل الشاملة بناءً على الدور
             state.canEdit = (role === 'admin' || role === 'supervisor');
-            
-            updatePermissionUI(role);
+            updateUI(role);
           }
           boot();
         }
       });
     }
 
-    function updatePermissionUI(role) {
+    function updateUI(role) {
       const notice = $('permissionNotice');
       notice.style.display = 'block';
       $('roleBadge').innerText = "الدور: " + role.toUpperCase();
-
       if (state.canEdit) {
         notice.className = "permission-banner edit-mode";
-        notice.innerText = "✅ وضع التعديل: لديك كامل الصلاحية لتغيير البيانات.";
+        notice.innerText = "✅ وضع التعديل: يمكنك تغيير كافة البيانات.";
       } else {
         notice.className = "permission-banner read-only-mode";
-        notice.innerText = "👁️ وضع القراءة: يمكنك استعراض السجلات فقط.";
-        // قفل أزرار الحفظ فوراً إذا كان المستخدم لا يملك صلاحية تعديل
-        $('saveChecklistBtn').style.display = 'none';
+        notice.innerText = "👁️ وضع القراءة: الفنيين يشاهدون السجلات القديمة فقط.";
       }
     }
 
     async function boot() {
       const db = window.parent.appDb;
-      // تحميل الفنيين والحقول كالمعتاد
       db.collection('technicians').onSnapshot(snap => {
         state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()}));
         $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-      });
-
-      db.collection('branch_checklists').orderBy('createdAt', 'desc').onSnapshot(snap => {
-        state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()}));
-        renderTable();
       });
 
       db.collection('checklist_fields').onSnapshot(snap => {
@@ -149,71 +135,110 @@
         renderDynamicForm();
       });
 
+      db.collection('branch_checklists').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        renderTable();
+      });
+
       $('saveChecklistBtn').onclick = saveChecklist;
+    }
+
+    // محرك الأسئلة الديناميكي المصلح (الذي يعيد الربط)
+    function renderDynamicForm(answers = {}) {
+      const container = $('dynamicChecklistSections');
+      container.innerHTML = '';
+      const isLocked = !state.canEdit && $('editingChecklistId').value;
+
+      state.checklistFields.forEach(field => {
+        // 1. منطق الظهور الشرطي (Logic)
+        if (field.logic?.enabled && field.logic?.visibleWhen) {
+          const rule = field.logic.visibleWhen;
+          const depVal = answers[rule.fieldId] || answers[rule.fieldLabel] || '';
+          if (String(depVal).toLowerCase() !== String(rule.value).toLowerCase()) return;
+        }
+
+        let html = `<div class="field" style="margin-top:10px"><label>${esc(field.labelAr || field.label)}</label>`;
+        
+        // 2. منطق التكرار (Repeat)
+        if (field.repeat?.enabled) {
+          const countSrc = field.repeat.countFromFieldId || field.repeat.countFromFieldLabel;
+          const count = Number(answers[countSrc] || 0);
+          for (let i = 0; i < count; i++) {
+            const val = (answers[field.id] && answers[field.id][i]) || '';
+            html += `<input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} style="margin-bottom:5px;" placeholder="ID ${i+1}" />`;
+          }
+        } else {
+          // 3. أنواع الحقول (Choice vs Text)
+          const val = answers[field.id] || '';
+          if (field.fieldType === 'choice') {
+            html += `<select class="dyn-input" data-id="${field.id}" ${isLocked ? 'disabled' : ''}><option value="">اختر</option>`;
+            (field.options || []).forEach(o => html += `<option value="${o.value}" ${val==o.value?'selected':''}>${esc(o.labelAr || o.label)}</option>`);
+            html += `</select>`;
+          } else {
+            html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())" />`;
+          }
+        }
+        container.innerHTML += html + `</div>`;
+      });
+      
+      // ربط التحديث اللحظي للـ Logic
+      document.querySelectorAll('.dyn-input').forEach(el => {
+        el.onchange = () => renderDynamicForm(collectAnswers());
+      });
+    }
+
+    function collectAnswers() {
+      const ans = {};
+      document.querySelectorAll('.dyn-input').forEach(el => {
+        const id = el.dataset.id;
+        if (el.dataset.index !== undefined) { if (!ans[id]) ans[id] = []; ans[id][el.dataset.index] = el.value; }
+        else ans[id] = el.value;
+      });
+      return ans;
     }
 
     window.openChecklistLocally = async function(id) {
       const row = state.checklists.find(r => r.id === id);
       if (!row) return;
-
       $('editingChecklistId').value = row.id;
-      // ملء الحقول...
+      // ملء بيانات الفني والمعلومات الأساسية
       $('cl_technician').value = row.technicianDocId || '';
       $('cl_location').value = row.locationSite || '';
       $('cl_visit_date').value = row.visitDate || '';
-      
-      renderDynamicForm(row.dynamicAnswers || {});
-
-      // تطبيق "قراءة فقط" عند فتح أي سجل قديم إذا لم يكن المستخدم أدمن
+      // قفل أزرار الحفظ للفنيين عند مشاهدة سجل قديم
       if (!state.canEdit) {
+        $('saveChecklistBtn').style.display = 'none';
+        $('newFormBtn').style.display = 'block';
         document.querySelectorAll('input, select').forEach(el => el.disabled = true);
-        $('saveChecklistBtn').disabled = true;
       }
+      renderDynamicForm(row.dynamicAnswers || {});
     };
 
-    function renderDynamicForm(answers = {}) {
-      const container = $('dynamicChecklistSections');
-      container.innerHTML = '';
-      state.checklistFields.forEach(field => {
-        let html = `<div class="field" style="margin-top:10px"><label>${field.labelAr || field.label}</label>`;
-        const val = answers[field.id] || '';
-        html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${val}" ${!state.canEdit && $('editingChecklistId').value ? 'disabled' : ''} />`;
-        container.innerHTML += html + `</div>`;
-      });
-    }
-
     async function saveChecklist() {
-      if (!state.canEdit) return alert("عذراً، لا تملك صلاحية التعديل.");
+      if (!state.canEdit && $('editingChecklistId').value) return;
       const db = window.parent.appDb;
       const editId = $('editingChecklistId').value;
-      
+      const answers = collectAnswers();
       const payload = {
         technicianDocId: $('cl_technician').value,
+        technicianName: $('cl_technician').options[$('cl_technician').selectedIndex].text,
         locationSite: $('cl_location').value,
         visitDate: $('cl_visit_date').value,
-        dynamicAnswers: {},
+        dynamicAnswers: answers,
         updatedAt: new Date().toISOString()
       };
-      
-      document.querySelectorAll('.dyn-input').forEach(el => payload.dynamicAnswers[el.dataset.id] = el.value);
-
       try {
         if (editId) await db.collection('branch_checklists').doc(editId).update(payload);
         else { payload.createdAt = new Date().toISOString(); await db.collection('branch_checklists').add(payload); }
-        alert("تم حفظ التعديلات بنجاح!");
-        location.reload();
+        alert("تم الحفظ والمزامنة بنجاح!"); location.reload();
       } catch (e) { alert("خطأ: " + e.message); }
     }
 
     function renderTable() {
-      $('checklistTableBody').innerHTML = state.checklists.map(r => `
-        <tr class="clickable" onclick="openChecklistLocally('${r.id}')">
-          <td>${r.visitDate}</td><td>${r.technicianName}</td><td>${r.locationSite}</td>
-        </tr>
-      `).join('');
+      $('checklistTableBody').innerHTML = state.checklists.map(r => `<tr class="clickable" onclick="openChecklistLocally('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.locationSite)}</td></tr>`).join('');
     }
 
-    checkAuthAndPermissions();
+    checkAuth();
   })();
   </script>
 </body>
