@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v1.8.9</title>
+  <title>Check-List Master | المجدوعي للسيارات v1.9.0</title>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; --orange: #f59e0b; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
@@ -34,11 +34,12 @@
   <main class="container">
     <div class="grid-2">
       <section class="card">
-        <h3>نموذج Check-List (v1.8.9 المصلح) <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
+        <h3>نموذج Check-List (v1.9.0 المصلح) <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
         <div class="card-body">
           <div id="permissionNotice" class="permission-banner"></div>
           <input id="editingChecklistId" type="hidden" />
           
+          <!-- 1. الربط مع الفني والزيارة -->
           <div class="section-title">الربط مع الفني والزيارة</div>
           <div class="grid-fields">
             <div class="field"><label>1- الفني</label><select id="cl_technician"></select></div>
@@ -49,6 +50,7 @@
             <div class="field"><label>6- المنطقة</label><input id="cl_region" readonly /></div>
           </div>
 
+          <!-- 2. Basic Information -->
           <div class="section-title">Basic Information</div>
           <div class="grid-fields">
             <div class="field"><label>1- Brand</label><input id="cl_brand" readonly /></div>
@@ -132,16 +134,11 @@
         renderTable();
       });
 
-      // وظيفة جلب الزيارات المصلحة مع التحديد المباشر
       window.loadVisitsForTech = async function(techId, selectedVisitId = null) {
         const vSnap = await db.collection('siteVisits').where('technicianDocId', '==', techId).get();
         const visits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
         const dropdown = $('cl_visit_ref');
-        
-        dropdown.innerHTML = '<option value="">اختر الزيارة</option>' + 
-          visits.map(v => `<option value="${v.id}" ${selectedVisitId===v.id ? 'selected' : ''}>${v.date} - ${v.branchName}</option>`).join('');
-        
-        // إجبار المتصفح على اختيار القيمة الصحيحة[cite: 1]
+        dropdown.innerHTML = '<option value="">اختر الزيارة</option>' + visits.map(v => `<option value="${v.id}" ${selectedVisitId===v.id ? 'selected' : ''}>${v.date} - ${v.branchName}</option>`).join('');
         if (selectedVisitId) dropdown.value = selectedVisitId;
       };
 
@@ -149,7 +146,7 @@
         const tech = state.technicians.find(t => t.id === this.value);
         if (tech) {
           $('cl_technician_email').value = tech.email || '';
-          $('cl_technician_id').value = tech.authUid || tech.id;[cite: 1]
+          $('cl_technician_id').value = tech.authUid || tech.id;
           await loadVisitsForTech(this.value);
         }
       };
@@ -170,16 +167,13 @@
       $('saveChecklistBtn').onclick = saveChecklist;
     }
 
-    // وظيفة التحميل المحدثة لملء معرف الفني والزيارة فوراً[cite: 1]
     window.openChecklistLocally = async function(id) {
       const row = state.checklists.find(r => r.id === id);
       if (!row) return;
       $('editingChecklistId').value = row.id;
 
-      // 1. استرجاع الفني والزيارة (الحل الجذري)[cite: 1]
       $('cl_technician').value = row.technicianDocId || '';
       
-      // جلب بيانات الفني الأساسية لملء "معرف الفني" حتى لو لم يخزن في السجل[cite: 1]
       const techData = state.technicians.find(t => t.id === row.technicianDocId);
       if (techData) {
           $('cl_technician_id').value = techData.authUid || techData.id;
@@ -189,10 +183,8 @@
           $('cl_technician_email').value = row.technicianEmail || '';
       }
 
-      // تحميل قائمة الزيارات وتحديد الزيارة المحفوظة[cite: 1]
       await loadVisitsForTech(row.technicianDocId, row.visitDocId);
 
-      // ملء باقي الحقول الـ 14[cite: 1]
       $('cl_city').value = row.city || '';
       $('cl_region').value = row.region || '';
       $('cl_brand').value = row.brand || '';
