@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v1.9.2</title>
+  <title>Check-List Master | المجدوعي للسيارات v1.9.3</title>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; --orange: #f59e0b; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
@@ -34,7 +34,7 @@
   <main class="container">
     <div class="grid-2">
       <section class="card">
-        <h3>نموذج Check-List المصلح v1.9.2 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
+        <h3>نموذج Check-List المصلح v1.9.3 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
         <div class="card-body">
           <div id="permissionNotice" class="permission-banner"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -89,9 +89,9 @@
     const $ = (id) => document.getElementById(id);
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 
-    // حل مشكلة "custom Object object" الظاهرة في صورتك
-    function cleanData(raw) {
-        return window.parent.JSON.parse(window.parent.JSON.stringify(raw));
+    // الوظيفة الأساسية لحل خطأ "custom Object object" الظاهر في صورتك
+    function cleanForFirestore(obj) {
+        return window.parent.JSON.parse(window.parent.JSON.stringify(obj));
     }
 
     async function checkAuth() {
@@ -136,6 +136,7 @@
         renderTable();
       });
 
+      // وظيفة جلب الزيارات المحدثة مع ضمان التحديد[cite: 1]
       window.loadVisitsForTech = async function(techId, selectedVisitId = null) {
         const vSnap = await db.collection('siteVisits').where('technicianDocId', '==', techId).get();
         const visits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
@@ -161,9 +162,10 @@
         db.collection('siteVisits').doc(this.value).get().then(doc => {
            if(doc.exists) {
               const v = doc.data();
-              $('cl_brand').value = v.brand || ''; $('cl_branch_id').value = v.branchId || '';
-              $('cl_location').value = v.branchName || ''; $('cl_city').value = v.city || '';
-              $('cl_region').value = v.region || ''; $('cl_visit_date').value = v.date || '';
+              $('cl_brand').value = v.brand || ''; $('cl_brandKey').value = v.brandKey || v.brand || '';
+              $('cl_branch_id').value = v.branchId || ''; $('cl_location').value = v.branchName || ''; 
+              $('cl_city').value = v.city || ''; $('cl_region').value = v.region || ''; 
+              $('cl_visit_date').value = v.date || '';
               const d = new Date(v.date); if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
            }
         });
@@ -172,6 +174,7 @@
       $('saveChecklistBtn').onclick = saveChecklist;
     }
 
+    // إصلاح استرجاع "معرف الفني" و "الزيارة المرتبطة"[cite: 1]
     window.openChecklistLocally = async function(id) {
       const row = state.checklists.find(r => r.id === id);
       if (!row) return;
@@ -179,22 +182,18 @@
 
       $('cl_technician').value = row.technicianDocId || '';
       
-      // التأكد من تحميل "معرف الفني" و "الزيارة المرتبطة"
-      $('cl_technician_id').value = row.technicianAuthId || row.technicianId || '';
-      $('cl_technician_email').value = row.technicianEmail || '';
+      // جلب معرف الفني المحدث[cite: 1]
+      const techData = state.technicians.find(t => t.id === row.technicianDocId);
+      $('cl_technician_id').value = techData ? (techData.authUid || techData.id) : (row.technicianAuthId || row.technicianId || '');
+      $('cl_technician_email').value = row.technicianEmail || (techData ? techData.email : '');
 
       await loadVisitsForTech(row.technicianDocId, row.visitDocId);
 
-      $('cl_city').value = row.city || '';
-      $('cl_region').value = row.region || '';
-      $('cl_brand').value = row.brand || '';
-      $('cl_brandKey').value = row.brandKey || '';
-      $('cl_branch_id').value = row.branchId || '';
-      $('cl_location').value = row.locationSite || '';
-      $('cl_visit_scheduled').value = row.visitScheduled || '';
-      $('cl_visit_date').value = row.visitDate || '';
-      $('cl_month').value = row.month || '';
-      $('cl_calendar_booked').value = row.calendarBooked || '';
+      $('cl_city').value = row.city || ''; $('cl_region').value = row.region || '';
+      $('cl_brand').value = row.brand || ''; $('cl_brandKey').value = row.brandKey || '';
+      $('cl_branch_id').value = row.branchId || ''; $('cl_location').value = row.locationSite || '';
+      $('cl_visit_scheduled').value = row.visitScheduled || ''; $('cl_visit_date').value = row.visitDate || '';
+      $('cl_month').value = row.month || ''; $('cl_calendar_booked').value = row.calendarBooked || '';
 
       if (!state.canEdit) {
         $('saveChecklistBtn').style.display = 'none';
@@ -256,8 +255,8 @@
       const editId = $('editingChecklistId').value;
       const answers = collectAnswers();
       
-      // استخدام cleanData لمنع خطأ custom Object object
-      const rawPayload = {
+      // تطبيق "المطهر البرمجي" لمنع خطأ الـ custom Object الظاهر في صورتك[cite: 1]
+      const payload = cleanForFirestore({
         technicianDocId: $('cl_technician').value,
         visitDocId: $('cl_visit_ref').value,
         technicianName: $('cl_technician').options[$('cl_technician').selectedIndex].text,
@@ -275,9 +274,7 @@
         calendarBooked: $('cl_calendar_booked').value,
         dynamicAnswers: answers,
         updatedAt: new Date().toISOString()
-      };
-
-      const payload = cleanData(rawPayload);
+      });
 
       try {
         if (editId) {
@@ -287,12 +284,15 @@
             await db.collection('branch_checklists').add(payload);
         }
         
+        // تحديث جدول الترقية مع "تطهير البيانات"[cite: 1]
         const batch = db.batch();
         for (let key in answers) {
           const ids = (Array.isArray(answers[key]) ? answers[key] : String(answers[key]).split(/[\n,]+/)).map(id => id.trim()).filter(id => id.length > 2);
           for (const empId of ids) {
             const q = await db.collection("windows_upgrades").where("employee_ID", "==", empId).get();
-            q.forEach(doc => batch.update(doc.ref, { status: 'completed' }));
+            q.forEach(doc => {
+                batch.update(doc.ref, cleanForFirestore({ status: 'completed', last_sync: new Date().toISOString() }));
+            });
           }
         }
         await batch.commit();
