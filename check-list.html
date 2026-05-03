@@ -3,27 +3,32 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v2.1.3</title>
+  <title>Check-List Master | المجدوعي للسيارات v2.1.4</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
     .container { max-width: 1550px; margin: 20px auto; padding: 0 15px 30px; }
-    
-    /* نظام الشبكة المرن لإخفاء الجانب */
     .grid-main { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px; transition: 0.3s; }
-    .grid-full { grid-template-columns: 1fr; } /* حالة الفني: عرض كامل */
-    
+    .grid-full { grid-template-columns: 1fr; } 
     .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(18,48,74,0.08); overflow: hidden; }
-    .card h3 { margin: 0; padding: 14px 18px; background: var(--primary); color: #fff; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .card h3 { margin: 0; padding: 14px 18px; background: var(--primary); color: #fff; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
     .card-body { padding: 20px; }
-    .section-title { margin: 20px 0 12px; font-weight: 800; color: var(--primary); border-inline-start: 4px solid var(--primary); padding: 8px 12px; background: #f8fbff; font-size: 14px; }
+    .section-title { margin: 20px 0 12px; font-weight: 800; color: var(--primary); border-inline-start: 4px solid var(--primary); padding: 8px 12px; background: #f8fbff; font-size: 13px; }
     .grid-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
     .field { display: flex; flex-direction: column; gap: 6px; }
     .field label { font-size: 12px; font-weight: 700; color: #475569; }
     .field input, .field select { padding: 11px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; outline: none; }
     .field input[readonly] { background: #f1f5f9; }
     .btn-save { background: var(--green); color: #fff; border: none; padding: 15px; border-radius: 30px; font-weight: 800; width: 100%; font-size: 15px; margin-top: 25px; cursor: pointer; }
+    
+    /* تنسيق أزرار الاكسيل للأدمن */
+    .excel-tools { display: flex; gap: 8px; }
+    .btn-excel { background: #fff; color: var(--primary); border: 1px solid #fff; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+    .btn-excel:hover { background: #eef6ff; }
+    .btn-upload-wrap { position: relative; overflow: hidden; display: inline-block; }
+    .btn-upload-wrap input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
     .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 14px; max-height: 700px; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 14px 12px; border-bottom: 1px solid #edf2f7; text-align: start; font-size: 12px; }
@@ -34,9 +39,8 @@
 <body>
   <main class="container">
     <div id="mainLayout" class="grid-main">
-      <!-- نموذج الفحص -->
       <section class="card">
-        <h3>نموذج الفحص v2.1.3 <span id="roleBadge" style="font-weight:normal; font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v2.1.4 <span id="roleBadge" style="font-weight:normal; font-size:10px;"></span></h3>
         <div class="card-body">
           <div class="section-title">بيانات الفني والزيارة</div>
           <div class="grid-fields">
@@ -52,9 +56,18 @@
         </div>
       </section>
 
-      <!-- سجل السجلات (يظهر للأدمن فقط) -->
+      <!-- سجل السجلات (يظهر للأدمن مع أزرار الإكسيل) -->
       <aside id="adminSidebar" class="card">
-        <h3>السجلات المحفوظة (أدمن)</h3>
+        <h3>
+          السجلات المحفوظة
+          <div class="excel-tools">
+            <button class="btn-excel" id="exportExcelBtn">تنزيل Excel 📥</button>
+            <div class="btn-upload-wrap">
+              <button class="btn-excel">رفع وتصحيح 📤</button>
+              <input type="file" id="importExcelInput" accept=".xlsx" />
+            </div>
+          </div>
+        </h3>
         <div class="card-body">
           <div class="table-wrap">
             <table><thead><tr><th>التاريخ</th><th>الفني</th><th>الموقع</th></tr></thead><tbody id="checklistTableBody"></tbody></table>
@@ -66,6 +79,9 @@
 
   <script>
   (function(){
+    // تعريف الدالة المفقودة التي سببت الخطأ في صورتك
+    const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+    
     var state = { checklists: [], checklistFields: [], technicians: [], userProfile: null, canEdit: false };
     const $ = (id) => document.getElementById(id);
 
@@ -76,7 +92,6 @@
           const doc = await db.collection('app_users').doc(user.uid).get();
           if (doc.exists) {
             state.userProfile = doc.data();
-            // تحديد الأدمن بناءً على الصلاحيات
             state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor');
             applyPrivacyUI();
           }
@@ -85,12 +100,11 @@
       });
     }
 
-    // 1. وظيفة إخفاء السجلات وتوسيع النموذج للفني
     function applyPrivacyUI() {
       if (!state.canEdit) {
         $('adminSidebar').classList.add('hidden');
         $('mainLayout').classList.add('grid-full');
-        $('roleBadge').innerText = "(فني - دخول محدود)";
+        $('roleBadge').innerText = "(فني)";
       } else {
         $('adminSidebar').classList.remove('hidden');
         $('mainLayout').classList.remove('grid-full');
@@ -100,8 +114,6 @@
 
     async function boot() {
       const db = window.parent.appDb;
-      
-      // جلب السجلات الموجودة للمقارنة
       db.collection('branch_checklists').onSnapshot(snap => {
         state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()}));
         if (state.canEdit) renderTable();
@@ -117,40 +129,24 @@
         renderDynamicForm();
       });
 
-      // 2. فلترة الزيارات الذكية للفني
       $('cl_technician').onchange = async function() {
         const techId = this.value;
         const tech = state.technicians.find(t => t.id === techId);
         if (tech) {
           $('cl_technician_email').value = tech.email || '';
           $('cl_technician_id').value = tech.authUid || tech.id;
-          
           const vSnap = await db.collection('siteVisits').where('technicianDocId', '==', techId).get();
           const visits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
-          
-          // استخراج معرفات الزيارات التي تم عمل check-list لها مسبقاً[cite: 1]
           const completedVisitIds = state.checklists.map(c => c.visitDocId);
-          
-          // عرض الزيارات التي لم تنتهِ فقط للفني[cite: 1]
-          let filteredVisits = visits;
-          if (!state.canEdit) {
-            filteredVisits = visits.filter(v => !completedVisitIds.includes(v.id));
-          }
-
-          $('cl_visit_ref').innerHTML = '<option value="">اختر الزيارة</option>' + 
-            filteredVisits.map(v => `<option value="${v.id}">${v.date} - ${v.branchName}</option>`).join('');
+          let filtered = state.canEdit ? visits : visits.filter(v => !completedVisitIds.includes(v.id));
+          $('cl_visit_ref').innerHTML = '<option value="">اختر الزيارة</option>' + filtered.map(v => `<option value="${v.id}">${v.date} - ${v.branchName}</option>`).join('');
         }
       };
 
-      $('cl_visit_ref').onchange = function() {
-        db.collection('siteVisits').doc(this.value).get().then(doc => {
-          if(doc.exists) {
-            const v = doc.data();
-            $('cl_city').value = v.city || ''; $('cl_region').value = v.region || '';
-            $('cl_brand').value = v.brand || ''; $('cl_branch_id').value = v.branchId || '';
-            $('cl_location').value = v.branchName || ''; $('cl_visit_date').value = v.date || '';
-          }
-        });
+      $('exportExcelBtn').onclick = () => {
+        const ws = XLSX.utils.json_to_sheet(state.checklists.map(r => ({ "ID": r.id, "التاريخ": r.visitDate, "الفني": r.technicianName, "الموقع": r.locationSite })));
+        const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Records");
+        XLSX.writeFile(wb, "Schedules_Report.xlsx");
       };
 
       $('saveChecklistBtn').onclick = saveChecklist;
@@ -171,37 +167,23 @@
       });
     }
 
-    function collectAnswers() {
-      const ans = {};
-      document.querySelectorAll('.dyn-input').forEach(el => ans[el.dataset.id] = el.value);
-      return ans;
-    }
-
     async function saveChecklist() {
       const db = window.parent.appDb;
       const techDropdown = $('cl_technician');
       const techName = techDropdown.options[techDropdown.selectedIndex].text;
+      const ans = {}; document.querySelectorAll('.dyn-input').forEach(el => ans[el.dataset.id] = el.value);
       
       const payload = {
-        technicianDocId: techDropdown.value,
-        technicianName: techName,
-        visitDocId: $('cl_visit_ref').value,
-        locationSite: $('cl_location').value,
-        city: $('cl_city').value,
-        visitDate: $('cl_visit_date').value,
-        dynamicAnswers: collectAnswers(),
-        createdAt: new Date().toISOString()
+        technicianDocId: techDropdown.value, technicianName: techName,
+        visitDocId: $('cl_visit_ref').value, visitDate: new Date().toISOString().split('T')[0],
+        dynamicAnswers: ans, createdAt: new Date().toISOString()
       };
-
-      try {
-        await db.collection('branch_checklists').add(payload);
-        alert("تم حفظ التقرير بنجاح! شكراً لك.");
-        location.reload(); // سيقوم بالتحديث ولن تظهر نفس الزيارة للفني مرة أخرى[cite: 1]
-      } catch (e) { alert("خطأ: " + e.message); }
+      await db.collection('branch_checklists').add(payload);
+      alert("تم الحفظ بنجاح!"); location.reload();
     }
 
     function renderTable() {
-      $('checklistTableBody').innerHTML = state.checklists.map(r => `<tr><td>${r.visitDate}</td><td>${r.technicianName}</td><td>${r.locationSite}</td></tr>`).join('');
+      $('checklistTableBody').innerHTML = state.checklists.map(r => `<tr><td>${r.visitDate}</td><td>${r.technicianName}</td><td>${r.locationSite || 'N/A'}</td></tr>`).join('');
     }
 
     checkAuth();
