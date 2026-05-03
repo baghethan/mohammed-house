@@ -2,26 +2,22 @@
 <html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
-  <title>Schedule Permissions Management v2.7.0</title>
+  <title>Schedule Permissions Management v2.8.0</title>
   <style>
     :root{--primary:#0d2149;--accent:#1b4fa3;--success:#10b981;--error:#ef4444;--bg:#f8fafc;--border:#cbd5e1}
-    body{font-family:'Segoe UI', Tahoma, sans-serif; background:var(--bg); padding:20px; color:#1e293b}
+    body{font-family:'Segoe UI', sans-serif; background:var(--bg); padding:20px; color:#1e293b}
     .card{background:#fff; border-radius:12px; padding:25px; box-shadow:0 4px 15px rgba(0,0,0,0.08); border:1px solid var(--border); max-width:950px; margin:auto}
     .status-indicator{padding:12px; border-radius:8px; text-align:center; font-weight:bold; margin-bottom:20px; font-size:14px; display:none}
     .status-loading{background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd}
     .status-error{background:#fee2e2; color:#b91c1c; border:1px solid #fecaca}
     .status-success{background:#dcfce7; color:#166534; border:1px solid #bbf7d0}
-    
-    /* تحسين شبكة المدخلات */
     .input-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
     label{display:block; margin-bottom:6px; font-weight:700; color:var(--primary); font-size:12px}
     input, select {width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; outline:none; box-sizing: border-box; font-size: 13px;}
-    
     .perms-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px; background:#f1f5f9; padding:15px; border-radius:10px}
     .perm-card{background:#fff; border:1px solid var(--border); padding:10px; border-radius:8px; display:flex; align-items:center; gap:8px; cursor:pointer}
     .btn-action{width:100%; padding:14px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:15px; transition: 0.3s;}
     .btn-action:hover { background: var(--accent); }
-
     .table-container{max-height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; margin-top:10px}
     table{width:100%; border-collapse:collapse}
     th{position:sticky; top:0; background:#f8fafc; padding:12px; text-align:left; font-size:11px; border-bottom:2px solid var(--border); text-transform: uppercase; color: #64748b;}
@@ -33,187 +29,78 @@
   </style>
 </head>
 <body>
-
 <div class="card">
     <div id="statusBox" class="status-indicator"></div>
-    
     <div style="text-align:center; margin-bottom:25px">
         <h2 style="color:var(--primary); margin:0">Schedule Permissions Management (Secure)</h2>
-        <p style="color:#64748b; font-size:11px; margin-top:5px">v2.7.0 - MMC IT Service Delivery - Al-Majdouie Motors</p>
+        <p style="color:#64748b; font-size:11px; margin-top:5px">v2.8.0 - Al-Majdouie Motors</p>
     </div>
-
-    <!-- User Data Section -->
     <div class="input-grid">
         <div><label>Employee Name</label><input id="uName" type="text" readonly style="background:#f1f5f9"></div>
         <div><label>Email Address</label><input id="uEmail" type="email" readonly style="background:#f1f5f9"></div>
         <div><label>UID</label><input id="uUidDisplay" type="text" readonly style="background:#f1f5f9; font-size: 10px;"></div>
-        
         <div><label>Technician ID / Code</label><input id="uTechId" type="text" placeholder="Enter Tech ID"></div>
-        <div><label>Role</label>
-            <select id="uRole">
-                <option value="Technician">Technician</option>
-                <option value="Supervisor">Supervisor</option>
-                <option value="Admin">Admin</option>
-            </select>
-        </div>
-        <div style="display:flex; align-items:center; gap:10px; padding-top:25px">
-            <input type="checkbox" id="uActive" style="width:20px; height:20px; cursor:pointer">
-            <label style="margin:0; cursor:pointer" for="uActive">Account Active</label>
-        </div>
+        <div><label>Role</label><select id="uRole"><option value="technician">Technician</option><option value="supervisor">Supervisor</option><option value="admin">Admin</option></select></div>
+        <div style="display:flex; align-items:center; gap:10px; padding-top:25px"><input type="checkbox" id="uActive" style="width:20px; height:20px"><label style="margin:0" for="uActive">Account Active</label></div>
     </div>
     <input id="uId" type="hidden">
-
-    <label>Allowed Pages (Permissions):</label>
+    <label>Allowed Schedule Pages:</label>
     <div class="perms-grid" id="permsDisplay"></div>
-
-    <button class="btn-action" id="saveBtn" style="margin-top:20px">💾 Save Security & Permission Changes</button>
-
-    <!-- Current Users Table -->
+    <button class="btn-action" id="saveBtn" style="margin-top:20px">💾 Save Schedule Security Changes</button>
     <div style="margin-top:25px; border-top:1px solid #eee; padding-top:15px">
-        <div style="display:flex; justify-content:space-between; align-items:center">
-            <h3 style="font-size:14px; margin:0">👥 Current System Users:</h3>
-            <button id="reloadBtn" style="padding:6px 15px; border-radius:6px; cursor:pointer; background:#fff; border:1px solid #ccc; font-size:12px">🔄 Refresh User List</button>
-        </div>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Tech ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Status</th>
-                        <th>UID</th>
-                    </tr>
-                </thead>
-                <tbody id="usersTbody">
-                    <tr><td colspan="6" style="text-align:center; padding:20px">Verifying authentication...</td></tr>
-                </tbody>
-            </table>
-        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center"><h3 style="font-size:14px; margin:0">👥 System Registry:</h3><button id="reloadBtn" style="padding:6px 15px; border-radius:6px; cursor:pointer; background:#fff; border:1px solid #ccc; font-size:12px">🔄 Refresh</button></div>
+        <div class="table-container"><table><thead><tr><th>Tech ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>UID</th></tr></thead><tbody id="usersTbody"></tbody></table></div>
     </div>
 </div>
-
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { initializeFirestore, doc, setDoc, getDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
-const firebaseConfig = { 
-    apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', 
-    authDomain:'baghethan-ba325.firebaseapp.com', 
-    projectId:'baghethan-ba325', 
-    storageBucket:'baghethan-ba325.firebasestorage.app', 
-    messagingSenderId:'944819735112', 
-    appId:'1:944819735112:web:07315600da39377320667d' 
-};
-
+const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
 const app = initializeApp(firebaseConfig);
 const db = initializeFirestore(app, { experimentalForceLongPolling: true, useFetchStreams: false });
 const auth = getAuth(app);
-
-// New Required Allowed Pages
-const PAGES = {
-    dashboard: "Dashboard",
-    schedule: "Schedule",
-    employees: "Employees",
-    annual: "Annual Leave",
-    planVacation: "plan-Vacation",
-    settings: "Settings",
-    permSchedule: "Permissions-Schedule"
-};
-
-document.getElementById('permsDisplay').innerHTML = Object.keys(PAGES).map(k => `
-    <label class="perm-card"><input type="checkbox" class="perm-check" data-id="${k}"> <span>${PAGES[k]}</span></label>
-`).join('');
-
+const PAGES = { dashboard: "Dashboard", schedule: "Schedule", employees: "Employees", annual: "Annual Leave", planVacation: "plan-Vacation", settings: "Settings", permSchedule: "Permissions-Schedule" };
+document.getElementById('permsDisplay').innerHTML = Object.keys(PAGES).map(k => `<label class="perm-card"><input type="checkbox" class="perm-check" data-id="${k}"> <span>${PAGES[k]}</span></label>`).join('');
 const statusBox = document.getElementById('statusBox');
-const updateStatus = (t, m='loading') => {
-    statusBox.innerText = t;
-    statusBox.className = 'status-indicator status-' + m;
-    statusBox.style.display = 'block';
-};
-
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        updateStatus("Session Secure. Welcome.", 'success');
-        setTimeout(() => { statusBox.style.display='none'; fetchAll(); }, 1000);
-    } else {
-        updateStatus("Access Denied: Please log in first.", 'error');
-        document.getElementById('usersTbody').innerHTML = '<tr><td colspan="6" style="color:red; text-align:center">Authentication Required</td></tr>';
-    }
-});
-
+const updateStatus = (t, m='loading') => { statusBox.innerText = t; statusBox.className = 'status-indicator status-' + m; statusBox.style.display = 'block'; };
+onAuthStateChanged(auth, (user) => { if (user) fetchAll(); else updateStatus("Auth Required", 'error'); });
 async function fetchAll() {
-    updateStatus("Updating user registry...");
     try {
         const snap = await getDocs(collection(db, 'app_users'));
         document.getElementById('usersTbody').innerHTML = snap.docs.map(doc => {
-            const d = doc.data();
-            const isActive = d.active !== false; // Default to true if not set
-            return `
-                <tr onclick="window.loadUser('${doc.id}')">
-                    <td><b>${d.technicianId || '-'}</b></td>
-                    <td>${d.name || 'N/A'}</td>
-                    <td>${d.email || '-'}</td>
-                    <td>${d.role || 'User'}</td>
-                    <td><span class="badge ${isActive ? 'badge-active' : 'badge-inactive'}">${isActive ? 'ACTIVE' : 'INACTIVE'}</span></td>
-                    <td style="font-family: monospace; font-size:10px">${doc.id}</td>
-                </tr>`;
+            const d = doc.data(); const isActive = d.active !== false;
+            return `<tr onclick="window.loadUser('${doc.id}')"><td><b>${d.technicianId || '-'}</b></td><td>${d.name || ''}</td><td>${d.email || ''}</td><td>${d.role || ''}</td><td><span class="badge ${isActive?'badge-active':'badge-inactive'}">${isActive?'ACTIVE':'INACTIVE'}</span></td><td style="font-size:10px">${doc.id}</td></tr>`;
         }).join('');
-        updateStatus("Registry updated.", 'success');
-        setTimeout(() => statusBox.style.display = 'none', 1000);
-    } catch(e) { updateStatus("Registry fetch failed.", 'error'); }
+    } catch(e) { updateStatus("Fetch error", 'error'); }
 }
-
 document.getElementById('reloadBtn').onclick = fetchAll;
-
 window.loadUser = async (id) => {
-    updateStatus("Synchronizing user data...");
-    try {
-        const d = await getDoc(doc(db, 'app_users', id));
-        if(d.exists()) {
-            const u = d.data();
-            document.getElementById('uId').value = id;
-            document.getElementById('uUidDisplay').value = id;
-            document.getElementById('uName').value = u.name || "";
-            document.getElementById('uEmail').value = u.email || "";
-            document.getElementById('uTechId').value = u.technicianId || "";
-            document.getElementById('uRole').value = u.role || "Technician";
-            document.getElementById('uActive').checked = u.active !== false;
-
-            document.querySelectorAll('.perm-check').forEach(c => {
-                c.checked = u.permissions && u.permissions[c.dataset.id]?.view;
-            });
-            updateStatus("Data ready for modification.", 'success');
-            setTimeout(() => statusBox.style.display = 'none', 1000);
-        }
-    } catch(e) { updateStatus("Sync failed.", 'error'); }
+    const d = await getDoc(doc(db, 'app_users', id));
+    if(d.exists()) {
+        const u = d.data();
+        document.getElementById('uId').value = id; document.getElementById('uUidDisplay').value = id;
+        document.getElementById('uName').value = u.name || ""; document.getElementById('uEmail').value = u.email || "";
+        document.getElementById('uTechId').value = u.technicianId || ""; document.getElementById('uRole').value = u.role || "technician";
+        document.getElementById('uActive').checked = u.active !== false;
+        document.querySelectorAll('.perm-check').forEach(c => { c.checked = Array.isArray(u.permissions_schedule) && u.permissions_schedule.includes(c.dataset.id); });
+    }
 };
-
 document.getElementById('saveBtn').onclick = async () => {
-    const id = document.getElementById('uId').value;
-    if(!id) return alert("Security Error: Select a user from the registry first.");
-    
-    updateStatus("Deploying security updates...");
-    const perms = {};
-    document.querySelectorAll('.perm-check').forEach(c => { 
-        if(c.checked) perms[c.dataset.id] = {view:true, add:true}; 
-    });
-
+    const id = document.getElementById('uId').value; if(!id) return alert("Select user");
+    updateStatus("Saving Schedule Data...");
+    const selectedPerms = Array.from(document.querySelectorAll('.perm-check:checked')).map(c => c.dataset.id);
     try {
-        await setDoc(doc(db, 'app_users', id), {
+        const payload = JSON.parse(JSON.stringify({
             technicianId: document.getElementById('uTechId').value,
             role: document.getElementById('uRole').value,
             active: document.getElementById('uActive').checked,
-            permissions: perms,
-            updatedAt: new Date()
-        }, { merge: true });
-        
-        updateStatus("✅ Security & Permissions Updated.", 'success');
-        fetchAll(); // Refresh table
-        setTimeout(() => statusBox.style.display = 'none', 2000);
-    } catch(e) { updateStatus("Deployment failed: Database restriction.", 'error'); }
+            permissions_schedule: selectedPerms,
+            updatedAt: new Date().toISOString()
+        }));
+        await setDoc(doc(db, 'app_users', id), payload, { merge: true });
+        updateStatus("✅ Schedule Permissions Saved", 'success'); fetchAll();
+    } catch(e) { updateStatus("Error: " + e.message, 'error'); }
 };
 </script>
 </body>
