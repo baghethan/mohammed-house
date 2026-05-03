@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v1.9.0</title>
+  <title>Check-List Master | المجدوعي للسيارات v1.9.1</title>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; --orange: #f59e0b; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
@@ -34,12 +34,11 @@
   <main class="container">
     <div class="grid-2">
       <section class="card">
-        <h3>نموذج Check-List (v1.9.0 المصلح) <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
+        <h3>نموذج Check-List المصلح v1.9.1 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
         <div class="card-body">
           <div id="permissionNotice" class="permission-banner"></div>
           <input id="editingChecklistId" type="hidden" />
           
-          <!-- 1. الربط مع الفني والزيارة -->
           <div class="section-title">الربط مع الفني والزيارة</div>
           <div class="grid-fields">
             <div class="field"><label>1- الفني</label><select id="cl_technician"></select></div>
@@ -50,7 +49,6 @@
             <div class="field"><label>6- المنطقة</label><input id="cl_region" readonly /></div>
           </div>
 
-          <!-- 2. Basic Information -->
           <div class="section-title">Basic Information</div>
           <div class="grid-fields">
             <div class="field"><label>1- Brand</label><input id="cl_brand" readonly /></div>
@@ -138,7 +136,13 @@
         const vSnap = await db.collection('siteVisits').where('technicianDocId', '==', techId).get();
         const visits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
         const dropdown = $('cl_visit_ref');
-        dropdown.innerHTML = '<option value="">اختر الزيارة</option>' + visits.map(v => `<option value="${v.id}" ${selectedVisitId===v.id ? 'selected' : ''}>${v.date} - ${v.branchName}</option>`).join('');
+        
+        let optionsHtml = '<option value="">اختر الزيارة</option>';
+        visits.forEach(v => {
+          const isSelected = (selectedVisitId && String(selectedVisitId) === String(v.id)) ? 'selected' : '';
+          optionsHtml += `<option value="${v.id}" ${isSelected}>${v.date} - ${v.branchName}</option>`;
+        });
+        dropdown.innerHTML = optionsHtml;
         if (selectedVisitId) dropdown.value = selectedVisitId;
       };
 
@@ -199,7 +203,11 @@
       if (!state.canEdit) {
         $('saveChecklistBtn').style.display = 'none';
         $('newFormBtn').style.display = 'block';
-        document.querySelectorAll('input, select').forEach(el => { if(el.id !== 'checklistSearch') el.disabled = true; });
+        document.querySelectorAll('input:not(#checklistSearch), select').forEach(el => el.disabled = true);
+      } else {
+        $('saveChecklistBtn').style.display = 'block';
+        $('newFormBtn').style.display = 'none';
+        document.querySelectorAll('input, select').forEach(el => el.disabled = false);
       }
       renderDynamicForm(row.dynamicAnswers || {});
     };
