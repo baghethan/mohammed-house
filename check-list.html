@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v1.9.3</title>
+  <title>Check-List Master | المجدوعي للسيارات v1.9.4</title>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; --orange: #f59e0b; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
@@ -17,24 +17,34 @@
     .field { display: grid; gap: 6px; }
     .field label { font-size: 12px; font-weight: 700; color: #475569; }
     .field input, .field select { padding: 10px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: #fbfcfe; outline: none; }
-    .field input[readonly], .field select[disabled] { background: #f1f5f9; cursor: not-allowed; }
-    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 14px; background: #fff; max-height: 600px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 12px 10px; border-bottom: 1px solid #edf2f7; text-align: start; font-size: 12px; }
-    th { background: #f8fbff; color: var(--primary); position: sticky; top: 0; z-index: 10; }
-    tr.clickable { cursor: pointer; transition: 0.2s; }
-    tr.clickable:hover { background: #f1f7fd; }
+    
+    /* تنسيق بطاقات التدريب المقتبس من صورتك */
+    .training-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; justify-content: flex-end; }
+    .pill-box { 
+        border: 1px solid var(--border); border-radius: 30px; padding: 8px 18px; 
+        display: flex; align-items: center; gap: 10px; background: #fff; cursor: pointer;
+        transition: 0.2s; min-width: 140px; justify-content: space-between;
+    }
+    .pill-box:hover { border-color: var(--primary); background: #f8fbff; }
+    .pill-box span { font-size: 11px; font-weight: 700; color: var(--primary); text-align: center; flex: 1; }
+    .pill-box input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary); }
+    .pill-box.selected { border-color: var(--primary); background: #eef6ff; box-shadow: 0 2px 8px rgba(13,75,115,0.1); }
+
     .btn-save { background: var(--green); color: #fff; border: none; padding: 14px; border-radius: 25px; font-weight: 700; cursor: pointer; width: 100%; font-size: 14px; margin-top: 10px; }
     .permission-banner { padding: 10px; border-radius: 10px; font-size: 12px; margin-bottom: 15px; font-weight: 700; text-align: center; border: 1px solid transparent; display: none; }
     .read-only-mode { background: #fffbeb; color: var(--orange); border-color: #fef3c7; }
     .edit-mode { background: #f0fdf4; color: var(--green); border-color: #dcfce7; }
+    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 14px; background: #fff; max-height: 600px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px 10px; border-bottom: 1px solid #edf2f7; text-align: start; font-size: 12px; }
+    th { background: #f8fbff; color: var(--primary); position: sticky; top: 0; z-index: 10; }
   </style>
 </head>
 <body>
   <main class="container">
     <div class="grid-2">
       <section class="card">
-        <h3>نموذج Check-List المصلح v1.9.3 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
+        <h3>نموذج Check-List المطور v1.9.4 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
         <div class="card-body">
           <div id="permissionNotice" class="permission-banner"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -89,10 +99,7 @@
     const $ = (id) => document.getElementById(id);
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 
-    // الوظيفة الأساسية لحل خطأ "custom Object object" الظاهر في صورتك
-    function cleanForFirestore(obj) {
-        return window.parent.JSON.parse(window.parent.JSON.stringify(obj));
-    }
+    function cleanForFirestore(obj) { return window.parent.JSON.parse(window.parent.JSON.stringify(obj)); }
 
     async function checkAuth() {
       const auth = window.parent.appAuth;
@@ -114,9 +121,8 @@
     function updatePermissionUI(role) {
       const notice = $('permissionNotice');
       notice.style.display = 'block';
-      $('roleBadge').innerText = "الدور: " + role.toUpperCase();
-      if (state.canEdit) { notice.className = "permission-banner edit-mode"; notice.innerText = "✅ وضع التعديل: يمكنك تغيير كافة البيانات."; }
-      else { notice.className = "permission-banner read-only-mode"; notice.innerText = "👁️ وضع القراءة: استعراض السجلات فقط."; }
+      if (state.canEdit) { notice.className = "permission-banner edit-mode"; notice.innerText = "✅ وضع التعديل متاح للأدمن."; }
+      else { notice.className = "permission-banner read-only-mode"; notice.innerText = "👁️ وضع القراءة فقط للفنيين."; }
     }
 
     async function boot() {
@@ -136,16 +142,11 @@
         renderTable();
       });
 
-      // وظيفة جلب الزيارات المحدثة مع ضمان التحديد[cite: 1]
       window.loadVisitsForTech = async function(techId, selectedVisitId = null) {
         const vSnap = await db.collection('siteVisits').where('technicianDocId', '==', techId).get();
         const visits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
         const dropdown = $('cl_visit_ref');
-        
-        dropdown.innerHTML = '<option value="">اختر الزيارة</option>' + 
-          visits.map(v => `<option value="${v.id}" ${String(selectedVisitId) === String(v.id) ? 'selected' : ''}>${v.date} - ${v.branchName}</option>`).join('');
-        
-        if (selectedVisitId) dropdown.value = selectedVisitId;
+        dropdown.innerHTML = '<option value="">اختر الزيارة</option>' + visits.map(v => `<option value="${v.id}" ${selectedVisitId===v.id ? 'selected' : ''}>${v.date} - ${v.branchName}</option>`).join('');
       };
 
       $('cl_technician').onchange = async function() {
@@ -157,105 +158,100 @@
         }
       };
 
-      $('cl_visit_ref').onchange = function() {
-        const db = window.parent.appDb;
-        db.collection('siteVisits').doc(this.value).get().then(doc => {
-           if(doc.exists) {
-              const v = doc.data();
-              $('cl_brand').value = v.brand || ''; $('cl_brandKey').value = v.brandKey || v.brand || '';
-              $('cl_branch_id').value = v.branchId || ''; $('cl_location').value = v.branchName || ''; 
-              $('cl_city').value = v.city || ''; $('cl_region').value = v.region || ''; 
-              $('cl_visit_date').value = v.date || '';
-              const d = new Date(v.date); if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
-           }
-        });
-      };
-
       $('saveChecklistBtn').onclick = saveChecklist;
     }
-
-    // إصلاح استرجاع "معرف الفني" و "الزيارة المرتبطة"[cite: 1]
-    window.openChecklistLocally = async function(id) {
-      const row = state.checklists.find(r => r.id === id);
-      if (!row) return;
-      $('editingChecklistId').value = row.id;
-
-      $('cl_technician').value = row.technicianDocId || '';
-      
-      // جلب معرف الفني المحدث[cite: 1]
-      const techData = state.technicians.find(t => t.id === row.technicianDocId);
-      $('cl_technician_id').value = techData ? (techData.authUid || techData.id) : (row.technicianAuthId || row.technicianId || '');
-      $('cl_technician_email').value = row.technicianEmail || (techData ? techData.email : '');
-
-      await loadVisitsForTech(row.technicianDocId, row.visitDocId);
-
-      $('cl_city').value = row.city || ''; $('cl_region').value = row.region || '';
-      $('cl_brand').value = row.brand || ''; $('cl_brandKey').value = row.brandKey || '';
-      $('cl_branch_id').value = row.branchId || ''; $('cl_location').value = row.locationSite || '';
-      $('cl_visit_scheduled').value = row.visitScheduled || ''; $('cl_visit_date').value = row.visitDate || '';
-      $('cl_month').value = row.month || ''; $('cl_calendar_booked').value = row.calendarBooked || '';
-
-      if (!state.canEdit) {
-        $('saveChecklistBtn').style.display = 'none';
-        $('newFormBtn').style.display = 'block';
-        document.querySelectorAll('input:not(#checklistSearch), select').forEach(el => el.disabled = true);
-      } else {
-        $('saveChecklistBtn').style.display = 'block';
-        $('newFormBtn').style.display = 'none';
-        document.querySelectorAll('input, select').forEach(el => el.disabled = false);
-      }
-      renderDynamicForm(row.dynamicAnswers || {});
-    };
 
     function renderDynamicForm(answers = {}) {
       const container = $('dynamicChecklistSections');
       container.innerHTML = '';
       const isLocked = !state.canEdit && $('editingChecklistId').value;
+
       state.checklistFields.forEach(field => {
         if (field.logic?.enabled && field.logic?.visibleWhen) {
           const rule = field.logic.visibleWhen;
           const depVal = answers[rule.fieldId] || answers[rule.fieldLabel] || '';
           if (String(depVal).toLowerCase() !== String(rule.value).toLowerCase()) return;
         }
-        let html = `<div class="field" style="margin-top:10px"><label>${esc(field.labelAr || field.label)}</label>`;
-        if (field.repeat?.enabled) {
-          const count = Number(answers[field.repeat.countFromFieldId] || 0);
-          for (let i = 0; i < count; i++) {
-            const val = (answers[field.id] && answers[field.id][i]) || '';
-            html += `<input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} style="margin-bottom:5px;" />`;
-          }
+
+        let html = `<div class="field" style="margin-top:15px">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label>${esc(field.labelAr || field.label)}</label>
+                            <span style="font-size:14px; font-weight:900;">- ${field.order || ''}</span>
+                        </div>`;
+
+        // مخصص لحقل Training Requirement كما في صورتك
+        if (field.label === "Training Requirement") {
+            html += `<div class="training-grid">`;
+            (field.options || []).forEach(opt => {
+                const isChecked = Array.isArray(answers[field.id]) ? answers[field.id].includes(opt.value) : answers[field.id] === opt.value;
+                html += `
+                    <div class="pill-box ${isChecked?'selected':''}" onclick="this.querySelector('input').click()">
+                        <span>${esc(opt.labelEn || opt.label)}</span>
+                        <input type="checkbox" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} ${isLocked?'disabled':''} onclick="event.stopPropagation(); renderDynamicForm(collectAnswers())">
+                    </div>`;
+            });
+            html += `</div>`;
+        } 
+        else if (field.repeat?.enabled) {
+            const count = Number(answers[field.repeat.countFromFieldId] || 0);
+            for (let i = 0; i < count; i++) {
+                const val = (answers[field.id] && answers[field.id][i]) || '';
+                html += `<input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} style="margin-bottom:5px;" />`;
+            }
         } else {
-          const val = answers[field.id] || '';
-          if (field.fieldType === 'choice') {
-            html += `<select class="dyn-input" data-id="${field.id}" ${isLocked ? 'disabled' : ''}><option value="">اختر</option>`;
-            (field.options || []).forEach(o => html += `<option value="${o.value}" ${val==o.value?'selected':''}>${esc(o.labelAr || o.label)}</option>`);
-            html += `</select>`;
-          } else {
-            html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())" />`;
-          }
+            const val = answers[field.id] || '';
+            if (field.fieldType === 'choice') {
+                html += `<select class="dyn-input" data-id="${field.id}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())"><option value="">اختر</option>`;
+                (field.options || []).forEach(o => html += `<option value="${o.value}" ${val==o.value?'selected':''}>${esc(o.labelAr || o.label)}</option>`);
+                html += `</select>`;
+            } else {
+                html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())" />`;
+            }
         }
         container.innerHTML += html + `</div>`;
       });
-      document.querySelectorAll('.dyn-input').forEach(el => { el.onchange = () => renderDynamicForm(collectAnswers()); });
     }
 
     function collectAnswers() {
       const ans = {};
       document.querySelectorAll('.dyn-input').forEach(el => {
         const id = el.dataset.id;
-        if (el.dataset.index !== undefined) { if (!ans[id]) ans[id] = []; ans[id][el.dataset.index] = el.value; }
-        else ans[id] = el.value;
+        if (el.type === 'checkbox') {
+            if (!ans[id]) ans[id] = [];
+            if (el.checked) ans[id].push(el.value);
+        } else if (el.dataset.index !== undefined) {
+            if (!ans[id]) ans[id] = [];
+            ans[id][el.dataset.index] = el.value;
+        } else {
+            ans[id] = el.value;
+        }
       });
       return ans;
     }
 
+    window.openChecklistLocally = async function(id) {
+      const row = state.checklists.find(r => r.id === id);
+      if (!row) return;
+      $('editingChecklistId').value = row.id;
+      $('cl_technician').value = row.technicianDocId || '';
+      $('cl_technician_id').value = row.technicianAuthId || '';
+      $('cl_technician_email').value = row.technicianEmail || '';
+      await loadVisitsForTech(row.technicianDocId, row.visitDocId);
+      ['city','region','brand','brandKey','branchId','locationSite','visitScheduled','visitDate','month','calendarBooked'].forEach(k => {
+          if($( 'cl_' + k )) $( 'cl_' + k ).value = row[k] || '';
+      });
+      if (!state.canEdit) {
+        $('saveChecklistBtn').style.display = 'none';
+        $('newFormBtn').style.display = 'block';
+        document.querySelectorAll('input:not(#checklistSearch), select').forEach(el => el.disabled = true);
+      }
+      renderDynamicForm(row.dynamicAnswers || {});
+    };
+
     async function saveChecklist() {
       if (!state.canEdit && $('editingChecklistId').value) return;
       const db = window.parent.appDb;
-      const editId = $('editingChecklistId').value;
       const answers = collectAnswers();
-      
-      // تطبيق "المطهر البرمجي" لمنع خطأ الـ custom Object الظاهر في صورتك[cite: 1]
       const payload = cleanForFirestore({
         technicianDocId: $('cl_technician').value,
         visitDocId: $('cl_visit_ref').value,
@@ -277,26 +273,9 @@
       });
 
       try {
-        if (editId) {
-            await db.collection('branch_checklists').doc(editId).update(payload);
-        } else {
-            payload.createdAt = new Date().toISOString();
-            await db.collection('branch_checklists').add(payload);
-        }
-        
-        // تحديث جدول الترقية مع "تطهير البيانات"[cite: 1]
-        const batch = db.batch();
-        for (let key in answers) {
-          const ids = (Array.isArray(answers[key]) ? answers[key] : String(answers[key]).split(/[\n,]+/)).map(id => id.trim()).filter(id => id.length > 2);
-          for (const empId of ids) {
-            const q = await db.collection("windows_upgrades").where("employee_ID", "==", empId).get();
-            q.forEach(doc => {
-                batch.update(doc.ref, cleanForFirestore({ status: 'completed', last_sync: new Date().toISOString() }));
-            });
-          }
-        }
-        await batch.commit();
-        alert("تم الحفظ والمزامنة بنجاح!"); location.reload();
+        if ($('editingChecklistId').value) await db.collection('branch_checklists').doc($('editingChecklistId').value).update(payload);
+        else { payload.createdAt = new Date().toISOString(); await db.collection('branch_checklists').add(payload); }
+        alert("تم الحفظ بنجاح!"); location.reload();
       } catch (e) { alert("خطأ: " + e.message); }
     }
 
