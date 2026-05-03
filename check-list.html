@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v1.9.6</title>
+  <title>Check-List Master | المجدوعي للسيارات v1.9.7</title>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; --orange: #f59e0b; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
@@ -18,10 +18,8 @@
     .field label { font-size: 12px; font-weight: 700; color: #475569; }
     .field input, .field select { padding: 10px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: #fbfcfe; outline: none; }
     
-    /* تنسيق بطاقات التدريب */
     .training-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .pill-box { border: 1px solid var(--border); border-radius: 30px; padding: 6px 15px; display: flex; align-items: center; gap: 8px; background: #fff; cursor: pointer; transition: 0.2s; min-width: 120px; }
-    .pill-box:hover { border-color: var(--primary); }
     .pill-box span { font-size: 11px; font-weight: 700; color: var(--primary); }
     .pill-box input[type="checkbox"] { width: 14px; height: 14px; accent-color: var(--primary); }
     .pill-box.selected { border-color: var(--primary); background: #eef6ff; }
@@ -40,7 +38,7 @@
   <main class="container">
     <div class="grid-2">
       <section class="card">
-        <h3>نموذج Check-List المطور v1.9.6 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
+        <h3>نموذج Check-List المجدوعي v1.9.7 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
         <div class="card-body">
           <div id="permissionNotice" class="permission-banner"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -100,7 +98,6 @@
                (fieldLabel && state.checklistFields.find(f => f.label === fieldLabel)) || null;
     }
 
-    // تنظيف البيانات لمنع خطأ "custom Object"
     function cleanForFirestore(obj) { return window.parent.JSON.parse(window.parent.JSON.stringify(obj)); }
 
     async function checkAuth() {
@@ -108,10 +105,10 @@
       const db = window.parent.appDb;
       auth.onAuthStateChanged(async (user) => {
         if (user) {
-          const doc = await db.collection('app_users').doc(user.uid).get();
+          const doc = await db.collection('app_users').doc(user.uid).get();[cite: 1]
           if (doc.exists) {
             state.userProfile = doc.data();
-            state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor');
+            state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor');[cite: 1]
             updatePermissionUI(state.userProfile.role || 'user');
           }
           boot();
@@ -122,18 +119,18 @@
     function updatePermissionUI(role) {
       const notice = $('permissionNotice');
       notice.style.display = 'block';
-      if (state.canEdit) { notice.className = "permission-banner edit-mode"; notice.innerText = "✅ وضع التعديل (أدمن)"; }
-      else { notice.className = "permission-banner read-only-mode"; notice.innerText = "👁️ وضع القراءة (فني)"; }
+      if (state.canEdit) { notice.className = "permission-banner edit-mode"; notice.innerText = "✅ وضع التعديل متاح للأدمن."; }[cite: 1]
+      else { notice.className = "permission-banner read-only-mode"; notice.innerText = "👁️ وضع القراءة للفنيين."; }[cite: 1]
     }
 
     async function boot() {
       const db = window.parent.appDb;
-      db.collection('technicians').onSnapshot(snap => {
+      db.collection('technicians').onSnapshot(snap => {[cite: 2]
         state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()}));
         $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
       });
 
-      db.collection('checklist_fields').onSnapshot(snap => {
+      db.collection('checklist_fields').onSnapshot(snap => {[cite: 2]
         state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0));
         renderDynamicForm();
       });
@@ -169,7 +166,7 @@
       const currentAnswers = Object.keys(answers).length ? answers : collectAnswers();
 
       state.checklistFields.forEach(field => {
-        if (field.logic?.enabled && field.logic?.visibleWhen) {
+        if (field.logic?.enabled && field.logic?.visibleWhen) {[cite: 2]
           const rule = field.logic.visibleWhen;
           const srcField = resolveRef(rule.fieldId, rule.fieldLabel);
           const val = srcField ? currentAnswers[srcField.id] : '';
@@ -186,7 +183,7 @@
             });
             html += `</div>`;
         } 
-        else if (field.repeat?.enabled) {
+        else if (field.repeat?.enabled) {[cite: 2]
             const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel);
             const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
             for (let i = 0; i < count; i++) {
@@ -219,33 +216,17 @@
       return ans;
     }
 
-    window.openChecklistLocally = async function(id) {
-      const row = state.checklists.find(r => r.id === id);
-      if (!row) return;
-      $('editingChecklistId').value = row.id;
-      $('cl_technician').value = row.technicianDocId || '';
-      $('cl_technician_id').value = row.technicianAuthId || '';
-      $('cl_technician_email').value = row.technicianEmail || '';
-      await loadVisitsForTech(row.technicianDocId, row.visitDocId);
-      ['city','region','brand','brandKey','branchId','locationSite','visitScheduled','visitDate','month','calendarBooked'].forEach(k => {
-          if($( 'cl_' + k )) $( 'cl_' + k ).value = row[k] || '';
-      });
-      if (!state.canEdit) {
-        $('saveChecklistBtn').style.display = 'none';
-        $('newFormBtn').style.display = 'block';
-        document.querySelectorAll('input:not(#checklistSearch), select').forEach(el => el.disabled = true);
-      }
-      renderDynamicForm(row.dynamicAnswers || {});
-    };
-
     async function saveChecklist() {
       if (!state.canEdit && $('editingChecklistId').value) return;
       const db = window.parent.appDb;
       const answers = collectAnswers();
+      const techDropdown = $('cl_technician');
+      const techName = techDropdown.options[techDropdown.selectedIndex].text;[cite: 1]
+      
       const payload = cleanForFirestore({
-        technicianDocId: $('cl_technician').value,
+        technicianDocId: techDropdown.value,
         visitDocId: $('cl_visit_ref').value,
-        technicianName: $('cl_technician').options[$('cl_technician').selectedIndex].text,
+        technicianName: techName,
         technicianEmail: $('cl_technician_email').value,
         technicianAuthId: $('cl_technician_id').value,
         city: $('cl_city').value,
@@ -267,19 +248,17 @@
         if (editId) await db.collection('branch_checklists').doc(editId).update(payload);
         else await db.collection('branch_checklists').add(payload);
         
-        // محرك التحديث الذكي لجدول الترقية[cite: 1, 2]
         const batch = db.batch();
         for (const field of state.checklistFields) {
-            if (field.integration?.target === 'windows_upgrades') {
+            if (field.integration?.target === 'windows_upgrades') {[cite: 2]
                 const triggerRef = resolveRef(field.integration.triggerFieldId, field.integration.triggerFieldLabel);
                 const triggerVal = triggerRef ? answers[triggerRef.id] : '';
                 
-                if (String(triggerVal).toLowerCase() === String(field.integration.triggerValue).toLowerCase()) {
+                if (String(triggerVal).toLowerCase() === String(field.integration.triggerValue).toLowerCase()) {[cite: 2]
                     const empIds = (Array.isArray(answers[field.id]) ? answers[field.id] : [answers[field.id]]).filter(Boolean);
                     for (const empId of empIds) {
                         const q = await db.collection("windows_upgrades").where("employee_ID", "==", String(empId).trim()).get();
                         q.forEach(doc => {
-                            // تعبئة كافة الأعمدة الفارغة بناءً على الهيكلية الجديدة
                             batch.update(doc.ref, cleanForFirestore({
                                 status: 'completed',
                                 region: $('cl_region').value,
@@ -287,22 +266,36 @@
                                 brand: $('cl_brand').value,
                                 branchId: $('cl_branch_id').value,
                                 branchName: $('cl_location').value,
-                                technician_Name: payload.technicianName,
+                                technician_Name: techName,[cite: 1, 2] // "يسمع" في ملف تحديث ويندوز
                                 sync_time: new Date().toISOString(),
-                                sync_type: 'Automatic (Checklist Sync)',
-                                record_ID: editId || 'NEW_RECORD'
+                                record_ID: editId || 'NEW_ENTRY'
                             }));
                         });
                     }
                 }
             }
         }
-
         await batch.commit();
-        alert("تم الحفظ وتعبئة كافة أعمدة الترقية بنجاح!"); 
-        location.reload();
+        alert("تم الحفظ وتحديث بيانات ويندوز بنجاح!"); location.reload();
       } catch (e) { alert("خطأ: " + e.message); }
     }
+
+    window.openChecklistLocally = async function(id) {
+      const row = state.checklists.find(r => r.id === id);
+      if (!row) return;
+      $('editingChecklistId').value = row.id;
+      $('cl_technician').value = row.technicianDocId || '';
+      await loadVisitsForTech(row.technicianDocId, row.visitDocId);
+      ['technician_email','technician_id','city','region','brand','brandKey','branch_id','location','visit_date','month'].forEach(k => {
+          const el = $('cl_' + k); if(el) el.value = row[k.replace('technician_','technician').replace('branch_id','branchId').replace('location','locationSite')] || '';
+      });
+      if (!state.canEdit) {
+        $('saveChecklistBtn').style.display = 'none';
+        $('newFormBtn').style.display = 'block';
+        document.querySelectorAll('input:not(#checklistSearch), select').forEach(el => el.disabled = true);
+      }
+      renderDynamicForm(row.dynamicAnswers || {});
+    };
 
     function renderTable() {
       $('checklistTableBody').innerHTML = state.checklists.map(r => `<tr class="clickable" onclick="openChecklistLocally('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.locationSite)}</td></tr>`).join('');
