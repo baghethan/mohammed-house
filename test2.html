@@ -1,305 +1,200 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v1.8.9</title>
-  <style>
-    :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; --orange: #f59e0b; }
-    body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
-    .container { max-width: 1400px; margin: 18px auto; padding: 0 14px 28px; }
-    .grid-2 { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 16px; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(18,48,74,0.08); overflow: hidden; margin-bottom: 16px; }
-    .card h3 { margin: 0; padding: 12px 16px; background: var(--primary); color: #fff; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
-    .card-body { padding: 16px; }
-    .section-title { margin: 18px 0 10px; font-weight: 800; color: var(--primary); border-inline-start: 4px solid var(--primary); padding-inline-start: 10px; font-size: 14px; }
-    .grid-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-    .field { display: grid; gap: 6px; }
-    .field label { font-size: 12px; font-weight: 700; color: #475569; }
-    .field input, .field select { padding: 10px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: #fbfcfe; outline: none; }
-    .field input[readonly], .field select[disabled] { background: #f1f5f9; cursor: not-allowed; }
-    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 14px; background: #fff; max-height: 600px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 12px 10px; border-bottom: 1px solid #edf2f7; text-align: start; font-size: 12px; }
-    th { background: #f8fbff; color: var(--primary); position: sticky; top: 0; z-index: 10; }
-    tr.clickable { cursor: pointer; transition: 0.2s; }
-    tr.clickable:hover { background: #f1f7fd; }
-    .btn-save { background: var(--green); color: #fff; border: none; padding: 14px; border-radius: 25px; font-weight: 700; cursor: pointer; width: 100%; font-size: 14px; margin-top: 10px; }
-    .permission-banner { padding: 10px; border-radius: 10px; font-size: 12px; margin-bottom: 15px; font-weight: 700; text-align: center; border: 1px solid transparent; display: none; }
-    .read-only-mode { background: #fffbeb; color: var(--orange); border-color: #fef3c7; }
-    .edit-mode { background: #f0fdf4; color: var(--green); border-color: #dcfce7; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة الصلاحيات</title>
+    <style>
+        :root { --primary-color: #2c3e50; --accent-color: #3498db; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; }
+        .hidden { display: none !important; }
+        
+        /* تصميم صفحة الدخول */
+        #login-container { height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: var(--accent-color); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+
+        /* تصميم الداشبورد والتبويبات */
+        #app-container { display: flex; flex-direction: column; height: 100vh; }
+        header { background: var(--primary-color); color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        
+        .tabs-nav { background: #fff; display: flex; border-bottom: 2px solid #ddd; overflow-x: auto; }
+        .tab-link { padding: 15px 25px; cursor: pointer; border: none; background: none; font-weight: bold; color: #666; transition: 0.3s; }
+        .tab-link.active { color: var(--accent-color); border-bottom: 3px solid var(--accent-color); background: #f9f9f9; }
+        
+        .content-area { flex: 1; padding: 20px; overflow-y: auto; }
+        .card { background: white; padding: 20px; border-radius: 8px; shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    </style>
 </head>
 <body>
-  <main class="container">
-    <div class="grid-2">
-      <section class="card">
-        <h3>نموذج Check-List (v1.8.9 المصلح) <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
-        <div class="card-body">
-          <div id="permissionNotice" class="permission-banner"></div>
-          <input id="editingChecklistId" type="hidden" />
-          
-          <div class="section-title">الربط مع الفني والزيارة</div>
-          <div class="grid-fields">
-            <div class="field"><label>1- الفني</label><select id="cl_technician"></select></div>
-            <div class="field"><label>2- الزيارة المرتبطة</label><select id="cl_visit_ref"><option value="">اختر الفني أولاً</option></select></div>
-            <div class="field"><label>3- البريد الإلكتروني</label><input id="cl_technician_email" readonly /></div>
-            <div class="field"><label>4- معرف الفني</label><input id="cl_technician_id" readonly /></div>
-            <div class="field"><label>5- المدينة</label><input id="cl_city" readonly /></div>
-            <div class="field"><label>6- المنطقة</label><input id="cl_region" readonly /></div>
-          </div>
 
-          <div class="section-title">Basic Information</div>
-          <div class="grid-fields">
-            <div class="field"><label>1- Brand</label><input id="cl_brand" readonly /></div>
-            <div class="field"><label>2- Brand Key</label><input id="cl_brandKey" /></div>
-            <div class="field"><label>3- Branch ID</label><input id="cl_branch_id" readonly /></div>
-            <div class="field"><label>4- Location/Site</label><input id="cl_location" readonly /></div>
-            <div class="field"><label>5- Visit Scheduled</label><select id="cl_visit_scheduled"><option value="">اختر</option><option>Yes</option><option>No</option></select></div>
-            <div class="field"><label>6- Visit Date</label><input id="cl_visit_date" type="date" /></div>
-            <div class="field"><label>7- Month</label><input id="cl_month" readonly /></div>
-            <div class="field"><label>8- Calendar Booked</label><select id="cl_calendar_booked"><option value="">اختر</option><option>Yes</option><option>No</option></select></div>
-          </div>
-
-          <div class="section-title">Dynamic Check-List</div>
-          <div id="dynamicChecklistSections"></div>
-
-          <button class="btn-save" id="saveChecklistBtn">حفظ وإرسال ✅</button>
-          <button class="btn-save" id="newFormBtn" style="background:var(--primary); display:none;" onclick="location.reload()">إنشاء تقرير جديد ➕</button>
+    <div id="login-container">
+        <div class="login-box">
+            <h2 style="text-align: center;">تسجيل الدخول</h2>
+            <input type="email" id="email" placeholder="البريد الإلكتروني" value="">
+            <input type="password" id="password" placeholder="كلمة المرور" value="">
+            <button id="loginBtn">دخول النظام</button>
         </div>
-      </section>
-
-      <aside class="card">
-        <h3>السجلات المحفوظة</h3>
-        <div class="card-body">
-          <input id="checklistSearch" placeholder="بحث سريع..." style="width:100%; padding:10px; margin-bottom:12px; border-radius:10px; border:1px solid #ddd;" />
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>التاريخ</th><th>الفني</th><th>الموقع</th></tr></thead>
-              <tbody id="checklistTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </aside>
     </div>
-  </main>
 
-  <script>
-  (function(){
-    var state = { checklists: [], checklistFields: [], technicians: [], userProfile: null, canEdit: false };
-    const $ = (id) => document.getElementById(id);
-    const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+    <div id="app-container" class="hidden">
+        <header>
+            <div id="user-info">مرحباً: <span id="user-name">...</span></div>
+            <button onclick="logout()" style="width: auto; background: #e74c3c; padding: 5px 15px;">خروج</button>
+        </header>
 
-    async function checkAuth() {
-      const auth = window.parent.appAuth;
-      const db = window.parent.appDb;
-      auth.onAuthStateChanged(async (user) => {
-        if (user) {
-          const doc = await db.collection('app_users').doc(user.uid).get();
-          if (doc.exists) {
-            state.userProfile = doc.data();
-            const role = state.userProfile.role || 'user';
-            state.canEdit = (role === 'admin' || role === 'supervisor');
-            updatePermissionUI(role);
-          }
-          boot();
-        }
-      });
-    }
+        <nav class="tabs-nav" id="main-tabs"></nav>
 
-    function updatePermissionUI(role) {
-      const notice = $('permissionNotice');
-      notice.style.display = 'block';
-      $('roleBadge').innerText = "الدور: " + role.toUpperCase();
-      if (state.canEdit) { notice.className = "permission-banner edit-mode"; notice.innerText = "✅ وضع التعديل: يمكنك تغيير كافة البيانات."; }
-      else { notice.className = "permission-banner read-only-mode"; notice.innerText = "👁️ وضع القراءة: استعراض السجلات فقط."; }
-    }
+        <main class="content-area">
+            <div id="tab-content-render" class="card">
+                <h3>اختر قسم من الأعلى للبدء</h3>
+            </div>
+        </main>
+    </div>
 
-    async function boot() {
-      const db = window.parent.appDb;
-      db.collection('technicians').onSnapshot(snap => {
-        state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()}));
-        $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-      });
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-      db.collection('checklist_fields').onSnapshot(snap => {
-        state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (a.order||0)-(b.order||0));
-        renderDynamicForm();
-      });
+        // إعدادات مشروعك (كما في الصورة الثالثة)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBsvBEEHEgBuw9Pdml-Om90mm8MLDw8gWs",
+            authDomain: "baghethan-ba325.firebaseapp.com",
+            projectId: "baghethan-ba325",
+            storageBucket: "baghethan-ba325.firebasestorage.app",
+            messagingSenderId: "944819735112",
+            appId: "1:944819735112:web:07315600da39377320667d"
+        };
 
-      db.collection('branch_checklists').orderBy('createdAt', 'desc').onSnapshot(snap => {
-        state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()}));
-        renderTable();
-      });
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-      // وظيفة جلب الزيارات المصلحة مع التحديد المباشر
-      window.loadVisitsForTech = async function(techId, selectedVisitId = null) {
-        const vSnap = await db.collection('siteVisits').where('technicianDocId', '==', techId).get();
-        const visits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
-        const dropdown = $('cl_visit_ref');
-        
-        dropdown.innerHTML = '<option value="">اختر الزيارة</option>' + 
-          visits.map(v => `<option value="${v.id}" ${selectedVisitId===v.id ? 'selected' : ''}>${v.date} - ${v.branchName}</option>`).join('');
-        
-        // إجبار المتصفح على اختيار القيمة الصحيحة[cite: 1]
-        if (selectedVisitId) dropdown.value = selectedVisitId;
-      };
+        let currentUserData = null;
 
-      $('cl_technician').onchange = async function() {
-        const tech = state.technicians.find(t => t.id === this.value);
-        if (tech) {
-          $('cl_technician_email').value = tech.email || '';
-          $('cl_technician_id').value = tech.authUid || tech.id;[cite: 1]
-          await loadVisitsForTech(this.value);
-        }
-      };
+        // --- دالة تسجيل الدخول ---
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
 
-      $('cl_visit_ref').onchange = function() {
-        const db = window.parent.appDb;
-        db.collection('siteVisits').doc(this.value).get().then(doc => {
-           if(doc.exists) {
-              const v = doc.data();
-              $('cl_brand').value = v.brand || ''; $('cl_branch_id').value = v.branchId || '';
-              $('cl_location').value = v.branchName || ''; $('cl_city').value = v.city || '';
-              $('cl_region').value = v.region || ''; $('cl_visit_date').value = v.date || '';
-              const d = new Date(v.date); if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
-           }
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                // التوجيه يتم تلقائياً عبر onAuthStateChanged
+            } catch (error) {
+                alert("خطأ في بيانات الدخول: " + error.message);
+            }
         });
-      };
 
-      $('saveChecklistBtn').onclick = saveChecklist;
-    }
+        // --- مراقبة حالة المستخدم ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const docRef = doc(db, "app_users", user.uid);
+                const docSnap = await getDoc(docRef);
 
-    // وظيفة التحميل المحدثة لملء معرف الفني والزيارة فوراً[cite: 1]
-    window.openChecklistLocally = async function(id) {
-      const row = state.checklists.find(r => r.id === id);
-      if (!row) return;
-      $('editingChecklistId').value = row.id;
+                if (docSnap.exists()) {
+                    currentUserData = docSnap.data();
+                    if (currentUserData.active) {
+                        initApp();
+                    } else {
+                        alert("حسابك غير نشط");
+                        signOut(auth);
+                    }
+                }
+            } else {
+                showLogin();
+            }
+        });
 
-      // 1. استرجاع الفني والزيارة (الحل الجذري)[cite: 1]
-      $('cl_technician').value = row.technicianDocId || '';
-      
-      // جلب بيانات الفني الأساسية لملء "معرف الفني" حتى لو لم يخزن في السجل[cite: 1]
-      const techData = state.technicians.find(t => t.id === row.technicianDocId);
-      if (techData) {
-          $('cl_technician_id').value = techData.authUid || techData.id;
-          $('cl_technician_email').value = techData.email || '';
-      } else {
-          $('cl_technician_id').value = row.technicianAuthId || '';
-          $('cl_technician_email').value = row.technicianEmail || '';
-      }
-
-      // تحميل قائمة الزيارات وتحديد الزيارة المحفوظة[cite: 1]
-      await loadVisitsForTech(row.technicianDocId, row.visitDocId);
-
-      // ملء باقي الحقول الـ 14[cite: 1]
-      $('cl_city').value = row.city || '';
-      $('cl_region').value = row.region || '';
-      $('cl_brand').value = row.brand || '';
-      $('cl_brandKey').value = row.brandKey || '';
-      $('cl_branch_id').value = row.branchId || '';
-      $('cl_location').value = row.locationSite || '';
-      $('cl_visit_scheduled').value = row.visitScheduled || '';
-      $('cl_visit_date').value = row.visitDate || '';
-      $('cl_month').value = row.month || '';
-      $('cl_calendar_booked').value = row.calendarBooked || '';
-
-      if (!state.canEdit) {
-        $('saveChecklistBtn').style.display = 'none';
-        $('newFormBtn').style.display = 'block';
-        document.querySelectorAll('input, select').forEach(el => { if(el.id !== 'checklistSearch') el.disabled = true; });
-      }
-      renderDynamicForm(row.dynamicAnswers || {});
-    };
-
-    function renderDynamicForm(answers = {}) {
-      const container = $('dynamicChecklistSections');
-      container.innerHTML = '';
-      const isLocked = !state.canEdit && $('editingChecklistId').value;
-      state.checklistFields.forEach(field => {
-        if (field.logic?.enabled && field.logic?.visibleWhen) {
-          const rule = field.logic.visibleWhen;
-          const depVal = answers[rule.fieldId] || answers[rule.fieldLabel] || '';
-          if (String(depVal).toLowerCase() !== String(rule.value).toLowerCase()) return;
+        function initApp() {
+            document.getElementById('login-container').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            document.getElementById('user-name').innerText = currentUserData.name;
+            renderTabs();
         }
-        let html = `<div class="field" style="margin-top:10px"><label>${esc(field.labelAr || field.label)}</label>`;
-        if (field.repeat?.enabled) {
-          const count = Number(answers[field.repeat.countFromFieldId] || 0);
-          for (let i = 0; i < count; i++) {
-            const val = (answers[field.id] && answers[field.id][i]) || '';
-            html += `<input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} style="margin-bottom:5px;" />`;
-          }
-        } else {
-          const val = answers[field.id] || '';
-          if (field.fieldType === 'choice') {
-            html += `<select class="dyn-input" data-id="${field.id}" ${isLocked ? 'disabled' : ''}><option value="">اختر</option>`;
-            (field.options || []).forEach(o => html += `<option value="${o.value}" ${val==o.value?'selected':''}>${esc(o.labelAr || o.label)}</option>`);
-            html += `</select>`;
-          } else {
-            html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())" />`;
-          }
+
+        function showLogin() {
+            document.getElementById('login-container').classList.remove('hidden');
+            document.getElementById('app-container').classList.add('hidden');
         }
-        container.innerHTML += html + `</div>`;
-      });
-      document.querySelectorAll('.dyn-input').forEach(el => { el.onchange = () => renderDynamicForm(collectAnswers()); });
-    }
 
-    function collectAnswers() {
-      const ans = {};
-      document.querySelectorAll('.dyn-input').forEach(el => {
-        const id = el.dataset.id;
-        if (el.dataset.index !== undefined) { if (!ans[id]) ans[id] = []; ans[id][el.dataset.index] = el.value; }
-        else ans[id] = el.value;
-      });
-      return ans;
-    }
+        // --- بناء التبويبات ديناميكياً ---
+        function renderTabs() {
+            const tabsNav = document.getElementById('main-tabs');
+            tabsNav.innerHTML = '';
 
-    async function saveChecklist() {
-      if (!state.canEdit && $('editingChecklistId').value) return;
-      const db = window.parent.appDb;
-      const editId = $('editingChecklistId').value;
-      const answers = collectAnswers();
-      const payload = {
-        technicianDocId: $('cl_technician').value,
-        visitDocId: $('cl_visit_ref').value,
-        technicianName: $('cl_technician').options[$('cl_technician').selectedIndex].text,
-        technicianEmail: $('cl_technician_email').value,
-        technicianAuthId: $('cl_technician_id').value,
-        city: $('cl_city').value,
-        region: $('cl_region').value,
-        brand: $('cl_brand').value,
-        brandKey: $('cl_brandKey').value,
-        branchId: $('cl_branch_id').value,
-        locationSite: $('cl_location').value,
-        visitScheduled: $('cl_visit_scheduled').value,
-        visitDate: $('cl_visit_date').value,
-        month: $('cl_month').value,
-        calendarBooked: $('cl_calendar_booked').value,
-        dynamicAnswers: answers,
-        updatedAt: new Date().toISOString()
-      };
-      try {
-        if (editId) await db.collection('branch_checklists').doc(editId).update(payload);
-        else { payload.createdAt = new Date().toISOString(); await db.collection('branch_checklists').add(payload); }
-        
-        const batch = db.batch();
-        for (let key in answers) {
-          const ids = (Array.isArray(answers[key]) ? answers[key] : String(answers[key]).split(/[\n,]+/)).map(id => id.trim()).filter(id => id.length > 2);
-          for (const empId of ids) {
-            const q = await db.collection("windows_upgrades").where("employee_ID", "==", empId).get();
-            q.forEach(doc => batch.update(doc.ref, { status: 'completed' }));
-          }
+            // نمر على قائمة الصفحات (pages) المسموحة للمستخدم في Firestore
+            currentUserData.pages.forEach(pageID => {
+                const btn = document.createElement('button');
+                btn.className = 'tab-link';
+                btn.innerText = getPageTitle(pageID); // دالة لتحويل اسم الكود لاسم مقروء
+                btn.onclick = () => switchTab(pageID, btn);
+                tabsNav.appendChild(btn);
+            });
         }
-        await batch.commit();
-        alert("تم الحفظ والمزامنة بنجاح!"); location.reload();
-      } catch (e) { alert("خطأ: " + e.message); }
-    }
 
-    function renderTable() {
-      $('checklistTableBody').innerHTML = state.checklists.map(r => `<tr class="clickable" onclick="openChecklistLocally('${r.id}')"><td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.locationSite)}</td></tr>`).join('');
-    }
-    checkAuth();
-  })();
-  </script>
+        // دالة لتحويل أسماء الـ IDs لأسماء عربية جميلة
+        function getPageTitle(id) {
+            const titles = {
+                'dashboard': 'الرئيسية',
+                'dashboard2': 'لوحة المراقبة 2',
+                'checklist': 'قائمة الفحص',
+                'branches': 'الفروع',
+                'reports': 'التقارير'
+                // يمكنك إضافة أي صفحة جديدة هنا
+            };
+            return titles[id] || id;
+        }
+
+        // --- تبديل المحتوى والتحقق من صلاحية View داخل التبويب ---
+        window.switchTab = (pageID, element) => {
+            // تحديث شكل الأزرار
+            document.querySelectorAll('.tab-link').forEach(b => b.classList.remove('active'));
+            element.classList.add('active');
+
+            const contentArea = document.getElementById('tab-content-render');
+            
+            // جلب صلاحيات هذه الصفحة تحديداً من ماب permissions في Firestore
+            const perm = currentUserData.permissions[pageID];
+
+            if (perm && perm.view) {
+                renderPageHTML(pageID, perm);
+            } else {
+                contentArea.innerHTML = `<h3 style="color:red">عذراً، ليس لديك صلاحية عرض هذه الصفحة.</h3>`;
+            }
+        };
+
+        // --- مكان كتابة محتوى كل صفحة ---
+        function renderPageHTML(pageID, perm) {
+            const container = document.getElementById('tab-content-render');
+            let html = `<h2>${getPageTitle(pageID)}</h2><hr>`;
+
+            // هنا يمكنك تعريف محتوى كل صفحة بناءً على الـ ID
+            switch(pageID) {
+                case 'dashboard':
+                    html += `<p>أهلاً بك في اللوحة الرئيسية. إحصائيات النظام تظهر هنا.</p>`;
+                    break;
+                case 'dashboard2':
+                    html += `<p>محتوى لوحة المراقبة الثانية المتقدمة.</p>`;
+                    break;
+                case 'reports':
+                    html += `<p>قسم التقارير السنوية والشهرية.</p>`;
+                    break;
+                default:
+                    html += `<p>محتوى افتراضي لصفحة ${pageID}</p>`;
+            }
+
+            // مثال: إضافة زر "إضافة" فقط إذا كان حقل add في Firestore يساوي true
+            if (perm.add) {
+                html += `<button style="width:auto; background:green">إضافة سجل جديد في ${pageID}</button>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        window.logout = () => signOut(auth);
+
+    </script>
 </body>
 </html>
