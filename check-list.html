@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v2.2.6</title>
+  <title>Check-List Master | المجدوعي للسيارات v2.2.7</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; }
@@ -42,7 +42,7 @@
   <main class="container">
     <div id="mainLayout" class="grid-main">
       <section class="card">
-        <h3>نموذج الفحص v2.2.6 (إصلاح خطأ الحفظ) <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v2.2.7 (إصلاح المزامنة النهائي) <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <input id="editingChecklistId" type="hidden" />
           <div class="section-title">1- الربط مع الفني والزيارة</div>
@@ -60,7 +60,7 @@
             <div class="field"><label>Brand Key</label><input id="cl_brandKey" /></div>
             <div class="field"><label>Branch ID</label><input id="cl_branch_id" readonly /></div>
             <div class="field"><label>Location/Site</label><input id="cl_location" readonly /></div>
-            <div class="field"><label>مدير الفرع</label><input id="cl_branch_manager" placeholder="ID / Name" /></div>
+            <div class="field"><label>مدير الفرع</label><input id="cl_branch_manager" placeholder="الاسم / المعرف" /></div>
             <div class="field"><label>Visit Date</label><input id="cl_visit_date" type="date" /></div>
             <div class="field"><label>Month</label><input id="cl_month" readonly /></div>
           </div>
@@ -85,7 +85,7 @@
 
   <script>
   (function(){
-    // دالة الإصلاح الجوهري: تنظيف البيانات للتوافق مع Firebase
+    // دالة التطهير النهائية: تجبر الكائنات على أن تكون Plain Objects لـ Firebase
     const clean = (obj) => JSON.parse(JSON.stringify(obj));
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
     
@@ -98,38 +98,21 @@
       auth.onAuthStateChanged(async (user) => {
         if (user) {
           const doc = await db.collection('app_users').doc(user.uid).get();
-          if (doc.exists) { 
-            state.userProfile = doc.data(); 
-            state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor'); 
-            applyPrivacyUI(); 
-          }
+          if (doc.exists) { state.userProfile = doc.data(); state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor'); applyPrivacyUI(); }
           boot();
         }
       });
     }
 
-    function applyPrivacyUI() {
-      if (!state.canEdit) { $('adminSidebar').classList.add('hidden'); $('mainLayout').classList.add('grid-full'); }
-    }
+    function applyPrivacyUI() { if (!state.canEdit) { $('adminSidebar').classList.add('hidden'); $('mainLayout').classList.add('grid-full'); } }
 
     async function boot() {
       const db = window.parent.appDb;
-      db.collection('branch_checklists').orderBy('createdAt','desc').onSnapshot(snap => { 
-        state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()})); if(state.canEdit) renderTable(); 
-      });
-      db.collection('technicians').onSnapshot(snap => { 
-        state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()})); 
-        $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-      });
-      db.collection('checklist_fields').onSnapshot(snap => { 
-        state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0)); 
-        renderDynamicForm(); if(state.canEdit) updateTableHeaders();
-      });
+      db.collection('branch_checklists').orderBy('createdAt','desc').onSnapshot(snap => { state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()})); if(state.canEdit) renderTable(); });
+      db.collection('technicians').onSnapshot(snap => { state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()})); $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join(''); });
+      db.collection('checklist_fields').onSnapshot(snap => { state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0)); renderDynamicForm(); if(state.canEdit) updateTableHeaders(); });
 
-      $('cl_technician').onchange = (e) => { 
-        const t = state.technicians.find(x => x.id === e.target.value); 
-        if(t){ $('cl_technician_email').value=t.email||''; $('cl_technician_id').value=t.authUid||t.id; loadVisitsForTech(e.target.value); } 
-      };
+      $('cl_technician').onchange = (e) => { const t = state.technicians.find(x => x.id === e.target.value); if(t){ $('cl_technician_email').value=t.email||''; $('cl_technician_id').value=t.authUid||t.id; loadVisitsForTech(e.target.value); } };
       $('cl_visit_ref').onchange = (e) => {
         db.collection('siteVisits').doc(e.target.value).get().then(doc => {
           if(doc.exists){
@@ -138,7 +121,6 @@
           }
         });
       };
-      
       $('exportExcelBtn').onclick = exportToExcel;
       $('importExcelInput').onchange = handleImport;
       $('saveChecklistBtn').onclick = saveChecklist;
@@ -154,16 +136,14 @@
         let count = 0;
         for (const row of rows) {
           if (row.ID) {
-            const updates = clean({ 
-              locationSite: row["Location/Site"]||'', 
-              branchManager: row["مدير الفرع"]||'', 
-              dynamicAnswers: {} 
-            });
+            // بناء كائن التحديث أولاً
+            const updates = { locationSite: row["Location/Site"]||'', branchManager: row["مدير الفرع"]||'', dynamicAnswers: {} };
             state.checklistFields.forEach(f => {
               const col = f.labelAr || f.label;
               if (row[col] !== undefined) updates.dynamicAnswers[f.id] = row[col];
             });
-            await db.collection('branch_checklists').doc(row.ID).update(updates);
+            // تنظيف الكائن بالكامل قبل الإرسال مباشرة
+            await db.collection('branch_checklists').doc(row.ID).update(clean(updates));
             count++;
           }
         }
@@ -217,13 +197,13 @@
 
     async function saveChecklist() {
       const db = window.parent.appDb; const answers = collectAnswers(); const techDropdown = $('cl_technician');
-      const payload = clean({ 
+      const payload = { 
         technicianDocId: techDropdown.value, technicianName: techDropdown.options[techDropdown.selectedIndex].text, technicianEmail: $('cl_technician_email').value, technicianAuthId: $('cl_technician_id').value, visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, brandKey: $('cl_brandKey').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, dynamicAnswers: answers, createdAt: new Date().toISOString() 
-      });
+      };
       try { 
         const id = $('editingChecklistId').value; 
-        if (id) await db.collection('branch_checklists').doc(id).update(payload); 
-        else await db.collection('branch_checklists').add(payload); 
+        if (id) await db.collection('branch_checklists').doc(id).update(clean(payload)); 
+        else await db.collection('branch_checklists').add(clean(payload)); 
         alert("تم الحفظ بنجاح!"); location.reload(); 
       } catch (e) { alert("خطأ: " + e.message); }
     }
