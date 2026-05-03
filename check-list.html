@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v1.9.1</title>
+  <title>Check-List Master | المجدوعي للسيارات v1.9.2</title>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; --orange: #f59e0b; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
@@ -34,7 +34,7 @@
   <main class="container">
     <div class="grid-2">
       <section class="card">
-        <h3>نموذج Check-List المصلح v1.9.1 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
+        <h3>نموذج Check-List المصلح v1.9.2 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
         <div class="card-body">
           <div id="permissionNotice" class="permission-banner"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -61,7 +61,6 @@
             <div class="field"><label>8- Calendar Booked</label><select id="cl_calendar_booked"><option value="">اختر</option><option>Yes</option><option>No</option></select></div>
           </div>
 
-          <div class="section-title">Dynamic Check-List</div>
           <div id="dynamicChecklistSections"></div>
 
           <button class="btn-save" id="saveChecklistBtn">حفظ وإرسال ✅</button>
@@ -89,6 +88,11 @@
     var state = { checklists: [], checklistFields: [], technicians: [], userProfile: null, canEdit: false };
     const $ = (id) => document.getElementById(id);
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+
+    // حل مشكلة "custom Object object" الظاهرة في صورتك
+    function cleanData(raw) {
+        return window.parent.JSON.parse(window.parent.JSON.stringify(raw));
+    }
 
     async function checkAuth() {
       const auth = window.parent.appAuth;
@@ -137,12 +141,9 @@
         const visits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
         const dropdown = $('cl_visit_ref');
         
-        let optionsHtml = '<option value="">اختر الزيارة</option>';
-        visits.forEach(v => {
-          const isSelected = (selectedVisitId && String(selectedVisitId) === String(v.id)) ? 'selected' : '';
-          optionsHtml += `<option value="${v.id}" ${isSelected}>${v.date} - ${v.branchName}</option>`;
-        });
-        dropdown.innerHTML = optionsHtml;
+        dropdown.innerHTML = '<option value="">اختر الزيارة</option>' + 
+          visits.map(v => `<option value="${v.id}" ${String(selectedVisitId) === String(v.id) ? 'selected' : ''}>${v.date} - ${v.branchName}</option>`).join('');
+        
         if (selectedVisitId) dropdown.value = selectedVisitId;
       };
 
@@ -178,14 +179,9 @@
 
       $('cl_technician').value = row.technicianDocId || '';
       
-      const techData = state.technicians.find(t => t.id === row.technicianDocId);
-      if (techData) {
-          $('cl_technician_id').value = techData.authUid || techData.id;
-          $('cl_technician_email').value = techData.email || '';
-      } else {
-          $('cl_technician_id').value = row.technicianAuthId || '';
-          $('cl_technician_email').value = row.technicianEmail || '';
-      }
+      // التأكد من تحميل "معرف الفني" و "الزيارة المرتبطة"
+      $('cl_technician_id').value = row.technicianAuthId || row.technicianId || '';
+      $('cl_technician_email').value = row.technicianEmail || '';
 
       await loadVisitsForTech(row.technicianDocId, row.visitDocId);
 
@@ -259,7 +255,9 @@
       const db = window.parent.appDb;
       const editId = $('editingChecklistId').value;
       const answers = collectAnswers();
-      const payload = {
+      
+      // استخدام cleanData لمنع خطأ custom Object object
+      const rawPayload = {
         technicianDocId: $('cl_technician').value,
         visitDocId: $('cl_visit_ref').value,
         technicianName: $('cl_technician').options[$('cl_technician').selectedIndex].text,
@@ -278,9 +276,16 @@
         dynamicAnswers: answers,
         updatedAt: new Date().toISOString()
       };
+
+      const payload = cleanData(rawPayload);
+
       try {
-        if (editId) await db.collection('branch_checklists').doc(editId).update(payload);
-        else { payload.createdAt = new Date().toISOString(); await db.collection('branch_checklists').add(payload); }
+        if (editId) {
+            await db.collection('branch_checklists').doc(editId).update(payload);
+        } else {
+            payload.createdAt = new Date().toISOString();
+            await db.collection('branch_checklists').add(payload);
+        }
         
         const batch = db.batch();
         for (let key in answers) {
