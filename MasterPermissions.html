@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
-  <title>Master Permissions Management v3.0.0</title>
+  <title>Master Permissions Management v3.1.0</title>
   <style>
     :root{--primary:#0d2149;--accent:#1b4fa3;--success:#2f9e66;--error:#ef4444;--bg:#f8fafc;--border:#cbd5e1}
     body{font-family:'Segoe UI', sans-serif; background:var(--bg); padding:20px; color:#1e293b}
@@ -18,8 +18,12 @@
     
     .permissions-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
     .perm-group { background:#fff; border:1px solid var(--border); border-radius:12px; padding:15px; }
-    .perm-group h3 { margin-top:0; font-size:15px; color:var(--accent); border-bottom:2px solid #f1f5f9; padding-bottom:8px; margin-bottom:12px; display:flex; align-items:center; gap:8px }
+    .perm-header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #f1f5f9; padding-bottom:8px; margin-bottom:12px; }
+    .perm-group h3 { margin:0; font-size:15px; color:var(--accent); display:flex; align-items:center; gap:8px }
     
+    .btn-mini { padding:4px 8px; font-size:10px; font-weight:bold; cursor:pointer; border:1px solid var(--border); background:#fff; border-radius:4px; transition:0.2s }
+    .btn-mini:hover { background:var(--primary); color:#fff }
+
     .perms-grid{display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:8px;}
     .perm-card{background:#f9fafb; border:1px solid #f1f5f9; padding:8px 12px; border-radius:8px; display:flex; align-items:center; gap:10px; cursor:pointer; font-size:13px; transition:0.2s}
     .perm-card:hover { background:#f1f5f9; border-color:var(--border) }
@@ -44,10 +48,10 @@
     <div id="statusBox" class="status-indicator"></div>
     <div style="text-align:center; margin-bottom:20px">
         <h2 style="color:var(--primary); margin:0">Unified Permissions Management (Secure)</h2>
-        <p style="color:#64748b; font-size:11px; margin-top:5px">v3.0.0 - Schedule & Site-Visit Integrated Control - Al-Majdouie Motors</p>
+        <p style="color:#64748b; font-size:11px; margin-top:5px">v3.1.0 - Integrated Control - Al-Majdouie Motors</p>
     </div>
 
-    <!-- بيانات المستخدم الأساسية الموحدة -->
+    <!-- User Data -->
     <div class="input-grid">
         <div><label>Employee Name</label><input id="uName" type="text" readonly style="background:#f1f5f9"></div>
         <div><label>Email Address</label><input id="uEmail" type="email" readonly style="background:#f1f5f9"></div>
@@ -67,32 +71,41 @@
     </div>
     <input id="uId" type="hidden">
 
-    <!-- حاوية الصلاحيات المزدوجة -->
+    <!-- Dual Permissions Grids -->
     <div class="permissions-container">
+        <!-- Group A: Schedule -->
         <div class="perm-group">
-            <h3>🗓️ Schedule Pages</h3>
+            <div class="perm-header">
+                <h3>🗓️ Schedule Pages</h3>
+                <div>
+                    <button class="btn-mini" onclick="toggleAll('sch-check', true)">Select All</button>
+                    <button class="btn-mini" onclick="toggleAll('sch-check', false)">Clear</button>
+                </div>
+            </div>
             <div class="perms-grid" id="scheduleGrid"></div>
         </div>
+        <!-- Group B: Site-Visit -->
         <div class="perm-group">
-            <h3>📍 Site-Visit Pages</h3>
+            <div class="perm-header">
+                <h3>📍 Site-Visit Pages</h3>
+                <div>
+                    <button class="btn-mini" onclick="toggleAll('sv-check', true)">Select All</button>
+                    <button class="btn-mini" onclick="toggleAll('sv-check', false)">Clear</button>
+                </div>
+            </div>
             <div class="perms-grid" id="siteVisitGrid"></div>
         </div>
     </div>
 
     <button class="btn-save" id="saveBtn">💾 Save All Security & Permission Changes</button>
 
-    <!-- سجل المستخدمين المتكامل -->
+    <!-- Registry -->
     <div style="margin-top:25px; border-top:1px solid #eee; padding-top:15px">
         <div style="display:flex; justify-content:space-between; align-items:center">
             <h3 style="font-size:14px; margin:0">👥 Integrated User Registry:</h3>
             <button id="reloadBtn" style="padding:6px 15px; border-radius:6px; cursor:pointer; background:#fff; border:1px solid #ccc; font-size:12px">🔄 Refresh User List</button>
         </div>
-        <div class="table-container">
-            <table>
-                <thead><tr><th>Tech ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>UID</th></tr></thead>
-                <tbody id="usersTbody"></tbody>
-            </table>
-        </div>
+        <div class="table-container"><table><thead><tr><th>Tech ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>UID</th></tr></thead><tbody id="usersTbody"></tbody></table></div>
     </div>
 </div>
 
@@ -114,33 +127,21 @@ const app = initializeApp(firebaseConfig);
 const db = initializeFirestore(app, { experimentalForceLongPolling: true });
 const auth = getAuth(app);
 
-// ربط الصفحات حسب المتطلبات[cite: 2, 3]
-const SCH_PAGES = { 
-    dashboard: "Dashboard", schedule: "Schedule", employees: "Employees", 
-    annual: "Annual Leave", planVacation: "Plan-Vacation", 
-    settings: "Settings", permSchedule: "Permissions-Schedule" 
-};
-const SITE_PAGES = { 
-    dashboard: "Dashboard", checklist: "Check-List", brands: "Brands", 
-    upgrade: "Upgrade Windows", visit: "Visits Entry", branches: "Branches", 
-    technicians: "Tech Management", permissions: "Permissions", 
-    dynamic: "Dynamic Check-List (Admin)" 
-};
+// Pages mapping
+const SCH_PAGES = { dashboard: "Dashboard", schedule: "Schedule", employees: "Employees", annual: "Annual Leave", planVacation: "Plan-Vacation", settings: "Settings", permSchedule: "Permissions-Schedule" };
+const SITE_PAGES = { dashboard: "Dashboard", checklist: "Check-List", brands: "Brands", upgrade: "Upgrade Windows", visit: "Visits Entry", branches: "Branches", technicians: "Tech Management", permissions: "Permissions", dynamic: "Dynamic Check-List (Admin)" };
 
-// إنشاء عناصر الاختيار برمجياً
-document.getElementById('scheduleGrid').innerHTML = Object.keys(SCH_PAGES).map(k => `
-    <label class="perm-card"><input type="checkbox" class="sch-check" data-id="${k}"> <span>${SCH_PAGES[k]}</span></label>
-`).join('');
-document.getElementById('siteVisitGrid').innerHTML = Object.keys(SITE_PAGES).map(k => `
-    <label class="perm-card"><input type="checkbox" class="sv-check" data-id="${k}"> <span>${SITE_PAGES[k]}</span></label>
-`).join('');
+// Rendering
+document.getElementById('scheduleGrid').innerHTML = Object.keys(SCH_PAGES).map(k => `<label class="perm-card"><input type="checkbox" class="sch-check" data-id="${k}"> <span>${SCH_PAGES[k]}</span></label>`).join('');
+document.getElementById('siteVisitGrid').innerHTML = Object.keys(SITE_PAGES).map(k => `<label class="perm-card"><input type="checkbox" class="sv-check" data-id="${k}"> <span>${SITE_PAGES[k]}</span></label>`).join('');
+
+// Helper function for Select/Clear all
+window.toggleAll = (className, status) => {
+    document.querySelectorAll('.' + className).forEach(el => el.checked = status);
+};
 
 const statusBox = document.getElementById('statusBox');
-const updateStatus = (t, m='loading') => {
-    statusBox.innerText = t;
-    statusBox.className = 'status-indicator status-' + m;
-    statusBox.style.display = 'block';
-};
+const updateStatus = (t, m='loading') => { statusBox.innerText = t; statusBox.className = 'status-indicator status-' + m; statusBox.style.display = 'block'; };
 
 onAuthStateChanged(auth, (user) => { if (user) fetchAll(); else updateStatus("Auth Required", 'error'); });
 
@@ -153,30 +154,20 @@ async function fetchAll() {
         }).join('');
     } catch(e) { updateStatus("Fetch error: Check Rules", 'error'); }
 }
-
 document.getElementById('reloadBtn').onclick = fetchAll;
 
 window.loadUser = async (id) => {
-    updateStatus("Synchronizing Profile Data...");
+    updateStatus("Syncing Profile Data...");
     const d = await getDoc(doc(db, 'app_users', id));
     if(d.exists()) {
         const u = d.data();
-        document.getElementById('uId').value = id; 
-        document.getElementById('uUidDisplay').value = id;
-        document.getElementById('uName').value = u.name || ""; 
-        document.getElementById('uEmail').value = u.email || "";
-        document.getElementById('uTechId').value = u.technicianId || ""; 
-        document.getElementById('uRole').value = u.role || "technician";
+        document.getElementById('uId').value = id; document.getElementById('uUidDisplay').value = id;
+        document.getElementById('uName').value = u.name || ""; document.getElementById('uEmail').value = u.email || "";
+        document.getElementById('uTechId').value = u.technicianId || ""; document.getElementById('uRole').value = u.role || "technician";
         document.getElementById('uActive').checked = u.active !== false;
 
-        // تحميل صلاحيات الجدول
-        document.querySelectorAll('.sch-check').forEach(c => { 
-            c.checked = Array.isArray(u.permissions_schedule) && u.permissions_schedule.includes(c.dataset.id); 
-        });
-        // تحميل صلاحيات زيارة الموقع
-        document.querySelectorAll('.sv-check').forEach(c => { 
-            c.checked = Array.isArray(u.permissions_site_visit) && u.permissions_site_visit.includes(c.dataset.id); 
-        });
+        document.querySelectorAll('.sch-check').forEach(c => { c.checked = Array.isArray(u.permissions_schedule) && u.permissions_schedule.includes(c.dataset.id); });
+        document.querySelectorAll('.sv-check').forEach(c => { c.checked = Array.isArray(u.permissions_site_visit) && u.permissions_site_visit.includes(c.dataset.id); });
         
         updateStatus("Profile Loaded Successfully", 'success');
         setTimeout(() => statusBox.style.display = 'none', 1000);
@@ -184,14 +175,11 @@ window.loadUser = async (id) => {
 };
 
 document.getElementById('saveBtn').onclick = async () => {
-    const id = document.getElementById('uId').value; if(!id) return alert("Select user from list first");
-    updateStatus("Deploying Integrated Security Policy...");
-    
+    const id = document.getElementById('uId').value; if(!id) return alert("Select user first");
+    updateStatus("Deploying Security Policy...");
     const schPerms = Array.from(document.querySelectorAll('.sch-check:checked')).map(c => c.dataset.id);
     const svPerms = Array.from(document.querySelectorAll('.sv-check:checked')).map(c => c.dataset.id);
-
     try {
-        // تنظيف البيانات لضمان عدم حدوث خطأ Database restriction
         const payload = JSON.parse(JSON.stringify({
             technicianId: document.getElementById('uTechId').value,
             role: document.getElementById('uRole').value,
@@ -200,9 +188,8 @@ document.getElementById('saveBtn').onclick = async () => {
             permissions_site_visit: svPerms,
             updatedAt: new Date().toISOString()
         }));
-        
         await setDoc(doc(db, 'app_users', id), payload, { merge: true });
-        updateStatus("✅ All Systems Synchronized Successfully", 'success');
+        updateStatus("✅ All Permissions Synchronized Successfully", 'success');
         fetchAll();
         setTimeout(() => statusBox.style.display = 'none', 2000);
     } catch(e) { updateStatus("Save Failed: " + e.message, 'error'); }
