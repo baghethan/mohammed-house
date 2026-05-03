@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v2.3.1</title>
+  <title>Check-List Master | المجدوعي للسيارات v2.3.2</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; font-size: 13px; }
     .container { max-width: 98%; margin: 15px auto; padding-bottom: 30px; }
-    .grid-main { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 15px; transition: 0.3s; }
+    .grid-main { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 15px; transition: 0.3s; }
     .grid-full { grid-template-columns: 1fr; }
     .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 25px rgba(18,48,74,0.06); overflow: hidden; }
     .card h3 { margin: 0; padding: 12px 16px; background: var(--primary); color: #fff; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
@@ -41,10 +41,12 @@
 <body>
   <main class="container">
     <div id="mainLayout" class="grid-main">
+      <!-- نموذج الإدخال -->
       <section class="card">
-        <h3>نموذج الفحص v2.3.1 (إصلاح كامل) <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v2.3.2 (إصلاح شامل) <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <input id="editingChecklistId" type="hidden" />
+          
           <div class="section-title">1- بيانات الفني والزيارة</div>
           <div class="grid-fields">
             <div class="field"><label>الفني *</label><select id="cl_technician"></select></div>
@@ -54,6 +56,7 @@
             <div class="field"><label>المدينة</label><input id="cl_city" readonly /></div>
             <div class="field"><label>المنطقة</label><input id="cl_region" readonly /></div>
           </div>
+          
           <div class="section-title">2- Basic Information</div>
           <div class="grid-fields">
             <div class="field"><label>Brand</label><input id="cl_brand" readonly /></div>
@@ -61,16 +64,20 @@
             <div class="field"><label>Branch ID</label><input id="cl_branch_id" readonly /></div>
             <div class="field"><label>Location/Site</label><input id="cl_location" readonly /></div>
             <div class="field"><label>مدير الفرع</label><input id="cl_branch_manager" placeholder="الاسم / المعرف" /></div>
+            <div class="field"><label>Visit Scheduled</label><select id="cl_visit_scheduled"><option value="">اختر</option><option value="yes">Yes</option><option value="no">No</option></select></div>
             <div class="field"><label>Visit Date</label><input id="cl_visit_date" type="date" /></div>
             <div class="field"><label>Month</label><input id="cl_month" readonly /></div>
           </div>
+
           <div class="section-title">3- Dynamic Check-List</div>
           <div id="dynamicChecklistSections"></div>
+          
           <button class="btn-save" id="saveChecklistBtn">حفظ وإرسال التقرير ✅</button>
           <button class="btn-save" id="newFormBtn" style="background:var(--primary); display:none; margin-top:10px;" onclick="location.reload()">إنشاء تقرير جديد ➕</button>
         </div>
       </section>
 
+      <!-- السجلات المحفوظة -->
       <aside id="adminSidebar" class="card">
         <h3>السجلات المحفوظة <div class="excel-tools"><button class="btn-excel btn-tool btn-download" id="exportExcelBtn">Excel 📥</button><div class="btn-tool btn-upload">رفع وتحديث 📤<input type="file" id="importExcelInput" accept=".xlsx" style="position:absolute; inset:0; opacity:0; cursor:pointer;" /></div></div></h3>
         <div class="card-body">
@@ -85,8 +92,11 @@
 
   <script>
   (function(){
-    // دالة التطهير لتوافق Firebase
-    const clean = (obj) => { try { return window.parent.JSON.parse(window.parent.JSON.stringify(obj)); } catch (e) { return JSON.parse(JSON.stringify(obj)); } };
+    // دالة التطهير لتوافق Firebase مع الـ Iframe
+    const clean = (obj) => { 
+      try { return window.parent.JSON.parse(window.parent.JSON.stringify(obj)); } 
+      catch (e) { return JSON.parse(JSON.stringify(obj)); } 
+    };
     const esc = (v) => String(v == null || v === 'undefined' ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
     
     var state = { checklists: [], checklistFields: [], technicians: [], userProfile: null, canEdit: false };
@@ -98,51 +108,48 @@
       auth.onAuthStateChanged(async (user) => {
         if (user) {
           const doc = await db.collection('app_users').doc(user.uid).get();
-          if (doc.exists) { state.userProfile = doc.data(); state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor'); applyPrivacyUI(); }
+          if (doc.exists) { 
+            state.userProfile = doc.data(); 
+            state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor'); 
+            applyPrivacyUI(); 
+          }
           boot();
         }
       });
     }
 
-    function applyPrivacyUI() { if (!state.canEdit) { $('adminSidebar').classList.add('hidden'); $('mainLayout').classList.add('grid-full'); } }
-
-    async function boot() {
-      const db = window.parent.appDb;
-      db.collection('branch_checklists').orderBy('createdAt','desc').onSnapshot(snap => { 
-        state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()})); 
-        if(state.canEdit) renderTable(); 
-      });
-      db.collection('technicians').onSnapshot(snap => { 
-        state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()})); 
-        $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join(''); 
-      });
-      db.collection('checklist_fields').onSnapshot(snap => { 
-        state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0)); 
-        renderDynamicForm(); 
-        if(state.canEdit) { updateTableHeaders(); renderTable(); }
-      });
-      $('exportExcelBtn').onclick = exportToExcel;
-      $('importExcelInput').onchange = handleImport;
-      $('saveChecklistBtn').onclick = saveChecklist;
+    function applyPrivacyUI() { 
+      if (!state.canEdit) { $('adminSidebar').classList.add('hidden'); $('mainLayout').classList.add('grid-full'); $('roleBadge').innerText = "(فني)"; } 
+      else { $('adminSidebar').classList.remove('hidden'); $('mainLayout').classList.remove('grid-full'); $('roleBadge').innerText = "(مسؤول)"; }
     }
 
-    // --- محرك الوظائف الأساسية (تمت إعادتها بالكامل) ---
-
+    // وظائف العرض والجمع
     function renderDynamicForm(answers = {}) {
       const container = $('dynamicChecklistSections'); container.innerHTML = '';
       const currentAnswers = Object.keys(answers).length ? answers : collectAnswers();
+
       state.checklistFields.forEach(field => {
         if (field.logic?.enabled && field.logic?.visibleWhen) { 
           const rule = field.logic.visibleWhen; const src = resolveRef(rule.fieldId, rule.fieldLabel); 
           if (String(src ? currentAnswers[src.id] : '').toLowerCase() !== String(rule.value).toLowerCase()) return; 
         }
+
         let html = `<div class="field"><label>${esc(field.labelAr || field.label)}</label>`;
         const val = currentAnswers[field.id] || '';
+
         if (field.repeat?.enabled) {
-          const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel); const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
-          for (let i = 0; i < count; i++) { html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i+1))}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i]||'')}" /></div>`; }
+          const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel); 
+          const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
+          for (let i = 0; i < count; i++) { 
+            html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i]||'')}" /></div>`; 
+          }
         } else if (field.fieldType === 'choice' && (field.renderMode === 'checkboxes' || field.renderMode === 'radios')) {
-          html += `<div class="choices-grid">`; (field.options || []).forEach(opt => { const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onclick="event.stopPropagation(); renderDynamicForm(collectAnswers());"></div>`; }); html += `</div>`;
+          html += `<div class="choices-grid">`; 
+          (field.options || []).forEach(opt => { 
+            const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; 
+            html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onclick="event.stopPropagation(); renderDynamicForm(collectAnswers());"></div>`; 
+          }); 
+          html += `</div>`;
         } else {
           if (field.fieldType === 'choice') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicForm(collectAnswers())"><option value="">اختر</option>${(field.options||[]).map(o=>`<option value="${o.value}" ${val==o.value?'selected':''}>${o.label}</option>`).join('')}</select>`;
           else html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicForm(collectAnswers())" />`;
@@ -153,17 +160,26 @@
 
     function collectAnswers() {
       const ans = {}; document.querySelectorAll('.dyn-input').forEach(el => {
-        const id = el.dataset.id; if (el.type === 'checkbox') { if(!ans[id]) ans[id]=[]; if(el.checked) ans[id].push(el.value); } else if (el.type === 'radio') { if(el.checked) ans[id] = el.value; } else if (el.dataset.index !== undefined) { if(!ans[id]) ans[id]=[]; ans[id][el.dataset.index] = el.value; } else ans[id] = el.value;
+        const id = el.dataset.id; 
+        if (el.type === 'checkbox') { if(!ans[id]) ans[id]=[]; if(el.checked) ans[id].push(el.value); } 
+        else if (el.type === 'radio') { if(el.checked) ans[id] = el.value; } 
+        else if (el.dataset.index !== undefined) { if(!ans[id]) ans[id]=[]; ans[id][el.dataset.index] = el.value; } 
+        else ans[id] = el.value;
       }); return ans;
     }
 
     async function saveChecklist() {
       const db = window.parent.appDb; const answers = collectAnswers(); const techDropdown = $('cl_technician');
-      const payload = { technicianDocId: techDropdown.value, technicianName: techDropdown.options[techDropdown.selectedIndex].text, technicianEmail: $('cl_technician_email').value, technicianAuthId: $('cl_technician_id').value, visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, brandKey: $('cl_brandKey').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, dynamicAnswers: answers, createdAt: new Date().toISOString() };
-      try { const id = $('editingChecklistId').value; if (id) await db.collection('branch_checklists').doc(id).update(clean(payload)); else await db.collection('branch_checklists').add(clean(payload)); alert("تم الحفظ بنجاح!"); location.reload(); } catch (e) { alert("خطأ: " + e.message); }
+      const payload = { 
+        technicianDocId: techDropdown.value, technicianName: techDropdown.options[techDropdown.selectedIndex].text, technicianEmail: $('cl_technician_email').value, technicianAuthId: $('cl_technician_id').value, visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, brandKey: $('cl_brandKey').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, dynamicAnswers: answers, createdAt: new Date().toISOString() 
+      };
+      try { 
+        const id = $('editingChecklistId').value; 
+        if (id) await db.collection('branch_checklists').doc(id).update(clean(payload)); 
+        else await db.collection('branch_checklists').add(clean(payload)); 
+        alert("تم الحفظ بنجاح!"); location.reload(); 
+      } catch (e) { alert("خطأ: " + e.message); }
     }
-
-    // --- وظائف الإكسيل والجدول (كاملة) ---
 
     async function handleImport(e) {
       const file = e.target.files[0]; if (!file) return;
@@ -190,7 +206,7 @@
         state.checklistFields.forEach(f => { const a = r.dynamicAnswers?.[f.id]; row[f.labelAr || f.label] = Array.isArray(a) ? a.join(', ') : a; });
         return row;
       });
-      const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reports"); XLSX.writeFile(wb, "Checklist_Export.xlsx");
+      const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reports"); XLSX.writeFile(wb, "Full_Checklist_Report.xlsx");
     }
 
     function updateTableHeaders() {
@@ -220,10 +236,31 @@
       const r = state.checklists.find(x => x.id === id); if(!r) return;
       $('editingChecklistId').value = r.id; $('cl_technician').value = r.technicianDocId || '';
       await loadVisitsForTech(r.technicianDocId, r.visitDocId);
-      const m = { technicianEmail:'cl_technician_email', technicianId:'cl_technician_id', city:'cl_city', region:'cl_region', brand:'cl_brand', brandKey:'cl_brandKey', branchId:'cl_branch_id', locationSite:'cl_location', visitDate:'cl_visit_date', month:'cl_month', branchManager:'cl_branch_manager' };
+      const m = { technicianEmail:'cl_technician_email', technicianId:'cl_technician_id', city:'cl_city', region:'cl_region', brand:'cl_brand', brandKey:'cl_brandKey', branchId:'cl_branch_id', locationSite:'cl_location', visitDate:'cl_visit_date', month:'cl_month', branchManager:'cl_branch_manager', visitScheduled:'cl_visit_scheduled' };
       Object.keys(m).forEach(k => { if($(m[k])) $(m[k]).value = r[k] || ''; });
       renderDynamicForm(r.dynamicAnswers || {});
     };
+
+    async function boot() {
+      const db = window.parent.appDb;
+      db.collection('branch_checklists').orderBy('createdAt','desc').onSnapshot(snap => { 
+        state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()})); 
+        if(state.canEdit) renderTable(); 
+      });
+      db.collection('technicians').onSnapshot(snap => { 
+        state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()})); 
+        $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join(''); 
+      });
+      db.collection('checklist_fields').onSnapshot(snap => { 
+        state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0)); 
+        renderDynamicForm(); 
+        if(state.canEdit) { updateTableHeaders(); renderTable(); }
+      });
+      
+      $('exportExcelBtn').onclick = exportToExcel;
+      $('importExcelInput').onchange = handleImport;
+      $('saveChecklistBtn').onclick = saveChecklist;
+    }
 
     checkAuth();
   })();
