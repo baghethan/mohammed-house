@@ -41,12 +41,10 @@
 <body>
   <main class="container">
     <div id="mainLayout" class="grid-main">
-      <!-- نموذج الإدخال -->
       <section class="card">
         <h3>نموذج الفحص v2.3.2 (إصلاح شامل) <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <input id="editingChecklistId" type="hidden" />
-          
           <div class="section-title">1- بيانات الفني والزيارة</div>
           <div class="grid-fields">
             <div class="field"><label>الفني *</label><select id="cl_technician"></select></div>
@@ -56,7 +54,6 @@
             <div class="field"><label>المدينة</label><input id="cl_city" readonly /></div>
             <div class="field"><label>المنطقة</label><input id="cl_region" readonly /></div>
           </div>
-          
           <div class="section-title">2- Basic Information</div>
           <div class="grid-fields">
             <div class="field"><label>Brand</label><input id="cl_brand" readonly /></div>
@@ -68,51 +65,35 @@
             <div class="field"><label>Visit Date</label><input id="cl_visit_date" type="date" /></div>
             <div class="field"><label>Month</label><input id="cl_month" readonly /></div>
           </div>
-
           <div class="section-title">3- Dynamic Check-List</div>
           <div id="dynamicChecklistSections"></div>
-          
           <button class="btn-save" id="saveChecklistBtn">حفظ وإرسال التقرير ✅</button>
-          <button class="btn-save" id="newFormBtn" style="background:var(--primary); display:none; margin-top:10px;" onclick="location.reload()">إنشاء تقرير جديد ➕</button>
+          <button class="btn-save" id="newFormBtn" style="background:var(--primary); display:none; margin-top:10px;" onclick="location.reload()">تقرير جديد ➕</button>
         </div>
       </section>
-
-      <!-- السجلات المحفوظة -->
       <aside id="adminSidebar" class="card">
         <h3>السجلات المحفوظة <div class="excel-tools"><button class="btn-excel btn-tool btn-download" id="exportExcelBtn">Excel 📥</button><div class="btn-tool btn-upload">رفع وتحديث 📤<input type="file" id="importExcelInput" accept=".xlsx" style="position:absolute; inset:0; opacity:0; cursor:pointer;" /></div></div></h3>
         <div class="card-body">
-          <input id="checklistSearch" placeholder="بحث سريع..." style="width:100%; padding:10px; margin-bottom:12px; border-radius:10px; border:1px solid #ddd;" />
-          <div class="table-wrap">
-            <table id="mainTable"><thead><tr id="tableHeaderRow"></tr></thead><tbody id="checklistTableBody"></tbody></table>
-          </div>
+          <input id="checklistSearch" placeholder="بحث سريع..." style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd;" />
+          <div class="table-wrap"><table id="mainTable"><thead><tr id="tableHeaderRow"></tr></thead><tbody id="checklistTableBody"></tbody></table></div>
         </div>
       </aside>
     </div>
   </main>
-
   <script>
   (function(){
-    // دالة التطهير لتوافق Firebase مع الـ Iframe
-    const clean = (obj) => { 
-      try { return window.parent.JSON.parse(window.parent.JSON.stringify(obj)); } 
-      catch (e) { return JSON.parse(JSON.stringify(obj)); } 
-    };
+    const clean = (obj) => { try { return window.parent.JSON.parse(window.parent.JSON.stringify(obj)); } catch (e) { return JSON.parse(JSON.stringify(obj)); } };
     const esc = (v) => String(v == null || v === 'undefined' ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
-    
     var state = { checklists: [], checklistFields: [], technicians: [], userProfile: null, canEdit: false };
     const $ = (id) => document.getElementById(id);
     function resolveRef(id, lbl) { return (id && state.checklistFields.find(f => f.id === id)) || (lbl && state.checklistFields.find(f => f.label === lbl)) || null; }
-
+    
     async function checkAuth() {
       const auth = window.parent.appAuth; const db = window.parent.appDb;
       auth.onAuthStateChanged(async (user) => {
         if (user) {
           const doc = await db.collection('app_users').doc(user.uid).get();
-          if (doc.exists) { 
-            state.userProfile = doc.data(); 
-            state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor'); 
-            applyPrivacyUI(); 
-          }
+          if (doc.exists) { state.userProfile = doc.data(); state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor'); applyPrivacyUI(); }
           boot();
         }
       });
@@ -123,33 +104,21 @@
       else { $('adminSidebar').classList.remove('hidden'); $('mainLayout').classList.remove('grid-full'); $('roleBadge').innerText = "(مسؤول)"; }
     }
 
-    // وظائف العرض والجمع
     function renderDynamicForm(answers = {}) {
       const container = $('dynamicChecklistSections'); container.innerHTML = '';
       const currentAnswers = Object.keys(answers).length ? answers : collectAnswers();
-
       state.checklistFields.forEach(field => {
         if (field.logic?.enabled && field.logic?.visibleWhen) { 
           const rule = field.logic.visibleWhen; const src = resolveRef(rule.fieldId, rule.fieldLabel); 
           if (String(src ? currentAnswers[src.id] : '').toLowerCase() !== String(rule.value).toLowerCase()) return; 
         }
-
         let html = `<div class="field"><label>${esc(field.labelAr || field.label)}</label>`;
         const val = currentAnswers[field.id] || '';
-
         if (field.repeat?.enabled) {
-          const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel); 
-          const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
-          for (let i = 0; i < count; i++) { 
-            html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i]||'')}" /></div>`; 
-          }
+          const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel); const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
+          for (let i = 0; i < count; i++) { html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i]||'')}" /></div>`; }
         } else if (field.fieldType === 'choice' && (field.renderMode === 'checkboxes' || field.renderMode === 'radios')) {
-          html += `<div class="choices-grid">`; 
-          (field.options || []).forEach(opt => { 
-            const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; 
-            html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onclick="event.stopPropagation(); renderDynamicForm(collectAnswers());"></div>`; 
-          }); 
-          html += `</div>`;
+          html += `<div class="choices-grid">`; (field.options || []).forEach(opt => { const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onclick="event.stopPropagation(); renderDynamicForm(collectAnswers());"></div>`; }); html += `</div>`;
         } else {
           if (field.fieldType === 'choice') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicForm(collectAnswers())"><option value="">اختر</option>${(field.options||[]).map(o=>`<option value="${o.value}" ${val==o.value?'selected':''}>${o.label}</option>`).join('')}</select>`;
           else html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicForm(collectAnswers())" />`;
@@ -160,25 +129,29 @@
 
     function collectAnswers() {
       const ans = {}; document.querySelectorAll('.dyn-input').forEach(el => {
-        const id = el.dataset.id; 
-        if (el.type === 'checkbox') { if(!ans[id]) ans[id]=[]; if(el.checked) ans[id].push(el.value); } 
+        const id = el.dataset.id; if (el.type === 'checkbox') { if(!ans[id]) ans[id]=[]; if(el.checked) ans[id].push(el.value); } 
         else if (el.type === 'radio') { if(el.checked) ans[id] = el.value; } 
-        else if (el.dataset.index !== undefined) { if(!ans[id]) ans[id]=[]; ans[id][el.dataset.index] = el.value; } 
-        else ans[id] = el.value;
+        else if (el.dataset.index !== undefined) { if(!ans[id]) ans[id]=[]; ans[id][el.dataset.index] = el.value; } else ans[id] = el.value;
       }); return ans;
     }
 
     async function saveChecklist() {
       const db = window.parent.appDb; const answers = collectAnswers(); const techDropdown = $('cl_technician');
-      const payload = { 
-        technicianDocId: techDropdown.value, technicianName: techDropdown.options[techDropdown.selectedIndex].text, technicianEmail: $('cl_technician_email').value, technicianAuthId: $('cl_technician_id').value, visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, brandKey: $('cl_brandKey').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, dynamicAnswers: answers, createdAt: new Date().toISOString() 
-      };
+      const payload = { technicianDocId: techDropdown.value, technicianName: techDropdown.options[techDropdown.selectedIndex].text, technicianEmail: $('cl_technician_email').value, technicianAuthId: $('cl_technician_id').value, visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, brandKey: $('cl_brandKey').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, dynamicAnswers: answers, createdAt: new Date().toISOString() };
       try { 
         const id = $('editingChecklistId').value; 
-        if (id) await db.collection('branch_checklists').doc(id).update(clean(payload)); 
-        else await db.collection('branch_checklists').add(clean(payload)); 
+        if (id) await db.collection('branch_checklists').doc(id).update(clean(payload)); else await db.collection('branch_checklists').add(clean(payload)); 
         alert("تم الحفظ بنجاح!"); location.reload(); 
       } catch (e) { alert("خطأ: " + e.message); }
+    }
+
+    function exportToExcel() {
+      const data = state.checklists.map(r => {
+        const row = { "ID": r.id, "تاريخ الزيارة": r.visitDate, "الفني": r.technicianName, "Brand": r.brand, "Branch ID": r.branchId, "Location/Site": r.locationSite, "مدير الفرع": r.branchManager };
+        state.checklistFields.forEach(f => { const a = r.dynamicAnswers?.[f.id]; row[f.labelAr || f.label] = Array.isArray(a) ? a.join(', ') : a; });
+        return row;
+      });
+      const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reports"); XLSX.writeFile(wb, "Full_Checklist_Report.xlsx");
     }
 
     async function handleImport(e) {
@@ -190,7 +163,7 @@
         let count = 0;
         for (const row of rows) {
           if (row.ID) {
-            const updates = { visitDate: row["تاريخ الزيارة"]||'', technicianName: row["الفني"]||'', brand: row["Brand"]||'', branchId: row["Branch ID"]||'', locationSite: row["Location/Site"]||'', branchManager: row["مدير الفرع"]||'', dynamicAnswers: {} };
+            const updates = { visitDate: row["تاريخ الزيارة"]||'', branchId: row["Branch ID"]||'', locationSite: row["Location/Site"]||'', branchManager: row["مدير الفرع"]||'', dynamicAnswers: {} };
             state.checklistFields.forEach(f => { const col = f.labelAr || f.label; if (row[col] !== undefined) updates.dynamicAnswers[f.id] = row[col]; });
             await db.collection('branch_checklists').doc(row.ID).update(clean(updates)); count++;
           }
@@ -198,15 +171,6 @@
         alert(`تم تحديث ${count} سجل!`); location.reload();
       };
       reader.readAsArrayBuffer(file);
-    }
-
-    function exportToExcel() {
-      const data = state.checklists.map(r => {
-        const row = { "ID": r.id, "تاريخ الزيارة": r.visitDate, "الفني": r.technicianName, "Brand": r.brand, "Branch ID": r.branchId, "Location/Site": r.locationSite, "مدير الفرع": r.branchManager };
-        state.checklistFields.forEach(f => { const a = r.dynamicAnswers?.[f.id]; row[f.labelAr || f.label] = Array.isArray(a) ? a.join(', ') : a; });
-        return row;
-      });
-      const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reports"); XLSX.writeFile(wb, "Full_Checklist_Report.xlsx");
     }
 
     function updateTableHeaders() {
@@ -243,25 +207,16 @@
 
     async function boot() {
       const db = window.parent.appDb;
-      db.collection('branch_checklists').orderBy('createdAt','desc').onSnapshot(snap => { 
-        state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()})); 
-        if(state.canEdit) renderTable(); 
-      });
-      db.collection('technicians').onSnapshot(snap => { 
-        state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()})); 
-        $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join(''); 
-      });
+      db.collection('branch_checklists').orderBy('createdAt','desc').onSnapshot(snap => { state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()})); if(state.canEdit) renderTable(); });
+      db.collection('technicians').onSnapshot(snap => { state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()})); $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join(''); });
       db.collection('checklist_fields').onSnapshot(snap => { 
         state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0)); 
-        renderDynamicForm(); 
-        if(state.canEdit) { updateTableHeaders(); renderTable(); }
+        renderDynamicForm(); if(state.canEdit) { updateTableHeaders(); renderTable(); } 
       });
-      
       $('exportExcelBtn').onclick = exportToExcel;
       $('importExcelInput').onchange = handleImport;
       $('saveChecklistBtn').onclick = saveChecklist;
     }
-
     checkAuth();
   })();
   </script>
