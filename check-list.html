@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v1.9.8</title>
+  <title>Check-List Master | المجدوعي للسيارات v1.9.9</title>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; --orange: #f59e0b; }
     body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; }
@@ -17,8 +17,8 @@
     .field { display: grid; gap: 6px; }
     .field label { font-size: 12px; font-weight: 700; color: #475569; }
     .field input, .field select { padding: 10px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: #fbfcfe; outline: none; }
+    .field input[readonly], .field select[disabled] { background: #f1f5f9; cursor: not-allowed; }
     
-    /* بطاقات التدريب pills */
     .training-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .pill-box { border: 1px solid var(--border); border-radius: 30px; padding: 6px 15px; display: flex; align-items: center; gap: 8px; background: #fff; cursor: pointer; transition: 0.2s; min-width: 120px; }
     .pill-box span { font-size: 11px; font-weight: 700; color: var(--primary); }
@@ -33,13 +33,15 @@
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 12px 10px; border-bottom: 1px solid #edf2f7; text-align: start; font-size: 12px; }
     th { background: #f8fbff; color: var(--primary); position: sticky; top: 0; z-index: 10; }
+    tr.clickable { cursor: pointer; transition: 0.2s; }
+    tr.clickable:hover { background: #f1f7fd; }
   </style>
 </head>
 <body>
   <main class="container">
     <div class="grid-2">
       <section class="card">
-        <h3>نموذج Check-List المجدوعي v1.9.8 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
+        <h3>نموذج Check-List المجدوعي v1.9.9 <span id="roleBadge" style="font-size:10px; opacity:0.8;"></span></h3>
         <div class="card-body">
           <div id="permissionNotice" class="permission-banner"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -95,8 +97,8 @@
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 
     function resolveRef(fieldId, fieldLabel) {
-      return (fieldId && state.checklistFields.find(f => f.id === fieldId)) || 
-             (fieldLabel && state.checklistFields.find(f => f.label === fieldLabel)) || null;
+        return (fieldId && state.checklistFields.find(f => f.id === fieldId)) || 
+               (fieldLabel && state.checklistFields.find(f => f.label === fieldLabel)) || null;
     }
 
     function cleanForFirestore(obj) { return window.parent.JSON.parse(window.parent.JSON.stringify(obj)); }
@@ -146,6 +148,7 @@
         const visits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
         const dropdown = $('cl_visit_ref');
         dropdown.innerHTML = '<option value="">اختر الزيارة</option>' + visits.map(v => `<option value="${v.id}" ${String(selectedVisitId)===String(v.id)?'selected':''}>${v.date} - ${v.branchName}</option>`).join('');
+        if (selectedVisitId) dropdown.value = selectedVisitId;
       };
 
       $('cl_technician').onchange = async function() {
@@ -155,6 +158,22 @@
           $('cl_technician_id').value = tech.authUid || tech.id;
           await loadVisitsForTech(this.value);
         }
+      };
+
+      $('cl_visit_ref').onchange = function() {
+        const db = window.parent.appDb;
+        db.collection('siteVisits').doc(this.value).get().then(doc => {
+           if(doc.exists) {
+              const v = doc.data();
+              $('cl_brand').value = v.brand || '';
+              $('cl_branch_id').value = v.branchId || '';
+              $('cl_location').value = v.branchName || '';
+              $('cl_city').value = v.city || '';
+              $('cl_region').value = v.region || '';
+              $('cl_visit_date').value = v.date || '';
+              const d = new Date(v.date); if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
+           }
+        });
       };
 
       $('saveChecklistBtn').onclick = saveChecklist;
@@ -177,30 +196,30 @@
         let html = `<div class="field" style="margin-top:15px"><label>${esc(field.labelAr || field.label)}</label>`;
 
         if (field.label === "Training Requirement") {
-          html += `<div class="training-grid">`;
-          (field.options || []).forEach(opt => {
-            const isChecked = Array.isArray(currentAnswers[field.id]) ? currentAnswers[field.id].includes(opt.value) : currentAnswers[field.id] === opt.value;
-            html += `<div class="pill-box ${isChecked?'selected':''}" onclick="this.querySelector('input').click()"><span>${esc(opt.label)}</span><input type="checkbox" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} ${isLocked?'disabled':''} onclick="event.stopPropagation(); renderDynamicForm(collectAnswers())"></div>`;
-          });
-          html += `</div>`;
+            html += `<div class="training-grid">`;
+            (field.options || []).forEach(opt => {
+                const isChecked = Array.isArray(currentAnswers[field.id]) ? currentAnswers[field.id].includes(opt.value) : currentAnswers[field.id] === opt.value;
+                html += `<div class="pill-box ${isChecked?'selected':''}" onclick="this.querySelector('input').click()"><span>${esc(opt.label)}</span><input type="checkbox" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} ${isLocked?'disabled':''} onclick="event.stopPropagation(); renderDynamicForm(collectAnswers())"></div>`;
+            });
+            html += `</div>`;
         } 
         else if (field.repeat?.enabled) {
-          const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel);
-          const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
-          for (let i = 0; i < count; i++) {
-            const label = String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1);
-            const val = (currentAnswers[field.id] && currentAnswers[field.id][i]) || '';
-            html += `<div class="field" style="margin-top:5px;"><label>${esc(label)}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} /></div>`;
-          }
+            const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel);
+            const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
+            for (let i = 0; i < count; i++) {
+                const label = String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1);
+                const val = (currentAnswers[field.id] && currentAnswers[field.id][i]) || '';
+                html += `<div class="field" style="margin-top:5px;"><label>${esc(label)}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} /></div>`;
+            }
         } else {
-          const val = currentAnswers[field.id] || '';
-          if (field.fieldType === 'choice') {
-            html += `<select class="dyn-input" data-id="${field.id}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())"><option value="">اختر</option>`;
-            (field.options || []).forEach(o => html += `<option value="${o.value}" ${val==o.value?'selected':''}>${esc(o.label)}</option>`);
-            html += `</select>`;
-          } else {
-            html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())" />`;
-          }
+            const val = currentAnswers[field.id] || '';
+            if (field.fieldType === 'choice') {
+                html += `<select class="dyn-input" data-id="${field.id}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())"><option value="">اختر</option>`;
+                (field.options || []).forEach(o => html += `<option value="${o.value}" ${val==o.value?'selected':''}>${esc(o.label)}</option>`);
+                html += `</select>`;
+            } else {
+                html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" ${isLocked ? 'disabled' : ''} onchange="renderDynamicForm(collectAnswers())" />`;
+            }
         }
         container.innerHTML += html + `</div>`;
       });
@@ -251,30 +270,30 @@
         
         const batch = db.batch();
         for (const field of state.checklistFields) {
-          if (field.integration?.target === 'windows_upgrades') {
-            const triggerRef = resolveRef(field.integration.triggerFieldId, field.integration.triggerFieldLabel);
-            const triggerVal = triggerRef ? answers[triggerRef.id] : '';
-            
-            if (String(triggerVal).toLowerCase() === String(field.integration.triggerValue).toLowerCase()) {
-              const empIds = (Array.isArray(answers[field.id]) ? answers[field.id] : [answers[field.id]]).filter(Boolean);
-              for (const empId of empIds) {
-                const q = await db.collection("windows_upgrades").where("employee_ID", "==", String(empId).trim()).get();
-                q.forEach(doc => {
-                  batch.update(doc.ref, cleanForFirestore({
-                    status: 'completed',
-                    region: $('cl_region').value,
-                    city: $('cl_city').value,
-                    brand: $('cl_brand').value,
-                    branchId: $('cl_branch_id').value,
-                    branchName: $('cl_location').value,
-                    technician_Name: techName,
-                    sync_time: new Date().toISOString(),
-                    record_ID: editId || 'NEW_ENTRY'
-                  }));
-                });
-              }
+            if (field.integration?.target === 'windows_upgrades') {
+                const triggerRef = resolveRef(field.integration.triggerFieldId, field.integration.triggerFieldLabel);
+                const triggerVal = triggerRef ? answers[triggerRef.id] : '';
+                
+                if (String(triggerVal).toLowerCase() === String(field.integration.triggerValue).toLowerCase()) {
+                    const empIds = (Array.isArray(answers[field.id]) ? answers[field.id] : [answers[field.id]]).filter(Boolean);
+                    for (const empId of empIds) {
+                        const q = await db.collection("windows_upgrades").where("employee_ID", "==", String(empId).trim()).get();
+                        q.forEach(doc => {
+                            batch.update(doc.ref, cleanForFirestore({
+                                status: 'completed',
+                                region: $('cl_region').value,
+                                city: $('cl_city').value,
+                                brand: $('cl_brand').value,
+                                branchId: $('cl_branch_id').value,
+                                branchName: $('cl_location').value,
+                                technician_Name: techName,
+                                sync_time: new Date().toISOString(),
+                                record_ID: editId || 'NEW_ENTRY'
+                            }));
+                        });
+                    }
+                }
             }
-          }
         }
         await batch.commit();
         alert("تم الحفظ وتحديث بيانات ويندوز بنجاح!"); location.reload();
@@ -285,6 +304,8 @@
       const row = state.checklists.find(r => r.id === id);
       if (!row) return;
       $('editingChecklistId').value = row.id;
+
+      // ملء كافة الحقول الأساسية لضمان عدم اختفائها
       $('cl_technician').value = row.technicianDocId || '';
       await loadVisitsForTech(row.technicianDocId, row.visitDocId);
       $('cl_technician_email').value = row.technicianEmail || '';
@@ -295,12 +316,19 @@
       $('cl_brandKey').value = row.brandKey || '';
       $('cl_branch_id').value = row.branchId || '';
       $('cl_location').value = row.locationSite || '';
+      $('cl_visit_scheduled').value = row.visitScheduled || '';
       $('cl_visit_date').value = row.visitDate || '';
       $('cl_month').value = row.month || '';
+      $('cl_calendar_booked').value = row.calendarBooked || '';
+
       if (!state.canEdit) {
         $('saveChecklistBtn').style.display = 'none';
         $('newFormBtn').style.display = 'block';
         document.querySelectorAll('input:not(#checklistSearch), select').forEach(el => el.disabled = true);
+      } else {
+        $('saveChecklistBtn').style.display = 'block';
+        $('newFormBtn').style.display = 'none';
+        document.querySelectorAll('input, select').forEach(el => el.disabled = false);
       }
       renderDynamicForm(row.dynamicAnswers || {});
     };
