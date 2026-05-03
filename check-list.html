@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v2.3.2</title>
+  <title>Check-List Master | المجدوعي للسيارات v2.3.3</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; }
@@ -42,7 +42,7 @@
   <main class="container">
     <div id="mainLayout" class="grid-main">
       <section class="card">
-        <h3>نموذج الفحص v2.3.2 (إصلاح شامل) <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v2.3.3 (إصلاح شامل ونهائي) <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <input id="editingChecklistId" type="hidden" />
           <div class="section-title">1- بيانات الفني والزيارة</div>
@@ -68,13 +68,13 @@
           <div class="section-title">3- Dynamic Check-List</div>
           <div id="dynamicChecklistSections"></div>
           <button class="btn-save" id="saveChecklistBtn">حفظ وإرسال التقرير ✅</button>
-          <button class="btn-save" id="newFormBtn" style="background:var(--primary); display:none; margin-top:10px;" onclick="location.reload()">تقرير جديد ➕</button>
+          <button class="btn-save" id="newFormBtn" style="background:var(--primary); display:none; margin-top:10px;" onclick="location.reload()">إنشاء تقرير جديد ➕</button>
         </div>
       </section>
       <aside id="adminSidebar" class="card">
-        <h3>السجلات المحفوظة <div class="excel-tools"><button class="btn-excel btn-tool btn-download" id="exportExcelBtn">Excel 📥</button><div class="btn-tool btn-upload">رفع وتحديث 📤<input type="file" id="importExcelInput" accept=".xlsx" style="position:absolute; inset:0; opacity:0; cursor:pointer;" /></div></div></h3>
+        <h3>السجلات المحفوظة (أدمن) <div class="excel-tools"><button class="btn-excel btn-tool btn-download" id="exportExcelBtn">Excel 📥</button><div class="btn-tool btn-upload">رفع وتحديث 📤<input type="file" id="importExcelInput" accept=".xlsx" style="position:absolute; inset:0; opacity:0; cursor:pointer;" /></div></div></h3>
         <div class="card-body">
-          <input id="checklistSearch" placeholder="بحث سريع..." style="width:100%; padding:10px; border-radius:10px; border:1px solid #ddd;" />
+          <input id="checklistSearch" placeholder="بحث سريع..." style="width:100%; padding:10px; margin-bottom:12px; border-radius:10px; border:1px solid #ddd;" />
           <div class="table-wrap"><table id="mainTable"><thead><tr id="tableHeaderRow"></tr></thead><tbody id="checklistTableBody"></tbody></table></div>
         </div>
       </aside>
@@ -82,12 +82,12 @@
   </main>
   <script>
   (function(){
-    const clean = (obj) => { try { return window.parent.JSON.parse(window.parent.JSON.stringify(obj)); } catch (e) { return JSON.parse(JSON.stringify(obj)); } };
+    const clean = (obj) => { try { return JSON.parse(JSON.stringify(obj)); } catch (e) { return obj; } };
     const esc = (v) => String(v == null || v === 'undefined' ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
     var state = { checklists: [], checklistFields: [], technicians: [], userProfile: null, canEdit: false };
     const $ = (id) => document.getElementById(id);
     function resolveRef(id, lbl) { return (id && state.checklistFields.find(f => f.id === id)) || (lbl && state.checklistFields.find(f => f.label === lbl)) || null; }
-    
+
     async function checkAuth() {
       const auth = window.parent.appAuth; const db = window.parent.appDb;
       auth.onAuthStateChanged(async (user) => {
@@ -104,9 +104,10 @@
       else { $('adminSidebar').classList.remove('hidden'); $('mainLayout').classList.remove('grid-full'); $('roleBadge').innerText = "(مسؤول)"; }
     }
 
-    function renderDynamicForm(answers = {}) {
+    // --- محرك الوظائف الأساسية ---
+    window.renderDynamicForm = function(answers = {}) {
       const container = $('dynamicChecklistSections'); container.innerHTML = '';
-      const currentAnswers = Object.keys(answers).length ? answers : collectAnswers();
+      const currentAnswers = Object.keys(answers).length ? answers : window.collectAnswers();
       state.checklistFields.forEach(field => {
         if (field.logic?.enabled && field.logic?.visibleWhen) { 
           const rule = field.logic.visibleWhen; const src = resolveRef(rule.fieldId, rule.fieldLabel); 
@@ -118,42 +119,30 @@
           const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel); const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
           for (let i = 0; i < count; i++) { html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i]||'')}" /></div>`; }
         } else if (field.fieldType === 'choice' && (field.renderMode === 'checkboxes' || field.renderMode === 'radios')) {
-          html += `<div class="choices-grid">`; (field.options || []).forEach(opt => { const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onclick="event.stopPropagation(); renderDynamicForm(collectAnswers());"></div>`; }); html += `</div>`;
+          html += `<div class="choices-grid">`; (field.options || []).forEach(opt => { const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onclick="event.stopPropagation(); window.renderDynamicForm(window.collectAnswers());"></div>`; }); html += `</div>`;
         } else {
-          if (field.fieldType === 'choice') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicForm(collectAnswers())"><option value="">اختر</option>${(field.options||[]).map(o=>`<option value="${o.value}" ${val==o.value?'selected':''}>${o.label}</option>`).join('')}</select>`;
-          else html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicForm(collectAnswers())" />`;
+          if (field.fieldType === 'choice') html += `<select class="dyn-input" data-id="${field.id}" onchange="window.renderDynamicForm(window.collectAnswers())"><option value="">اختر</option>${(field.options||[]).map(o=>`<option value="${o.value}" ${val==o.value?'selected':''}>${o.label}</option>`).join('')}</select>`;
+          else html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="window.renderDynamicForm(window.collectAnswers())" />`;
         }
         container.innerHTML += html + `</div>`;
       });
-    }
+    };
 
-    function collectAnswers() {
+    window.collectAnswers = function() {
       const ans = {}; document.querySelectorAll('.dyn-input').forEach(el => {
         const id = el.dataset.id; if (el.type === 'checkbox') { if(!ans[id]) ans[id]=[]; if(el.checked) ans[id].push(el.value); } 
         else if (el.type === 'radio') { if(el.checked) ans[id] = el.value; } 
         else if (el.dataset.index !== undefined) { if(!ans[id]) ans[id]=[]; ans[id][el.dataset.index] = el.value; } else ans[id] = el.value;
       }); return ans;
-    }
+    };
 
-    async function saveChecklist() {
-      const db = window.parent.appDb; const answers = collectAnswers(); const techDropdown = $('cl_technician');
+    window.saveChecklist = async function() {
+      const db = window.parent.appDb; const answers = window.collectAnswers(); const techDropdown = $('cl_technician');
       const payload = { technicianDocId: techDropdown.value, technicianName: techDropdown.options[techDropdown.selectedIndex].text, technicianEmail: $('cl_technician_email').value, technicianAuthId: $('cl_technician_id').value, visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, brandKey: $('cl_brandKey').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, dynamicAnswers: answers, createdAt: new Date().toISOString() };
-      try { 
-        const id = $('editingChecklistId').value; 
-        if (id) await db.collection('branch_checklists').doc(id).update(clean(payload)); else await db.collection('branch_checklists').add(clean(payload)); 
-        alert("تم الحفظ بنجاح!"); location.reload(); 
-      } catch (e) { alert("خطأ: " + e.message); }
-    }
+      try { const id = $('editingChecklistId').value; if (id) await db.collection('branch_checklists').doc(id).update(clean(payload)); else await db.collection('branch_checklists').add(clean(payload)); alert("تم الحفظ بنجاح!"); location.reload(); } catch (e) { alert("خطأ: " + e.message); }
+    };
 
-    function exportToExcel() {
-      const data = state.checklists.map(r => {
-        const row = { "ID": r.id, "تاريخ الزيارة": r.visitDate, "الفني": r.technicianName, "Brand": r.brand, "Branch ID": r.branchId, "Location/Site": r.locationSite, "مدير الفرع": r.branchManager };
-        state.checklistFields.forEach(f => { const a = r.dynamicAnswers?.[f.id]; row[f.labelAr || f.label] = Array.isArray(a) ? a.join(', ') : a; });
-        return row;
-      });
-      const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reports"); XLSX.writeFile(wb, "Full_Checklist_Report.xlsx");
-    }
-
+    // --- وظائف الإكسيل والجدول ---
     async function handleImport(e) {
       const file = e.target.files[0]; if (!file) return;
       const reader = new FileReader();
@@ -171,6 +160,15 @@
         alert(`تم تحديث ${count} سجل!`); location.reload();
       };
       reader.readAsArrayBuffer(file);
+    }
+
+    function exportToExcel() {
+      const data = state.checklists.map(r => {
+        const row = { "ID": r.id, "تاريخ الزيارة": r.visitDate, "الفني": r.technicianName, "Brand": r.brand, "Branch ID": r.branchId, "Location/Site": r.locationSite, "مدير الفرع": r.branchManager };
+        state.checklistFields.forEach(f => { const a = r.dynamicAnswers?.[f.id]; row[f.labelAr || f.label] = Array.isArray(a) ? a.join(', ') : a; });
+        return row;
+      });
+      const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reports"); XLSX.writeFile(wb, "Full_Checklist_Report.xlsx");
     }
 
     function updateTableHeaders() {
@@ -202,7 +200,7 @@
       await loadVisitsForTech(r.technicianDocId, r.visitDocId);
       const m = { technicianEmail:'cl_technician_email', technicianId:'cl_technician_id', city:'cl_city', region:'cl_region', brand:'cl_brand', brandKey:'cl_brandKey', branchId:'cl_branch_id', locationSite:'cl_location', visitDate:'cl_visit_date', month:'cl_month', branchManager:'cl_branch_manager', visitScheduled:'cl_visit_scheduled' };
       Object.keys(m).forEach(k => { if($(m[k])) $(m[k]).value = r[k] || ''; });
-      renderDynamicForm(r.dynamicAnswers || {});
+      window.renderDynamicForm(r.dynamicAnswers || {});
     };
 
     async function boot() {
@@ -211,11 +209,11 @@
       db.collection('technicians').onSnapshot(snap => { state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()})); $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join(''); });
       db.collection('checklist_fields').onSnapshot(snap => { 
         state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0)); 
-        renderDynamicForm(); if(state.canEdit) { updateTableHeaders(); renderTable(); } 
+        window.renderDynamicForm(); if(state.canEdit) { updateTableHeaders(); renderTable(); } 
       });
       $('exportExcelBtn').onclick = exportToExcel;
       $('importExcelInput').onchange = handleImport;
-      $('saveChecklistBtn').onclick = saveChecklist;
+      $('saveChecklistBtn').onclick = window.saveChecklist;
     }
     checkAuth();
   })();
