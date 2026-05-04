@@ -29,6 +29,7 @@
     </header>
 
     <nav class="tab-bar" id="mainTabsBox"></nav>
+    <nav class="tab-bar" id="subTabsBox"></nav>
     
     <main class="main-container">
         <div id="viewFrameBox"><iframe id="contentFrame"></iframe></div>
@@ -43,14 +44,40 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth(); const db = firebase.firestore();
 
-        // تعريف الصفحات والروابط المرتبطة بها
-        const masterRegistry = {
-            'diagnostics': { name: 'Diagnostics', file: 'Diagnostics.html' },
-            'dashboard': { name: 'Dashboard', file: 'dashboard.html' },
-            'checklist': { name: 'Checklist', file: 'check-list.html' },
-            'permissions': { name: 'Permissions', file: 'MasterPermissions.html' },
-            'visit': { name: 'Visits Entry', file: 'visits.html' }
+        // تعريف التبويبات الرئيسية والفرعية حسب الهيكل المطلوب
+        const navigationConfig = {
+            diagnostics: {
+                name: 'Diagnostics',
+                tabs: [{ key: 'diag', name: 'Diagnostics', file: 'Diagnostics.html' }]
+            },
+            schedule: {
+                name: 'Schedule',
+                tabs: [
+                    { key: 'schedule_dashboard', name: '📊 Dashboard', file: 'dashboard-plan-Vacation.html' },
+                    { key: 'schedule_weekly', name: '🗓️ Schedule', file: 'Weekly-Schedule.html' },
+                    { key: 'schedule_employee', name: '👥 employee', file: 'employee-Schedule.html' },
+                    { key: 'schedule_leave', name: 'Annual-Leave', file: 'Annual-Leave.html' },
+                    { key: 'schedule_vacation', name: '🗒️ plan-Vacation', file: 'plan-Vacation.html' },
+                    { key: 'schedule_shift', name: '🧭 Shift-Settings', file: 'Shift-Settings.html' }
+                ]
+            },
+            site_visit: {
+                name: 'Site-Visit',
+                tabs: [
+                    { key: 'visit_dashboard', name: 'Dashboard', file: 'dashboard.html' },
+                    { key: 'visit_checklist', name: 'Checklist', file: 'check-list.html' },
+                    { key: 'visit_assets', name: 'Full Device Management', file: 'all-devices.html' },
+                    { key: 'visit_upgrade', name: 'Upgrade Windows', file: 'upgrade-windows.html' },
+                    { key: 'visit_checklist_admin', name: 'Checklist Admin', file: 'dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html' },
+                    { key: 'visit_reports', name: 'Reports windows', file: 'windows-report.html' }
+                ]
+            },
+            permissions: {
+                name: 'Permissions',
+                tabs: [{ key: 'perm', name: 'Permissions', file: 'MasterPermissions.html' }]
+            }
         };
+        let allowedMainTabs = [];
 
         auth.onAuthStateChanged(async (user) => {
             if (user) {
@@ -63,40 +90,79 @@
                     document.getElementById('uDisplay').innerHTML = `User: <b>${userData.name}</b> ${adminLabel}`;
                     
                     let landingPage = "Diagnostics.html";
-                    let visibleTabs = [];
 
                     // --- منطق التوجيه الفائق للمسؤول ---
                     if (role === 'admin') {
-                        visibleTabs = Object.keys(masterRegistry); 
-                        landingPage = "MasterPermissions.html"; // الصفحة الافتراضية للأدمن لضمان السيطرة
+                        allowedMainTabs = Object.keys(navigationConfig);
+                        landingPage = "MasterPermissions.html";
                     } else {
-                        visibleTabs = userData.permissions_site_visit || [];
-                        if (visibleTabs.length > 0) landingPage = masterRegistry[visibleTabs[0]]?.file || "Diagnostics.html";
+                        // توافق مع الصلاحيات القديمة + الجديدة
+                        const rawPerms = userData.permissions_main_tabs || userData.permissions_site_visit || [];
+                        const mapped = rawPerms.map(p => String(p || '').toLowerCase());
+                        const legacyMap = {
+                            diagnostics: 'diagnostics',
+                            dashboard: 'site_visit',
+                            checklist: 'site_visit',
+                            visit: 'site_visit',
+                            permissions: 'permissions',
+                            schedule: 'schedule',
+                            site_visit: 'site_visit'
+                        };
+                        allowedMainTabs = [...new Set(mapped.map(x => legacyMap[x]).filter(Boolean))];
+                        if (allowedMainTabs.length === 0) allowedMainTabs = ['diagnostics'];
                     }
-
-                    document.getElementById('contentFrame').src = landingPage;
-                    renderTabs(visibleTabs);
+                    renderMainTabs(allowedMainTabs);
+                    if (role === 'admin') {
+                        openMainTab('permissions');
+                    } else {
+                        openMainTab(allowedMainTabs[0] || 'diagnostics');
+                    }
                 }
             } else { window.location.replace("login.html"); }
         });
 
-        function renderTabs(keys) {
-            const box = document.getElementById('mainTabsBox');
-            box.innerHTML = '';
+        function renderMainTabs(keys) {
+            const mainBox = document.getElementById('mainTabsBox');
+            mainBox.innerHTML = '';
             keys.forEach(key => {
-                if (masterRegistry[key]) {
-                    const btn = document.createElement('button');
-                    btn.className = 'tab-btn';
-                    btn.innerHTML = masterRegistry[key].name;
-                    btn.onclick = () => {
-                        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                        document.getElementById('contentFrame').src = masterRegistry[key].file;
-                    };
-                    box.appendChild(btn);
-                }
+                const section = navigationConfig[key];
+                if (!section) return;
+                const btn = document.createElement('button');
+                btn.className = 'tab-btn main-tab';
+                btn.textContent = section.name;
+                btn.onclick = () => openMainTab(key);
+                mainBox.appendChild(btn);
             });
-            if(box.firstChild) box.firstChild.classList.add('active');
+        }
+
+        function openMainTab(mainKey) {
+            if (!allowedMainTabs.includes(mainKey)) return;
+            document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
+            const targetBtn = [...document.querySelectorAll('.main-tab')].find(b => b.textContent === navigationConfig[mainKey].name);
+            if (targetBtn) targetBtn.classList.add('active');
+            renderSubTabs(mainKey);
+        }
+
+        function renderSubTabs(mainKey) {
+            const subBox = document.getElementById('subTabsBox');
+            subBox.innerHTML = '';
+            const section = navigationConfig[mainKey];
+            if (!section) return;
+
+            section.tabs.forEach((tab, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'tab-btn sub-tab';
+                btn.textContent = tab.name;
+                btn.onclick = () => openSubTab(tab.file, btn);
+                subBox.appendChild(btn);
+                if (idx === 0) openSubTab(tab.file, btn);
+            });
+        }
+
+        function openSubTab(file, btn) {
+            document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            document.getElementById('contentFrame').src = file;
         }
 
         async function handleLogout() {
