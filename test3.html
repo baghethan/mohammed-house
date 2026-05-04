@@ -44,8 +44,9 @@
         firebase.initializeApp(firebaseConfig);
         var auth = firebase.auth(); var db = firebase.firestore();
 
+codex-gtwqmt
         // تعريف التبويبات الرئيسية والفرعية حسب الهيكل المطلوب
-        var navigationConfig = {
+        const navigationConfig = {
             diagnostics: {
                 name: 'Diagnostics',
                 tabs: [{ key: 'diag', name: 'Diagnostics', file: 'Diagnostics.html' }]
@@ -76,8 +77,16 @@
                 name: 'Permissions',
                 tabs: [{ key: 'perm', name: 'Permissions', file: 'MasterPermissions.html' }]
             }
+        // تعريف الصفحات والروابط المرتبطة بها
+        const masterRegistry = {
+            'diagnostics': { name: 'Diagnostics', file: 'Diagnostics.html' },
+            'dashboard': { name: 'Dashboard', file: 'dashboard.html' },
+            'checklist': { name: 'Checklist', file: 'check-list.html' },
+            'permissions': { name: 'Permissions', file: 'MasterPermissions.html' },
+            'visit': { name: 'Visits Entry', file: 'visits.html' }
+main
         };
-        var allowedMainTabs = [];
+        let allowedMainTabs = [];
 
         auth.onAuthStateChanged(async function (user) {
             if (user) {
@@ -89,7 +98,7 @@
                     var adminLabel = role === 'admin' ? '<span class="admin-badge">ADMIN</span>' : '';
                     document.getElementById('uDisplay').innerHTML = `User: <b>${userData.name}</b> ${adminLabel}`;
                     
-                    var landingPage = "Diagnostics.html";
+                    let landingPage = "Diagnostics.html";
 
                     // --- منطق التوجيه الفائق للمسؤول ---
                     if (role === 'admin') {
@@ -97,9 +106,9 @@
                         landingPage = "MasterPermissions.html";
                     } else {
                         // توافق مع الصلاحيات القديمة + الجديدة
-                        var rawPerms = userData.permissions_main_tabs || userData.permissions_site_visit || [];
-                        var mapped = rawPerms.map(function (p) { return String(p || '').toLowerCase(); });
-                        var legacyMap = {
+                        const rawPerms = userData.permissions_main_tabs || userData.permissions_site_visit || [];
+                        const mapped = rawPerms.map(p => String(p || '').toLowerCase());
+                        const legacyMap = {
                             diagnostics: 'diagnostics',
                             dashboard: 'site_visit',
                             checklist: 'site_visit',
@@ -108,7 +117,7 @@
                             schedule: 'schedule',
                             site_visit: 'site_visit'
                         };
-                        allowedMainTabs = Array.from(new Set(mapped.map(function (x) { return legacyMap[x]; }).filter(Boolean)));
+                        allowedMainTabs = [...new Set(mapped.map(x => legacyMap[x]).filter(Boolean))];
                         if (allowedMainTabs.length === 0) allowedMainTabs = ['diagnostics'];
                     }
                     renderMainTabs(allowedMainTabs);
@@ -122,48 +131,45 @@
         });
 
         function renderMainTabs(keys) {
-            var mainBox = document.getElementById('mainTabsBox');
+            const mainBox = document.getElementById('mainTabsBox');
             mainBox.innerHTML = '';
-            keys.forEach(function (key) {
-                var section = navigationConfig[key];
+            keys.forEach(key => {
+                const section = navigationConfig[key];
                 if (!section) return;
-                var btn = document.createElement('button');
+                const btn = document.createElement('button');
                 btn.className = 'tab-btn main-tab';
                 btn.textContent = section.name;
-                btn.onclick = function () { openMainTab(key); };
+                btn.onclick = () => openMainTab(key);
                 mainBox.appendChild(btn);
             });
         }
 
         function openMainTab(mainKey) {
             if (!allowedMainTabs.includes(mainKey)) return;
-            Array.prototype.forEach.call(document.querySelectorAll('.main-tab'), function (b) { b.classList.remove('active'); });
-            var targetBtn = null;
-            Array.prototype.forEach.call(document.querySelectorAll('.main-tab'), function (b) {
-                if (!targetBtn && b.textContent === navigationConfig[mainKey].name) targetBtn = b;
-            });
+            document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
+            const targetBtn = [...document.querySelectorAll('.main-tab')].find(b => b.textContent === navigationConfig[mainKey].name);
             if (targetBtn) targetBtn.classList.add('active');
             renderSubTabs(mainKey);
         }
 
         function renderSubTabs(mainKey) {
-            var subBox = document.getElementById('subTabsBox');
+            const subBox = document.getElementById('subTabsBox');
             subBox.innerHTML = '';
-            var section = navigationConfig[mainKey];
+            const section = navigationConfig[mainKey];
             if (!section) return;
 
-            section.tabs.forEach(function (tab, idx) {
-                var btn = document.createElement('button');
+            section.tabs.forEach((tab, idx) => {
+                const btn = document.createElement('button');
                 btn.className = 'tab-btn sub-tab';
                 btn.textContent = tab.name;
-                btn.onclick = function () { openSubTab(tab.file, btn); };
+                btn.onclick = () => openSubTab(tab.file, btn);
                 subBox.appendChild(btn);
                 if (idx === 0) openSubTab(tab.file, btn);
             });
         }
 
         function openSubTab(file, btn) {
-            Array.prototype.forEach.call(document.querySelectorAll('.sub-tab'), function (b) { b.classList.remove('active'); });
+            document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
             if (btn) btn.classList.add('active');
             document.getElementById('contentFrame').src = file;
         }
