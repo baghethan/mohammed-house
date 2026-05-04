@@ -1,705 +1,452 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Unified Security & Permissions Management</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Check-List Master | المجدوعي للسيارات v3.1.8</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
-    :root {
-      --primary: #123c69;
-      --primary-strong: #0d2149;
-      --accent: #2f6f8f;
-      --success: #15803d;
-      --danger: #b91c1c;
-      --ink: #0f172a;
-      --muted: #64748b;
-      --line: #dbe4ef;
-      --soft-line: #edf2f7;
-      --surface: #ffffff;
-      --surface-soft: #f7f9fc;
-      --page: #eef3f8;
-      --shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
-      color: var(--ink);
-      background: linear-gradient(180deg, #eef3f8 0%, #f8fafc 42%, #f8fafc 100%);
-    }
-
-    .permissions-shell {
-      max-width: 1220px;
-      margin: 0 auto;
-      padding: 24px;
-    }
-
-    .page-top {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 18px;
-      margin-bottom: 16px;
-    }
-
-    .eyebrow {
-      margin: 0 0 5px;
-      color: var(--accent);
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    h1 {
-      margin: 0;
-      color: var(--primary-strong);
-      font-size: 26px;
-      line-height: 1.15;
-      letter-spacing: 0;
-    }
-
-    .version-pill {
-      display: inline-flex;
-      align-items: center;
-      min-height: 32px;
-      padding: 7px 12px;
-      border: 1px solid #c7d7e8;
-      border-radius: 999px;
-      background: #ffffff;
-      color: var(--primary);
-      font-size: 12px;
-      font-weight: 800;
-      white-space: nowrap;
-      box-shadow: 0 8px 22px rgba(18, 60, 105, 0.08);
-    }
-
-    .workspace {
-      display: grid;
-      gap: 16px;
-    }
-
-    .surface {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-    }
-
-    .editor {
-      padding: 18px;
-    }
-
-    .section-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      margin-bottom: 14px;
-    }
-
-    .section-bar h2,
-    .panel-title h2,
-    .table-title h2 {
-      margin: 0;
-      color: var(--primary-strong);
-      font-size: 15px;
-      line-height: 1.3;
-      letter-spacing: 0;
-    }
-
-    .selected-hint {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .field-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-      padding: 14px;
-      border: 1px solid var(--soft-line);
-      border-radius: 8px;
-      background: var(--surface-soft);
-    }
-
-    .field {
-      min-width: 0;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 6px;
-      color: #274260;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    input,
-    select {
-      width: 100%;
-      min-height: 40px;
-      padding: 9px 11px;
-      border: 1px solid #cbd8e6;
-      border-radius: 7px;
-      background: #ffffff;
-      color: var(--ink);
-      font-size: 13px;
-      outline: none;
-      transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
-    }
-
-    input:focus,
-    select:focus {
-      border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13);
-    }
-
-    input[readonly] {
-      background: #edf2f7;
-      color: #475569;
-      cursor: not-allowed;
-    }
-
-    .mono-input,
-    .uid-cell {
-      font-family: Consolas, "SFMono-Regular", monospace;
-      font-size: 11px;
-    }
-
-    .toggle-field {
-      height: 100%;
-      min-height: 66px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 0;
-      padding: 22px 12px 0;
-      border-radius: 7px;
-      color: var(--primary-strong);
-      letter-spacing: 0;
-      text-transform: none;
-      background: #ffffff;
-      border: 1px solid #d9e4ef;
-    }
-
-    .toggle-field input {
-      width: 18px;
-      min-height: 18px;
-      height: 18px;
-      padding: 0;
-      accent-color: var(--primary);
-    }
-
-    .permission-layout {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 16px;
-    }
-
-    .permission-panel {
-      overflow: hidden;
-    }
-
-    .panel-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 14px 14px 12px;
-      border-bottom: 1px solid var(--soft-line);
-      background: #fbfdff;
-    }
-
-    .action-group {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
-    .btn-mini,
-    .save-btn {
-      border: 0;
-      cursor: pointer;
-      font-family: inherit;
-      font-weight: 800;
-      transition: transform 0.14s ease, background 0.14s ease, box-shadow 0.14s ease;
-    }
-
-    .btn-mini {
-      min-height: 30px;
-      padding: 6px 10px;
-      border: 1px solid #cbd8e6;
-      border-radius: 7px;
-      background: #ffffff;
-      color: var(--primary);
-      font-size: 11px;
-    }
-
-    .btn-mini:hover {
-      background: #eef5fb;
-      border-color: #a8bfd7;
-    }
-
-    .check-list {
-      display: grid;
-      gap: 8px;
-      padding: 14px;
-      background: #ffffff;
-    }
-
-    .check-item {
-      display: grid;
-      grid-template-columns: 22px 1fr;
-      align-items: center;
-      min-height: 42px;
-      margin: 0;
-      padding: 9px 11px;
-      border: 1px solid #e8eef5;
-      border-radius: 7px;
-      background: #f8fafc;
-      color: var(--ink);
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0;
-      text-transform: none;
-      cursor: pointer;
-      transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
-    }
-
-    .check-item:hover {
-      border-color: #a8bfd7;
-      background: #f1f7fc;
-    }
-
-    .check-item input {
-      width: 16px;
-      min-height: 16px;
-      height: 16px;
-      padding: 0;
-      accent-color: var(--primary);
-    }
-
-    .save-row {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-    }
-
-    .save-btn {
-      min-height: 44px;
-      min-width: 230px;
-      padding: 12px 18px;
-      border-radius: 8px;
-      background: var(--primary-strong);
-      color: #ffffff;
-      font-size: 13px;
-      box-shadow: 0 12px 24px rgba(13, 33, 73, 0.18);
-    }
-
-    .save-btn:hover {
-      background: var(--primary);
-      transform: translateY(-1px);
-      box-shadow: 0 16px 30px rgba(13, 33, 73, 0.24);
-    }
-
-    .save-btn:disabled {
-      opacity: 0.72;
-      cursor: wait;
-      transform: none;
-    }
-
-    .table-section {
-      overflow: hidden;
-    }
-
-    .table-title {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 14px;
-      border-bottom: 1px solid var(--soft-line);
-      background: #fbfdff;
-    }
-
-    .user-count {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .table-wrap {
-      overflow-x: auto;
-      max-height: 360px;
-    }
-
-    table {
-      width: 100%;
-      min-width: 840px;
-      border-collapse: collapse;
-    }
-
-    th {
-      position: sticky;
-      top: 0;
-      z-index: 1;
-      padding: 12px 14px;
-      background: #f6f9fc;
-      color: #54677e;
-      border-bottom: 1px solid var(--line);
-      text-align: left;
-      font-size: 11px;
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    td {
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--soft-line);
-      color: #162033;
-      font-size: 13px;
-      vertical-align: middle;
-    }
-
-    tbody tr {
-      cursor: pointer;
-      transition: background 0.12s ease;
-    }
-
-    tbody tr:hover {
-      background: #f4f8fc;
-    }
-
-    tbody tr.selected {
-      background: #edf6ff;
-      box-shadow: inset 3px 0 0 var(--primary);
-    }
-
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      min-height: 24px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 900;
-    }
-
-    .status-pill.is-active {
-      color: #0f5132;
-      background: #dcfce7;
-    }
-
-    .status-pill.is-inactive {
-      color: #7f1d1d;
-      background: #fee2e2;
-    }
-
-    .empty-state {
-      color: var(--muted);
-      text-align: center;
-      padding: 22px;
-      cursor: default;
-    }
-
-    @media (max-width: 900px) {
-      .permissions-shell {
-        padding: 16px;
-      }
-
-      .page-top,
-      .section-bar,
-      .table-title {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      .field-grid,
-      .permission-layout {
-        grid-template-columns: 1fr;
-      }
-
-      .save-row {
-        justify-content: stretch;
-      }
-
-      .save-btn {
-        width: 100%;
-      }
-    }
+    :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: var(--bg); color: #163247; font-size: 13px; }
+    .container { max-width: 98%; margin: 15px auto; padding-bottom: 30px; }
+    .grid-main { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 15px; transition: 0.3s; }
+    .grid-full { grid-template-columns: 1fr; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 25px rgba(18,48,74,0.06); overflow: hidden; }
+    .card h3 { margin: 0; padding: 12px 16px; background: var(--primary); color: #fff; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+    .card-body { padding: 20px; }
+    .section-title { margin: 15px 0 10px; font-weight: 800; color: var(--primary); border-inline-start: 4px solid var(--primary); padding: 5px 12px; background: #f8fbff; font-size: 13px; }
+    .grid-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .field { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+    .field label { font-size: 11px; font-weight: 700; color: #475569; }
+    .field input, .field select { padding: 10px; border: 1px solid var(--border); border-radius: 9px; font-size: 12px; outline: none; background: #fbfcfe; }
+    .field input[readonly] { background: #f1f5f9; cursor: not-allowed; }
+    .excel-tools { display: flex; gap: 8px; }
+    .btn-tool { padding: 6px 12px; border-radius: 7px; font-size: 10px; font-weight: 700; cursor: pointer; border: 1px solid transparent; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
+    .btn-download { background: #fff; color: var(--green); border-color: var(--green); }
+    .btn-upload { background: #fff; color: var(--primary); border-color: var(--primary); position: relative; overflow: hidden; }
+    .btn-save { background: var(--green); color: #fff; border: none; padding: 16px; border-radius: 35px; font-weight: 800; width: 100%; font-size: 15px; margin-top: 30px; cursor: pointer; box-shadow: 0 5px 15px rgba(47,158,102,0.25); }
+    .choices-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .pill-box { border: 1px solid #d1d9e6; border-radius: 40px; padding: 7px 18px; display: flex; align-items: center; gap: 12px; background: #fff; cursor: pointer; font-size: 11px; transition: 0.2s; min-width: 150px; }
+    .pill-box.selected { border-color: var(--primary); background: #eef6ff; font-weight: 700; }
+    .pill-box input { width: 16px; height: 16px; accent-color: var(--primary); }
+    .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 14px; max-height: 800px; background: #fff; }
+    table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+    th, td { padding: 14px; border-bottom: 1px solid #edf2f7; text-align: start; font-size: 11px; }
+    th { background: #f8fbff; color: var(--primary); position: sticky; top: 0; z-index: 10; font-weight: 800; }
+    tr.clickable { cursor: pointer; transition: 0.2s; }
+    tr.clickable:hover { background: #f1f7fd; }
+    .notice { margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; border: 1px solid #c7d7e8; background: #f8fbff; color: #0d4b73; font-weight: 800; }
+    .notice.warn { border-color: #fdba74; background: #fff7ed; color: #9a3412; }
+    .notice.ok { border-color: #86efac; background: #ecfdf5; color: #166534; }
+    select:disabled, input:disabled, button:disabled { opacity: 0.68; cursor: not-allowed; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
-  <main class="permissions-shell">
-    <header class="page-top">
-      <div>
-        <p class="eyebrow">MMC IT Service Delivery</p>
-        <h1>Unified Security & Permissions</h1>
-      </div>
-      <span class="version-pill">v3.3.3</span>
-    </header>
-
-    <div class="workspace">
-      <section class="surface editor">
-        <div class="section-bar">
-          <h2>User Access Profile</h2>
-          <span class="selected-hint" id="selectedHint">No user selected</span>
-        </div>
-
-        <div class="field-grid">
-          <div class="field">
-            <label for="uName">Full Name</label>
-            <input id="uName" type="text" readonly>
+  <main class="container">
+    <div id="mainLayout" class="grid-main">
+      <section class="card">
+        <h3>نموذج الفحص v3.1.8 (Native Object Sync) <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <div class="card-body">
+          <div id="technicianNotice" class="notice hidden"></div>
+          <input id="editingChecklistId" type="hidden" />
+          <div class="section-title">1- بيانات الفني والزيارة</div>
+          <div class="grid-fields">
+            <div class="field"><label>الفني *</label><select id="cl_technician"></select></div>
+            <div class="field"><label>الزيارة المرتبطة *</label><select id="cl_visit_ref"><option value="">اختر الفني أولاً</option></select></div>
+            <div class="field"><label>البريد الإلكتروني</label><input id="cl_technician_email" readonly /></div>
+            <div class="field"><label>معرف الفني</label><input id="cl_technician_id" readonly /></div>
+            <div class="field"><label>المدينة</label><input id="cl_city" readonly /></div>
+            <div class="field"><label>المنطقة</label><input id="cl_region" readonly /></div>
           </div>
-          <div class="field">
-            <label for="uEmail">Email Address</label>
-            <input id="uEmail" type="text" readonly>
+          <div class="section-title">2- Basic Information</div>
+          <div class="grid-fields">
+            <div class="field"><label>Brand</label><input id="cl_brand" readonly /></div>
+            <div class="field"><label>Brand Key</label><input id="cl_brandKey" /></div>
+            <div class="field"><label>Branch ID</label><input id="cl_branch_id" readonly /></div>
+            <div class="field"><label>Location/Site</label><input id="cl_location" readonly /></div>
+            <div class="field"><label>مدير الفرع</label><input id="cl_branch_manager" placeholder="ID / Name" /></div>
+            <div class="field"><label>Visit Scheduled</label><select id="cl_visit_scheduled"><option value="">اختر</option><option value="yes">Yes</option><option value="no">No</option></select></div>
+            <div class="field"><label>Visit Date</label><input id="cl_visit_date" type="date" /></div>
+            <div class="field"><label>Month</label><input id="cl_month" readonly /></div>
           </div>
-          <div class="field">
-            <label for="uId">System UID</label>
-            <input id="uId" class="mono-input" type="text" readonly>
-          </div>
-          <div class="field">
-            <label for="uTechId">Technician ID / Code</label>
-            <input id="uTechId" type="text" placeholder="e.g. 71988">
-          </div>
-          <div class="field">
-            <label for="uRole">Assigned Role</label>
-            <select id="uRole">
-              <option value="technician">Technician</option>
-              <option value="supervisor">Supervisor</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          <label class="toggle-field" for="uActive">
-            <input type="checkbox" id="uActive">
-            <span>Account active status</span>
-          </label>
+          <div class="section-title">3- Dynamic Check-List</div>
+          <div id="dynamicChecklistSections"></div>
+          <button class="btn-save" id="saveChecklistBtn">حفظ وإرسال التقرير ✅</button>
+          <button class="btn-save" id="newFormBtn" style="background:var(--primary); display:none; margin-top:10px;" onclick="location.reload()">إنشاء تقرير جديد ➕</button>
         </div>
       </section>
 
-      <section class="permission-layout">
-        <div class="surface permission-panel">
-          <div class="panel-title">
-            <h2>Schedule Pages</h2>
-            <div class="action-group">
-              <button class="btn-mini" onclick="selAll('sch-c', true)">Select All</button>
-              <button class="btn-mini" onclick="selAll('sch-c', false)">Clear</button>
-            </div>
-          </div>
-          <div id="schGrid" class="check-list"></div>
+      <aside id="adminSidebar" class="card">
+        <h3>السجلات المحفوظة <div class="excel-tools"><button class="btn-excel btn-tool btn-download" id="exportExcelBtn">Excel 📥</button><div class="btn-tool btn-upload">رفع وتحديث 📤<input type="file" id="importExcelInput" accept=".xlsx" style="position:absolute; inset:0; opacity:0; cursor:pointer;" /></div></div></h3>
+        <div class="card-body">
+          <input id="checklistSearch" placeholder="بحث سريع..." style="width:100%; padding:10px; margin-bottom:12px; border-radius:10px; border:1px solid #ddd;" />
+          <div class="table-wrap"><table id="mainTable"><thead><tr id="tableHeaderRow"></tr></thead><tbody id="checklistTableBody"></tbody></table></div>
         </div>
-
-        <div class="surface permission-panel">
-          <div class="panel-title">
-            <h2>Site-Visit Pages</h2>
-            <div class="action-group">
-              <button class="btn-mini" onclick="selAll('sv-c', true)">Select All</button>
-              <button class="btn-mini" onclick="selAll('sv-c', false)">Clear</button>
-            </div>
-          </div>
-          <div id="svGrid" class="check-list"></div>
-        </div>
-      </section>
-
-      <div class="save-row">
-        <button class="save-btn" id="saveBtn">Deploy Security Policies</button>
-      </div>
-
-      <section class="surface table-section">
-        <div class="table-title">
-          <h2>Users</h2>
-          <span class="user-count" id="userCount">Connecting</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Tech ID</th>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>UID</th>
-              </tr>
-            </thead>
-            <tbody id="userList">
-              <tr><td colspan="5" class="empty-state">Connecting to system...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+      </aside>
     </div>
   </main>
 
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getFirestore, doc, setDoc, getDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
-    const config = {
-      apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
-      authDomain: "baghethan-ba325.firebaseapp.com",
-      projectId: "baghethan-ba325"
-    };
-
-    const app = initializeApp(config);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-
-    const SCH = {
-      dashboard: "Dashboard",
-      schedule: "Schedule",
-      employees: "Employees",
-      annual: "Annual Leave",
-      planning: "Plan-Vacation",
-      settings: "Shift Settings"
-    };
-
-    const SV = {
-      dashboard: "Dashboard",
-      checklist: "Check-List",
-      brands: "Brands",
-      upgrade: "Upgrade Windows",
-      visit: "Visits Entry",
-      branches: "Branches",
-      checklist_admin: "Checklist Admin",
-      reports: "Reports windows",
-      permissions: "Permissions"
-    };
-
-    const userList = document.getElementById('userList');
-    const userCount = document.getElementById('userCount');
-    const selectedHint = document.getElementById('selectedHint');
-    const saveBtn = document.getElementById('saveBtn');
-
-    document.getElementById('schGrid').innerHTML = renderPermissionItems(SCH, 'sch-c');
-    document.getElementById('svGrid').innerHTML = renderPermissionItems(SV, 'sv-c');
-
-    window.selAll = (cls, state) => {
-      document.querySelectorAll('.' + cls).forEach(input => input.checked = state);
-    };
-
-    function renderPermissionItems(items, cls) {
-      return Object.keys(items)
-        .map(key => `<label class="check-item"><input type="checkbox" class="${cls}" data-id="${key}"><span>${escapeHtml(items[key])}</span></label>`)
-        .join('');
-    }
-
-    function escapeHtml(value) {
-      return String(value ?? '').replace(/[&<>"']/g, char => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-      }[char]));
-    }
-
-    async function loadTable() {
-      try {
-        const snap = await getDocs(collection(db, 'app_users'));
-        userCount.textContent = `${snap.size} users`;
-
-        if (snap.empty) {
-          userList.innerHTML = `<tr><td colspan="5" class="empty-state">No users found.</td></tr>`;
-          return;
+  <script>
+  (function(){
+    // الحل النهائي: بناء الكائن باستخدام الـ Constructor الخاص بالنافذة الأم مباشرة
+    const nativeClean = (data) => {
+      if (data === null || typeof data !== 'object') return data;
+      if (Array.isArray(data)) return window.parent.Array.from(data.map(nativeClean));
+      const obj = new window.parent.Object();
+      for (const key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+          obj[key] = nativeClean(data[key]);
         }
+      }
+      return obj;
+    };
 
-        userList.innerHTML = snap.docs.map(documentSnapshot => {
-          const user = documentSnapshot.data();
-          const active = user.active !== false;
+    const esc = (v) => String(v == null || v === 'undefined' ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+    var state = { checklists: [], checklistFields: [], technicians: [], userProfile: null, currentUser: null, canEdit: false };
+    const $ = (id) => document.getElementById(id);
+    const dynamicLabels = ["Network Cabinets Condition", "Upload 4-6 Mbps", "Low Current Infrastructure Condition", "Download 6-9 Mbps", "Server Room Temperature", "UPS Status", "PCs Condition", "Printers Condition", "Unified Communication", "Unused or Damaged IT Assets", "Unused or Damaged IT Assets - Note", "Operating System Up to Date", "Cleanup and Remove Unwanted Apps", "OneDrive Backup", "Customer Facing Portals", "ERP & Business Applications", "Training Requirement", "Upgrade Windows_11", "Number of devices (Q29A)", "Employee IDs for devices (Q29B)"];
 
-          return `<tr data-uid="${escapeHtml(documentSnapshot.id)}">
-            <td><strong>${escapeHtml(user.technicianId || '-')}</strong></td>
-            <td>${escapeHtml(user.name || 'Unknown')}</td>
-            <td>${escapeHtml((user.role || 'technician').toUpperCase())}</td>
-            <td><span class="status-pill ${active ? 'is-active' : 'is-inactive'}">${active ? 'Active' : 'Inactive'}</span></td>
-            <td class="uid-cell">${escapeHtml(documentSnapshot.id)}</td>
-          </tr>`;
-        }).join('');
+    function resolveRef(id, lbl) { return (id && state.checklistFields.find(f => f.id === id)) || (lbl && state.checklistFields.find(f => f.label === lbl)) || null; }
 
-        userList.querySelectorAll('tr[data-uid]').forEach(row => {
-          row.addEventListener('click', () => window.fetchUser(row.dataset.uid));
+    function norm(v) { return String(v || '').trim().toLowerCase(); }
+
+    function getRole() {
+      return norm(state.userProfile && state.userProfile.role) || 'user';
+    }
+
+    function isTechnicianMode() {
+      return getRole() === 'technician' && !state.canEdit;
+    }
+
+    function getCurrentTechnicianIdentity() {
+      const profile = state.userProfile || {};
+      const user = state.currentUser || {};
+      const keys = new Set([
+        norm(profile.technicianId),
+        norm(profile.technicianCode),
+        norm(profile.email),
+        norm(user.uid),
+        norm(user.email)
+      ].filter(Boolean));
+      const matchedTech = state.technicians.find(t => [
+        norm(t.id),
+        norm(t.technicianId),
+        norm(t.technicianCode),
+        norm(t.authUid),
+        norm(t.email)
+      ].some(v => keys.has(v))) || null;
+      [matchedTech && matchedTech.id, matchedTech && matchedTech.technicianId, matchedTech && matchedTech.technicianCode, matchedTech && matchedTech.authUid, matchedTech && matchedTech.email].forEach(v => {
+        const value = norm(v);
+        if (value) keys.add(value);
+      });
+      return { role: getRole(), keys, matchedTech, matchedTechId: matchedTech ? matchedTech.id : '' };
+    }
+
+    function isRecordForCurrentTechnician(record) {
+      const identity = getCurrentTechnicianIdentity();
+      if (!isTechnicianMode()) return true;
+      return [
+        record && record.technicianDocId,
+        record && record.technicianId,
+        record && record.technicianAuthId,
+        record && record.technicianEmail
+      ].map(norm).filter(Boolean).some(key => identity.keys.has(key));
+    }
+
+    function isVisitCompleted(visit) {
+      const completedIds = new Set(state.checklists
+        .filter(isRecordForCurrentTechnician)
+        .map(c => c.visitDocId || c.linkedVisitId)
+        .filter(Boolean)
+        .map(String));
+      const status = norm(visit && visit.status);
+      return completedIds.has(String(visit && visit.id || ''))
+        || visit.checklistCompleted === true
+        || !!visit.checklistId
+        || status === 'completed'
+        || status === 'done';
+    }
+
+    function setTechnicianNotice(message, type) {
+      const box = $('technicianNotice');
+      if (!message) {
+        box.className = 'notice hidden';
+        box.textContent = '';
+        return;
+      }
+      box.className = `notice ${type || ''}`.trim();
+      box.textContent = message;
+    }
+
+    function fillTechnicianFields(t) {
+      $('cl_technician_email').value = t.email || (state.currentUser && state.currentUser.email) || '';
+      $('cl_technician_id').value = t.authUid || t.technicianId || t.technicianCode || t.id || '';
+    }
+
+    function applyTechnicianMode() {
+      if (!isTechnicianMode()) return false;
+      const identity = getCurrentTechnicianIdentity();
+      const tech = identity.matchedTech;
+      $('cl_technician').disabled = true;
+
+      if (!tech) {
+        $('cl_technician').innerHTML = '<option value="">لم يتم ربط حسابك بفني</option>';
+        $('cl_visit_ref').innerHTML = '<option value="">لا توجد زيارات متاحة</option>';
+        $('cl_visit_ref').disabled = true;
+        $('saveChecklistBtn').disabled = true;
+        setTechnicianNotice('حسابك غير مربوط بسجل فني. تواصل مع المسؤول لربط Technician ID أو البريد الإلكتروني.', 'warn');
+        return true;
+      }
+
+      $('cl_technician').innerHTML = `<option value="${esc(tech.id)}">${esc(tech.name || tech.id)}</option>`;
+      $('cl_technician').value = tech.id;
+      fillTechnicianFields(tech);
+      $('saveChecklistBtn').disabled = false;
+      setTechnicianNotice('وضع الفني: تظهر لك زياراتك غير المحفوظة فقط. بعد حفظ التقرير ستختفي الزيارة من القائمة.', 'ok');
+      loadVisitsForTech(tech.id);
+      return true;
+    }
+
+    function renderTechnicianSelector() {
+      if (applyTechnicianMode()) return;
+      $('cl_technician').disabled = false;
+      $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${esc(t.id)}">${esc(t.name || t.id)}</option>`).join('');
+    }
+
+    async function checkAuth() {
+      const auth = window.parent && window.parent.appAuth;
+      const db = window.parent && window.parent.appDb;
+      if (!auth || !db) {
+        alert('Please open Check-List from inside the main system page.');
+        return;
+      }
+      auth.onAuthStateChanged(async (user) => {
+        if (user) {
+          const doc = await db.collection('app_users').doc(user.uid).get();
+          state.currentUser = user;
+          if (doc.exists) {
+            state.userProfile = { ...doc.data(), uid: user.uid, email: user.email };
+            const role = getRole();
+            state.canEdit = (role === 'admin' || role === 'supervisor');
+            applyPrivacyUI();
+          } else {
+            state.userProfile = { role: 'technician', uid: user.uid, email: user.email };
+            state.canEdit = false;
+            applyPrivacyUI();
+          }
+          boot();
+        }
+      });
+    }
+
+    function applyPrivacyUI() { 
+      $('roleBadge').textContent = state.canEdit ? 'ADMIN VIEW' : 'TECHNICIAN VIEW';
+      if (!state.canEdit) { $('adminSidebar').classList.add('hidden'); $('mainLayout').classList.add('grid-full'); }
+    }
+
+    window.renderDynamicForm = function(answers = {}) {
+      const container = $('dynamicChecklistSections'); container.innerHTML = '';
+      const currentAnswers = Object.keys(answers).length ? answers : window.collectAnswers();
+      state.checklistFields.forEach(field => {
+        if (field.logic?.enabled && field.logic?.visibleWhen) { 
+          const rule = field.logic.visibleWhen; const src = resolveRef(rule.fieldId, rule.fieldLabel); 
+          if (String(src ? currentAnswers[src.id] : '').toLowerCase() !== String(rule.value).toLowerCase()) return; 
+        }
+        let html = `<div class="field"><label>${esc(field.labelAr || field.label)}</label>`;
+        const val = currentAnswers[field.id] || '';
+        if (field.repeat?.enabled) {
+          const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel); const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
+          for (let i = 0; i < count; i++) { html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i]||'')}" /></div>`; }
+        } else if (field.fieldType === 'choice' && (field.renderMode === 'checkboxes' || field.renderMode === 'radios')) {
+          html += `<div class="choices-grid">`; (field.options || []).forEach(opt => { const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onclick="event.stopPropagation(); window.renderDynamicForm(window.collectAnswers());"></div>`; }); html += `</div>`;
+        } else {
+          if (field.fieldType === 'choice') html += `<select class="dyn-input" data-id="${field.id}" onchange="window.renderDynamicForm(window.collectAnswers())"><option value="">اختر</option>${(field.options||[]).map(o=>`<option value="${esc(o.value)}" ${val==o.value?'selected':''}>${esc(o.label)}</option>`).join('')}</select>`;
+          else if (field.fieldType === 'number') html += `<input type="number" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="window.renderDynamicForm(window.collectAnswers())" />`;
+          else if (field.fieldType === 'boolean') html += `<select class="dyn-input" data-id="${field.id}" onchange="window.renderDynamicForm(window.collectAnswers())"><option value="">اختر</option><option value="yes" ${val==='yes'?'selected':''}>Yes</option><option value="no" ${val==='no'?'selected':''}>No</option></select>`;
+          else html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="window.renderDynamicForm(window.collectAnswers())" />`;
+        }
+        container.innerHTML += html + `</div>`;
+      });
+    };
+
+    window.collectAnswers = function() {
+      const ans = {}; document.querySelectorAll('.dyn-input').forEach(el => {
+        const id = el.dataset.id; if (el.type === 'checkbox') { if(!ans[id]) ans[id]=[]; if(el.checked) ans[id].push(el.value); } 
+        else if (el.type === 'radio') { if(el.checked) ans[id] = el.value; } 
+        else if (el.dataset.index !== undefined) { if(!ans[id]) ans[id]=[]; ans[id][el.dataset.index] = el.value; } else ans[id] = el.value;
+      }); return ans;
+    };
+
+    window.saveChecklist = async function() {
+      const db = window.parent.appDb; const answers = window.collectAnswers(); const techDropdown = $('cl_technician');
+      if (!techDropdown.value) return alert('اختر الفني أولاً.');
+      if (!$('cl_visit_ref').value) return alert('لا توجد زيارة متاحة للحفظ.');
+      if (isTechnicianMode()) {
+        const identity = getCurrentTechnicianIdentity();
+        if (!identity.matchedTechId || String(techDropdown.value) !== String(identity.matchedTechId)) {
+          return alert('هذه الصفحة مخصصة لزيارات الفني الحالي فقط.');
+        }
+        const selectedVisit = { id: $('cl_visit_ref').value };
+        if (!$('editingChecklistId').value && isVisitCompleted(selectedVisit)) {
+          await loadVisitsForTech(identity.matchedTechId);
+          return alert('تم حفظ هذه الزيارة مسبقاً ولم تعد متاحة للفني.');
+        }
+      }
+      const payload = { 
+        technicianDocId: techDropdown.value, technicianName: techDropdown.options[techDropdown.selectedIndex].text, technicianEmail: $('cl_technician_email').value, technicianAuthId: $('cl_technician_id').value, 
+        visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, dynamicAnswers: answers, createdAt: new Date().toISOString() 
+      };
+      try { 
+        const id = $('editingChecklistId').value; 
+        const readyData = nativeClean(payload);
+        let savedChecklistId = id;
+        if (id) await db.collection('branch_checklists').doc(id).update(readyData); 
+        else {
+          const ref = await db.collection('branch_checklists').add(readyData);
+          savedChecklistId = ref.id;
+        }
+        if (payload.visitDocId) {
+          await db.collection('siteVisits').doc(payload.visitDocId).set(nativeClean({
+            status: 'completed',
+            checklistCompleted: true,
+            checklistCompletedAt: new Date().toISOString(),
+            checklistId: savedChecklistId,
+            updatedAt: new Date().toISOString()
+          }), { merge: true });
+        }
+        alert("تم الحفظ بنجاح!"); location.reload(); 
+      } catch (e) { alert("خطأ: " + e.message); }
+    };
+
+    async function handleImport(e) {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        const db = window.parent.appDb; const workbook = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+        let count = 0;
+        for (const row of rows) {
+          if (row.ID) {
+            const updates = { visitDate: row["تاريخ الزيارة"]||'', branchId: row["Branch ID"]||'', locationSite: row["Location/Site"]||'', branchManager: row["مدير الفرع"]||'', brand: row["Brand"]||'', technicianName: row["الفني"]||'', dynamicAnswers: {} };
+            state.checklistFields.forEach(f => { const col = f.labelAr || f.label; if (row[col] !== undefined) updates.dynamicAnswers[f.id] = row[col]; });
+            await db.collection('branch_checklists').doc(row.ID).update(nativeClean(updates)); count++;
+          }
+        }
+        alert(`تم تحديث ${count} سجل!`); location.reload();
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function exportToExcel() {
+      const data = state.checklists.map(r => {
+        const row = { "ID": r.id, "تاريخ الزيارة": r.visitDate, "الفني": r.technicianName, "Brand": r.brand, "Branch ID": r.branchId, "Location/Site": r.locationSite, "مدير الفرع": r.branchManager };
+        dynamicLabels.forEach(lbl => {
+          const f = state.checklistFields.find(x => (x.labelAr || x.label) === lbl);
+          const ans = f ? r.dynamicAnswers?.[f.id] : '';
+          row[lbl] = Array.isArray(ans) ? ans.join(', ') : ans;
         });
-      } catch (error) {
-        userCount.textContent = 'Error';
-        userList.innerHTML = `<tr><td colspan="5" class="empty-state" style="color: var(--danger)">Error: ${escapeHtml(error.message)}</td></tr>`;
+        return row;
+      });
+      const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reports"); XLSX.writeFile(wb, "Full_Report_v3.1.8.xlsx");
+    }
+
+    function updateTableHeaders() {
+      const h = $('tableHeaderRow'); h.innerHTML = `<th>تاريخ الزيارة</th><th>الفني</th><th>Brand</th><th>Branch ID</th><th>Location/Site</th><th>مدير الفرع</th>`;
+      dynamicLabels.forEach(lbl => { h.innerHTML += `<th>${esc(lbl)}</th>`; });
+    }
+
+    function renderTable() {
+      const b = $('checklistTableBody'); b.innerHTML = '';
+      if (state.checklistFields.length === 0) return;
+      state.checklists.forEach(r => {
+        let html = `<td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.branchManager)}</td>`;
+        dynamicLabels.forEach(lbl => {
+          const f = state.checklistFields.find(x => (x.labelAr || x.label) === lbl);
+          const ans = f ? r.dynamicAnswers?.[f.id] : '';
+          html += `<td>${esc(Array.isArray(ans) ? ans.join(', ') : ans)}</td>`;
+        });
+        const tr = document.createElement('tr'); tr.className = 'clickable'; tr.onclick = () => window.openChecklistLocally(r.id); tr.innerHTML = html; b.appendChild(tr);
+      });
+    }
+
+    async function loadVisitsForTech(techId, visitId = null) {
+      const db = window.parent.appDb; const vSnap = await db.collection('siteVisits').where('technicianDocId', '==', techId).get();
+      const visits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
+      let filtered = state.canEdit ? visits : visits.filter(v => !isVisitCompleted(v) || v.id === visitId);
+      filtered.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+      $('cl_visit_ref').disabled = !state.canEdit && filtered.length === 0;
+      $('saveChecklistBtn').disabled = !state.canEdit && filtered.length === 0;
+      $('cl_visit_ref').innerHTML = filtered.length
+        ? '<option value="">اختر الزيارة</option>' + filtered.map(v => `<option value="${esc(v.id)}" ${visitId===v.id?'selected':''}>${esc(v.date || '')} - ${esc(v.branchName || v.branchId || '')}</option>`).join('')
+        : '<option value="">لا توجد زيارات جديدة للفحص</option>';
+      if (!state.canEdit && filtered.length === 1 && !visitId) {
+        $('cl_visit_ref').value = filtered[0].id;
+        fillSelectedVisit();
       }
     }
 
-    window.fetchUser = async (id) => {
-      const userDoc = await getDoc(doc(db, 'app_users', id));
-      if (!userDoc.exists()) return;
-
-      const user = userDoc.data();
-      document.getElementById('uId').value = id;
-      document.getElementById('uName').value = user.name || "";
-      document.getElementById('uEmail').value = user.email || "";
-      document.getElementById('uTechId').value = user.technicianId || "";
-      document.getElementById('uRole').value = (user.role || "technician").toLowerCase();
-      document.getElementById('uActive').checked = user.active !== false;
-      document.querySelectorAll('.sch-c').forEach(input => input.checked = (user.permissions_schedule || []).includes(input.dataset.id));
-      document.querySelectorAll('.sv-c').forEach(input => input.checked = (user.permissions_site_visit || []).includes(input.dataset.id));
-
-      userList.querySelectorAll('tr[data-uid]').forEach(row => {
-        row.classList.toggle('selected', row.dataset.uid === id);
+    function clearVisitFields() {
+      ['cl_city','cl_region','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_visit_date','cl_month'].forEach(id => {
+        if ($(id)) $(id).value = '';
       });
-      selectedHint.textContent = user.name ? `Selected: ${user.name}` : 'User selected';
+    }
+
+    function fillSelectedVisit() {
+      const visitId = $('cl_visit_ref').value;
+      if (!visitId) {
+        clearVisitFields();
+        return;
+      }
+      const db = window.parent.appDb;
+      db.collection('siteVisits').doc(visitId).get().then(doc => {
+        if(doc.exists){
+          const v = doc.data(); $('cl_brand').value=v.brand||''; $('cl_brandKey').value=v.brandKey||''; $('cl_branch_id').value=v.branchId||''; $('cl_location').value=v.branchName||''; $('cl_city').value=v.city||''; $('cl_region').value=v.region||''; $('cl_visit_date').value=v.date||'';
+          const d = new Date(v.date); if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
+        }
+      });
+    }
+
+    window.openChecklistLocally = async (id) => {
+      const r = state.checklists.find(x => x.id === id); if(!r) return;
+      $('editingChecklistId').value = r.id; $('cl_technician').value = r.technicianDocId || '';
+      await loadVisitsForTech(r.technicianDocId, r.visitDocId);
+      const m = { technicianEmail:'cl_technician_email', technicianId:'cl_technician_id', city:'cl_city', region:'cl_region', brand:'cl_brand', brandKey:'cl_brandKey', branchId:'cl_branch_id', locationSite:'cl_location', visitDate:'cl_visit_date', month:'cl_month', branchManager:'cl_branch_manager', visitScheduled:'cl_visit_scheduled' };
+      Object.keys(m).forEach(k => { if($(m[k])) $(m[k]).value = r[k] || ''; });
+      window.renderDynamicForm(r.dynamicAnswers || {});
     };
 
-    saveBtn.onclick = async () => {
-      const uid = document.getElementById('uId').value;
-      if (!uid) return alert("Select user first.");
-
-      const schedulePermissions = Array.from(document.querySelectorAll('.sch-c:checked')).map(input => input.dataset.id);
-      const siteVisitPermissions = Array.from(document.querySelectorAll('.sv-c:checked')).map(input => input.dataset.id);
-      const mainTabs = ['diagnostics'];
-      if (schedulePermissions.length) mainTabs.push('schedule');
-      if (siteVisitPermissions.some(key => key !== 'permissions')) mainTabs.push('site_visit');
-      if (siteVisitPermissions.includes('permissions')) mainTabs.push('permissions');
-
-      const data = {
-        technicianId: document.getElementById('uTechId').value,
-        role: document.getElementById('uRole').value.toLowerCase(),
-        active: document.getElementById('uActive').checked,
-        permissions_schedule: schedulePermissions,
-        permissions_site_visit: siteVisitPermissions,
-        permissions_main_tabs: mainTabs,
-        updatedAt: new Date().toISOString()
+    async function boot() {
+      const db = window.parent.appDb;
+      db.collection('branch_checklists').orderBy('createdAt','desc').onSnapshot(snap => {
+        state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        if(state.canEdit) renderTable();
+        else {
+          const identity = getCurrentTechnicianIdentity();
+          if (identity.matchedTechId) loadVisitsForTech(identity.matchedTechId);
+        }
+      });
+      db.collection('technicians').onSnapshot(snap => {
+        state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        renderTechnicianSelector();
+      });
+      db.collection('checklist_fields').onSnapshot(snap => { 
+        state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0)); 
+        window.renderDynamicForm(); if(state.canEdit) { updateTableHeaders(); renderTable(); } 
+      });
+      $('exportExcelBtn').onclick = exportToExcel;
+      $('importExcelInput').onchange = handleImport;
+      $('saveChecklistBtn').onclick = window.saveChecklist;
+      
+      $('cl_technician').onchange = (e) => { 
+        if (isTechnicianMode()) return;
+        const t = state.technicians.find(x => x.id === e.target.value); 
+        if(t){ fillTechnicianFields(t); loadVisitsForTech(e.target.value); }
       };
-
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Saving...';
-
-      try {
-        await setDoc(doc(db, 'app_users', uid), data, { merge: true });
-        alert("Permissions updated successfully.");
-        await loadTable();
-        await window.fetchUser(uid);
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Deploy Security Policies';
-      }
-    };
-
-    onAuthStateChanged(auth, (user) => {
-      if (user) loadTable();
-      else {
-        userCount.textContent = 'Waiting';
-        userList.innerHTML = `<tr><td colspan="5" class="empty-state">Waiting for session...</td></tr>`;
-      }
-    });
+      $('cl_visit_ref').onchange = fillSelectedVisit;
+    }
+    checkAuth();
+  })();
   </script>
 </body>
 </html>
