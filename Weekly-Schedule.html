@@ -11,6 +11,7 @@
       --morning-bg: #7f9ee5; --morning-t: #ffffff;
       --night-bg: #7551D3; --night-t: #ffffff;
       --vacation-bg: #ffe4e6; --vacation-t: #9f1239;
+      --absent-bg: #fee2e2; --absent-t: #991b1b;
       --oncall-t: #075985;
       --work-bg: #dcfce7; --work-t: #166534;
       --off-bg: #8C8686; --off-t: #ffffff; /* خلفية رمادية وخط أبيض */
@@ -33,6 +34,7 @@
     .Morning { background-color: var(--morning-bg); color: var(--morning-t); }
     .Night { background-color: var(--night-bg); color: var(--night-t); }
     .Vacation { background-color: var(--vacation-bg); color: var(--vacation-t); }
+    .Absent { background-color: var(--absent-bg); color: var(--absent-t); }
     .Work { background-color: var(--work-bg); color: var(--work-t); }
     .Off { background-color: var(--off-bg); color: var(--off-t); }
     
@@ -103,15 +105,119 @@
 
 <script type="module">
 import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
-import { doc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { doc, collection, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { morning:'صباحي', night:'ليلي', vacation:'إجازة', oncall:'أون كول', work:'تغطية', off:'أوف', employee:'الموظف', allDay:'طوال اليوم', help:'حسب الحاجة', days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'] },
-    en: { morning:'Morning', night:'Night', vacation:'Vacation', oncall:'On Call', work:'Coverage', off:'Off', employee:'Employee', allDay:'Full Day', help:'As Needed', days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] }
+    ar: { morning:'صباحي', night:'ليلي', vacation:'إجازة', absent:'غائب', oncall:'أون كول', work:'تغطية', off:'أوف', employee:'الموظف', allDay:'طوال اليوم', help:'حسب الحاجة', days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'] },
+    en: { morning:'Morning', night:'Night', vacation:'Vacation', absent:'Absent', oncall:'On Call', work:'Coverage', off:'Off', employee:'Employee', allDay:'Full Day', help:'As Needed', days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] }
 };
 
-let emps = [], overrides = {}, currentLang = localStorage.getItem('lang') || 'ar', selectedCell = null, selectedOption = null;
+let emps = [], overrides = {}, annualLeaves = [], vacationPlans = [], currentLang = localStorage.getItem('lang') || 'ar', selectedCell = null, selectedOption = null;
 const $ = id => document.getElementById(id);
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&':'&amp;',
+        '<':'&lt;',
+        '>':'&gt;',
+        '"':'&quot;',
+        "'":'&#39;'
+    })[char]);
+}
+
+function safeJs(value) {
+    return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+}
+
+function parseLocalDate(value) {
+    const d = new Date(String(value || '').replace(/-/g, '/'));
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function formatLocalDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function normalizeRotation(emp) {
+    const raw = String(emp?.rotType || emp?.rotation || 'none');
+    if (raw === 'thu_fri') return 'thu';
+    if (raw === 'fri_sat') return 'fri';
+    return ['thu', 'fri', 'none'].includes(raw) ? raw : 'none';
+}
+
+function getEmployeeKeys(emp) {
+    return [emp?.id, emp?.empNum, emp?.technicianId, emp?.name].filter(Boolean).map(v => String(v).trim());
+}
+
+function matchesEmployee(record, emp) {
+    const keys = new Set(getEmployeeKeys(emp));
+    return [record.empId, record.fireId, record.technicianId, record.name].filter(Boolean).some(v => keys.has(String(v).trim()));
+}
+
+function isDateInRange(date, start, end) {
+    if (!start || !end) return false;
+    const d1 = parseLocalDate(start);
+    const d2 = parseLocalDate(end);
+    return date >= d1 && date <= d2;
+}
+
+function isVacationDay(emp, date) {
+    const annual = annualLeaves.some(v => matchesEmployee(v, emp) && isDateInRange(date, v.start, v.end));
+    const approvedPlan = vacationPlans.some(p => String(p.status || 'pending') === 'approved' && matchesEmployee(p, emp) && isDateInRange(date, p.from, p.to));
+    return annual || approvedPlan;
+}
+
+function isManualUnavailable(emp, date) {
+    const shift = overrides[`${emp.id}_${formatLocalDate(date)}`];
+    return shift === 'Vacation' || shift === 'Absent';
+}
+
+function isUnavailable(emp, date) {
+    return emp.active === false || isVacationDay(emp, date) || isManualUnavailable(emp, date);
+}
+
+function weekIndex(start) {
+    const first = new Date(start.getFullYear(), 0, 1);
+    first.setHours(0, 0, 0, 0);
+    first.setDate(first.getDate() - first.getDay());
+    return Math.floor((start - first) / 604800000);
+}
+
+function findDateByDay(dates, day) {
+    return dates.find(date => date.getDay() === day);
+}
+
+function pickRotationEmployee(pool, start, datesToCheck) {
+    if (!pool.length) return null;
+    const ordered = [...pool].sort((a, b) => String(a.empNum || a.name || a.id).localeCompare(String(b.empNum || b.name || b.id), 'ar'));
+    const startIndex = weekIndex(start) % ordered.length;
+    for (let i = 0; i < ordered.length; i++) {
+        const emp = ordered[(startIndex + i) % ordered.length];
+        if (!datesToCheck.some(date => isUnavailable(emp, date))) return emp;
+    }
+    return null;
+}
+
+function baseShift(emp, date, rotations) {
+    if (date.getDay() === 4) {
+        if (rotations.thu?.id === emp.id) return 'Off';
+        return emp.fixed ? 'Night' : 'Morning';
+    }
+    if (date.getDay() === 5) {
+        if (rotations.thu?.id === emp.id) return 'Off';
+        if (rotations.fri?.id === emp.id) return 'OnCall';
+        return 'Off';
+    }
+    if (date.getDay() === 6) {
+        if (rotations.thu?.id === emp.id) return 'Work';
+        return 'Off';
+    }
+    return emp.fixed ? 'Night' : 'Morning';
+}
 
 window.updateLabels = () => {
     const t = i18n[currentLang];
@@ -120,6 +226,7 @@ window.updateLabels = () => {
         <div class="pill Morning">☀️ ${t.morning} <span>07:30 - 17:00</span></div>
         <div class="pill Night">🌙 ${t.night} <span>13:00 - 22:00</span></div>
         <div class="pill Vacation">🌴 ${t.vacation} <span>${t.allDay}</span></div>
+        <div class="pill Absent">🚫 ${t.absent} <span>${t.allDay}</span></div>
         <div class="pill OnCall">📞 ${t.oncall} <span>${t.help}</span></div>
         <div class="pill Work">🏢 ${t.work} <span>10:00 - 19:00</span></div>
         <div class="pill Off">⌛ ${t.off} <span>${t.allDay}</span></div>
@@ -130,24 +237,36 @@ async function renderTable() {
     window.updateLabels();
     const t = i18n[currentLang];
     const dateInput = $('datePicker').value; if(!dateInput) return;
-    const start = new Date(dateInput.replace(/-/g, '/'));
+    const start = parseLocalDate(dateInput);
+    const dates = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        return d;
+    });
+    const thuDate = findDateByDay(dates, 4);
+    const friDate = findDateByDay(dates, 5);
+    const satDate = findDateByDay(dates, 6);
+    const activeEmps = emps.filter(e => e.active !== false);
+    const rotations = {
+        thu: pickRotationEmployee(activeEmps.filter(e => normalizeRotation(e) === 'thu'), start, [thuDate, friDate, satDate].filter(Boolean)),
+        fri: pickRotationEmployee(activeEmps.filter(e => normalizeRotation(e) === 'fri'), start, [friDate, satDate].filter(Boolean))
+    };
     
     let headHtml = `<th class="emp-name">${t.employee}</th>`;
-    for(let i=0; i<7; i++) {
-        const d = new Date(start.getTime() + i*86400000);
+    dates.forEach(d => {
         headHtml += `<th>${t.days[d.getDay()]}<br><small>${d.toLocaleDateString('en-GB')}</small></th>`;
-    }
+    });
     $('tableHead').innerHTML = headHtml;
 
-    $('tableBody').innerHTML = emps.filter(e => e.active).map(emp => {
-        let row = `<td class="emp-name">${emp.name}</td>`;
-        for(let i=0; i<7; i++) {
-            const d = new Date(start.getTime() + i*86400000);
-            const dStr = d.toISOString().split('T')[0];
-            let shift = overrides[`${emp.id}_${dStr}`] || ((d.getDay() === 5 || d.getDay() === 6) ? 'Off' : (emp.fixed ? 'Night' : 'Morning'));
-            const icons = { Morning:'☀️', Night:'🌙', Vacation:'🌴', OnCall:'📞', Work:'🏢', Off:'⌛' };
-            row += `<td><div class="schedule-badge ${shift}" onclick="window.openDialog('${emp.id}','${dStr}','${emp.name}','${shift}')">${icons[shift]} ${t[shift.toLowerCase()]}</div></td>`;
-        }
+    $('tableBody').innerHTML = activeEmps.map(emp => {
+        let row = `<td class="emp-name">${escapeHtml(emp.name)}</td>`;
+        dates.forEach(d => {
+            const dStr = formatLocalDate(d);
+            const manualShift = overrides[`${emp.id}_${dStr}`];
+            let shift = manualShift || (isVacationDay(emp, d) ? 'Vacation' : baseShift(emp, d, rotations));
+            const icons = { Morning:'☀️', Night:'🌙', Vacation:'🌴', Absent:'🚫', OnCall:'📞', Work:'🏢', Off:'⌛' };
+            row += `<td><div class="schedule-badge ${shift}" onclick="window.openDialog('${safeJs(emp.id)}','${dStr}','${safeJs(emp.name)}','${shift}')">${icons[shift] || ''} ${t[shift.toLowerCase()] || shift}</div></td>`;
+        });
         return `<tr>${row}</tr>`;
     }).join('');
 }
@@ -155,8 +274,8 @@ async function renderTable() {
 window.openDialog = (empId, date, name, current) => {
     selectedCell = { empId, date }; selectedOption = current;
     const t = i18n[currentLang];
-    $('dialogTitle').innerHTML = `<div style="font-size:16px">${name}</div><div style="font-size:11px; opacity:0.6">${date}</div>`;
-    const opts = ['Morning', 'Night', 'OnCall', 'Work', 'Vacation', 'Off'];
+    $('dialogTitle').innerHTML = `<div style="font-size:16px">${escapeHtml(name)}</div><div style="font-size:11px; opacity:0.6">${escapeHtml(date)}</div>`;
+    const opts = ['Morning', 'Night', 'OnCall', 'Work', 'Vacation', 'Absent', 'Off'];
     $('shiftOptions').innerHTML = opts.map(o => `<div class="opt-btn ${selectedOption === o ? 'active' : ''}" onclick="window.selectOpt('${o}')">${t[o.toLowerCase()]}</div>`).join('');
     $('shiftOverlay').style.display = 'flex';
 };
@@ -186,6 +305,8 @@ async function bindSnapshots() {
     await waitForSignedInUser();
     onSnapshot(doc(db, 'schedule', 'jadwal_v6'), s => { emps = s.data()?.data?.emps || []; renderTable(); }, e => logFirebaseError('Weekly schedule employees listener failed', e));
     onSnapshot(doc(db, 'schedule', 'manual_overrides'), s => { overrides = s.data() || {}; renderTable(); }, e => logFirebaseError('Weekly schedule overrides listener failed', e));
+    onSnapshot(doc(db, 'schedule', 'jadwal_annual_leave'), s => { annualLeaves = s.exists() ? (s.data().vacations || []) : []; renderTable(); }, e => logFirebaseError('Weekly schedule annual leave listener failed', e));
+    onSnapshot(collection(db, 'vacations'), s => { vacationPlans = s.docs.map(item => ({ id: item.id, ...item.data() })); renderTable(); }, e => logFirebaseError('Weekly schedule vacation plans listener failed', e));
 }
 
 window.onload = () => {
