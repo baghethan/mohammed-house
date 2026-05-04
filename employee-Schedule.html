@@ -1,154 +1,476 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" id="mainHtml">
 <head>
   <meta charset="UTF-8" />
-  <title>Employee Management v1.4.0 - Auto Sync</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Employee Management v1.5.0 - Auto Sync</title>
   <style>
-    :root { --primary:#0d2149; --primary2:#1b4fa3; --surface:rgba(255,255,255,.94); --shadow:0 10px 30px rgba(0,0,0,0.08); }
-    body { margin:0; padding:20px; font-family:'Segoe UI',sans-serif; background:transparent; }
-    .glass { background:var(--surface); backdrop-filter:blur(10px); border-radius:24px; border:1px solid rgba(255,255,255,0.5); padding:30px; box-shadow:var(--shadow); }
-    .card { background:#fff; border-radius:18px; padding:20px; margin-bottom:20px; border:1px solid #eee; }
-    table { width:100%; border-collapse:separate; border-spacing:0 8px; margin-top:10px; }
-    th { padding:15px; color:var(--primary); font-weight:900; border-bottom:2px solid #f1f5f9; text-align:center; font-size:14px; }
-    td { padding:15px; background:#fff; border-top:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9; text-align:center; vertical-align: middle; }
-    .rotation-select {
-        padding: 10px; border-radius: 12px; border: 1px solid #d1d5db; background: #fff;
-        font-weight: 700; font-size: 13px; cursor: pointer; width: 160px; text-align: center;
+    :root{
+      --primary:#0d2149;
+      --primary2:#1b4fa3;
+      --text:#1f2937;
+      --muted:#64748b;
+      --surface:rgba(255,255,255,.94);
+      --surface2:#fff;
+      --shadow:0 10px 30px rgba(0,0,0,0.08);
+      --border:#e5e7eb;
+      --success-bg:#dcfce7;
+      --success-t:#166534;
+      --danger-bg:#fee2e2;
+      --danger-t:#b91c1c;
+      --warn-bg:#fff7ed;
+      --warn-t:#9a3412;
     }
-    .sync-status { font-size: 11px; color: #10b981; font-weight: 800; margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
+    *{box-sizing:border-box}
+    body{margin:0;padding:20px;font-family:'Segoe UI',Tahoma,sans-serif;background:transparent;color:var(--text)}
+    .glass{background:var(--surface);backdrop-filter:blur(10px);border-radius:24px;border:1px solid rgba(255,255,255,0.5);padding:30px;box-shadow:var(--shadow)}
+    .header{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand img{height:45px;width:auto;object-fit:contain}
+    h2,h3,p{margin:0}
+    .title{color:var(--primary);font-size:22px;font-weight:900}
+    .subtitle{color:var(--muted);font-size:12px;font-weight:700;margin-top:3px}
+    .card{background:var(--surface2);border-radius:18px;padding:20px;margin-bottom:20px;border:1px solid #eee;box-shadow:0 8px 24px rgba(15,23,42,.04)}
+    .sync-status{font-size:12px;color:#10b981;font-weight:900;margin-bottom:16px;display:flex;align-items:center;gap:7px}
+    .form-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px;align-items:end}
+    label{display:block;margin-bottom:7px;color:var(--primary);font-size:12px;font-weight:900}
+    input,select{width:100%;min-height:43px;padding:10px 12px;border-radius:12px;border:1px solid #d8dee8;background:#fff;font:inherit;font-size:13px}
+    .actions-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:15px}
+    .btn,.btn2,.danger-btn,.soft-btn{border:none;border-radius:12px;padding:10px 14px;min-height:42px;font-weight:900;cursor:pointer;font-family:inherit;transition:.2s;white-space:nowrap}
+    .btn{background:#fff;color:var(--primary);border:1px solid #d8dee8}
+    .btn2{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff}
+    .danger-btn{background:#d32f2f;color:#fff}
+    .soft-btn{background:#f8fafc;color:var(--primary);border:1px solid #e2e8f0}
+    .btn:hover,.btn2:hover,.danger-btn:hover,.soft-btn:hover{transform:translateY(-1px)}
+    .list-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    .count-pill{background:#f8fafc;color:var(--primary);border:1px solid #e2e8f0;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:900}
+    .table-wrap{overflow-x:auto}
+    table{width:100%;min-width:1280px;border-collapse:separate;border-spacing:0 8px}
+    th{padding:14px;color:var(--primary);font-weight:900;border-bottom:2px solid #f1f5f9;text-align:center;font-size:13px;white-space:nowrap}
+    td{padding:12px;background:#fff;border-top:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;text-align:center;vertical-align:middle;font-size:13px}
+    tbody tr td:first-child{border-radius:0 14px 14px 0}
+    tbody tr td:last-child{border-radius:14px 0 0 14px}
+    .emp-name{text-align:right!important;font-weight:900;color:var(--primary);min-width:180px}
+    .muted{color:var(--muted);font-size:11px;font-weight:700}
+    .status-pill,.source-pill{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:900;min-width:76px}
+    .status-active{background:var(--success-bg);color:var(--success-t)}
+    .status-hidden{background:var(--danger-bg);color:var(--danger-t)}
+    .source-sync{background:#e0f2fe;color:#0369a1}
+    .source-manual{background:var(--warn-bg);color:var(--warn-t)}
+    .compact-select{min-width:130px;padding:8px 10px;min-height:38px;font-size:12px;font-weight:800}
+    .row-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+    .empty{padding:26px;color:var(--muted);font-weight:900;text-align:center}
+    .note{margin-top:10px;color:var(--muted);font-size:12px;font-weight:700;line-height:1.7}
+    @media (max-width:980px){
+      body{padding:12px}
+      .glass{padding:18px;border-radius:18px}
+      .form-grid{grid-template-columns:1fr}
+      .header{align-items:flex-start}
+    }
   </style>
 </head>
 <body>
 
 <div class="glass">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px">
-        <div style="display:flex; align-items:center; gap:12px">
-            <img src="LOGO-almajdouie.png" style="height:45px" />
-            <h2 style="color:var(--primary); margin:0">إدارة سجل الموظفين (مزامنة تلقائية)</h2>
-        </div>
+  <div class="header">
+    <div class="brand">
+      <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
+      <div>
+        <h2 class="title">إدارة سجل الموظفين (مزامنة تلقائية)</h2>
+        <p class="subtitle">إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات</p>
+      </div>
     </div>
+    <button class="btn" id="reloadBtn" type="button">تحديث</button>
+  </div>
 
-    <div class="sync-status">🟢 النظام متصل وقيد المزامنة التلقائية مع صفحة الصلاحيات</div>
+  <div class="sync-status">● النظام متصل وقيد المزامنة التلقائية مع صفحة الصلاحيات</div>
 
-    <div class="card">
-        <h3 style="color:var(--primary); margin-top:0">👥 قائمة الموظفين (تحدث تلقائياً)</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th style="text-align:right">اسم الموظف</th>
-                    <th>نوع الدوام</th>
-                    <th>الروتيشن (الإجازة)</th>
-                    <th>الحالة</th>
-                    <th>الإجراءات</th>
-                </tr>
-            </thead>
-            <tbody id="empTableBody"></tbody>
-        </table>
+  <div class="card">
+    <h3 style="color:var(--primary);margin-bottom:16px">إضافة / تعديل موظف</h3>
+    <input id="editingId" type="hidden" />
+    <div class="form-grid">
+      <div>
+        <label for="empNum">رقم الموظف / الكود</label>
+        <input id="empNum" type="text" placeholder="مثال: 1024" />
+      </div>
+      <div>
+        <label for="empName">اسم الموظف</label>
+        <input id="empName" type="text" placeholder="الاسم الكامل" />
+      </div>
+      <div>
+        <label for="empDept">القسم</label>
+        <input id="empDept" type="text" placeholder="مثال: الصيانة" />
+      </div>
+      <div>
+        <label for="empJob">المسمى الوظيفي</label>
+        <input id="empJob" type="text" placeholder="مثال: Technician" />
+      </div>
+      <div>
+        <label for="empEmail">البريد الإلكتروني</label>
+        <input id="empEmail" type="email" placeholder="name@example.com" />
+      </div>
+      <div>
+        <label for="empPhone">رقم الجوال</label>
+        <input id="empPhone" type="tel" placeholder="05xxxxxxxx" />
+      </div>
+      <div>
+        <label for="empShift">نوع الدوام</label>
+        <select id="empShift">
+          <option value="morning">صباحي / متغير</option>
+          <option value="night">ليلي ثابت</option>
+        </select>
+      </div>
+      <div>
+        <label for="empRotation">الروتيشن</label>
+        <select id="empRotation">
+          <option value="none">لا يوجد</option>
+          <option value="thu">روتيشن الخميس والجمعة</option>
+          <option value="fri">روتيشن الجمعة والسبت</option>
+        </select>
+      </div>
+      <div>
+        <label for="empStatus">الحالة</label>
+        <select id="empStatus">
+          <option value="true">نشط</option>
+          <option value="false">مخفي من الجدول</option>
+        </select>
+      </div>
     </div>
+    <div class="actions-row">
+      <button class="btn2" id="saveEmployeeBtn" type="button">حفظ الموظف</button>
+      <button class="soft-btn" id="clearFormBtn" type="button">تفريغ النموذج</button>
+      <span class="note" id="formNote">الحقول الأساسية: رقم الموظف واسم الموظف. باقي المعلومات اختيارية لكنها تظهر في السجل.</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="list-head">
+      <h3 style="color:var(--primary)">قائمة الموظفين (تحدث تلقائياً)</h3>
+      <div class="count-pill" id="empCount">0 موظف</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:right">اسم الموظف</th>
+            <th>رقم الموظف</th>
+            <th>القسم</th>
+            <th>المسمى الوظيفي</th>
+            <th>البريد</th>
+            <th>الجوال</th>
+            <th>نوع الدوام</th>
+            <th>الروتيشن</th>
+            <th>الحالة</th>
+            <th>المصدر</th>
+            <th>الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody id="empTableBody">
+          <tr><td class="empty" colspan="11">جاري تحميل الموظفين...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <script type="module">
 import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
-import { 
-    doc, onSnapshot, updateDoc, collection
+import {
+  doc,
+  onSnapshot,
+  setDoc,
+  collection
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 let emps = [];
+let appUsers = [];
+let scheduleLoaded = false;
 const scheduleDocRef = doc(db, 'schedule', 'jadwal_v6');
+const $ = id => document.getElementById(id);
 
-// --- وظيفة المزامنة التلقائية ---
-async function syncEmployees(appUsers) {
-    let needsUpdate = false;
-    const currentEmpIds = new Set(emps.map(e => e.id));
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  })[char]);
+}
 
-    appUsers.forEach(user => {
-        // إذا كان المستخدم غير موجود في سجل الموظفين، أضفه تلقائياً
-        if (!currentEmpIds.has(user.id)) {
-            emps.push({
-                id: user.id,
-                name: user.name || "موظف جديد",
-                active: true,
-                fixed: false,
-                rotation: 'none'
-            });
-            needsUpdate = true;
-            console.log("Auto-synced new employee:", user.name);
-        }
-    });
+function normalizeRotation(value) {
+  const rot = String(value || 'none');
+  if (rot === 'thu_fri') return 'thu';
+  if (rot === 'fri_sat') return 'fri';
+  return ['none', 'thu', 'fri'].includes(rot) ? rot : 'none';
+}
 
-    if (needsUpdate) {
-        await updateDoc(scheduleDocRef, { "data.emps": emps });
+function rotationLabel(value) {
+  const rot = normalizeRotation(value);
+  if (rot === 'thu') return 'الخميس والجمعة';
+  if (rot === 'fri') return 'الجمعة والسبت';
+  return 'لا يوجد';
+}
+
+function shiftValue(emp) {
+  return emp.fixed ? 'night' : 'morning';
+}
+
+function shiftLabel(emp) {
+  return emp.fixed ? 'ليلي ثابت' : 'صباحي / متغير';
+}
+
+function sourceLabel(emp) {
+  return emp.source === 'manual' ? 'يدوي' : 'صلاحيات';
+}
+
+function employeeSource(emp) {
+  if (emp.source) return emp.source;
+  return appUsers.some(user => String(user.id) === String(emp.id)) ? 'app_users' : 'manual';
+}
+
+function normalizeEmployee(emp) {
+  const rot = normalizeRotation(emp.rotType || emp.rotation);
+  return {
+    ...emp,
+    name: emp.name || '',
+    empNum: emp.empNum || emp.technicianId || '',
+    dept: emp.dept || emp.department || '',
+    jobTitle: emp.jobTitle || emp.role || '',
+    email: emp.email || '',
+    phone: emp.phone || '',
+    active: emp.active !== false,
+    fixed: emp.fixed === true,
+    rotation: rot,
+    rotType: rot,
+    source: employeeSource(emp)
+  };
+}
+
+async function saveEmployees(updated = emps) {
+  emps = updated.map(normalizeEmployee);
+  await waitForSignedInUser();
+  await setDoc(scheduleDocRef, { data: { emps } }, { merge: true });
+}
+
+function fillForm(emp) {
+  $('editingId').value = emp?.id || '';
+  $('empNum').value = emp?.empNum || '';
+  $('empName').value = emp?.name || '';
+  $('empDept').value = emp?.dept || '';
+  $('empJob').value = emp?.jobTitle || '';
+  $('empEmail').value = emp?.email || '';
+  $('empPhone').value = emp?.phone || '';
+  $('empShift').value = emp?.fixed ? 'night' : 'morning';
+  $('empRotation').value = normalizeRotation(emp?.rotType || emp?.rotation);
+  $('empStatus').value = emp?.active === false ? 'false' : 'true';
+  $('formNote').textContent = emp ? `جاري تعديل: ${emp.name || emp.id}` : 'الحقول الأساسية: رقم الموظف واسم الموظف. باقي المعلومات اختيارية لكنها تظهر في السجل.';
+}
+
+function buildEmployeePayload(existing) {
+  const empNum = $('empNum').value.trim();
+  const name = $('empName').value.trim();
+  if (!empNum || !name) {
+    alert('يرجى إدخال رقم الموظف واسم الموظف');
+    return null;
+  }
+
+  const rot = normalizeRotation($('empRotation').value);
+  return {
+    ...(existing || {}),
+    id: existing?.id || `emp_${Date.now()}`,
+    empNum,
+    name,
+    dept: $('empDept').value.trim(),
+    jobTitle: $('empJob').value.trim(),
+    email: $('empEmail').value.trim(),
+    phone: $('empPhone').value.trim(),
+    fixed: $('empShift').value === 'night',
+    rotation: rot,
+    rotType: rot,
+    active: $('empStatus').value === 'true',
+    source: existing?.source || 'manual',
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function render() {
+  const tbody = $('empTableBody');
+  const rows = emps.map(normalizeEmployee).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ar'));
+  $('empCount').textContent = `${rows.length} موظف`;
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td class="empty" colspan="11">لا يوجد موظفون حالياً</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(emp => {
+    const source = employeeSource(emp);
+    return `
+      <tr data-id="${escapeHtml(emp.id)}">
+        <td class="emp-name">
+          ${escapeHtml(emp.name)}
+          <div class="muted">${escapeHtml(emp.id)}</div>
+        </td>
+        <td>${escapeHtml(emp.empNum || '-')}</td>
+        <td>${escapeHtml(emp.dept || '-')}</td>
+        <td>${escapeHtml(emp.jobTitle || '-')}</td>
+        <td>${escapeHtml(emp.email || '-')}</td>
+        <td>${escapeHtml(emp.phone || '-')}</td>
+        <td>
+          <select class="compact-select" data-field="fixed" data-id="${escapeHtml(emp.id)}">
+            <option value="morning" ${shiftValue(emp) === 'morning' ? 'selected' : ''}>صباحي / متغير</option>
+            <option value="night" ${shiftValue(emp) === 'night' ? 'selected' : ''}>ليلي ثابت</option>
+          </select>
+        </td>
+        <td>
+          <select class="compact-select" data-field="rotation" data-id="${escapeHtml(emp.id)}">
+            <option value="none" ${normalizeRotation(emp.rotType || emp.rotation) === 'none' ? 'selected' : ''}>لا يوجد</option>
+            <option value="thu" ${normalizeRotation(emp.rotType || emp.rotation) === 'thu' ? 'selected' : ''}>الخميس والجمعة</option>
+            <option value="fri" ${normalizeRotation(emp.rotType || emp.rotation) === 'fri' ? 'selected' : ''}>الجمعة والسبت</option>
+          </select>
+          <div class="muted">${rotationLabel(emp.rotType || emp.rotation)}</div>
+        </td>
+        <td>
+          <select class="compact-select" data-field="active" data-id="${escapeHtml(emp.id)}">
+            <option value="true" ${emp.active !== false ? 'selected' : ''}>نشط</option>
+            <option value="false" ${emp.active === false ? 'selected' : ''}>مخفي</option>
+          </select>
+          <div><span class="status-pill ${emp.active !== false ? 'status-active' : 'status-hidden'}">${emp.active !== false ? 'نشط' : 'مخفي'}</span></div>
+        </td>
+        <td><span class="source-pill ${source === 'manual' ? 'source-manual' : 'source-sync'}">${sourceLabel({...emp, source})}</span></td>
+        <td>
+          <div class="row-actions">
+            <button class="btn" type="button" data-action="edit" data-id="${escapeHtml(emp.id)}">تعديل</button>
+            <button class="danger-btn" type="button" data-action="delete" data-id="${escapeHtml(emp.id)}">حذف</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function syncEmployees(users) {
+  let needsUpdate = false;
+  const currentIds = new Set(emps.map(emp => String(emp.id)));
+
+  users.forEach(user => {
+    const id = String(user.id);
+    if (!currentIds.has(id)) {
+      emps.push({
+        id,
+        empNum: user.technicianId || user.empNum || '',
+        name: user.name || 'موظف جديد',
+        dept: user.dept || user.department || '',
+        jobTitle: user.jobTitle || user.role || 'Employee',
+        email: user.email || '',
+        phone: user.phone || '',
+        active: user.active !== false,
+        fixed: false,
+        rotation: 'none',
+        rotType: 'none',
+        source: 'app_users',
+        createdAt: new Date().toISOString()
+      });
+      needsUpdate = true;
     }
+  });
+
+  if (needsUpdate) await saveEmployees(emps);
 }
 
 async function bindSnapshots() {
-    await waitForSignedInUser();
+  await waitForSignedInUser();
 
-    // الاستماع لمجموعة المستخدمين app_users للمزامنة
-    onSnapshot(collection(db, 'app_users'), (snap) => {
-        const appUsers = snap.docs.map(d => ({id: d.id, ...d.data()}));
-        syncEmployees(appUsers).catch(e => logFirebaseError('Employee sync failed', e));
-    }, e => logFirebaseError('Employee app_users listener failed', e));
+  onSnapshot(collection(db, 'app_users'), snap => {
+    appUsers = snap.docs.map(item => ({ id: item.id, ...item.data() }));
+    if (scheduleLoaded) syncEmployees(appUsers).catch(error => logFirebaseError('Employee sync failed', error));
+    render();
+  }, error => logFirebaseError('Employee app_users listener failed', error));
 
-    // الاستماع لسجل الموظفين الفعلي لعرضه
-    onSnapshot(scheduleDocRef, (snap) => {
-        if(snap.exists()) {
-            emps = snap.data().data?.emps || [];
-            render();
-        }
-    }, e => logFirebaseError('Employee schedule listener failed', e));
+  onSnapshot(scheduleDocRef, snap => {
+    emps = snap.exists() ? (snap.data().data?.emps || []).map(normalizeEmployee) : [];
+    scheduleLoaded = true;
+    if (appUsers.length) syncEmployees(appUsers).catch(error => logFirebaseError('Employee sync failed', error));
+    render();
+  }, error => logFirebaseError('Employee schedule listener failed', error));
 }
 
-bindSnapshots().catch(e => logFirebaseError('Employee schedule startup failed', e));
+window.saveEmployee = async () => {
+  const editingId = $('editingId').value;
+  const existing = editingId ? emps.find(emp => String(emp.id) === String(editingId)) : null;
+  const payload = buildEmployeePayload(existing);
+  if (!payload) return;
 
-window.updateRotation = async (id, val) => {
-    const updated = emps.map(e => e.id === id ? {...e, rotation: val} : e);
-    await waitForSignedInUser();
-    await updateDoc(scheduleDocRef, { "data.emps": updated });
+  const duplicate = emps.find(emp => {
+    if (existing && String(emp.id) === String(existing.id)) return false;
+    return String(emp.empNum || '').trim() === String(payload.empNum).trim();
+  });
+  if (duplicate) {
+    alert('رقم الموظف مستخدم مسبقاً');
+    return;
+  }
+
+  const updated = existing
+    ? emps.map(emp => String(emp.id) === String(existing.id) ? payload : emp)
+    : [...emps, { ...payload, createdAt: new Date().toISOString() }];
+
+  await saveEmployees(updated);
+  fillForm(null);
 };
 
-window.toggleActive = async (id) => {
-    const updated = emps.map(e => e.id === id ? {...e, active: !e.active} : e);
-    await waitForSignedInUser();
-    await updateDoc(scheduleDocRef, { "data.emps": updated });
+window.editEmployee = id => {
+  const emp = emps.map(normalizeEmployee).find(item => String(item.id) === String(id));
+  if (!emp) return;
+  fillForm(emp);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-window.toggleShift = async (id) => {
-    const updated = emps.map(e => e.id === id ? {...e, fixed: !e.fixed} : e);
-    await waitForSignedInUser();
-    await updateDoc(scheduleDocRef, { "data.emps": updated });
+window.deleteEmployee = async id => {
+  const emp = emps.find(item => String(item.id) === String(id));
+  if (!emp) return;
+  const isSynced = employeeSource(emp) !== 'manual';
+  const message = isSynced
+    ? 'هذا الموظف متزامن مع صفحة الصلاحيات وقد يعود عند إعادة المزامنة. هل تريد حذفه من سجل الجدول الآن؟'
+    : 'هل تريد حذف هذا الموظف؟';
+  if (!confirm(message)) return;
+  await saveEmployees(emps.filter(item => String(item.id) !== String(id)));
 };
 
-function render() {
-    const tbody = document.getElementById('empTableBody');
-    tbody.innerHTML = emps.map(e => `
-        <tr>
-            <td style="text-align:right; font-weight:800; color:var(--primary)">${e.name}</td>
-            <td>
-                <button onclick="window.toggleShift('${e.id}')" style="background:none; border:1px solid #ddd; padding:6px; border-radius:10px; cursor:pointer; font-weight:700">
-                    ${e.fixed ? '🌙 ليلي ثابت' : '🔄 متغير'}
-                </button>
-            </td>
-            <td>
-                <select class="rotation-select" onchange="window.updateRotation('${e.id}', this.value)">
-                    <option value="none" ${e.rotation === 'none' ? 'selected' : ''}>لا يوجد</option>
-                    <option value="thu_fri" ${e.rotation === 'thu_fri' ? 'selected' : ''}>الخميس والجمعة</option>
-                    <option value="fri_sat" ${e.rotation === 'fri_sat' ? 'selected' : ''}>الجمعة والسبت</option>
-                </select>
-            </td>
-            <td>
-                <span style="color:${e.active ? '#10b981' : '#ef4444'}; font-weight:900">
-                    ${e.active ? '● نشط' : '● مخفي'}
-                </span>
-            </td>
-            <td>
-                <button onclick="window.toggleActive('${e.id}')" style="background:${e.active ? '#fee2e2' : '#f0fdf4'}; color:${e.active ? '#b91c1c' : '#166534'}; border:none; padding:8px 15px; border-radius:10px; font-weight:800; cursor:pointer">
-                    ${e.active ? 'إخفاء من الجدول' : 'إظهار في الجدول'}
-                </button>
-            </td>
-        </tr>
-    `).join('');
-}
+window.updateEmployeeField = async (id, field, value) => {
+  const updated = emps.map(emp => {
+    if (String(emp.id) !== String(id)) return emp;
+    if (field === 'fixed') return { ...emp, fixed: value === 'night', updatedAt: new Date().toISOString() };
+    if (field === 'active') return { ...emp, active: value === 'true', updatedAt: new Date().toISOString() };
+    if (field === 'rotation') {
+      const rot = normalizeRotation(value);
+      return { ...emp, rotation: rot, rotType: rot, updatedAt: new Date().toISOString() };
+    }
+    return emp;
+  });
+  await saveEmployees(updated);
+};
+
+$('saveEmployeeBtn').addEventListener('click', () => window.saveEmployee().catch(error => logFirebaseError('Save employee failed', error)));
+$('clearFormBtn').addEventListener('click', () => fillForm(null));
+$('reloadBtn').addEventListener('click', render);
+
+$('empTableBody').addEventListener('click', event => {
+  const button = event.target.closest('[data-action]');
+  if (!button) return;
+  const id = button.dataset.id;
+  if (button.dataset.action === 'edit') window.editEmployee(id);
+  if (button.dataset.action === 'delete') window.deleteEmployee(id).catch(error => logFirebaseError('Delete employee failed', error));
+});
+
+$('empTableBody').addEventListener('change', event => {
+  const field = event.target.dataset.field;
+  const id = event.target.dataset.id;
+  if (!field || !id) return;
+  window.updateEmployeeField(id, field, event.target.value).catch(error => logFirebaseError('Update employee field failed', error));
+});
+
+bindSnapshots().catch(error => logFirebaseError('Employee schedule startup failed', error));
 </script>
 </body>
 </html>
