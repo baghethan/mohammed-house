@@ -106,15 +106,18 @@
       appId: "1:944819735112:web:07315600da39377320667d"
     };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const auth = firebase.auth();
+    const shellContext = window.parent && window.parent !== window && window.parent.appAuth && window.parent.appDb;
+    if (!shellContext && !firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = shellContext ? window.parent.appDb : firebase.firestore();
+    const auth = shellContext ? window.parent.appAuth : firebase.auth();
 
     auth.onAuthStateChanged(user => {
         if (user) {
             document.getElementById('user-status').innerText = "متصل: " + user.email;
             startSync();
-        } else { window.location.href = "login.html"; }
+        } else if (!shellContext) { window.location.href = "login.html"; }
     });
 
     function startSync() {
