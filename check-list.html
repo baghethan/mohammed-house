@@ -1,98 +1,257 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
-  <meta charset="UTF-8">
-  <title>Check-List | MMC IT Service</title>
-  <style>
-    :root{ --primary: #0d2149; --bg: #f8fafc; --border: #cbd5e1; }
-    body{ font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 20px; }
-    .card { max-width: 900px; margin: auto; background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid var(--border); }
-    h2 { color: var(--primary); margin-top: 0; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
-    .item { display: flex; align-items: center; gap: 15px; padding: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
-    .item:hover { background: #f0f7ff; }
-    input[type="checkbox"] { width: 20px; height: 20px; }
-    .btn-submit { margin-top: 20px; width: 100%; padding: 15px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
-  </style>
+    <meta charset="UTF-8">
+    <title>IT Service Delivery Checklist | Al-Majdouie</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root { --primary: #0d2149; --accent: #1b4fa3; --bg: #f1f5f9; --border: #cbd5e1; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); padding: 15px; color: #1e293b; margin: 0; }
+        .card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid var(--border); max-width: 1300px; margin: auto; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .section-title { background: #f8fafc; padding: 10px 15px; border-radius: 8px; border-left: 5px solid var(--primary); font-weight: bold; margin: 20px 0 15px; color: var(--primary); }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 11px; font-weight: 800; color: #64748b; margin-bottom: 5px; text-transform: uppercase; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+        input[readonly] { background: #f8fafc; color: #64748b; }
+        .dynamic-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .check-card { background: #fff; border: 1px solid var(--border); padding: 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; transition: 0.2s; }
+        .check-card:hover { border-color: var(--accent); background: #f0f9ff; }
+        .btn-main { width: 100%; padding: 15px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; }
+        .admin-controls { margin-top: 25px; padding-top: 20px; border-top: 2px dashed var(--border); }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+        th { background: #f8fafc; }
+        .hidden { display: none !important; }
+    </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>📋 Technical Check-List</h2>
-    <div id="authStatus" style="font-size: 12px; color: #64748b; margin-bottom: 15px;">Verifying Admin Status...</div>
-    
-    <div id="listContainer">
-        <!-- الحقول سيتم تحميلها هنا -->
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h2 style="margin:0; color: var(--primary);">MMC Technical Check-List v3.0.0</h2>
+        <div id="userBadge" style="font-size: 12px; margin-top: 5px;">Authenticating...</div>
     </div>
 
-    <button class="btn-submit" id="submitBtn">Submit Report</button>
+    <!-- 1. الربط مع الفني والزيارة -->
+    <div class="section-title">1. Technician & Visit Assignment</div>
+    <div class="grid-3">
+        <div class="form-group">
+            <label>Technician Name</label>
+            <select id="techSelect"><option value="">Select Technician</option></select>
+        </div>
+        <div class="form-group">
+            <label>Linked Visit ID</label>
+            <select id="visitSelect"><option value="">Select Active Visit</option></select>
+        </div>
+        <div class="form-group">
+            <label>Technician Email</label>
+            <input type="text" id="techEmail" readonly>
+        </div>
+    </div>
+
+    <!-- 2. Basic Information (Auto-Filled) -->
+    <div class="section-title">2. Basic Branch Information</div>
+    <div class="grid-3">
+        <div class="form-group"><label>Brand</label><input type="text" id="brand" readonly></div>
+        <div class="form-group"><label>Branch ID</label><input type="text" id="branchId" readonly></div>
+        <div class="form-group"><label>Location/Site</label><input type="text" id="location" readonly></div>
+        <div class="form-group"><label>Visit Date</label><input type="text" id="visitDate" readonly></div>
+        <div class="form-group"><label>Branch Manager</label><input type="text" id="managerName" placeholder="Manager Name"></div>
+        <div class="form-group"><label>Visit Month</label><input type="text" id="vMonth" readonly></div>
+    </div>
+
+    <!-- 3. Dynamic Check-List (From Firestore) -->
+    <div class="section-title">3. Dynamic IT Audit Checklist</div>
+    <div id="dynamicFields" class="dynamic-grid">
+        <div style="grid-column: 1/-1; text-align:center; padding:20px; color:#64748b;">Loading dynamic fields...</div>
+    </div>
+
+    <div style="margin-top:20px">
+        <label>Additional Notes / IT Assets Condition</label>
+        <textarea id="itNotes" rows="3" placeholder="Enter notes about unused or damaged assets..."></textarea>
+    </div>
+
+    <button class="btn-main" id="submitBtn" style="margin-top:20px">💾 Submit & Close Visit</button>
+
+    <!-- Admin Only: Saved Records & Excel -->
+    <div id="adminPanel" class="admin-controls hidden">
+        <div class="section-title">🛡️ Admin Management & Smart Export</div>
+        <div style="display:flex; gap:10px; margin-bottom:15px">
+            <button onclick="exportSmartExcel()" style="background:#166534; color:#fff; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;">📥 Smart Excel Export</button>
+            <button onclick="document.getElementById('excelFile').click()" style="background:#0369a1; color:#fff; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;">📤 Import History</button>
+            <input type="file" id="excelFile" class="hidden" accept=".xlsx, .xls">
+        </div>
+        <div style="overflow-x:auto">
+            <table id="submissionsTable">
+                <thead>
+                    <tr><th>Date</th><th>Tech</th><th>Brand</th><th>Branch</th><th>Location</th><th>Action</th></tr>
+                </thead>
+                <tbody id="submissionsBody"></tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getFirestore, doc, getDoc, setDoc, collection } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getFirestore, doc, getDoc, getDocs, setDoc, collection, query, where, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
     import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
-    const config = { 
-        apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs", 
-        authDomain: "baghethan-ba325.firebaseapp.com", 
-        projectId: "baghethan-ba325" 
-    };
-
+    const config = { apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs", authDomain: "baghethan-ba325.firebaseapp.com", projectId: "baghethan-ba325" };
     const app = initializeApp(config);
-    const db = getFirestore(app);
-    const auth = getAuth(app); // تعريف الـ Auth المصلح
+    const db = getFirestore(app); // حل مشكلة cacheSizeBytes نهائياً
+    const auth = getAuth(app);
 
-    // فحص الصلاحيات عند تحميل الصفحة
+    let currentUser = null, userRole = "technician", allVisits = [], dynamicConfig = [];
+
+    // --- Core Authentication & Security Logic ---
     onAuthStateChanged(auth, async (user) => {
         if (user) {
+            currentUser = user;
             const userSnap = await getDoc(doc(db, 'app_users', user.uid));
             const userData = userSnap.data();
-            const role = (userData.role || "").toLowerCase();
-
-            document.getElementById('authStatus').innerHTML = `Verified as: <b>${role.toUpperCase()}</b>`;
+            userRole = (userData.role || "technician").toLowerCase();
+            document.getElementById('userBadge').innerHTML = `Verified as: <b>${userRole.toUpperCase()}</b>`;
             
-            // إذا كان Admin يرى كل شيء، إذا كان Technician يرى ما سمحت له به
-            loadItems(role === 'admin' ? 'full' : 'limited');
-        } else {
-            document.getElementById('authStatus').innerText = "Session expired. Please login.";
-        }
+            if (userRole === 'admin') document.getElementById('adminPanel').classList.remove('hidden');
+            
+            initSystem();
+        } else { window.location.href = "login.html"; }
     });
 
-    function loadItems(mode) {
-        const container = document.getElementById('listContainer');
-        const items = [
-            { id: 'windows', label: 'Windows 11 Upgrade Readiness' },
-            { id: 'network', label: 'Network Connection Stability' },
-            { id: 'ups', label: 'UPS Battery & Power Check' }
-        ];
+    async function initSystem() {
+        await loadDynamicFields();
+        await loadTechnicians();
+        await loadVisits();
+        if (userRole === 'admin') loadSubmissions();
+    }
 
-        container.innerHTML = items.map(i => `
-            <label class="item">
-                <input type="checkbox" class="task-check" data-id="${i.id}">
-                <span>${i.label}</span>
-            </label>
+    // --- Load Dynamic Fields from checklist_fields ---
+    async function loadDynamicFields() {
+        const snap = await getDocs(collection(db, 'checklist_fields'));
+        dynamicConfig = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const container = document.getElementById('dynamicFields');
+        container.innerHTML = dynamicConfig.map(f => `
+            <div class="check-card">
+                <input type="checkbox" class="dyn-check" data-id="${f.id}">
+                <span>${f.label}</span>
+            </div>
         `).join('');
     }
 
-    document.getElementById('submitBtn').onclick = async () => {
-        const user = auth.currentUser;
-        if(!user) return;
+    async function loadTechnicians() {
+        const snap = await getDocs(collection(db, 'app_users'));
+        const select = document.getElementById('techSelect');
+        snap.docs.forEach(d => {
+            const u = d.data();
+            const opt = new Option(u.name, d.id);
+            if (d.id === currentUser.uid) opt.selected = true;
+            select.add(opt);
+        });
+        updateTechInfo(currentUser.uid);
+    }
 
-        const results = Array.from(document.querySelectorAll('.task-check')).map(c => ({
-            id: c.dataset.id,
-            checked: c.checked
-        }));
+    async function updateTechInfo(uid) {
+        const d = await getDoc(doc(db, 'app_users', uid));
+        if (d.exists()) document.getElementById('techEmail').value = d.data().email;
+    }
+
+    // --- Load Linked Visits ---
+    async function loadVisits() {
+        const snap = await getDocs(collection(db, 'siteVisits'));
+        const submittedSnap = await getDocs(collection(db, 'checkList_submissions'));
+        const submittedVisitIds = submittedSnap.docs.map(d => d.data().visitId);
+
+        allVisits = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const select = document.getElementById('visitSelect');
+        select.innerHTML = '<option value="">Select Active Visit</option>';
+
+        allVisits.forEach(v => {
+            // منطق الحماية: الفني لا يرى الزيارات المسلمة سابقاً
+            const isSubmitted = submittedVisitIds.includes(v.id);
+            const isAssigned = v.technicianId === currentUser.uid;
+
+            if (userRole === 'admin' || (isAssigned && !isSubmitted)) {
+                select.add(new Option(`Visit ${v.id} - ${v.branchName || v.branchId}`, v.id));
+            }
+        });
+    }
+
+    document.getElementById('visitSelect').onchange = (e) => {
+        const v = allVisits.find(x => x.id === e.target.value);
+        if (v) {
+            document.getElementById('brand').value = v.brand || "";
+            document.getElementById('branchId').value = v.branchId || "";
+            document.getElementById('location').value = v.branchName || v.location || "";
+            document.getElementById('visitDate').value = v.visitDate || "";
+            document.getElementById('vMonth').value = v.visitDate ? v.visitDate.split('-')[1] : "";
+        }
+    };
+
+    // --- Submission Logic ---
+    document.getElementById('submitBtn').onclick = async () => {
+        const visitId = document.getElementById('visitSelect').value;
+        if (!visitId) return alert("Please select a visit first!");
+
+        const dynData = {};
+        document.querySelectorAll('.dyn-check').forEach(c => dynData[c.dataset.id] = c.checked);
+
+        const payload = {
+            visitId,
+            technicianId: document.getElementById('techSelect').value,
+            technicianEmail: document.getElementById('techEmail').value,
+            brand: document.getElementById('brand').value,
+            branchId: document.getElementById('branchId').value,
+            location: document.getElementById('location').value,
+            managerName: document.getElementById('managerName').value,
+            visitDate: document.getElementById('visitDate').value,
+            notes: document.getElementById('itNotes').value,
+            dynamicFields: dynData,
+            submittedAt: new Date().toISOString()
+        };
 
         try {
-            await setDoc(doc(db, 'checklist_submissions', `${user.uid}_${Date.now()}`), {
-                submittedBy: user.uid,
-                data: results,
-                timestamp: new Date().toISOString()
+            await setDoc(doc(db, 'checkList_submissions', `sub_${visitId}`), payload);
+            alert("✅ Checklist submitted and visit closed!");
+            location.reload();
+        } catch (e) { alert("Error: " + e.message); }
+    };
+
+    // --- Admin: Load & Export Smart Excel ---[cite: 1]
+    async function loadSubmissions() {
+        const snap = await getDocs(collection(db, 'checkList_submissions'));
+        const body = document.getElementById('submissionsBody');
+        body.innerHTML = snap.docs.map(d => {
+            const s = d.data();
+            return `<tr>
+                <td>${s.visitDate}</td><td>${s.technicianEmail}</td>
+                <td>${s.brand}</td><td>${s.branchId}</td><td>${s.location}</td>
+                <td><button onclick="window.fetchDetails('${d.id}')">View</button></td>
+            </tr>`;
+        }).join('');
+    }
+
+    window.exportSmartExcel = async () => {
+        const snap = await getDocs(collection(db, 'checkList_submissions'));
+        const data = snap.docs.map(d => {
+            const s = d.data();
+            const row = {
+                Date: s.visitDate, Technician: s.technicianEmail, Brand: s.brand,
+                Branch: s.branchId, Location: s.location, Manager: s.managerName, Notes: s.notes
+            };
+            // دمج الحقول الديناميكية في الأعمدة[cite: 1]
+            Object.keys(s.dynamicFields).forEach(key => {
+                const label = dynamicConfig.find(f => f.id === key)?.label || key;
+                row[label] = s.dynamicFields[key] ? "Pass" : "Fail";
             });
-            alert("Report saved successfully!");
-        } catch (e) {
-            alert("Error: " + e.message);
-        }
+            return row;
+        });
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Audit_Reports");
+        XLSX.writeFile(wb, `Audit_Report_MMC_${new Date().toLocaleDateString()}.xlsx`);
     };
 </script>
 </body>
