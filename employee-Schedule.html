@@ -48,26 +48,10 @@
 </div>
 
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
 import { 
-    initializeFirestore, doc, onSnapshot, updateDoc, collection, getDocs,
-    persistentLocalCache, persistentMultipleTabManager 
+    doc, onSnapshot, updateDoc, collection
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-const firebaseConfig = { 
-    apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', 
-    authDomain:'baghethan-ba325.firebaseapp.com', 
-    projectId:'baghethan-ba325', 
-    storageBucket:'baghethan-ba325.firebasestorage.app', 
-    messagingSenderId:'944819735112', 
-    appId:'1:944819735112:web:07315600da39377320667d' 
-};
-
-const app = initializeApp(firebaseConfig);
-const db = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
-    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
-});
 
 let emps = [];
 const scheduleDocRef = doc(db, 'schedule', 'jadwal_v6');
@@ -97,32 +81,41 @@ async function syncEmployees(appUsers) {
     }
 }
 
-// الاستماع لمجموعة المستخدمين app_users للمزامنة
-onSnapshot(collection(db, 'app_users'), (snap) => {
-    const appUsers = snap.docs.map(d => ({id: d.id, ...d.data()}));
-    syncEmployees(appUsers);
-});
+async function bindSnapshots() {
+    await waitForSignedInUser();
 
-// الاستماع لسجل الموظفين الفعلي لعرضه
-onSnapshot(scheduleDocRef, (snap) => {
-    if(snap.exists()) {
-        emps = snap.data().data?.emps || [];
-        render();
-    }
-});
+    // الاستماع لمجموعة المستخدمين app_users للمزامنة
+    onSnapshot(collection(db, 'app_users'), (snap) => {
+        const appUsers = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        syncEmployees(appUsers).catch(e => logFirebaseError('Employee sync failed', e));
+    }, e => logFirebaseError('Employee app_users listener failed', e));
+
+    // الاستماع لسجل الموظفين الفعلي لعرضه
+    onSnapshot(scheduleDocRef, (snap) => {
+        if(snap.exists()) {
+            emps = snap.data().data?.emps || [];
+            render();
+        }
+    }, e => logFirebaseError('Employee schedule listener failed', e));
+}
+
+bindSnapshots().catch(e => logFirebaseError('Employee schedule startup failed', e));
 
 window.updateRotation = async (id, val) => {
     const updated = emps.map(e => e.id === id ? {...e, rotation: val} : e);
+    await waitForSignedInUser();
     await updateDoc(scheduleDocRef, { "data.emps": updated });
 };
 
 window.toggleActive = async (id) => {
     const updated = emps.map(e => e.id === id ? {...e, active: !e.active} : e);
+    await waitForSignedInUser();
     await updateDoc(scheduleDocRef, { "data.emps": updated });
 };
 
 window.toggleShift = async (id) => {
     const updated = emps.map(e => e.id === id ? {...e, fixed: !e.fixed} : e);
+    await waitForSignedInUser();
     await updateDoc(scheduleDocRef, { "data.emps": updated });
 };
 

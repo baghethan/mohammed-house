@@ -102,11 +102,8 @@
 </div>
 
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getFirestore, doc, onSnapshot, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
-const app = initializeApp(firebaseConfig); const db = getFirestore(app);
+import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
+import { doc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
     ar: { morning:'صباحي', night:'ليلي', vacation:'إجازة', oncall:'أون كول', work:'تغطية', off:'أوف', employee:'الموظف', allDay:'طوال اليوم', help:'حسب الحاجة', days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'] },
@@ -171,6 +168,7 @@ window.selectOpt = (id) => {
 };
 
 window.saveOverride = async () => {
+    await waitForSignedInUser();
     overrides[`${selectedCell.empId}_${selectedCell.date}`] = selectedOption;
     await setDoc(doc(db, 'schedule', 'manual_overrides'), overrides);
     window.closeDialog();
@@ -184,13 +182,17 @@ $('btnToday').onclick = () => { const d = new Date(); d.setDate(d.getDate() - d.
 $('btnToggleLang').onclick = () => { currentLang = currentLang==='ar'?'en':'ar'; localStorage.setItem('lang', currentLang); renderTable(); };
 $('datePicker').onchange = renderTable;
 
-onSnapshot(doc(db, 'schedule', 'jadwal_v6'), s => { emps = s.data()?.data?.emps || []; renderTable(); });
-onSnapshot(doc(db, 'schedule', 'manual_overrides'), s => { overrides = s.data() || {}; renderTable(); });
+async function bindSnapshots() {
+    await waitForSignedInUser();
+    onSnapshot(doc(db, 'schedule', 'jadwal_v6'), s => { emps = s.data()?.data?.emps || []; renderTable(); }, e => logFirebaseError('Weekly schedule employees listener failed', e));
+    onSnapshot(doc(db, 'schedule', 'manual_overrides'), s => { overrides = s.data() || {}; renderTable(); }, e => logFirebaseError('Weekly schedule overrides listener failed', e));
+}
 
 window.onload = () => {
     const d = new Date(); d.setDate(d.getDate() - d.getDay());
     $('datePicker').value = d.toISOString().split('T')[0];
     renderTable();
+    bindSnapshots().catch(e => logFirebaseError('Weekly schedule startup failed', e));
 };
 </script>
 </body>

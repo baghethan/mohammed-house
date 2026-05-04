@@ -29,10 +29,8 @@
     </div></div>
 
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getFirestore, doc, onSnapshot, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
-const app = initializeApp(firebaseConfig); const db = getFirestore(app);
+import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
+import { doc, onSnapshot, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 let emps=[], selTarget=null, selOpt=null;
 const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
@@ -43,11 +41,13 @@ window.openOv = (id, d, n) => {
     document.getElementById('ov').style.display='flex';
 }
 window.sel = (s) => { selOpt=s; document.querySelectorAll('#opts .badge').forEach(b=>b.style.border='none'); document.getElementById('p_'+s).style.border='2px solid blue'; }
-window.save = async () => { if(!selOpt) return; const mo = (await getDoc(doc(db,'schedule','manual_overrides'))).data() || {}; mo[`${selTarget.id}_${selTarget.d}`]=selOpt; await setDoc(doc(db,'schedule','manual_overrides'), mo); closeOv(); }
+window.save = async () => { if(!selOpt) return; await waitForSignedInUser(); const mo = (await getDoc(doc(db,'schedule','manual_overrides'))).data() || {}; mo[`${selTarget.id}_${selTarget.d}`]=selOpt; await setDoc(doc(db,'schedule','manual_overrides'), mo); closeOv(); }
 window.closeOv = () => document.getElementById('ov').style.display='none';
 
 async function draw(){
-    const start = new Date(document.getElementById('datePicker').value.replace(/-/g,'/'));
+    const picker = document.getElementById('datePicker');
+    if(!picker.value) return;
+    const start = new Date(picker.value.replace(/-/g,'/'));
     let h = '<th>الموظف</th>';
     for(let i=0;i<7;i++){ const d=new Date(start.getTime()+i*86400000); h+=`<th>${days[i]}<br><small>${d.toLocaleDateString('en-GB')}</small></th>`; }
     document.getElementById('h').innerHTML = h;
@@ -63,10 +63,19 @@ async function draw(){
     }).join('');
 }
 
-document.getElementById('datePicker').addEventListener('change', draw);
-onSnapshot(doc(db,'schedule','jadwal_v6'), s => { emps = s.data().data.emps; draw(); });
-onSnapshot(doc(db,'schedule','manual_overrides'), draw);
-window.onload = () => { const d=new Date(); d.setDate(d.getDate()-d.getDay()); document.getElementById('datePicker').value=d.toISOString().split('T')[0]; };
+document.getElementById('datePicker').addEventListener('change', () => draw().catch(e => logFirebaseError('Plan vacation draw failed', e)));
+
+async function bindSnapshots() {
+    await waitForSignedInUser();
+    onSnapshot(doc(db,'schedule','jadwal_v6'), s => { emps = s.data()?.data?.emps || []; draw().catch(e => logFirebaseError('Plan vacation draw failed', e)); }, e => logFirebaseError('Plan vacation employees listener failed', e));
+    onSnapshot(doc(db,'schedule','manual_overrides'), () => draw().catch(e => logFirebaseError('Plan vacation draw failed', e)), e => logFirebaseError('Plan vacation overrides listener failed', e));
+}
+
+window.onload = () => {
+    const d=new Date(); d.setDate(d.getDate()-d.getDay());
+    document.getElementById('datePicker').value=d.toISOString().split('T')[0];
+    bindSnapshots().catch(e => logFirebaseError('Plan vacation startup failed', e));
+};
 </script>
 </body>
 </html>

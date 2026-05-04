@@ -61,22 +61,11 @@
 </div>
 
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { auth, db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { 
-    initializeFirestore, doc, setDoc, getDoc, 
-    persistentLocalCache, persistentMultipleTabManager 
+    doc, setDoc, getDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-// إجبار الاتصال عبر HTTP لتجاوز جدار الحماية
-const db = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
-    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
-});
 
 const $=id=>document.getElementById(id);
 
@@ -102,6 +91,7 @@ window.saveSettings = async () => {
     };
 
     try {
+        await waitForSignedInUser();
         await setDoc(doc(db, 'schedule', 'shift_settings'), data, { merge: true });
         const box = $('statusBox');
         box.innerText = "✅ تم حفظ التوقيتات بنجاح!";
@@ -124,6 +114,7 @@ window.saveSettings = async () => {
 
 async function loadSettings(){
     try {
+        await waitForSignedInUser();
         const snap = await getDoc(doc(db, 'schedule', 'shift_settings'));
         if(snap.exists()){
             const d = snap.data();
@@ -134,7 +125,7 @@ async function loadSettings(){
             if(d.workStart) $('workStart').value = d.workStart;
             if(d.workEnd) $('workEnd').value = d.workEnd;
         }
-    } catch(e) { console.error("Error loading:", e); }
+    } catch(e) { logFirebaseError("Error loading shift settings", e); }
 }
 
 window.onload = loadSettings;

@@ -63,12 +63,8 @@
 </div>
 
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getFirestore, doc, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-// Configuration extracted from your Schedule.html
-const firebaseConfig = { apiKey:'AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs', authDomain:'baghethan-ba325.firebaseapp.com', projectId:'baghethan-ba325', storageBucket:'baghethan-ba325.firebasestorage.app', messagingSenderId:'944819735112', appId:'1:944819735112:web:07315600da39377320667d' };
-const app = initializeApp(firebaseConfig); const db = getFirestore(app);
+import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
+import { doc, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
     ar: { brand:'المجدوعي للسيارات', dbSub:'تقرير إحصائيات الإجازات السنوية', ganttTitle:'📉 المخطط الزمني الذكي', total:'إجمالي الإجازات', active:'نشطة اليوم', pending:'طلبات معلقة', employee:'الموظف', months:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'], year:'السنة كاملة' },
@@ -107,8 +103,9 @@ window.refreshDashboard = () => {
 };
 
 async function bindSnapshots(){
-    onSnapshot(doc(db,'schedule','jadwal_v6'), s=>{ employees=s.exists()?(s.data().data?.emps||[]):[]; window.refreshDashboard(); });
-    onSnapshot(collection(db,'vacations'), s=>{ planList=s.docs.map(d=>({id:d.id,...d.data()})); window.refreshDashboard(); });
+    await waitForSignedInUser();
+    onSnapshot(doc(db,'schedule','jadwal_v6'), s=>{ employees=s.exists()?(s.data().data?.emps||[]):[]; window.refreshDashboard(); }, e=>logFirebaseError('Schedule dashboard employees listener failed', e));
+    onSnapshot(collection(db,'vacations'), s=>{ planList=s.docs.map(d=>({id:d.id,...d.data()})); window.refreshDashboard(); }, e=>logFirebaseError('Schedule dashboard vacations listener failed', e));
 }
 
 $('btnLang').addEventListener('click', ()=>{ currentLang=currentLang==='ar'?'en':'ar'; localStorage.setItem('lang',currentLang); location.reload(); });
@@ -120,7 +117,7 @@ $('copyDashboardBtn').addEventListener('click', async () => {
 window.addEventListener('DOMContentLoaded', () => { 
     if(currentLang==='en') { $('mainHtml').dir='ltr'; $('mainHtml').lang='en'; }
     $('dbBrand').innerText = tr().brand; $('dbSub').innerText = tr().dbSub; $('dbGanttTitle').innerText = tr().ganttTitle;
-    bindSnapshots(); 
+    bindSnapshots().catch(e=>logFirebaseError('Schedule dashboard startup failed', e));
 });
 </script>
 </body>
