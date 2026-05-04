@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.0 - ADMIN FORCE MODE -->
+<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.0 - PERMISSION CONTROL MODE -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
@@ -145,24 +145,25 @@
             schedule: {
                 name: 'Schedule',
                 tabs: [
-                    { key: 'schedule_dashboard', name: '\uD83D\uDCCA Dashboard', file: 'dashboard-plan-Vacation.html' },
-                    { key: 'schedule_weekly', name: '\uD83D\uDCC5 Schedule', file: 'Weekly-Schedule.html' },
-                    { key: 'schedule_employee', name: '\uD83D\uDC65 employee', file: 'employee-Schedule.html' },
-                    { key: 'schedule_leave', name: 'Annual-Leave', file: 'Annual-Leave.html' },
-                    { key: 'schedule_vacation', name: '\uD83D\uDCCB plan-Vacation', file: 'plan-Vacation.html' },
-                    { key: 'schedule_shift', name: '\u23F1\uFE0F Shift-Settings', file: 'Shift-Settings.html' }
+                    { key: 'dashboard', name: '\uD83D\uDCCA Dashboard', file: 'dashboard-plan-Vacation.html' },
+                    { key: 'schedule', name: '\uD83D\uDCC5 Schedule', file: 'Weekly-Schedule.html' },
+                    { key: 'employees', name: '\uD83D\uDC65 employee', file: 'employee-Schedule.html' },
+                    { key: 'annual', name: 'Annual-Leave', file: 'Annual-Leave.html' },
+                    { key: 'planning', name: '\uD83D\uDCCB plan-Vacation', file: 'plan-Vacation.html' },
+                    { key: 'settings', name: '\u23F1\uFE0F Shift-Settings', file: 'Shift-Settings.html' }
                 ]
             },
             site_visit: {
                 name: 'Site-Visit',
                 tabs: [
-                    { key: 'visit_dashboard', name: 'Dashboard', file: 'dashboard.html' },
-                    { key: 'visit_checklist', name: 'Checklist', file: 'check-list.html' },
-                    { key: 'visit_brands', name: 'Brands', file: 'brands.html' },
-                    { key: 'visit_visits', name: 'Visits', file: 'visits.html' },
-                    { key: 'visit_upgrade', name: 'Upgrade Windows', file: 'upgrade-windows.html' },
-                    { key: 'visit_checklist_admin', name: 'Checklist Admin', file: 'dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html' },
-                    { key: 'visit_reports', name: 'Reports windows', file: 'windows-report.html' }
+                    { key: 'dashboard', name: 'Dashboard', file: 'dashboard.html' },
+                    { key: 'checklist', name: 'Checklist', file: 'check-list.html' },
+                    { key: 'brands', name: 'Brands', file: 'brands.html' },
+                    { key: 'branches', name: 'Branches', file: 'branches.html' },
+                    { key: 'visit', name: 'Visits', file: 'visits.html' },
+                    { key: 'upgrade', name: 'Upgrade Windows', file: 'upgrade-windows.html' },
+                    { key: 'checklist_admin', name: 'Checklist Admin', file: 'dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html' },
+                    { key: 'reports', name: 'Reports windows', file: 'windows-report.html' }
                 ]
             },
             permissions: {
@@ -173,6 +174,7 @@
         };
 
         let allowedMainTabs = [];
+        let allowedSubTabsByMain = {};
 
         auth.onAuthStateChanged(async function (user) {
             if (!user) {
@@ -194,45 +196,88 @@
             const adminLabel = role === 'admin' ? '<span class="admin-badge">ADMIN</span>' : '';
             document.getElementById('uDisplay').innerHTML = `User: <b>${userData.name || user.email || 'User'}</b> ${adminLabel}`;
 
-            if (role === 'admin') {
+            if (hasFullPortalAccess(user, userData)) {
+                allowedSubTabsByMain = getAllSubTabs();
                 allowedMainTabs = Object.keys(navigationConfig);
                 renderMainTabs(allowedMainTabs);
                 openMainTab('permissions');
                 return;
             }
 
-            allowedMainTabs = getAllowedMainTabs(userData);
+            const access = getAllowedAccess(userData);
+            allowedMainTabs = access.mainTabs;
+            allowedSubTabsByMain = access.subTabs;
             renderMainTabs(allowedMainTabs);
             openMainTab(allowedMainTabs[0] || 'diagnostics');
         });
 
-        function getAllowedMainTabs(userData) {
-            const rawPerms = userData.permissions_main_tabs || userData.permissions_site_visit || [];
-            const items = Array.isArray(rawPerms) ? rawPerms : [rawPerms];
+        function hasFullPortalAccess(user, userData) {
+            const ownerEmails = ['baghethanmh@almajdouie.com'];
+            return userData.superAdmin === true || ownerEmails.includes(String(user.email || '').toLowerCase());
+        }
+
+        function toPermissionSet(value, aliases = {}) {
+            const items = Array.isArray(value) ? value : (value ? [value] : []);
+            return new Set(items
+                .map(item => String(item || '').trim().toLowerCase())
+                .map(item => aliases[item] || item)
+                .filter(Boolean));
+        }
+
+        function getAllSubTabs() {
+            return {
+                schedule: navigationConfig.schedule.tabs.map(tab => tab.key),
+                site_visit: navigationConfig.site_visit.tabs.map(tab => tab.key)
+            };
+        }
+
+        function getAllowedAccess(userData) {
+            const scheduleAliases = {
+                employee: 'employees',
+                leave: 'annual',
+                vacation: 'planning',
+                shift: 'settings',
+                shift_settings: 'settings',
+                'shift-settings': 'settings'
+            };
+            const siteAliases = {
+                visits: 'visit',
+                upgrade_windows: 'upgrade',
+                'upgrade-windows': 'upgrade',
+                checklist_admin: 'checklist_admin',
+                'checklist-admin': 'checklist_admin',
+                reports_windows: 'reports',
+                'reports-windows': 'reports'
+            };
             const legacyMap = {
                 diagnostics: 'diagnostics',
-                dashboard: 'site_visit',
-                checklist: 'site_visit',
-                brands: 'site_visit',
-                visits: 'site_visit',
-                visit: 'site_visit',
-                upgrade_windows: 'site_visit',
-                upgrade: 'site_visit',
-                checklist_admin: 'site_visit',
-                reports: 'site_visit',
                 permissions: 'permissions',
                 schedule: 'schedule',
                 site_visit: 'site_visit',
                 'site-visit': 'site_visit'
             };
 
-            const mapped = items
-                .map(item => String(item || '').trim().toLowerCase())
-                .map(item => legacyMap[item])
-                .filter(Boolean);
+            const schedulePerms = toPermissionSet(userData.permissions_schedule || [], scheduleAliases);
+            const sitePerms = toPermissionSet(userData.permissions_site_visit || [], siteAliases);
+            const legacyMain = toPermissionSet(userData.permissions_main_tabs || [], legacyMap);
+            const subTabs = {
+                schedule: navigationConfig.schedule.tabs
+                    .filter(tab => schedulePerms.has(tab.key))
+                    .map(tab => tab.key),
+                site_visit: navigationConfig.site_visit.tabs
+                    .filter(tab => sitePerms.has(tab.key))
+                    .map(tab => tab.key)
+            };
 
-            const uniqueTabs = [...new Set(mapped)];
-            return uniqueTabs.length ? uniqueTabs : ['diagnostics'];
+            const mainTabs = ['diagnostics'];
+            if (subTabs.schedule.length || legacyMain.has('schedule')) mainTabs.push('schedule');
+            if (subTabs.site_visit.length || legacyMain.has('site_visit')) mainTabs.push('site_visit');
+            if (sitePerms.has('permissions') || legacyMain.has('permissions')) mainTabs.push('permissions');
+
+            return {
+                mainTabs: [...new Set(mainTabs)],
+                subTabs
+            };
         }
 
         function renderMainTabs(keys) {
@@ -281,7 +326,15 @@
             subBox.classList.remove('hidden');
             subBox.innerHTML = '';
 
-            section.tabs.forEach((tab, index) => {
+            const allowedTabs = (allowedSubTabsByMain[mainKey] || []);
+            const tabs = section.tabs.filter(tab => allowedTabs.includes(tab.key));
+            if (!tabs.length) {
+                hideSubTabs();
+                openFile('Diagnostics.html');
+                return;
+            }
+
+            tabs.forEach((tab, index) => {
                 const btn = document.createElement('button');
                 btn.className = 'tab-btn sub-tab';
                 btn.textContent = tab.name;
