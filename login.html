@@ -2,13 +2,13 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>تسجيل الدخول | نظام إدارة الزيارات</title>
+  <title>تسجيل الدخول | نظام MMC IT Service Delivery</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
     body{
       margin:0;
-      font-family:Tahoma,Arial,sans-serif;
+      font-family:'Segoe UI', Tahoma, Arial, sans-serif;
       background:
         linear-gradient(rgba(13,75,115,.85), rgba(13,75,115,.85)),
         url('image_dba186.png') center/cover no-repeat fixed;
@@ -23,83 +23,89 @@
       width:380px;
       border-radius:12px;
       box-shadow:0 10px 30px rgba(0,0,0,.3);
-      padding:22px;
+      padding:25px;
       text-align:center;
     }
 
-    .logo{
-      margin-bottom:10px;
-    }
-
-    .logo img{
-      height:55px;
-    }
+    .logo{ margin-bottom:15px; }
+    .logo img{ height:60px; }
 
     h2{
-      margin:10px 0 15px;
+      margin:10px 0 20px;
       color:#0d4b73;
-      font-size:18px;
+      font-size:20px;
+      font-weight: 800;
     }
 
     input{
       width:100%;
-      padding:10px;
-      margin-bottom:12px;
-      border:1px solid #ccc;
-      border-radius:6px;
+      padding:12px;
+      margin-bottom:15px;
+      border:1px solid #cbd5e1;
+      border-radius:8px;
       font-size:14px;
+      box-sizing: border-box;
+      outline: none;
     }
+    input:focus { border-color: #0d4b73; box-shadow: 0 0 0 2px rgba(13,75,115,0.1); }
 
     button{
       width:100%;
-      padding:10px;
+      padding:12px;
       background:#0d4b73;
       color:#fff;
       border:none;
-      border-radius:20px;
+      border-radius:25px;
       cursor:pointer;
-      font-size:14px;
+      font-size:15px;
+      font-weight: bold;
+      transition: 0.3s;
     }
+    button:hover { background: #1b4fa3; transform: translateY(-1px); }
 
     .error{
+      background: #fee2e2;
       color:#c62828;
+      padding: 10px;
+      border-radius: 6px;
       font-size:13px;
       display:none;
-      margin-bottom:10px;
+      margin-bottom:15px;
+      border: 1px solid #fecaca;
     }
 
     .version{
-      margin-top:14px;
+      margin-top:20px;
       font-size:11px;
-      color:#666;
+      color:#64748b;
       line-height:1.6;
+      border-top: 1px solid #f1f5f9;
+      padding-top: 15px;
     }
   </style>
 </head>
 <body>
 
   <div class="login-box">
-
     <!-- LOGO -->
     <div class="logo">
       <img src="LOGO-almajdouie.png" alt="Almajdouie Logo">
     </div>
 
-    <h2>تسجيل الدخول</h2>
+    <h2>تسجيل الدخول للنظام</h2>
 
     <div class="error" id="errorMsg"></div>
 
     <input type="email" id="email" placeholder="البريد الإلكتروني">
     <input type="password" id="password" placeholder="كلمة المرور">
 
-    <button onclick="login()">دخول</button>
+    <button onclick="login()">دخول آمن</button>
 
     <!-- VERSION & DATETIME -->
     <div class="version">
-      <div>Version: <strong>v1.1.0</strong></div>
+      <div>Version: <strong>v1.2.0 (Stable)</strong></div>
       <div id="buildTime"></div>
     </div>
-
   </div>
 
   <!-- ✅ Firebase SDKs -->
@@ -115,12 +121,10 @@
       projectId: "baghethan-ba325",
       storageBucket: "baghethan-ba325.firebasestorage.app",
       messagingSenderId: "944819735112",
-      appId: "1:944819735112:web:07315600da39377320667d",
-      measurementId: "G-45X2SXD2E4"
+      appId: "1:944819735112:web:07315600da39377320667d"
     };
 
     firebase.initializeApp(firebaseConfig);
-
     const auth = firebase.auth();
     const db = firebase.firestore();
   </script>
@@ -132,6 +136,12 @@
       const password = document.getElementById("password").value.trim();
       const errorMsg = document.getElementById("errorMsg");
 
+      if(!email || !password) {
+          errorMsg.innerText = "يرجى إدخال البيانات كاملة";
+          errorMsg.style.display = "block";
+          return;
+      }
+
       errorMsg.style.display = "none";
 
       auth.signInWithEmailAndPassword(email, password)
@@ -140,28 +150,32 @@
         })
         .then((doc) => {
           if (!doc.exists) {
-            throw new Error("لا توجد صلاحيات لهذا المستخدم");
+            throw new Error("عذراً، لا يوجد ملف تعريف لهذا المستخدم في القاعدة");
           }
 
-          // ✅ التحقق الصحيح
+          // التحقق من حالة الحساب
           if (doc.data().active !== true) {
-            throw new Error("الحساب غير مفعّل");
+            throw new Error("هذا الحساب غير مفعّل حالياً، يرجى مراجعة الأدمن");
           }
 
-          window.location.href = "Site-Visit2.html";
+          // ✅ التوجيه الصحيح للواجهة الرئيسية التي تدير الصلاحيات v1.9.4
+          window.location.href = "test2 (3).html"; 
         })
         .catch((err) => {
           console.error(err);
-          errorMsg.innerText = err.message;
+          let friendlyMsg = "حدث خطأ في تسجيل الدخول";
+          if (err.code === 'auth/wrong-password') friendlyMsg = "كلمة المرور غير صحيحة";
+          if (err.code === 'auth/user-not-found') friendlyMsg = "البريد الإلكتروني غير مسجل";
+          
+          errorMsg.innerText = err.message || friendlyMsg;
           errorMsg.style.display = "block";
         });
     }
 
-    // ✅ عرض التاريخ والوقت (آخر تحديث)
+    // عرض تاريخ التحديث
     const now = new Date();
     document.getElementById("buildTime").innerText =
-      "Updated: " + now.toLocaleDateString("ar-SA") +
-      " • " + now.toLocaleTimeString("ar-SA");
+      "Last Sync: " + now.toLocaleDateString("ar-SA") + " | " + now.toLocaleTimeString("ar-SA");
   </script>
 
 </body>
