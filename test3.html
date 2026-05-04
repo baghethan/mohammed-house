@@ -1,17 +1,17 @@
 <!DOCTYPE html>
-<!-- الإصدار v1.9.0 - التوجيه الذكي المستقر -->
+<!-- الإصدار v1.9.1 - إصلاح توجيه المسؤول (Strict Admin Routing) -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <title>AL-Majdouie Motors | Service Delivery v1.9.0</title>
+    <title>AL-Majdouie Motors | Service Delivery v1.9.1</title>
     <style>
-        :root { --primary: #0d4b73; --dark: #0d2149; --shadow: 0 15px 35px rgba(0,0,0,0.1); }
+        :root { --primary: #0d4b73; --dark: #0d2149; --shadow: 0 10px 30px rgba(0,0,0,0.1); }
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        header { background: var(--dark); color: white; padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; }
+        header { background: var(--dark); color: white; padding: 10px 25px; display: flex; justify-content: space-between; align-items: center; }
         .tab-bar { background: #fff; display: flex; border-bottom: 1px solid #e2e8f0; overflow-x: auto; }
-        .tab-btn { padding: 15px 25px; border: none; background: none; cursor: pointer; font-weight: bold; color: #64748b; border-bottom: 3px solid transparent; }
+        .tab-btn { padding: 15px 25px; border: none; background: none; cursor: pointer; font-weight: bold; color: #64748b; border-bottom: 3px solid transparent; transition: 0.3s; }
         .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: #f8fafc; }
-        .main-frame { flex: 1; padding: 10px; background: #f1f5f9; }
+        .main-frame { flex: 1; padding: 10px; }
         #viewContainer { width: 100%; height: 100%; background: #fff; border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
         iframe { width: 100%; height: 100%; border: none; }
     </style>
@@ -19,10 +19,10 @@
 <body>
     <header>
         <div style="display:flex; align-items:center; gap:15px">
-            <img src="LOGO-almajdouie.png" height="35">
-            <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">جاري التحميل...</div>
+            <img src="LOGO-almajdouie.png" height="35" alt="Logo">
+            <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">جاري فحص الصلاحيات...</div>
         </div>
-        <div style="font-weight:900; letter-spacing:1px">MMC IT SERVICE DELIVERY v1.9.0</div>
+        <div style="font-weight:900; letter-spacing:1px">MMC IT SERVICE DELIVERY v1.9.1</div>
         <button onclick="logout()" style="background:#ef4444; color:white; border:none; padding:8px 15px; border-radius:6px; cursor:pointer; font-weight:bold">Logout</button>
     </header>
 
@@ -41,20 +41,40 @@
         firebase.initializeApp(config);
         const auth = firebase.auth(); const db = firebase.firestore();
 
-        const pMap = { 'dashboard': 'dashboard.html', 'checklist': 'check-list.html', 'permissions': 'MasterPermissions.html' };
+        // ربط الصلاحيات بالملفات
+        const pMap = { 
+            'diagnostics': 'Diagnostics.html',
+            'dashboard': 'dashboard.html', 
+            'checklist': 'check-list.html', 
+            'permissions': 'MasterPermissions.html' 
+        };
 
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 const snap = await db.collection('app_users').doc(user.uid).get();
                 if (snap.exists) {
                     const data = snap.data();
-                    document.getElementById('uDisplay').innerHTML = `User: <b>${data.name}</b>`;
+                    const role = (data.role || "").toLowerCase(); // توحيد حالة الأحرف (admin)
+                    document.getElementById('uDisplay').innerHTML = `User: <b>${data.name}</b> (${role})`;
                     
-                    // توجيه تلقائي بناءً على الصلاحيات المحددة في MasterPermissions
-                    const perms = data.permissions_site_visit || [];
-                    let start = perms.length > 0 ? (pMap[perms[0]] || 'Diagnostics.html') : 'Diagnostics.html';
-                    document.getElementById('contentFrame').src = start;
-                    renderTabs(perms);
+                    let startPage = "Diagnostics.html";
+                    let tabsToShow = [];
+
+                    // --- منطق التوجيه الصارم للأدمن ---
+                    if (role === 'admin') {
+                        // الأدمن يرى كل شيء ويفتح صفحة الصلاحيات أولاً لضمان التحكم
+                        startPage = "MasterPermissions.html";
+                        tabsToShow = ['diagnostics', 'dashboard', 'checklist', 'permissions'];
+                    } else {
+                        // المستخدم العادي يرى فقط ما حددته له في مصفوفة الصلاحيات
+                        tabsToShow = data.permissions_site_visit || [];
+                        if (tabsToShow.length > 0) {
+                            startPage = pMap[tabsToShow[0]] || "Diagnostics.html";
+                        }
+                    }
+
+                    document.getElementById('contentFrame').src = startPage;
+                    renderTabs(tabsToShow);
                 }
             } else { window.location.replace("login.html"); }
         });
@@ -63,18 +83,24 @@
 
         function renderTabs(perms) {
             const box = document.getElementById('tabsBox');
-            box.innerHTML = '<button class="tab-btn" onclick="load(\'Diagnostics.html\')">Diagnostics</button>';
+            box.innerHTML = '';
+            
             perms.forEach(p => {
                 if(pMap[p]) {
                     const btn = document.createElement('button');
                     btn.className = 'tab-btn';
                     btn.innerText = p.toUpperCase();
-                    btn.onclick = () => load(pMap[p]);
+                    btn.onclick = () => {
+                        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        document.getElementById('contentFrame').src = pMap[p];
+                    };
                     box.appendChild(btn);
                 }
             });
+            // تمييز أول تبويب كنشط
+            if(box.firstChild) box.firstChild.classList.add('active');
         }
-        function load(file) { document.getElementById('contentFrame').src = file; }
     </script>
 </body>
 </html>
