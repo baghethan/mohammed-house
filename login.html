@@ -2,13 +2,13 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>تسجيل الدخول | نظام MMC IT Service Delivery</title>
+  <title>تسجيل الدخول | نظام إدارة الزيارات</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
     body{
       margin:0;
-      font-family:'Segoe UI', Tahoma, Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
       background:
         linear-gradient(rgba(13,75,115,.85), rgba(13,75,115,.85)),
         url('image_dba186.png') center/cover no-repeat fixed;
@@ -27,73 +27,21 @@
       text-align:center;
     }
 
-    .logo{ margin-bottom:15px; }
-    .logo img{ height:60px; }
-
-    h2{
-      margin:10px 0 20px;
-      color:#0d4b73;
-      font-size:20px;
-      font-weight: 800;
-    }
-
-    input{
-      width:100%;
-      padding:12px;
-      margin-bottom:15px;
-      border:1px solid #cbd5e1;
-      border-radius:8px;
-      font-size:14px;
-      box-sizing: border-box;
-      outline: none;
-    }
+    .logo img{ height:60px; margin-bottom:15px; }
+    h2{ margin:10px 0 20px; color:#0d4b73; font-size:20px; font-weight: 800; }
+    input{ width:100%; padding:12px; margin-bottom:15px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; box-sizing: border-box; outline: none; }
     input:focus { border-color: #0d4b73; box-shadow: 0 0 0 2px rgba(13,75,115,0.1); }
-
-    button{
-      width:100%;
-      padding:12px;
-      background:#0d4b73;
-      color:#fff;
-      border:none;
-      border-radius:25px;
-      cursor:pointer;
-      font-size:15px;
-      font-weight: bold;
-      transition: 0.3s;
-    }
+    button{ width:100%; padding:12px; background:#0d4b73; color:#fff; border:none; border-radius:25px; cursor:pointer; font-size:15px; font-weight: bold; transition: 0.3s; }
     button:hover { background: #1b4fa3; transform: translateY(-1px); }
-
-    .error{
-      background: #fee2e2;
-      color:#c62828;
-      padding: 10px;
-      border-radius: 6px;
-      font-size:13px;
-      display:none;
-      margin-bottom:15px;
-      border: 1px solid #fecaca;
-    }
-
-    .version{
-      margin-top:20px;
-      font-size:11px;
-      color:#64748b;
-      line-height:1.6;
-      border-top: 1px solid #f1f5f9;
-      padding-top: 15px;
-    }
+    .error{ background: #fee2e2; color:#c62828; padding: 10px; border-radius: 6px; font-size:13px; display:none; margin-bottom:15px; border: 1px solid #fecaca; }
+    .version{ margin-top:20px; font-size:11px; color:#64748b; border-top: 1px solid #f1f5f9; padding-top: 15px; }
   </style>
 </head>
 <body>
 
   <div class="login-box">
-    <!-- LOGO -->
-    <div class="logo">
-      <img src="LOGO-almajdouie.png" alt="Almajdouie Logo">
-    </div>
-
+    <div class="logo"><img src="LOGO-almajdouie.png" alt="Almajdouie Logo"></div>
     <h2>تسجيل الدخول للنظام</h2>
-
     <div class="error" id="errorMsg"></div>
 
     <input type="email" id="email" placeholder="البريد الإلكتروني">
@@ -101,20 +49,19 @@
 
     <button onclick="login()">دخول آمن</button>
 
-    <!-- VERSION & DATETIME -->
     <div class="version">
-      <div>Version: <strong>v1.2.0 (Stable)</strong></div>
+      <div>Version: <strong>v1.2.1</strong></div>
       <div id="buildTime"></div>
     </div>
   </div>
 
-  <!-- ✅ Firebase SDKs -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-  <!-- ✅ Firebase Init -->
   <script>
+    // Firebase Init
     const firebaseConfig = {
       apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
       authDomain: "baghethan-ba325.firebaseapp.com",
@@ -127,20 +74,11 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
-  </script>
 
-  <!-- ✅ Login Logic -->
-  <script>
     function login(){
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
       const errorMsg = document.getElementById("errorMsg");
-
-      if(!email || !password) {
-          errorMsg.innerText = "يرجى إدخال البيانات كاملة";
-          errorMsg.style.display = "block";
-          return;
-      }
 
       errorMsg.style.display = "none";
 
@@ -149,34 +87,23 @@
           return db.collection("app_users").doc(cred.user.uid).get();
         })
         .then((doc) => {
-          if (!doc.exists) {
-            throw new Error("عذراً، لا يوجد ملف تعريف لهذا المستخدم في القاعدة");
-          }
+          if (!doc.exists) throw new Error("لا توجد صلاحيات لهذا المستخدم");
+          
+          // التحقق من حالة الحساب[cite: 1]
+          if (doc.data().active !== true) throw new Error("الحساب غير مفعّل");
 
-          // التحقق من حالة الحساب
-          if (doc.data().active !== true) {
-            throw new Error("هذا الحساب غير مفعّل حالياً، يرجى مراجعة الأدمن");
-          }
-
-          // ✅ التوجيه الصحيح للواجهة الرئيسية التي تدير الصلاحيات v1.9.4
-          window.location.href = "test2 (3).html"; 
+          // ✅ التعديل الجديد: التوجيه لصفحة test3.html[cite: 1]
+          window.location.href = "test3.html"; 
         })
         .catch((err) => {
           console.error(err);
-          let friendlyMsg = "حدث خطأ في تسجيل الدخول";
-          if (err.code === 'auth/wrong-password') friendlyMsg = "كلمة المرور غير صحيحة";
-          if (err.code === 'auth/user-not-found') friendlyMsg = "البريد الإلكتروني غير مسجل";
-          
-          errorMsg.innerText = err.message || friendlyMsg;
+          errorMsg.innerText = err.message;
           errorMsg.style.display = "block";
         });
     }
 
-    // عرض تاريخ التحديث
     const now = new Date();
-    document.getElementById("buildTime").innerText =
-      "Last Sync: " + now.toLocaleDateString("ar-SA") + " | " + now.toLocaleTimeString("ar-SA");
+    document.getElementById("buildTime").innerText = "Last Update: " + now.toLocaleDateString("ar-SA");
   </script>
-
 </body>
 </html>
