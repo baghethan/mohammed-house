@@ -129,7 +129,8 @@
               const doc = await db.collection('app_users').doc(user.uid).get();
               if (doc.exists) {
                 state.userProfile = doc.data();
-                state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor');
+                const normalizedRole = String(state.userProfile.role || '').toLowerCase();
+                state.canEdit = (normalizedRole === 'admin' || normalizedRole === 'supervisor');
                 applyPrivacyUI(); 
               }
               boot(); // تشغيل تحميل البيانات بعد التأكد من الصلاحية
@@ -195,14 +196,28 @@
 
     async function loadVisitsForTech(techId, visitId = null) {
       const db = window.parent.appDb || window.parent.db;
-      const vSnap = await db.collection('siteVisits').where('technicianDocId', '==', techId).get();
-      const allVisits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
+      const currentTech = state.technicians.find(t => t.id === techId) || {};
+      const candidateValues = [techId, currentTech.authUid, currentTech.uid, currentTech.email].filter(Boolean);
+      const fieldCandidates = ['technicianDocId', 'technicianId', 'technicianAuthId', 'technicianUid', 'technicianEmail'];
+      const visitsMap = new Map();
+
+      for (const field of fieldCandidates) {
+        for (const value of candidateValues) {
+          const snap = await db.collection('siteVisits').where(field, '==', value).get();
+          snap.docs.forEach(d => visitsMap.set(d.id, { id: d.id, ...d.data() }));
+        }
+      }
+      const allVisits = Array.from(visitsMap.values());
       
       // ✅ الحماية: إخفاء الزيارات المكتملة عن الفني[cite: 1]
       const completedIds = state.checklists.map(c => c.visitDocId);
       let filtered = state.canEdit ? allVisits : allVisits.filter(v => !completedIds.includes(v.id) || v.id === visitId);
       
-      $('cl_visit_ref').innerHTML = '<option value="">اختر الزيارة</option>' + filtered.map(v => `<option value="${v.id}" ${visitId===v.id?'selected':''}>${v.date} - ${v.branchName}</option>`).join('');
+      $('cl_visit_ref').innerHTML = '<option value="">اختر الزيارة</option>' + filtered.map(v => {
+        const visitDate = v.date || v.visitDate || '';
+        const visitBranch = v.branchName || v.locationSite || v.location || v.site || '';
+        return `<option value="${v.id}" ${visitId===v.id?'selected':''}>${visitDate} - ${visitBranch}</option>`;
+      }).join('');
     }
 
     window.openChecklistLocally = async (id) => {
@@ -247,9 +262,10 @@
         db.collection('siteVisits').doc(e.target.value).get().then(doc => {
           if(doc.exists){
             const v = doc.data(); 
-            $('cl_brand').value=v.brand||''; $('cl_brandKey').value=v.brandKey||''; $('cl_branch_id').value=v.branchId||''; $('cl_location').value=v.branchName||''; 
-            $('cl_visit_date').value=v.date||'';
-            const d = new Date(v.date); if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
+            const visitDate = v.date || v.visitDate || '';
+            $('cl_brand').value=v.brand||''; $('cl_brandKey').value=v.brandKey||''; $('cl_branch_id').value=v.branchId||''; $('cl_location').value=v.branchName||v.locationSite||v.location||v.site||''; 
+            $('cl_visit_date').value=visitDate;
+            const d = new Date(visitDate); if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
           }
         });
       };
