@@ -131,6 +131,10 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
+        window.appAuth = auth;
+        window.appDb = db;
+        window.currentUser = null;
+        window.currentUserData = null;
 
         const navigationConfig = {
             diagnostics: {
@@ -180,6 +184,12 @@
             if (!snap.exists) return;
 
             const userData = snap.data();
+            window.currentUser = user;
+            window.currentUserData = {
+                ...userData,
+                uid: user.uid,
+                email: user.email
+            };
             const role = (userData.role || "technician").toLowerCase();
             const adminLabel = role === 'admin' ? '<span class="admin-badge">ADMIN</span>' : '';
             document.getElementById('uDisplay').innerHTML = `User: <b>${userData.name || user.email || 'User'}</b> ${adminLabel}`;
@@ -295,7 +305,17 @@
         }
 
         function openFile(file) {
-            document.getElementById('contentFrame').src = file;
+            const params = new URLSearchParams({
+                auth: 'active',
+                lang: 'en'
+            });
+
+            if (window.currentUser && window.currentUser.uid) {
+                params.set('user', window.currentUser.uid);
+            }
+
+            const separator = file.includes('?') ? '&' : '?';
+            document.getElementById('contentFrame').src = `${file}${separator}${params.toString()}`;
         }
 
         async function handleLogout() {
