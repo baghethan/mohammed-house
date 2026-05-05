@@ -220,6 +220,8 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 let employees = [];
+let scheduleEmployees = [];
+let employeeRecords = [];
 let planList = [];
 let currentUser = null;
 let currentProfile = null;
@@ -238,6 +240,36 @@ function escapeHtml(value) {
 
 function byDate(a, b) {
   return String(a.from || '').localeCompare(String(b.from || '')) || String(a.name || '').localeCompare(String(b.name || ''));
+}
+
+function normalizeVacationEmployee(record, source) {
+  const status = norm(record.status);
+  return {
+    id: String(record.id || record.uid || record.empId || record.empNum || `emp_${Date.now()}`),
+    empNum: record.empId || record.empNum || record.technicianId || '',
+    name: record.name || record.fullName || '',
+    dept: record.dept || record.department || '',
+    jobTitle: record.jobTitle || record.role || 'Employee',
+    email: record.email || '',
+    active: !(record.active === false || status === 'inactive' || status === 'hidden'),
+    source
+  };
+}
+
+function employeeKey(emp) {
+  return norm(emp.empNum || emp.empId || emp.email || emp.id || emp.name);
+}
+
+function refreshEmployeeSources() {
+  const merged = new Map();
+  [...scheduleEmployees, ...employeeRecords].forEach(emp => {
+    const normalized = normalizeVacationEmployee(emp, emp.source || 'employees');
+    const key = employeeKey(normalized);
+    if (!key) return;
+    merged.set(key, { ...(merged.get(key) || {}), ...normalized });
+  });
+  employees = Array.from(merged.values());
+  renderEmployees();
 }
 
 function norm(value) {
@@ -460,9 +492,14 @@ async function bindSnapshots() {
   applyRoleUi();
 
   onSnapshot(doc(db, 'schedule', 'jadwal_v6'), snap => {
-    employees = snap.exists() ? (snap.data().data?.emps || []) : [];
-    renderEmployees();
+    scheduleEmployees = snap.exists() ? (snap.data().data?.emps || []) : [];
+    refreshEmployeeSources();
   }, error => logFirebaseError('Vacation plan employees listener failed', error));
+
+  onSnapshot(collection(db, 'employees'), snap => {
+    employeeRecords = snap.docs.map(item => ({ id: item.id, ...item.data() }));
+    refreshEmployeeSources();
+  }, error => logFirebaseError('Vacation plan employees collection listener failed', error));
 
   if (canManagePlans) {
     onSnapshot(collection(db, 'vacations'), snap => {

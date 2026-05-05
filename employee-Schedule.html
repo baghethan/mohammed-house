@@ -187,6 +187,7 @@ import {
 
 let emps = [];
 let appUsers = [];
+let employeeRecords = [];
 let scheduleLoaded = false;
 const scheduleDocRef = doc(db, 'schedule', 'jadwal_v6');
 const $ = id => document.getElementById(id);
@@ -224,11 +225,13 @@ function shiftLabel(emp) {
 }
 
 function sourceLabel(emp) {
+  if (emp.source === 'employees') return 'Employees';
   return emp.source === 'manual' ? 'يدوي' : 'صلاحيات';
 }
 
 function employeeSource(emp) {
   if (emp.source) return emp.source;
+  if (employeeRecords.some(user => String(user.id) === String(emp.id) || String(user.empNum || user.empId || '') === String(emp.empNum || ''))) return 'employees';
   return appUsers.some(user => String(user.id) === String(emp.id)) ? 'app_users' : 'manual';
 }
 
@@ -248,6 +251,37 @@ function normalizeEmployee(emp) {
     rotType: rot,
     source: employeeSource(emp)
   };
+}
+
+function normalizeExternalEmployee(record, source) {
+  const status = String(record.status || '').trim().toLowerCase();
+  const rot = normalizeRotation(record.rotType || record.rotation);
+  return {
+    id: String(record.id || record.uid || record.empId || record.empNum || `emp_${Date.now()}`),
+    empNum: record.empId || record.empNum || record.technicianId || '',
+    name: record.name || record.fullName || 'موظف جديد',
+    dept: record.dept || record.department || '',
+    jobTitle: record.jobTitle || record.role || 'Employee',
+    email: record.email || '',
+    phone: record.phone || record.mobile || '',
+    active: !(record.active === false || status === 'inactive' || status === 'hidden'),
+    fixed: record.fixed === true,
+    rotation: rot,
+    rotType: rot,
+    source,
+    createdAt: record.createdAt || new Date().toISOString()
+  };
+}
+
+function findEmployeeIndex(list, incoming) {
+  const incomingKeys = [incoming.id, incoming.empNum, incoming.email]
+    .map(value => String(value || '').trim().toLowerCase())
+    .filter(Boolean);
+
+  return list.findIndex(emp => [emp.id, emp.empNum, emp.email]
+    .map(value => String(value || '').trim().toLowerCase())
+    .filter(Boolean)
+    .some(value => incomingKeys.includes(value)));
 }
 
 async function saveEmployees(updated = emps) {
@@ -353,33 +387,49 @@ function render() {
   }).join('');
 }
 
-async function syncEmployees(users) {
-  let needsUpdate = false;
-  const currentIds = new Set(emps.map(emp => String(emp.id)));
+function getExternalEmployees() {
+  return [
+    ...appUsers.map(user => normalizeExternalEmployee({
+      ...user,
+      empNum: user.empNum || user.technicianId || user.employeeId,
+      jobTitle: user.jobTitle || user.role
+    }, 'app_users')),
+    ...employeeRecords.map(employee => normalizeExternalEmployee(employee, 'employees'))
+  ];
+}
 
-  users.forEach(user => {
-    const id = String(user.id);
-    if (!currentIds.has(id)) {
-      emps.push({
-        id,
-        empNum: user.technicianId || user.empNum || '',
-        name: user.name || 'موظف جديد',
-        dept: user.dept || user.department || '',
-        jobTitle: user.jobTitle || user.role || 'Employee',
-        email: user.email || '',
-        phone: user.phone || '',
-        active: user.active !== false,
-        fixed: false,
-        rotation: 'none',
-        rotType: 'none',
-        source: 'app_users',
-        createdAt: new Date().toISOString()
-      });
+async function syncEmployees() {
+  let needsUpdate = false;
+  const next = [...emps];
+
+  getExternalEmployees().forEach(incoming => {
+    const index = findEmployeeIndex(next, incoming);
+    if (index === -1) {
+      next.push(incoming);
+      needsUpdate = true;
+      return;
+    }
+
+    const existing = normalizeEmployee(next[index]);
+    const candidate = normalizeEmployee({
+      ...existing,
+      ...incoming,
+      id: existing.id || incoming.id,
+      fixed: existing.fixed === true,
+      rotation: existing.rotation || incoming.rotation,
+      rotType: existing.rotType || incoming.rotType,
+      source: existing.source === 'manual' ? 'manual' : incoming.source,
+      createdAt: existing.createdAt || incoming.createdAt,
+      updatedAt: existing.updatedAt || incoming.updatedAt || ''
+    });
+
+    if (JSON.stringify(existing) !== JSON.stringify(candidate)) {
+      next[index] = { ...candidate, updatedAt: new Date().toISOString() };
       needsUpdate = true;
     }
   });
 
-  if (needsUpdate) await saveEmployees(emps);
+  if (needsUpdate) await saveEmployees(next);
 }
 
 async function bindSnapshots() {
@@ -387,14 +437,20 @@ async function bindSnapshots() {
 
   onSnapshot(collection(db, 'app_users'), snap => {
     appUsers = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-    if (scheduleLoaded) syncEmployees(appUsers).catch(error => logFirebaseError('Employee sync failed', error));
+    if (scheduleLoaded) syncEmployees().catch(error => logFirebaseError('Employee sync failed', error));
     render();
   }, error => logFirebaseError('Employee app_users listener failed', error));
+
+  onSnapshot(collection(db, 'employees'), snap => {
+    employeeRecords = snap.docs.map(item => ({ id: item.id, ...item.data() }));
+    if (scheduleLoaded) syncEmployees().catch(error => logFirebaseError('Employees collection sync failed', error));
+    render();
+  }, error => logFirebaseError('Employees collection listener failed', error));
 
   onSnapshot(scheduleDocRef, snap => {
     emps = snap.exists() ? (snap.data().data?.emps || []).map(normalizeEmployee) : [];
     scheduleLoaded = true;
-    if (appUsers.length) syncEmployees(appUsers).catch(error => logFirebaseError('Employee sync failed', error));
+    if (appUsers.length || employeeRecords.length) syncEmployees().catch(error => logFirebaseError('Employee sync failed', error));
     render();
   }, error => logFirebaseError('Employee schedule listener failed', error));
 }
