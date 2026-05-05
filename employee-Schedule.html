@@ -43,6 +43,8 @@
     .danger-btn{background:#d32f2f;color:#fff}
     .soft-btn{background:#f8fafc;color:var(--primary);border:1px solid #e2e8f0}
     .btn:hover,.btn2:hover,.danger-btn:hover,.soft-btn:hover{transform:translateY(-1px)}
+    button:disabled{opacity:.58;cursor:not-allowed;transform:none!important}
+    .action-denied{display:none!important}
     .list-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
     .list-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .count-pill{background:#f8fafc;color:var(--primary);border:1px solid #e2e8f0;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:900}
@@ -198,6 +200,7 @@
 import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
 import {
   doc,
+  getDoc,
   onSnapshot,
   setDoc,
   collection
@@ -207,9 +210,17 @@ let emps = [];
 let appUsers = [];
 let employeeRecords = [];
 let scheduleLoaded = false;
+let currentAuthUser = null;
+let currentUserProfile = null;
 const scheduleDocRef = doc(db, 'schedule', 'jadwal_v6');
 const $ = id => document.getElementById(id);
 const EMPLOYEE_JOB_TITLES = ['المدير', 'المشرف', 'الفني', 'التمهير', 'المتدرب'];
+const EMPLOYEE_ACTIONS = {
+  add: 'add_employee',
+  exportExcel: 'export_employees_excel',
+  importExcel: 'import_employees_excel'
+};
+const OWNER_EMAILS = ['baghethanmh@almajdouie.com'];
 const JOB_TITLE_LABELS = {
   'المدير': { ar: 'المدير', en: 'Manager' },
   'المشرف': { ar: 'المشرف', en: 'Supervisor' },
@@ -283,6 +294,8 @@ const I18N = {
     alertImportSuccess: (added, updated) => `تم رفع ملف Excel بنجاح. تمت إضافة ${added} وتحديث ${updated}.`,
     alertImportFailed: error => `تعذر رفع ملف Excel: ${error}`,
     alertDuplicate: 'رقم الموظف مستخدم مسبقاً',
+    alertActionDenied: 'ليس لديك صلاحية تنفيذ هذا الإجراء.',
+    noAddPermission: 'لا توجد لديك صلاحية إضافة موظف جديد. يمكنك مراجعة مسؤول النظام لتفعيلها من Employee Actions.',
     confirmDeleteSynced: 'هذا الموظف متزامن مع صفحة الصلاحيات وقد يعود عند إعادة المزامنة. هل تريد حذفه من سجل الجدول الآن؟',
     confirmDelete: 'هل تريد حذف هذا الموظف؟'
   },
@@ -351,6 +364,8 @@ const I18N = {
     alertImportSuccess: (added, updated) => `Excel uploaded successfully. Added ${added} and updated ${updated}.`,
     alertImportFailed: error => `Could not upload Excel file: ${error}`,
     alertDuplicate: 'Employee ID is already used',
+    alertActionDenied: 'You do not have permission to perform this action.',
+    noAddPermission: 'You do not have permission to add a new employee. Ask an administrator to enable it from Employee Actions.',
     confirmDeleteSynced: 'This employee is synced from permissions and may return during the next sync. Delete it from the schedule record now?',
     confirmDelete: 'Delete this employee?'
   }
@@ -478,6 +493,42 @@ function updateFormNote(emp = null) {
   $('formNote').textContent = emp ? `${t('editingPrefix')}: ${emp.name || emp.id}` : t('formNote');
 }
 
+function hasFullEmployeeActionAccess() {
+  const role = String(currentUserProfile?.role || '').trim().toLowerCase();
+  const email = String(currentAuthUser?.email || currentUserProfile?.email || '').trim().toLowerCase();
+  return currentUserProfile?.superAdmin === true || role === 'admin' || OWNER_EMAILS.includes(email);
+}
+
+function hasEmployeeAction(action) {
+  if (hasFullEmployeeActionAccess()) return true;
+  const actions = Array.isArray(currentUserProfile?.permissions_employee_actions)
+    ? currentUserProfile.permissions_employee_actions
+    : [];
+  return actions.map(item => String(item || '').trim()).includes(action);
+}
+
+function requireEmployeeAction(action) {
+  if (hasEmployeeAction(action)) return true;
+  alert(t('alertActionDenied'));
+  return false;
+}
+
+function applyActionPermissions() {
+  if (!$('saveEmployeeBtn')) return;
+  const canAdd = hasEmployeeAction(EMPLOYEE_ACTIONS.add);
+  const canExport = hasEmployeeAction(EMPLOYEE_ACTIONS.exportExcel);
+  const canImport = hasEmployeeAction(EMPLOYEE_ACTIONS.importExcel);
+  const isEditing = Boolean($('editingId').value);
+
+  $('saveEmployeeBtn').disabled = !canAdd && !isEditing;
+  $('exportExcelBtn').classList.toggle('action-denied', !canExport);
+  $('importExcelBtn').classList.toggle('action-denied', !canImport);
+
+  if (!canAdd && !isEditing) {
+    $('formNote').textContent = t('noAddPermission');
+  }
+}
+
 function applyLanguage({ rerender = false } = {}) {
   currentLang = normalizeLanguage(currentLang);
   const html = $('mainHtml') || document.documentElement;
@@ -531,6 +582,7 @@ function applyLanguage({ rerender = false } = {}) {
   const editingId = $('editingId').value;
   const editingEmp = editingId ? emps.map(normalizeEmployee).find(item => String(item.id) === String(editingId)) : null;
   updateFormNote(editingEmp);
+  applyActionPermissions();
 
   if (rerender) render();
 }
@@ -707,6 +759,7 @@ function fillForm(emp) {
   $('empStatus').innerHTML = statusOptions(emp?.active === false ? 'false' : 'true');
   $('empStatus').value = emp?.active === false ? 'false' : 'true';
   updateFormNote(emp);
+  applyActionPermissions();
 }
 
 function buildEmployeePayload(existing) {
@@ -786,6 +839,7 @@ function employeeToExcelRow(emp) {
 }
 
 function exportEmployeesToExcel() {
+  if (!requireEmployeeAction(EMPLOYEE_ACTIONS.exportExcel)) return;
   if (!window.XLSX) {
     alert(t('alertExcelLibrary'));
     return;
@@ -852,6 +906,10 @@ function excelRowToEmployee(row, index) {
 async function handleExcelImport(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
+  if (!requireEmployeeAction(EMPLOYEE_ACTIONS.importExcel)) {
+    event.target.value = '';
+    return;
+  }
   if (!window.XLSX) {
     alert(t('alertExcelLibrary'));
     event.target.value = '';
@@ -1007,6 +1065,27 @@ async function syncEmployees() {
   if (needsUpdate) await saveEmployees(next);
 }
 
+async function bindCurrentUserProfile() {
+  const user = await waitForSignedInUser();
+  currentAuthUser = user;
+  const userRef = doc(db, 'app_users', user.uid);
+
+  try {
+    const userSnap = await getDoc(userRef);
+    currentUserProfile = userSnap.exists() ? { id: userSnap.id, ...userSnap.data() } : { email: user.email };
+  } catch (error) {
+    currentUserProfile = { email: user.email };
+    logFirebaseError('Employee action permission profile read failed', error);
+  }
+
+  applyActionPermissions();
+
+  onSnapshot(userRef, snap => {
+    currentUserProfile = snap.exists() ? { id: snap.id, ...snap.data() } : { email: user.email };
+    applyLanguage({ rerender: true });
+  }, error => logFirebaseError('Employee action permission listener failed', error));
+}
+
 async function bindSnapshots() {
   await waitForSignedInUser();
 
@@ -1032,6 +1111,7 @@ async function bindSnapshots() {
 
 window.saveEmployee = async () => {
   const editingId = $('editingId').value;
+  if (!editingId && !requireEmployeeAction(EMPLOYEE_ACTIONS.add)) return;
   const existing = editingId ? emps.find(emp => String(emp.id) === String(editingId)) : null;
   const payload = buildEmployeePayload(existing);
   if (!payload) return;
@@ -1090,7 +1170,10 @@ $('saveEmployeeBtn').addEventListener('click', () => window.saveEmployee().catch
 $('clearFormBtn').addEventListener('click', () => fillForm(null));
 $('reloadBtn').addEventListener('click', () => applyLanguage({ rerender: true }));
 $('exportExcelBtn').addEventListener('click', exportEmployeesToExcel);
-$('importExcelBtn').addEventListener('click', () => $('importExcelInput').click());
+$('importExcelBtn').addEventListener('click', () => {
+  if (!requireEmployeeAction(EMPLOYEE_ACTIONS.importExcel)) return;
+  $('importExcelInput').click();
+});
 $('importExcelInput').addEventListener('change', event => {
   handleExcelImport(event).catch(error => logFirebaseError('Handle employee Excel import failed', error));
 });
@@ -1125,7 +1208,10 @@ window.addEventListener('message', event => {
 });
 
 applyLanguage();
-bindSnapshots().catch(error => logFirebaseError('Employee schedule startup failed', error));
+Promise.all([
+  bindCurrentUserProfile(),
+  bindSnapshots()
+]).catch(error => logFirebaseError('Employee schedule startup failed', error));
 </script>
 </body>
 </html>
