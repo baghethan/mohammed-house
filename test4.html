@@ -36,7 +36,7 @@
     }
 
     .container {
-      max-width: 1350px;
+      max-width: 1400px;
       margin: 30px auto;
       padding: 0 20px;
     }
@@ -99,9 +99,16 @@
       line-height: 1.7;
     }
 
+    .status-message {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #1f4e79;
+      font-weight: bold;
+    }
+
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 18px;
       margin-bottom: 25px;
     }
@@ -118,9 +125,10 @@
     .kpi-card.orange { border-top-color: #ed7d31; }
     .kpi-card.green { border-top-color: #70ad47; }
     .kpi-card.red { border-top-color: #c00000; }
+    .kpi-card.yellow { border-top-color: #ffc000; }
 
     .kpi-value {
-      font-size: 34px;
+      font-size: 32px;
       font-weight: bold;
       color: #1f4e79;
     }
@@ -128,7 +136,7 @@
     .kpi-label {
       margin-top: 8px;
       color: #666;
-      font-size: 15px;
+      font-size: 14px;
     }
 
     .charts-grid {
@@ -140,14 +148,25 @@
 
     .chart-card {
       padding: 20px;
-      min-height: 430px;
+      min-height: 455px;
     }
 
     .chart-card h3 {
       margin-top: 0;
       color: #1f4e79;
-      font-size: 20px;
+      font-size: 19px;
       text-align: center;
+    }
+
+    .chart-card select {
+      display: block;
+      margin: 0 auto 12px auto;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: white;
+      color: #333;
+      font-size: 14px;
     }
 
     .full-width {
@@ -156,6 +175,34 @@
 
     canvas {
       max-height: 360px;
+    }
+
+    .chart-table {
+      max-height: 360px;
+      overflow: auto;
+    }
+
+    .chart-table table,
+    .table-card table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .chart-table th,
+    .chart-table td,
+    .table-card th,
+    .table-card td {
+      border: 1px solid #ddd;
+      padding: 7px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .chart-table th,
+    .table-card th {
+      background: #1f4e79;
+      color: white;
     }
 
     .insights {
@@ -179,36 +226,11 @@
       margin-bottom: 30px;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: right;
-      white-space: nowrap;
-    }
-
-    th {
-      background: #1f4e79;
-      color: white;
-    }
-
     .hidden {
-      display: none;
+      display: none !important;
     }
 
-    .status-message {
-      margin-top: 12px;
-      font-size: 14px;
-      color: #1f4e79;
-      font-weight: bold;
-    }
-
-    @media (max-width: 900px) {
+    @media (max-width: 1000px) {
       .kpi-grid,
       .charts-grid {
         grid-template-columns: 1fr;
@@ -239,7 +261,7 @@
     <div class="note">
       الأعمدة المفضلة:
       <br>
-      Request ID, Subject, Requester.Name, Technician.Name, Status.Name, Department.Name, Created Date, Due by date
+      Request ID, Subject, Requester.Name, Technician.Name, Group.Name, Status.Name, Department.Name, Created Date, Due by date, Resource Request type
     </div>
 
     <div id="statusMessage" class="status-message"></div>
@@ -258,14 +280,19 @@
         <div class="kpi-label">Open Requests</div>
       </div>
 
-      <div class="kpi-card green">
+      <div class="kpi-card yellow">
         <div class="kpi-value" id="onHoldRequests">0</div>
         <div class="kpi-label">On Hold</div>
       </div>
 
-      <div class="kpi-card red">
+      <div class="kpi-card green">
         <div class="kpi-value" id="closureRate">0%</div>
         <div class="kpi-label">Closure Rate</div>
+      </div>
+
+      <div class="kpi-card red">
+        <div class="kpi-value" id="slaViolations">0</div>
+        <div class="kpi-label">SLA Violations</div>
       </div>
     </div>
 
@@ -273,27 +300,73 @@
 
       <div class="chart-card">
         <h3>Requests Status Distribution</h3>
+        <select onchange="changeChartType('statusChart', this.value)">
+          <option value="doughnut">Doughnut</option>
+          <option value="pie">Pie</option>
+          <option value="bar">Bar</option>
+          <option value="table">Table</option>
+        </select>
         <canvas id="statusChart"></canvas>
+        <div id="statusChartTable" class="chart-table hidden"></div>
       </div>
 
       <div class="chart-card">
         <h3>Top Affected Departments by Status</h3>
+        <select onchange="changeChartType('departmentChart', this.value)">
+          <option value="stackedBar">Stacked Bar</option>
+          <option value="doughnut">Doughnut</option>
+          <option value="pie">Pie</option>
+          <option value="bar">Bar</option>
+          <option value="table">Table</option>
+        </select>
         <canvas id="departmentChart"></canvas>
+        <div id="departmentChartTable" class="chart-table hidden"></div>
       </div>
 
       <div class="chart-card">
         <h3>Technician Workload by Status</h3>
+        <select onchange="changeChartType('technicianChart', this.value)">
+          <option value="stackedBar">Stacked Bar</option>
+          <option value="doughnut">Doughnut</option>
+          <option value="pie">Pie</option>
+          <option value="bar">Bar</option>
+          <option value="table">Table</option>
+        </select>
         <canvas id="technicianChart"></canvas>
+        <div id="technicianChartTable" class="chart-table hidden"></div>
       </div>
 
       <div class="chart-card">
         <h3>Top Requesters by Status</h3>
+        <select onchange="changeChartType('requesterChart', this.value)">
+          <option value="stackedBar">Stacked Bar</option>
+          <option value="doughnut">Doughnut</option>
+          <option value="pie">Pie</option>
+          <option value="bar">Bar</option>
+          <option value="table">Table</option>
+        </select>
         <canvas id="requesterChart"></canvas>
+        <div id="requesterChartTable" class="chart-table hidden"></div>
       </div>
 
       <div class="chart-card full-width">
         <h3>Request Volume Trend</h3>
         <canvas id="trendChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>SLA Violation by Group</h3>
+        <canvas id="slaGroupChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>SLA Violation by Technician</h3>
+        <canvas id="slaTechnicianChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>SLA Violation by Category</h3>
+        <canvas id="slaCategoryChart"></canvas>
       </div>
 
     </div>
@@ -316,8 +389,14 @@
   let rawData = [];
   let charts = {};
   let dashboardMetrics = {};
-
   let STATUS_COLORS = {};
+
+  let chartTypes = {
+    statusChart: "doughnut",
+    departmentChart: "stackedBar",
+    technicianChart: "stackedBar",
+    requesterChart: "stackedBar"
+  };
 
   const DEFAULT_STATUS_COLORS = [
     "#ed7d31",
@@ -347,8 +426,6 @@
       STATUS_COLORS = await response.json();
       setMessage("Status color settings loaded successfully ✅");
     } catch (error) {
-      console.warn("Could not load status-colors.json. Default colors will be used.", error);
-
       STATUS_COLORS = {
         "Open": "#ed7d31",
         "On Hold": "#ffc000",
@@ -357,7 +434,9 @@
         "In Progress": "#4472c4",
         "Pending": "#a5a5a5",
         "Cancelled": "#c00000",
+        "Canceled": "#c00000",
         "Rejected": "#7030a0",
+        "Completed": "#70ad47",
         "Blank": "#bfbfbf"
       };
 
@@ -371,6 +450,11 @@
 
   function getStatusColor(status, index = 0) {
     return STATUS_COLORS[status] || DEFAULT_STATUS_COLORS[index % DEFAULT_STATUS_COLORS.length];
+  }
+
+  function changeChartType(chartId, type) {
+    chartTypes[chartId] = type;
+    renderCharts();
   }
 
   function processFile() {
@@ -442,10 +526,33 @@
 
     const trendCounts = countByDate(data, "Created Date");
 
+    const categoryColumn = detectCategoryColumn(data);
+
+    const slaGroupCounts = countSlaViolationsBy(
+      data,
+      "Group.Name",
+      "Not Specified"
+    );
+
+    const slaTechnicianCounts = countSlaViolationsBy(
+      data,
+      "Technician.Name",
+      "Unassigned"
+    );
+
+    const slaCategoryCounts = categoryColumn
+      ? countSlaViolationsBy(data, categoryColumn, "Not Specified")
+      : {};
+
     const openCount = statusCounts["Open"] || 0;
     const onHoldCount = statusCounts["On Hold"] || 0;
-    const closedCount = (statusCounts["Closed"] || 0) + (statusCounts["Resolved"] || 0);
+    const closedCount =
+      (statusCounts["Closed"] || 0) +
+      (statusCounts["Resolved"] || 0) +
+      (statusCounts["Completed"] || 0);
+
     const closureRate = total > 0 ? closedCount / total : 0;
+    const totalSlaViolations = Object.values(slaGroupCounts).reduce((a, b) => a + b, 0);
 
     dashboardMetrics = {
       total,
@@ -453,17 +560,23 @@
       onHoldCount,
       closedCount,
       closureRate,
+      totalSlaViolations,
       statusCounts,
       departmentStatusData,
       technicianStatusData,
       requesterStatusData,
-      trendCounts
+      trendCounts,
+      categoryColumn,
+      slaGroupCounts,
+      slaTechnicianCounts,
+      slaCategoryCounts
     };
 
     document.getElementById("totalRequests").innerText = total;
     document.getElementById("openRequests").innerText = openCount;
     document.getElementById("onHoldRequests").innerText = onHoldCount;
     document.getElementById("closureRate").innerText = Math.round(closureRate * 100) + "%";
+    document.getElementById("slaViolations").innerText = totalSlaViolations;
 
     renderCharts();
     renderInsights();
@@ -485,6 +598,14 @@
     });
 
     return result;
+  }
+
+  function topN(obj, n) {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, n)
+    );
   }
 
   function aggregateByStatus(data, groupColumn, statusColumn = "Status.Name", emptyGroupLabel = "Not Specified", topLimit = 10) {
@@ -533,31 +654,43 @@
     };
   }
 
+  function parseDateValue(value) {
+    if (!value) return null;
+
+    if (typeof value === "number") {
+      const excelDate = XLSX.SSF.parse_date_code(value);
+
+      if (excelDate) {
+        return new Date(
+          excelDate.y,
+          excelDate.m - 1,
+          excelDate.d,
+          excelDate.H || 0,
+          excelDate.M || 0,
+          excelDate.S || 0
+        );
+      }
+    }
+
+    const parsed = new Date(value);
+
+    if (!isNaN(parsed)) {
+      return parsed;
+    }
+
+    return null;
+  }
+
   function countByDate(data, column) {
     const result = {};
 
     data.forEach(row => {
-      let value = row[column];
+      const parsed = parseDateValue(row[column]);
 
-      if (!value) return;
+      if (!parsed) return;
 
-      let dateValue;
-
-      if (typeof value === "number") {
-        const excelDate = XLSX.SSF.parse_date_code(value);
-        if (excelDate) {
-          dateValue = `${excelDate.y}-${String(excelDate.m).padStart(2, "0")}-${String(excelDate.d).padStart(2, "0")}`;
-        }
-      } else {
-        const parsed = new Date(value);
-        if (!isNaN(parsed)) {
-          dateValue = parsed.toISOString().slice(0, 10);
-        }
-      }
-
-      if (dateValue) {
-        result[dateValue] = (result[dateValue] || 0) + 1;
-      }
+      const dateValue = parsed.toISOString().slice(0, 10);
+      result[dateValue] = (result[dateValue] || 0) + 1;
     });
 
     return sortObjectByKey(result);
@@ -569,9 +702,74 @@
     );
   }
 
+  function isClosedStatus(status) {
+    if (!status) return false;
+
+    const closedStatuses = [
+      "Closed",
+      "Resolved",
+      "Completed",
+      "Cancelled",
+      "Canceled"
+    ];
+
+    return closedStatuses.includes(String(status).trim());
+  }
+
+  function countSlaViolationsBy(data, groupColumn, emptyLabel = "Not Specified") {
+    const result = {};
+    const today = new Date();
+
+    data.forEach(row => {
+      const dueDate = parseDateValue(row["Due by date"]);
+      const status = row["Status.Name"];
+
+      if (!dueDate) return;
+
+      const isViolation = dueDate < today && !isClosedStatus(status);
+
+      if (!isViolation) return;
+
+      let group = row[groupColumn];
+
+      if (group === undefined || group === null || String(group).trim() === "") {
+        group = emptyLabel;
+      }
+
+      group = String(group).trim();
+      result[group] = (result[group] || 0) + 1;
+    });
+
+    return topN(result, 10);
+  }
+
+  function detectCategoryColumn(data) {
+    if (!data || data.length === 0) return null;
+
+    const columns = Object.keys(data[0]);
+
+    const possibleColumns = [
+      "Category",
+      "Category.Name",
+      "Request Category",
+      "Resource Request type",
+      "Type",
+      "Request Type"
+    ];
+
+    for (const col of possibleColumns) {
+      if (columns.includes(col)) {
+        return col;
+      }
+    }
+
+    return null;
+  }
+
   function destroyChart(chartId) {
     if (charts[chartId]) {
       charts[chartId].destroy();
+      delete charts[chartId];
     }
   }
 
@@ -581,41 +779,66 @@
       departmentStatusData,
       technicianStatusData,
       requesterStatusData,
-      trendCounts
+      trendCounts,
+      slaGroupCounts,
+      slaTechnicianCounts,
+      slaCategoryCounts
     } = dashboardMetrics;
 
-    renderPieChart("statusChart", statusCounts);
+    renderStatusVisual("statusChart", statusCounts, chartTypes.statusChart);
 
-    renderStackedStatusBarChart(
+    renderGroupedStatusVisual(
       "departmentChart",
-      departmentStatusData
+      departmentStatusData,
+      chartTypes.departmentChart
     );
 
-    renderStackedStatusBarChart(
+    renderGroupedStatusVisual(
       "technicianChart",
-      technicianStatusData
+      technicianStatusData,
+      chartTypes.technicianChart
     );
 
-    renderStackedStatusBarChart(
+    renderGroupedStatusVisual(
       "requesterChart",
-      requesterStatusData
+      requesterStatusData,
+      chartTypes.requesterChart
     );
 
     renderLineChart("trendChart", trendCounts);
+
+    renderSlaViolationChart("slaGroupChart", slaGroupCounts, "SLA Violation by Group");
+    renderSlaViolationChart("slaTechnicianChart", slaTechnicianCounts, "SLA Violation by Technician");
+    renderSlaViolationChart("slaCategoryChart", slaCategoryCounts, "SLA Violation by Category");
   }
 
-  function renderPieChart(canvasId, dataObj) {
+  function renderStatusVisual(canvasId, dataObj, type) {
+    const canvas = document.getElementById(canvasId);
+    const tableDiv = document.getElementById(canvasId + "Table");
+
     destroyChart(canvasId);
 
-    const ctx = document.getElementById(canvasId);
+    canvas.classList.remove("hidden");
+    tableDiv.classList.add("hidden");
+
     const labels = Object.keys(dataObj);
     const values = Object.values(dataObj);
 
-    charts[canvasId] = new Chart(ctx, {
-      type: "pie",
+    if (type === "table") {
+      canvas.classList.add("hidden");
+      tableDiv.classList.remove("hidden");
+      renderSimpleTable(tableDiv, labels, values);
+      return;
+    }
+
+    const chartType = type === "pie" ? "pie" : type === "bar" ? "bar" : "doughnut";
+
+    charts[canvasId] = new Chart(canvas, {
+      type: chartType,
       data: {
         labels: labels,
         datasets: [{
+          label: "Requests",
           data: values,
           backgroundColor: labels.map((status, index) => getStatusColor(status, index)),
           borderColor: "#ffffff",
@@ -624,19 +847,112 @@
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: {
             position: "bottom"
           }
-        }
+        },
+        scales: chartType === "bar" ? {
+          y: {
+            beginAtZero: true
+          }
+        } : {}
       }
     });
   }
 
-  function renderStackedStatusBarChart(canvasId, groupedStatusData) {
+  function renderGroupedStatusVisual(canvasId, groupedStatusData, type) {
+    const canvas = document.getElementById(canvasId);
+    const tableDiv = document.getElementById(canvasId + "Table");
+
     destroyChart(canvasId);
 
-    const ctx = document.getElementById(canvasId);
+    canvas.classList.remove("hidden");
+    tableDiv.classList.add("hidden");
+
+    if (type === "table") {
+      canvas.classList.add("hidden");
+      tableDiv.classList.remove("hidden");
+      renderGroupedStatusTable(tableDiv, groupedStatusData);
+      return;
+    }
+
+    if (type === "stackedBar") {
+      renderStackedStatusBarChart(canvasId, groupedStatusData);
+      return;
+    }
+
+    const totals = groupedStatusData.groups.map(group => {
+      let total = 0;
+
+      groupedStatusData.statuses.forEach(status => {
+        total += groupedStatusData.matrix[group][status] || 0;
+      });
+
+      return total;
+    });
+
+    if (type === "doughnut" || type === "pie") {
+      charts[canvasId] = new Chart(canvas, {
+        type: type,
+        data: {
+          labels: groupedStatusData.groups,
+          datasets: [{
+            data: totals,
+            backgroundColor: groupedStatusData.groups.map((_, index) => {
+              return DEFAULT_STATUS_COLORS[index % DEFAULT_STATUS_COLORS.length];
+            }),
+            borderColor: "#ffffff",
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "bottom"
+            }
+          }
+        }
+      });
+
+      return;
+    }
+
+    if (type === "bar") {
+      charts[canvasId] = new Chart(canvas, {
+        type: "bar",
+        data: {
+          labels: groupedStatusData.groups,
+          datasets: [{
+            label: "Total Requests",
+            data: totals,
+            backgroundColor: "#1f4e79"
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: "y",
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            x: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+  }
+
+  function renderStackedStatusBarChart(canvasId, groupedStatusData) {
+    const canvas = document.getElementById(canvasId);
 
     const datasets = groupedStatusData.statuses.map((status, index) => {
       return {
@@ -650,7 +966,7 @@
       };
     });
 
-    charts[canvasId] = new Chart(ctx, {
+    charts[canvasId] = new Chart(canvas, {
       type: "bar",
       data: {
         labels: groupedStatusData.groups,
@@ -730,20 +1046,140 @@
     });
   }
 
+  function renderSlaViolationChart(canvasId, dataObj, label) {
+    destroyChart(canvasId);
+
+    const ctx = document.getElementById(canvasId);
+
+    charts[canvasId] = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: Object.keys(dataObj),
+        datasets: [{
+          label: label,
+          data: Object.values(dataObj),
+          backgroundColor: "#c00000",
+          borderColor: "#ffffff",
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: "y",
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return "SLA Violations: " + context.parsed.x;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: "Number of SLA Violations"
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderSimpleTable(container, labels, values) {
+    let html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Count</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    labels.forEach((label, index) => {
+      html += `
+        <tr>
+          <td>${escapeHtml(label)}</td>
+          <td>${values[index]}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+        </tbody>
+      </table>
+    `;
+
+    container.innerHTML = html;
+  }
+
+  function renderGroupedStatusTable(container, groupedStatusData) {
+    let html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+    `;
+
+    groupedStatusData.statuses.forEach(status => {
+      html += `<th>${escapeHtml(status)}</th>`;
+    });
+
+    html += `<th>Total</th></tr></thead><tbody>`;
+
+    groupedStatusData.groups.forEach(group => {
+      let total = 0;
+
+      html += `<tr><td>${escapeHtml(group)}</td>`;
+
+      groupedStatusData.statuses.forEach(status => {
+        const value = groupedStatusData.matrix[group][status] || 0;
+        total += value;
+        html += `<td>${value}</td>`;
+      });
+
+      html += `<td><strong>${total}</strong></td></tr>`;
+    });
+
+    html += `
+        </tbody>
+      </table>
+    `;
+
+    container.innerHTML = html;
+  }
+
   function renderInsights() {
     const {
       total,
       openCount,
       onHoldCount,
       closureRate,
+      totalSlaViolations,
       departmentStatusData,
       technicianStatusData,
-      requesterStatusData
+      requesterStatusData,
+      slaGroupCounts,
+      slaTechnicianCounts,
+      slaCategoryCounts,
+      categoryColumn
     } = dashboardMetrics;
 
     const topDepartment = departmentStatusData.groups[0] || "N/A";
     const topTechnician = technicianStatusData.groups[0] || "N/A";
     const topRequester = requesterStatusData.groups[0] || "N/A";
+
+    const topSlaGroup = Object.keys(slaGroupCounts || {})[0] || "N/A";
+    const topSlaTechnician = Object.keys(slaTechnicianCounts || {})[0] || "N/A";
+    const topSlaCategory = Object.keys(slaCategoryCounts || {})[0] || "N/A";
 
     const openRate = total > 0 ? openCount / total : 0;
 
@@ -752,9 +1188,14 @@
       `عدد الطلبات المفتوحة هو ${openCount} بنسبة تقريبية ${Math.round(openRate * 100)}%.`,
       `عدد الطلبات المعلقة On Hold هو ${onHoldCount}.`,
       `نسبة الإغلاق الحالية هي ${Math.round(closureRate * 100)}%.`,
+      `إجمالي مخالفات SLA الحالية هو ${totalSlaViolations}.`,
       `أكثر إدارة متأثرة حسب عدد الطلبات هي: ${topDepartment}.`,
       `أعلى حمل حسب الفنيين أو غير المسند هو: ${topTechnician}.`,
       `أكثر مستخدم قام بفتح طلبات هو: ${topRequester}.`,
+      `أعلى Group في مخالفات SLA هو: ${topSlaGroup}.`,
+      `أعلى Technician في مخالفات SLA هو: ${topSlaTechnician}.`,
+      `أعلى Category في مخالفات SLA هو: ${topSlaCategory}.`,
+      `عمود التصنيف المستخدم للـ Category هو: ${categoryColumn || "غير متوفر"}.`,
       `التوصية التنفيذية: مراجعة التذاكر المفتوحة يوميًا، وتركيز RCA على الإدارات والفنيين والمستخدمين الأعلى تكرارًا.`
     ];
 
@@ -818,6 +1259,7 @@
 
     const navy = "1F4E79";
     const orange = "ED7D31";
+    const yellow = "FFC000";
     const green = "70AD47";
     const red = "C00000";
     const gray = "666666";
@@ -827,10 +1269,10 @@
       total,
       openCount,
       onHoldCount,
-      closureRate
+      closureRate,
+      totalSlaViolations
     } = dashboardMetrics;
 
-    // Slide 1: Executive Summary
     let slide = pptx.addSlide();
     slide.background = { color: "FFFFFF" };
 
@@ -853,10 +1295,11 @@
       color: gray
     });
 
-    addKpiBox(slide, "Total Requests", total, 0.7, 1.8, navy);
-    addKpiBox(slide, "Open Requests", openCount, 3.5, 1.8, orange);
-    addKpiBox(slide, "On Hold", onHoldCount, 6.3, 1.8, green);
-    addKpiBox(slide, "Closure Rate", Math.round(closureRate * 100) + "%", 9.1, 1.8, red);
+    addKpiBox(slide, "Total Requests", total, 0.45, 1.8, navy);
+    addKpiBox(slide, "Open Requests", openCount, 2.95, 1.8, orange);
+    addKpiBox(slide, "On Hold", onHoldCount, 5.45, 1.8, yellow);
+    addKpiBox(slide, "Closure Rate", Math.round(closureRate * 100) + "%", 7.95, 1.8, green);
+    addKpiBox(slide, "SLA Violations", totalSlaViolations, 10.45, 1.8, red);
 
     slide.addText("Executive Message", {
       x: 0.8,
@@ -869,28 +1312,28 @@
     });
 
     slide.addText(
-      "• Current backlog requires management visibility.\n" +
+      "• Dashboard supports multiple visual types: Doughnut, Pie, Bar, Stacked Bar, and Table.\n" +
       "• Workload charts are segmented by request status.\n" +
-      "• Recommended focus: backlog closure, SLA control, and RCA governance.",
+      "• SLA violation views highlight overdue unresolved requests.",
       {
         x: 0.8,
         y: 4.2,
         w: 11.5,
         h: 1.3,
         fontSize: 16,
-        color: gray,
-        breakLine: false
+        color: gray
       }
     );
 
-    // Chart Slides
     await addChartSlide(pptx, "Requests Status Distribution", "statusChart");
     await addChartSlide(pptx, "Top Affected Departments by Status", "departmentChart");
     await addChartSlide(pptx, "Technician Workload by Status", "technicianChart");
     await addChartSlide(pptx, "Top Requesters by Status", "requesterChart");
     await addChartSlide(pptx, "Request Volume Trend", "trendChart");
+    await addChartSlide(pptx, "SLA Violation by Group", "slaGroupChart");
+    await addChartSlide(pptx, "SLA Violation by Technician", "slaTechnicianChart");
+    await addChartSlide(pptx, "SLA Violation by Category", "slaCategoryChart");
 
-    // Risks and Actions Slide
     slide = pptx.addSlide();
 
     slide.addText("Executive Risks & Recommended Actions", {
@@ -953,7 +1396,6 @@
       }
     );
 
-    // Action Plan Slide
     slide = pptx.addSlide();
 
     slide.addText("30-Day Executive Action Plan", {
@@ -995,7 +1437,7 @@
     slide.addShape(pptx.ShapeType.roundRect, {
       x: x,
       y: y,
-      w: 2.4,
+      w: 2.25,
       h: 1.2,
       fill: { color: color },
       line: { color: color }
@@ -1004,9 +1446,9 @@
     slide.addText(String(value), {
       x: x,
       y: y + 0.18,
-      w: 2.4,
+      w: 2.25,
       h: 0.4,
-      fontSize: 26,
+      fontSize: 24,
       bold: true,
       color: "FFFFFF",
       align: "center"
@@ -1015,9 +1457,9 @@
     slide.addText(label, {
       x: x,
       y: y + 0.72,
-      w: 2.4,
+      w: 2.25,
       h: 0.3,
-      fontSize: 11,
+      fontSize: 10,
       color: "FFFFFF",
       align: "center"
     });
@@ -1036,7 +1478,17 @@
       color: "1F4E79"
     });
 
+    const selectedType = chartTypes[canvasId];
+
+    if (selectedType === "table") {
+      addTableSlideContent(slide, canvasId);
+      return;
+    }
+
     const canvas = document.getElementById(canvasId);
+
+    if (!canvas) return;
+
     const imageData = canvas.toDataURL("image/png");
 
     slide.addImage({
@@ -1045,6 +1497,99 @@
       y: 1.2,
       w: 11.3,
       h: 5.5
+    });
+  }
+
+  function addTableSlideContent(slide, canvasId) {
+    const navy = "1F4E79";
+    const white = "FFFFFF";
+    const gray = "666666";
+
+    let rows = [];
+
+    if (canvasId === "statusChart") {
+      const statusCounts = dashboardMetrics.statusCounts;
+
+      rows.push([
+        { text: "Status", options: { bold: true, color: white, fill: navy } },
+        { text: "Count", options: { bold: true, color: white, fill: navy } }
+      ]);
+
+      Object.entries(statusCounts).forEach(([status, count]) => {
+        rows.push([status, String(count)]);
+      });
+
+      slide.addTable(rows, {
+        x: 1.2,
+        y: 1.3,
+        w: 10.8,
+        h: 4.8,
+        border: { type: "solid", color: "CCCCCC" },
+        fontSize: 12,
+        color: gray,
+        colW: [6, 3]
+      });
+
+      return;
+    }
+
+    let groupedData = null;
+
+    if (canvasId === "departmentChart") {
+      groupedData = dashboardMetrics.departmentStatusData;
+    }
+
+    if (canvasId === "technicianChart") {
+      groupedData = dashboardMetrics.technicianStatusData;
+    }
+
+    if (canvasId === "requesterChart") {
+      groupedData = dashboardMetrics.requesterStatusData;
+    }
+
+    if (!groupedData) return;
+
+    const headerRow = [
+      { text: "Name", options: { bold: true, color: white, fill: navy } }
+    ];
+
+    groupedData.statuses.forEach(status => {
+      headerRow.push({
+        text: status,
+        options: { bold: true, color: white, fill: navy }
+      });
+    });
+
+    headerRow.push({
+      text: "Total",
+      options: { bold: true, color: white, fill: navy }
+    });
+
+    rows.push(headerRow);
+
+    groupedData.groups.forEach(group => {
+      let total = 0;
+      const row = [group];
+
+      groupedData.statuses.forEach(status => {
+        const value = groupedData.matrix[group][status] || 0;
+        total += value;
+        row.push(String(value));
+      });
+
+      row.push(String(total));
+      rows.push(row);
+    });
+
+    slide.addTable(rows, {
+      x: 0.4,
+      y: 1.2,
+      w: 12.4,
+      h: 5.5,
+      border: { type: "solid", color: "CCCCCC" },
+      fontSize: 8,
+      color: gray,
+      valign: "mid"
     });
   }
 </script>
