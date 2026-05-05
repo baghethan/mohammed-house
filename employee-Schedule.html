@@ -53,6 +53,9 @@
     tbody tr td:first-child{border-radius:0 14px 14px 0}
     tbody tr td:last-child{border-radius:14px 0 0 14px}
     .emp-name{text-align:right!important;font-weight:900;color:var(--primary);min-width:180px}
+    html[dir="ltr"] .emp-name{text-align:left!important}
+    html[dir="ltr"] tbody tr td:first-child{border-radius:14px 0 0 14px}
+    html[dir="ltr"] tbody tr td:last-child{border-radius:0 14px 14px 0}
     .muted{color:var(--muted);font-size:11px;font-weight:700}
     .status-pill,.source-pill{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:900;min-width:76px}
     .status-active{background:var(--success-bg);color:var(--success-t)}
@@ -79,17 +82,17 @@
     <div class="brand">
       <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
       <div>
-        <h2 class="title">إدارة سجل الموظفين (مزامنة تلقائية)</h2>
-        <p class="subtitle">إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات</p>
+        <h2 class="title" id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</h2>
+        <p class="subtitle" id="pageSubtitle">إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات</p>
       </div>
     </div>
     <button class="btn" id="reloadBtn" type="button">تحديث</button>
   </div>
 
-  <div class="sync-status">● النظام متصل وقيد المزامنة التلقائية مع صفحة الصلاحيات</div>
+  <div class="sync-status" id="syncStatus">● النظام متصل وقيد المزامنة التلقائية مع صفحة الصلاحيات</div>
 
   <div class="card">
-    <h3 style="color:var(--primary);margin-bottom:16px">إضافة / تعديل موظف</h3>
+    <h3 id="formTitle" style="color:var(--primary);margin-bottom:16px">إضافة / تعديل موظف</h3>
     <input id="editingId" type="hidden" />
     <div class="form-grid">
       <div>
@@ -151,14 +154,14 @@
       <button class="soft-btn" id="clearFormBtn" type="button">تفريغ النموذج</button>
       <span class="note" id="formNote">الحقول الأساسية: رقم الموظف واسم الموظف. باقي المعلومات اختيارية لكنها تظهر في السجل.</span>
     </div>
-    <p class="note">
+    <p class="note" id="rotationNote">
       معنى الروتيشن: خيار الخميس والجمعة يجعل شخصاً واحداً كل أسبوع أوف الخميس والجمعة ويعمل السبت. خيار الجمعة أون كول يجعل شخصاً واحداً كل أسبوع أون كول يوم الجمعة وأوف السبت. إذا كان الشخص في إجازة أو تم تحديده غائباً، ينتقل الدور تلقائياً للشخص التالي.
     </p>
   </div>
 
   <div class="card">
     <div class="list-head">
-      <h3 style="color:var(--primary)">قائمة الموظفين (تحدث تلقائياً)</h3>
+      <h3 id="listTitle" style="color:var(--primary)">قائمة الموظفين (تحدث تلقائياً)</h3>
       <div class="list-tools">
         <button class="soft-btn" id="exportExcelBtn" type="button">تنزيل Excel</button>
         <button class="btn" id="importExcelBtn" type="button">رفع Excel</button>
@@ -168,7 +171,7 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead>
+        <thead id="employeeTableHead">
           <tr>
             <th style="text-align:right">اسم الموظف</th>
             <th>رقم الموظف</th>
@@ -207,6 +210,152 @@ let scheduleLoaded = false;
 const scheduleDocRef = doc(db, 'schedule', 'jadwal_v6');
 const $ = id => document.getElementById(id);
 const EMPLOYEE_JOB_TITLES = ['المدير', 'المشرف', 'الفني', 'التمهير', 'المتدرب'];
+const JOB_TITLE_LABELS = {
+  'المدير': { ar: 'المدير', en: 'Manager' },
+  'المشرف': { ar: 'المشرف', en: 'Supervisor' },
+  'الفني': { ar: 'الفني', en: 'Technician' },
+  'التمهير': { ar: 'التمهير', en: 'Tamheer' },
+  'المتدرب': { ar: 'المتدرب', en: 'Trainee' }
+};
+const I18N = {
+  ar: {
+    documentTitle: 'إدارة الموظفين v1.5.0 - مزامنة تلقائية',
+    pageTitle: 'إدارة سجل الموظفين (مزامنة تلقائية)',
+    pageSubtitle: 'إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات',
+    reload: 'تحديث',
+    syncStatus: '● النظام متصل وقيد المزامنة التلقائية مع صفحة الصلاحيات',
+    formTitle: 'إضافة / تعديل موظف',
+    labelEmpNum: 'رقم الموظف / الكود',
+    labelEmpName: 'اسم الموظف',
+    labelEmpDept: 'القسم',
+    labelEmpJob: 'المسمى الوظيفي',
+    labelEmpEmail: 'البريد الإلكتروني',
+    labelEmpPhone: 'رقم الجوال',
+    labelEmpShift: 'نوع الدوام',
+    labelEmpRotation: 'الروتيشن',
+    labelEmpStatus: 'الحالة',
+    placeholderEmpNum: 'مثال: 1024',
+    placeholderEmpName: 'الاسم الكامل',
+    placeholderEmpDept: 'مثال: الصيانة',
+    placeholderEmpEmail: 'name@example.com',
+    placeholderEmpPhone: '05xxxxxxxx',
+    jobPlaceholder: 'اختر المسمى...',
+    shiftMorning: 'صباحي / متغير',
+    shiftNight: 'ليلي ثابت',
+    rotationNone: 'لا يوجد',
+    rotationThu: 'الخميس والجمعة أوف - يعمل السبت',
+    rotationFri: 'الجمعة أون كول - السبت أوف',
+    statusActive: 'نشط',
+    statusHidden: 'مخفي',
+    statusHiddenLong: 'مخفي من الجدول',
+    saveEmployee: 'حفظ الموظف',
+    clearForm: 'تفريغ النموذج',
+    formNote: 'الحقول الأساسية: رقم الموظف واسم الموظف. باقي المعلومات اختيارية لكنها تظهر في السجل.',
+    editingPrefix: 'جاري تعديل',
+    rotationNote: 'معنى الروتيشن: خيار الخميس والجمعة يجعل شخصاً واحداً كل أسبوع أوف الخميس والجمعة ويعمل السبت. خيار الجمعة أون كول يجعل شخصاً واحداً كل أسبوع أون كول يوم الجمعة وأوف السبت. إذا كان الشخص في إجازة أو تم تحديده غائباً، ينتقل الدور تلقائياً للشخص التالي.',
+    listTitle: 'قائمة الموظفين (تحدث تلقائياً)',
+    exportExcel: 'تنزيل Excel',
+    importExcel: 'رفع Excel',
+    employeeUnit: 'موظف',
+    loading: 'جاري تحميل الموظفين...',
+    empty: 'لا يوجد موظفون حالياً',
+    thName: 'اسم الموظف',
+    thEmpNum: 'رقم الموظف',
+    thDept: 'القسم',
+    thJob: 'المسمى الوظيفي',
+    thEmail: 'البريد',
+    thPhone: 'الجوال',
+    thShift: 'نوع الدوام',
+    thRotation: 'الروتيشن',
+    thStatus: 'الحالة',
+    thSource: 'المصدر',
+    thActions: 'الإجراءات',
+    sourceEmployees: 'Employees',
+    sourceExcel: 'Excel',
+    sourceManual: 'يدوي',
+    sourcePermissions: 'صلاحيات',
+    actionEdit: 'تعديل',
+    actionDelete: 'حذف',
+    alertRequired: 'يرجى إدخال رقم الموظف واسم الموظف',
+    alertJobRequired: 'يرجى اختيار المسمى الوظيفي',
+    alertExcelLibrary: 'تعذر تحميل مكتبة Excel. تأكد من الاتصال بالإنترنت ثم أعد المحاولة.',
+    alertNoRows: 'لم يتم العثور على صفوف موظفين صالحة داخل الملف.',
+    alertImportSuccess: (added, updated) => `تم رفع ملف Excel بنجاح. تمت إضافة ${added} وتحديث ${updated}.`,
+    alertImportFailed: error => `تعذر رفع ملف Excel: ${error}`,
+    alertDuplicate: 'رقم الموظف مستخدم مسبقاً',
+    confirmDeleteSynced: 'هذا الموظف متزامن مع صفحة الصلاحيات وقد يعود عند إعادة المزامنة. هل تريد حذفه من سجل الجدول الآن؟',
+    confirmDelete: 'هل تريد حذف هذا الموظف؟'
+  },
+  en: {
+    documentTitle: 'Employee Management v1.5.0 - Auto Sync',
+    pageTitle: 'Employee Management (Auto Sync)',
+    pageSubtitle: 'Add and update employees linked to the schedule and vacation plan',
+    reload: 'Refresh',
+    syncStatus: '● System connected and auto-syncing with permissions',
+    formTitle: 'Add / Edit Employee',
+    labelEmpNum: 'Employee ID / Code',
+    labelEmpName: 'Employee Name',
+    labelEmpDept: 'Department',
+    labelEmpJob: 'Job Title',
+    labelEmpEmail: 'Email Address',
+    labelEmpPhone: 'Mobile Number',
+    labelEmpShift: 'Shift Type',
+    labelEmpRotation: 'Rotation',
+    labelEmpStatus: 'Status',
+    placeholderEmpNum: 'Example: 1024',
+    placeholderEmpName: 'Full name',
+    placeholderEmpDept: 'Example: Maintenance',
+    placeholderEmpEmail: 'name@example.com',
+    placeholderEmpPhone: '05xxxxxxxx',
+    jobPlaceholder: 'Select title...',
+    shiftMorning: 'Morning / Variable',
+    shiftNight: 'Fixed Night',
+    rotationNone: 'None',
+    rotationThu: 'Thu and Fri off - works Saturday',
+    rotationFri: 'Friday on call - Saturday off',
+    statusActive: 'Active',
+    statusHidden: 'Hidden',
+    statusHiddenLong: 'Hidden from schedule',
+    saveEmployee: 'Save Employee',
+    clearForm: 'Clear Form',
+    formNote: 'Required fields: employee ID and employee name. The remaining fields are optional but appear in the record.',
+    editingPrefix: 'Editing',
+    rotationNote: 'Rotation meaning: the Thu/Fri option gives one person every week off on Thursday and Friday while working Saturday. The Friday on-call option gives one person every week on call Friday and off Saturday. If that person is on leave or marked absent, the turn moves automatically to the next person.',
+    listTitle: 'Employee List (Auto Updated)',
+    exportExcel: 'Download Excel',
+    importExcel: 'Upload Excel',
+    employeeUnit: 'employee',
+    loading: 'Loading employees...',
+    empty: 'No employees yet',
+    thName: 'Employee Name',
+    thEmpNum: 'Employee ID',
+    thDept: 'Department',
+    thJob: 'Job Title',
+    thEmail: 'Email',
+    thPhone: 'Mobile',
+    thShift: 'Shift Type',
+    thRotation: 'Rotation',
+    thStatus: 'Status',
+    thSource: 'Source',
+    thActions: 'Actions',
+    sourceEmployees: 'Employees',
+    sourceExcel: 'Excel',
+    sourceManual: 'Manual',
+    sourcePermissions: 'Permissions',
+    actionEdit: 'Edit',
+    actionDelete: 'Delete',
+    alertRequired: 'Please enter employee ID and employee name',
+    alertJobRequired: 'Please select a job title',
+    alertExcelLibrary: 'Excel library could not be loaded. Check your internet connection and try again.',
+    alertNoRows: 'No valid employee rows were found in the file.',
+    alertImportSuccess: (added, updated) => `Excel uploaded successfully. Added ${added} and updated ${updated}.`,
+    alertImportFailed: error => `Could not upload Excel file: ${error}`,
+    alertDuplicate: 'Employee ID is already used',
+    confirmDeleteSynced: 'This employee is synced from permissions and may return during the next sync. Delete it from the schedule record now?',
+    confirmDelete: 'Delete this employee?'
+  }
+};
+let currentLang = getInitialLanguage();
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -216,6 +365,174 @@ function escapeHtml(value) {
     '"':'&quot;',
     "'":'&#39;'
   })[char]);
+}
+
+function normalizeLanguage(value) {
+  return String(value || '').trim().toLowerCase().startsWith('ar') ? 'ar' : 'en';
+}
+
+function getStoredLanguage() {
+  try {
+    return localStorage.getItem('lang') || '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function getInitialLanguage() {
+  const params = new URLSearchParams(window.location.search || '');
+  const urlLang = params.get('lang');
+  if (urlLang) {
+    const normalized = normalizeLanguage(urlLang);
+    try { localStorage.setItem('lang', normalized); } catch (error) {}
+    return normalized;
+  }
+
+  const storedLang = getStoredLanguage();
+  if (storedLang) return normalizeLanguage(storedLang);
+
+  return normalizeLanguage(document.documentElement.lang || 'ar');
+}
+
+function isArabic() {
+  return currentLang === 'ar';
+}
+
+function t(key, ...args) {
+  const value = (I18N[currentLang] && I18N[currentLang][key]) || I18N.en[key] || key;
+  return typeof value === 'function' ? value(...args) : value;
+}
+
+function setText(id, key) {
+  const element = $(id);
+  if (element) element.textContent = t(key);
+}
+
+function setLabel(inputId, key) {
+  const label = document.querySelector(`label[for="${inputId}"]`);
+  if (label) label.textContent = t(key);
+}
+
+function setPlaceholder(id, key) {
+  const element = $(id);
+  if (element) element.placeholder = t(key);
+}
+
+function selectedOption(value, selected) {
+  return String(value) === String(selected) ? 'selected' : '';
+}
+
+function jobTitleLabel(value) {
+  const normalized = normalizeJobTitle(value);
+  return JOB_TITLE_LABELS[normalized]?.[currentLang] || normalized || '';
+}
+
+function shiftOptions(selected = 'morning') {
+  return `
+    <option value="morning" ${selectedOption('morning', selected)}>${t('shiftMorning')}</option>
+    <option value="night" ${selectedOption('night', selected)}>${t('shiftNight')}</option>
+  `;
+}
+
+function rotationOptions(selected = 'none') {
+  const current = normalizeRotation(selected);
+  return `
+    <option value="none" ${selectedOption('none', current)}>${t('rotationNone')}</option>
+    <option value="thu" ${selectedOption('thu', current)}>${t('rotationThu')}</option>
+    <option value="fri" ${selectedOption('fri', current)}>${t('rotationFri')}</option>
+  `;
+}
+
+function statusOptions(selected = 'true') {
+  return `
+    <option value="true" ${selectedOption('true', selected)}>${t('statusActive')}</option>
+    <option value="false" ${selectedOption('false', selected)}>${t('statusHiddenLong')}</option>
+  `;
+}
+
+function employeeCountLabel(count) {
+  if (isArabic()) return `${count} ${t('employeeUnit')}`;
+  return `${count} ${t('employeeUnit')}${count === 1 ? '' : 's'}`;
+}
+
+function tableHeadHtml() {
+  const firstAlign = isArabic() ? 'right' : 'left';
+  return `
+    <tr>
+      <th style="text-align:${firstAlign}">${t('thName')}</th>
+      <th>${t('thEmpNum')}</th>
+      <th>${t('thDept')}</th>
+      <th>${t('thJob')}</th>
+      <th>${t('thEmail')}</th>
+      <th>${t('thPhone')}</th>
+      <th>${t('thShift')}</th>
+      <th>${t('thRotation')}</th>
+      <th>${t('thStatus')}</th>
+      <th>${t('thSource')}</th>
+      <th>${t('thActions')}</th>
+    </tr>
+  `;
+}
+
+function updateFormNote(emp = null) {
+  $('formNote').textContent = emp ? `${t('editingPrefix')}: ${emp.name || emp.id}` : t('formNote');
+}
+
+function applyLanguage({ rerender = false } = {}) {
+  currentLang = normalizeLanguage(currentLang);
+  const html = $('mainHtml') || document.documentElement;
+  html.lang = currentLang;
+  html.dir = isArabic() ? 'rtl' : 'ltr';
+  document.title = t('documentTitle');
+
+  setText('pageTitle', 'pageTitle');
+  setText('pageSubtitle', 'pageSubtitle');
+  setText('reloadBtn', 'reload');
+  setText('syncStatus', 'syncStatus');
+  setText('formTitle', 'formTitle');
+  setText('saveEmployeeBtn', 'saveEmployee');
+  setText('clearFormBtn', 'clearForm');
+  setText('rotationNote', 'rotationNote');
+  setText('listTitle', 'listTitle');
+  setText('exportExcelBtn', 'exportExcel');
+  setText('importExcelBtn', 'importExcel');
+  setLabel('empNum', 'labelEmpNum');
+  setLabel('empName', 'labelEmpName');
+  setLabel('empDept', 'labelEmpDept');
+  setLabel('empJob', 'labelEmpJob');
+  setLabel('empEmail', 'labelEmpEmail');
+  setLabel('empPhone', 'labelEmpPhone');
+  setLabel('empShift', 'labelEmpShift');
+  setLabel('empRotation', 'labelEmpRotation');
+  setLabel('empStatus', 'labelEmpStatus');
+  setPlaceholder('empNum', 'placeholderEmpNum');
+  setPlaceholder('empName', 'placeholderEmpName');
+  setPlaceholder('empDept', 'placeholderEmpDept');
+  setPlaceholder('empEmail', 'placeholderEmpEmail');
+  setPlaceholder('empPhone', 'placeholderEmpPhone');
+
+  const jobValue = $('empJob').value;
+  const shiftValueCurrent = $('empShift').value || 'morning';
+  const rotationValueCurrent = $('empRotation').value || 'none';
+  const statusValueCurrent = $('empStatus').value || 'true';
+  $('empJob').innerHTML = jobTitleOptions(jobValue);
+  $('empJob').value = normalizeJobTitle(jobValue);
+  $('empShift').innerHTML = shiftOptions(shiftValueCurrent);
+  $('empShift').value = shiftValueCurrent;
+  $('empRotation').innerHTML = rotationOptions(rotationValueCurrent);
+  $('empRotation').value = normalizeRotation(rotationValueCurrent);
+  $('empStatus').innerHTML = statusOptions(statusValueCurrent);
+  $('empStatus').value = statusValueCurrent;
+  $('employeeTableHead').innerHTML = tableHeadHtml();
+  if (!scheduleLoaded && !emps.length) {
+    $('empTableBody').innerHTML = `<tr><td class="empty" colspan="11">${t('loading')}</td></tr>`;
+  }
+
+  const editingId = $('editingId').value;
+  const editingEmp = editingId ? emps.map(normalizeEmployee).find(item => String(item.id) === String(editingId)) : null;
+  updateFormNote(editingEmp);
+
+  if (rerender) render();
 }
 
 function normalizeJobTitle(value, fallback = '') {
@@ -233,8 +550,8 @@ function normalizeJobTitle(value, fallback = '') {
 
 function jobTitleOptions(selected) {
   const current = normalizeJobTitle(selected);
-  return '<option value="">اختر المسمى...</option>' + EMPLOYEE_JOB_TITLES
-    .map(title => `<option value="${escapeHtml(title)}" ${current === title ? 'selected' : ''}>${escapeHtml(title)}</option>`)
+  return `<option value="">${escapeHtml(t('jobPlaceholder'))}</option>` + EMPLOYEE_JOB_TITLES
+    .map(title => `<option value="${escapeHtml(title)}" ${current === title ? 'selected' : ''}>${escapeHtml(jobTitleLabel(title))}</option>`)
     .join('');
 }
 
@@ -294,9 +611,9 @@ function excelRotation(value) {
 
 function rotationLabel(value) {
   const rot = normalizeRotation(value);
-  if (rot === 'thu') return 'الخميس والجمعة أوف - يعمل السبت';
-  if (rot === 'fri') return 'الجمعة أون كول - السبت أوف';
-  return 'لا يوجد';
+  if (rot === 'thu') return t('rotationThu');
+  if (rot === 'fri') return t('rotationFri');
+  return t('rotationNone');
 }
 
 function shiftValue(emp) {
@@ -304,13 +621,13 @@ function shiftValue(emp) {
 }
 
 function shiftLabel(emp) {
-  return emp.fixed ? 'ليلي ثابت' : 'صباحي / متغير';
+  return emp.fixed ? t('shiftNight') : t('shiftMorning');
 }
 
 function sourceLabel(emp) {
-  if (emp.source === 'employees') return 'Employees';
-  if (emp.source === 'excel') return 'Excel';
-  return emp.source === 'manual' ? 'يدوي' : 'صلاحيات';
+  if (emp.source === 'employees') return t('sourceEmployees');
+  if (emp.source === 'excel') return t('sourceExcel');
+  return emp.source === 'manual' ? t('sourceManual') : t('sourcePermissions');
 }
 
 function employeeSource(emp) {
@@ -383,10 +700,13 @@ function fillForm(emp) {
   $('empJob').value = normalizeJobTitle(emp?.jobTitle || '');
   $('empEmail').value = emp?.email || '';
   $('empPhone').value = emp?.phone || '';
+  $('empShift').innerHTML = shiftOptions(emp?.fixed ? 'night' : 'morning');
   $('empShift').value = emp?.fixed ? 'night' : 'morning';
+  $('empRotation').innerHTML = rotationOptions(emp?.rotType || emp?.rotation || 'none');
   $('empRotation').value = normalizeRotation(emp?.rotType || emp?.rotation);
+  $('empStatus').innerHTML = statusOptions(emp?.active === false ? 'false' : 'true');
   $('empStatus').value = emp?.active === false ? 'false' : 'true';
-  $('formNote').textContent = emp ? `جاري تعديل: ${emp.name || emp.id}` : 'الحقول الأساسية: رقم الموظف واسم الموظف. باقي المعلومات اختيارية لكنها تظهر في السجل.';
+  updateFormNote(emp);
 }
 
 function buildEmployeePayload(existing) {
@@ -394,11 +714,11 @@ function buildEmployeePayload(existing) {
   const name = $('empName').value.trim();
   const jobTitle = normalizeJobTitle($('empJob').value);
   if (!empNum || !name) {
-    alert('يرجى إدخال رقم الموظف واسم الموظف');
+    alert(t('alertRequired'));
     return null;
   }
   if (!jobTitle) {
-    alert('يرجى اختيار المسمى الوظيفي');
+    alert(t('alertJobRequired'));
     return null;
   }
 
@@ -423,42 +743,69 @@ function buildEmployeePayload(existing) {
 
 function employeeToExcelRow(emp) {
   const normalized = normalizeEmployee(emp);
+  const headers = isArabic()
+    ? {
+        id: 'ID',
+        empNum: 'رقم الموظف',
+        name: 'اسم الموظف',
+        dept: 'القسم',
+        jobTitle: 'المسمى الوظيفي',
+        email: 'البريد',
+        phone: 'الجوال',
+        shift: 'نوع الدوام',
+        rotation: 'الروتيشن',
+        status: 'الحالة',
+        source: 'المصدر'
+      }
+    : {
+        id: 'ID',
+        empNum: 'Employee ID',
+        name: 'Employee Name',
+        dept: 'Department',
+        jobTitle: 'Job Title',
+        email: 'Email',
+        phone: 'Mobile',
+        shift: 'Shift Type',
+        rotation: 'Rotation',
+        status: 'Status',
+        source: 'Source'
+      };
   return {
-    ID: normalized.id || '',
-    'رقم الموظف': normalized.empNum || '',
-    'اسم الموظف': normalized.name || '',
-    'القسم': normalized.dept || '',
-    'المسمى الوظيفي': normalized.jobTitle || '',
-    'البريد': normalized.email || '',
-    'الجوال': normalized.phone || '',
-    'نوع الدوام': normalized.fixed ? 'ليلي ثابت' : 'صباحي / متغير',
-    'الروتيشن': rotationLabel(normalized.rotType || normalized.rotation),
-    'الحالة': normalized.active !== false ? 'نشط' : 'مخفي',
-    'المصدر': sourceLabel(normalized)
+    [headers.id]: normalized.id || '',
+    [headers.empNum]: normalized.empNum || '',
+    [headers.name]: normalized.name || '',
+    [headers.dept]: normalized.dept || '',
+    [headers.jobTitle]: jobTitleLabel(normalized.jobTitle) || '',
+    [headers.email]: normalized.email || '',
+    [headers.phone]: normalized.phone || '',
+    [headers.shift]: shiftLabel(normalized),
+    [headers.rotation]: rotationLabel(normalized.rotType || normalized.rotation),
+    [headers.status]: normalized.active !== false ? t('statusActive') : t('statusHidden'),
+    [headers.source]: sourceLabel(normalized)
   };
 }
 
 function exportEmployeesToExcel() {
   if (!window.XLSX) {
-    alert('تعذر تحميل مكتبة Excel. تأكد من الاتصال بالإنترنت ثم أعد المحاولة.');
+    alert(t('alertExcelLibrary'));
     return;
   }
 
   const rows = emps.length
     ? emps.map(employeeToExcelRow)
-    : [{
-        ID: '',
-        'رقم الموظف': '',
-        'اسم الموظف': '',
-        'القسم': '',
-        'المسمى الوظيفي': 'الفني',
-        'البريد': '',
-        'الجوال': '',
-        'نوع الدوام': 'صباحي / متغير',
-        'الروتيشن': 'لا يوجد',
-        'الحالة': 'نشط',
-        'المصدر': 'Excel'
-      }];
+    : [employeeToExcelRow({
+        id: '',
+        empNum: '',
+        name: '',
+        dept: '',
+        jobTitle: 'الفني',
+        email: '',
+        phone: '',
+        fixed: false,
+        rotation: 'none',
+        active: true,
+        source: 'excel'
+      })];
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
   worksheet['!cols'] = [
@@ -479,8 +826,8 @@ function excelRowToEmployee(row, index) {
   const dept = normalizeExcelText(getExcelValue(row, ['القسم', 'dept', 'department', 'Department']));
   const jobTitle = normalizeJobTitle(getExcelValue(row, ['المسمى الوظيفي', 'role', 'jobTitle', 'Job Title', 'Position']), 'الفني');
   const email = normalizeExcelText(getExcelValue(row, ['البريد', 'البريد الإلكتروني', 'email', 'Email']));
-  const phone = normalizeExcelText(getExcelValue(row, ['الجوال', 'الهاتف', 'phone', 'mobile', 'Mobile']));
-  const shift = getExcelValue(row, ['نوع الدوام', 'shift', 'Shift', 'fixed']);
+  const phone = normalizeExcelText(getExcelValue(row, ['الجوال', 'الهاتف', 'phone', 'mobile', 'Mobile', 'Mobile Number']));
+  const shift = getExcelValue(row, ['نوع الدوام', 'shift', 'Shift', 'Shift Type', 'fixed']);
   const rotation = getExcelValue(row, ['الروتيشن', 'rotation', 'Rotation', 'rotType']);
   const status = getExcelValue(row, ['الحالة', 'status', 'active', 'Active']);
 
@@ -506,7 +853,7 @@ async function handleExcelImport(event) {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
   if (!window.XLSX) {
-    alert('تعذر تحميل مكتبة Excel. تأكد من الاتصال بالإنترنت ثم أعد المحاولة.');
+    alert(t('alertExcelLibrary'));
     event.target.value = '';
     return;
   }
@@ -520,7 +867,7 @@ async function handleExcelImport(event) {
     const imported = rows.map(excelRowToEmployee).filter(Boolean);
 
     if (!imported.length) {
-      alert('لم يتم العثور على صفوف موظفين صالحة داخل الملف.');
+      alert(t('alertNoRows'));
       return;
     }
 
@@ -549,10 +896,10 @@ async function handleExcelImport(event) {
     });
 
     await saveEmployees(next);
-    alert(`تم رفع ملف Excel بنجاح. تمت إضافة ${added} وتحديث ${updated}.`);
+    alert(t('alertImportSuccess', added, updated));
   } catch (error) {
     logFirebaseError('Import employees Excel failed', error);
-    alert(`تعذر رفع ملف Excel: ${error.message || error}`);
+    alert(t('alertImportFailed', error.message || error));
   } finally {
     event.target.value = '';
   }
@@ -560,11 +907,11 @@ async function handleExcelImport(event) {
 
 function render() {
   const tbody = $('empTableBody');
-  const rows = emps.map(normalizeEmployee).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ar'));
-  $('empCount').textContent = `${rows.length} موظف`;
+  const rows = emps.map(normalizeEmployee).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), currentLang));
+  $('empCount').textContent = employeeCountLabel(rows.length);
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td class="empty" colspan="11">لا يوجد موظفون حالياً</td></tr>';
+    tbody.innerHTML = `<tr><td class="empty" colspan="11">${t('empty')}</td></tr>`;
     return;
   }
 
@@ -587,30 +934,27 @@ function render() {
         <td>${escapeHtml(emp.phone || '-')}</td>
         <td>
           <select class="compact-select" data-field="fixed" data-id="${escapeHtml(emp.id)}">
-            <option value="morning" ${shiftValue(emp) === 'morning' ? 'selected' : ''}>صباحي / متغير</option>
-            <option value="night" ${shiftValue(emp) === 'night' ? 'selected' : ''}>ليلي ثابت</option>
+            ${shiftOptions(shiftValue(emp))}
           </select>
         </td>
         <td>
           <select class="compact-select" data-field="rotation" data-id="${escapeHtml(emp.id)}">
-            <option value="none" ${normalizeRotation(emp.rotType || emp.rotation) === 'none' ? 'selected' : ''}>لا يوجد</option>
-            <option value="thu" ${normalizeRotation(emp.rotType || emp.rotation) === 'thu' ? 'selected' : ''}>الخميس والجمعة أوف - يعمل السبت</option>
-            <option value="fri" ${normalizeRotation(emp.rotType || emp.rotation) === 'fri' ? 'selected' : ''}>الجمعة أون كول - السبت أوف</option>
+            ${rotationOptions(emp.rotType || emp.rotation)}
           </select>
           <div class="muted">${rotationLabel(emp.rotType || emp.rotation)}</div>
         </td>
         <td>
           <select class="compact-select" data-field="active" data-id="${escapeHtml(emp.id)}">
-            <option value="true" ${emp.active !== false ? 'selected' : ''}>نشط</option>
-            <option value="false" ${emp.active === false ? 'selected' : ''}>مخفي</option>
+            <option value="true" ${emp.active !== false ? 'selected' : ''}>${t('statusActive')}</option>
+            <option value="false" ${emp.active === false ? 'selected' : ''}>${t('statusHidden')}</option>
           </select>
-          <div><span class="status-pill ${emp.active !== false ? 'status-active' : 'status-hidden'}">${emp.active !== false ? 'نشط' : 'مخفي'}</span></div>
+          <div><span class="status-pill ${emp.active !== false ? 'status-active' : 'status-hidden'}">${emp.active !== false ? t('statusActive') : t('statusHidden')}</span></div>
         </td>
         <td><span class="source-pill ${source === 'manual' ? 'source-manual' : source === 'excel' ? 'source-excel' : 'source-sync'}">${sourceLabel({...emp, source})}</span></td>
         <td>
           <div class="row-actions">
-            <button class="btn" type="button" data-action="edit" data-id="${escapeHtml(emp.id)}">تعديل</button>
-            <button class="danger-btn" type="button" data-action="delete" data-id="${escapeHtml(emp.id)}">حذف</button>
+            <button class="btn" type="button" data-action="edit" data-id="${escapeHtml(emp.id)}">${t('actionEdit')}</button>
+            <button class="danger-btn" type="button" data-action="delete" data-id="${escapeHtml(emp.id)}">${t('actionDelete')}</button>
           </div>
         </td>
       </tr>
@@ -697,7 +1041,7 @@ window.saveEmployee = async () => {
     return String(emp.empNum || '').trim() === String(payload.empNum).trim();
   });
   if (duplicate) {
-    alert('رقم الموظف مستخدم مسبقاً');
+    alert(t('alertDuplicate'));
     return;
   }
 
@@ -721,8 +1065,8 @@ window.deleteEmployee = async id => {
   if (!emp) return;
   const isSynced = employeeSource(emp) !== 'manual';
   const message = isSynced
-    ? 'هذا الموظف متزامن مع صفحة الصلاحيات وقد يعود عند إعادة المزامنة. هل تريد حذفه من سجل الجدول الآن؟'
-    : 'هل تريد حذف هذا الموظف؟';
+    ? t('confirmDeleteSynced')
+    : t('confirmDelete');
   if (!confirm(message)) return;
   await saveEmployees(emps.filter(item => String(item.id) !== String(id)));
 };
@@ -744,7 +1088,7 @@ window.updateEmployeeField = async (id, field, value) => {
 
 $('saveEmployeeBtn').addEventListener('click', () => window.saveEmployee().catch(error => logFirebaseError('Save employee failed', error)));
 $('clearFormBtn').addEventListener('click', () => fillForm(null));
-$('reloadBtn').addEventListener('click', render);
+$('reloadBtn').addEventListener('click', () => applyLanguage({ rerender: true }));
 $('exportExcelBtn').addEventListener('click', exportEmployeesToExcel);
 $('importExcelBtn').addEventListener('click', () => $('importExcelInput').click());
 $('importExcelInput').addEventListener('change', event => {
@@ -766,6 +1110,21 @@ $('empTableBody').addEventListener('change', event => {
   window.updateEmployeeField(id, field, event.target.value).catch(error => logFirebaseError('Update employee field failed', error));
 });
 
+window.addEventListener('storage', event => {
+  if (event.key !== 'lang') return;
+  currentLang = normalizeLanguage(event.newValue || currentLang);
+  applyLanguage({ rerender: true });
+});
+
+window.addEventListener('message', event => {
+  const lang = event.data && event.data.lang;
+  if (!lang) return;
+  currentLang = normalizeLanguage(lang);
+  try { localStorage.setItem('lang', currentLang); } catch (error) {}
+  applyLanguage({ rerender: true });
+});
+
+applyLanguage();
 bindSnapshots().catch(error => logFirebaseError('Employee schedule startup failed', error));
 </script>
 </body>
