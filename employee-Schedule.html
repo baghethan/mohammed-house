@@ -217,6 +217,11 @@ const $ = id => document.getElementById(id);
 const EMPLOYEE_JOB_TITLES = ['المدير', 'المشرف', 'الفني', 'التمهير', 'المتدرب'];
 const EMPLOYEE_ACTIONS = {
   add: 'add_employee',
+  edit: 'edit_employee',
+  editShift: 'edit_employee_shift',
+  editRotation: 'edit_employee_rotation',
+  editStatus: 'edit_employee_status',
+  delete: 'delete_employee',
   exportExcel: 'export_employees_excel',
   importExcel: 'import_employees_excel'
 };
@@ -295,6 +300,7 @@ const I18N = {
     alertImportFailed: error => `تعذر رفع ملف Excel: ${error}`,
     alertDuplicate: 'رقم الموظف مستخدم مسبقاً',
     alertActionDenied: 'ليس لديك صلاحية تنفيذ هذا الإجراء.',
+    alertSaveFailed: error => `تعذر حفظ التعديل: ${error}`,
     noAddPermission: 'لا توجد لديك صلاحية إضافة موظف جديد. يمكنك مراجعة مسؤول النظام لتفعيلها من Employee Actions.',
     confirmDeleteSynced: 'هذا الموظف متزامن مع صفحة الصلاحيات وقد يعود عند إعادة المزامنة. هل تريد حذفه من سجل الجدول الآن؟',
     confirmDelete: 'هل تريد حذف هذا الموظف؟'
@@ -365,6 +371,7 @@ const I18N = {
     alertImportFailed: error => `Could not upload Excel file: ${error}`,
     alertDuplicate: 'Employee ID is already used',
     alertActionDenied: 'You do not have permission to perform this action.',
+    alertSaveFailed: error => `Could not save the change: ${error}`,
     noAddPermission: 'You do not have permission to add a new employee. Ask an administrator to enable it from Employee Actions.',
     confirmDeleteSynced: 'This employee is synced from permissions and may return during the next sync. Delete it from the schedule record now?',
     confirmDelete: 'Delete this employee?'
@@ -513,14 +520,34 @@ function requireEmployeeAction(action) {
   return false;
 }
 
+function actionForEmployeeField(field) {
+  if (field === 'fixed') return EMPLOYEE_ACTIONS.editShift;
+  if (field === 'rotation') return EMPLOYEE_ACTIONS.editRotation;
+  if (field === 'active') return EMPLOYEE_ACTIONS.editStatus;
+  return EMPLOYEE_ACTIONS.edit;
+}
+
+function disabledAttrForAction(action) {
+  return hasEmployeeAction(action) ? '' : 'disabled';
+}
+
+function deniedClassForAction(action) {
+  return hasEmployeeAction(action) ? '' : 'action-denied';
+}
+
+function formatError(error) {
+  return error?.message || String(error || '');
+}
+
 function applyActionPermissions() {
   if (!$('saveEmployeeBtn')) return;
   const canAdd = hasEmployeeAction(EMPLOYEE_ACTIONS.add);
+  const canEdit = hasEmployeeAction(EMPLOYEE_ACTIONS.edit);
   const canExport = hasEmployeeAction(EMPLOYEE_ACTIONS.exportExcel);
   const canImport = hasEmployeeAction(EMPLOYEE_ACTIONS.importExcel);
   const isEditing = Boolean($('editingId').value);
 
-  $('saveEmployeeBtn').disabled = !canAdd && !isEditing;
+  $('saveEmployeeBtn').disabled = isEditing ? !canEdit : !canAdd;
   $('exportExcelBtn').classList.toggle('action-denied', !canExport);
   $('importExcelBtn').classList.toggle('action-denied', !canImport);
 
@@ -984,25 +1011,25 @@ function render() {
         <td>${escapeHtml(emp.empNum || '-')}</td>
         <td>${escapeHtml(emp.dept || '-')}</td>
         <td>
-          <select class="compact-select" data-field="jobTitle" data-id="${escapeHtml(emp.id)}">
+          <select class="compact-select" data-field="jobTitle" data-id="${escapeHtml(emp.id)}" ${disabledAttrForAction(EMPLOYEE_ACTIONS.edit)}>
             ${jobTitleOptions(emp.jobTitle)}
           </select>
         </td>
         <td>${escapeHtml(emp.email || '-')}</td>
         <td>${escapeHtml(emp.phone || '-')}</td>
         <td>
-          <select class="compact-select" data-field="fixed" data-id="${escapeHtml(emp.id)}">
+          <select class="compact-select" data-field="fixed" data-id="${escapeHtml(emp.id)}" ${disabledAttrForAction(EMPLOYEE_ACTIONS.editShift)}>
             ${shiftOptions(shiftValue(emp))}
           </select>
         </td>
         <td>
-          <select class="compact-select" data-field="rotation" data-id="${escapeHtml(emp.id)}">
+          <select class="compact-select" data-field="rotation" data-id="${escapeHtml(emp.id)}" ${disabledAttrForAction(EMPLOYEE_ACTIONS.editRotation)}>
             ${rotationOptions(emp.rotType || emp.rotation)}
           </select>
           <div class="muted">${rotationLabel(emp.rotType || emp.rotation)}</div>
         </td>
         <td>
-          <select class="compact-select" data-field="active" data-id="${escapeHtml(emp.id)}">
+          <select class="compact-select" data-field="active" data-id="${escapeHtml(emp.id)}" ${disabledAttrForAction(EMPLOYEE_ACTIONS.editStatus)}>
             <option value="true" ${emp.active !== false ? 'selected' : ''}>${t('statusActive')}</option>
             <option value="false" ${emp.active === false ? 'selected' : ''}>${t('statusHidden')}</option>
           </select>
@@ -1011,8 +1038,8 @@ function render() {
         <td><span class="source-pill ${source === 'manual' ? 'source-manual' : source === 'excel' ? 'source-excel' : 'source-sync'}">${sourceLabel({...emp, source})}</span></td>
         <td>
           <div class="row-actions">
-            <button class="btn" type="button" data-action="edit" data-id="${escapeHtml(emp.id)}">${t('actionEdit')}</button>
-            <button class="danger-btn" type="button" data-action="delete" data-id="${escapeHtml(emp.id)}">${t('actionDelete')}</button>
+            <button class="btn ${deniedClassForAction(EMPLOYEE_ACTIONS.edit)}" type="button" data-action="edit" data-id="${escapeHtml(emp.id)}">${t('actionEdit')}</button>
+            <button class="danger-btn ${deniedClassForAction(EMPLOYEE_ACTIONS.delete)}" type="button" data-action="delete" data-id="${escapeHtml(emp.id)}">${t('actionDelete')}</button>
           </div>
         </td>
       </tr>
@@ -1045,12 +1072,15 @@ async function syncEmployees() {
 
     const existing = normalizeEmployee(next[index]);
     const candidate = normalizeEmployee({
-      ...existing,
       ...incoming,
+      ...existing,
       id: existing.id || incoming.id,
+      empNum: existing.empNum || incoming.empNum,
+      email: existing.email || incoming.email,
       fixed: existing.fixed === true,
       rotation: existing.rotation || incoming.rotation,
       rotType: existing.rotType || incoming.rotType,
+      active: existing.active !== false,
       source: ['manual', 'excel'].includes(existing.source) ? existing.source : incoming.source,
       createdAt: existing.createdAt || incoming.createdAt,
       updatedAt: existing.updatedAt || incoming.updatedAt || ''
@@ -1112,6 +1142,7 @@ async function bindSnapshots() {
 window.saveEmployee = async () => {
   const editingId = $('editingId').value;
   if (!editingId && !requireEmployeeAction(EMPLOYEE_ACTIONS.add)) return;
+  if (editingId && !requireEmployeeAction(EMPLOYEE_ACTIONS.edit)) return;
   const existing = editingId ? emps.find(emp => String(emp.id) === String(editingId)) : null;
   const payload = buildEmployeePayload(existing);
   if (!payload) return;
@@ -1134,6 +1165,7 @@ window.saveEmployee = async () => {
 };
 
 window.editEmployee = id => {
+  if (!requireEmployeeAction(EMPLOYEE_ACTIONS.edit)) return;
   const emp = emps.map(normalizeEmployee).find(item => String(item.id) === String(id));
   if (!emp) return;
   fillForm(emp);
@@ -1141,6 +1173,7 @@ window.editEmployee = id => {
 };
 
 window.deleteEmployee = async id => {
+  if (!requireEmployeeAction(EMPLOYEE_ACTIONS.delete)) return;
   const emp = emps.find(item => String(item.id) === String(id));
   if (!emp) return;
   const isSynced = employeeSource(emp) !== 'manual';
@@ -1152,6 +1185,10 @@ window.deleteEmployee = async id => {
 };
 
 window.updateEmployeeField = async (id, field, value) => {
+  if (!requireEmployeeAction(actionForEmployeeField(field))) {
+    render();
+    return;
+  }
   const updated = emps.map(emp => {
     if (String(emp.id) !== String(id)) return emp;
     if (field === 'fixed') return { ...emp, fixed: value === 'night', updatedAt: new Date().toISOString() };
@@ -1166,7 +1203,10 @@ window.updateEmployeeField = async (id, field, value) => {
   await saveEmployees(updated);
 };
 
-$('saveEmployeeBtn').addEventListener('click', () => window.saveEmployee().catch(error => logFirebaseError('Save employee failed', error)));
+$('saveEmployeeBtn').addEventListener('click', () => window.saveEmployee().catch(error => {
+  logFirebaseError('Save employee failed', error);
+  alert(t('alertSaveFailed', formatError(error)));
+}));
 $('clearFormBtn').addEventListener('click', () => fillForm(null));
 $('reloadBtn').addEventListener('click', () => applyLanguage({ rerender: true }));
 $('exportExcelBtn').addEventListener('click', exportEmployeesToExcel);
@@ -1183,14 +1223,21 @@ $('empTableBody').addEventListener('click', event => {
   if (!button) return;
   const id = button.dataset.id;
   if (button.dataset.action === 'edit') window.editEmployee(id);
-  if (button.dataset.action === 'delete') window.deleteEmployee(id).catch(error => logFirebaseError('Delete employee failed', error));
+  if (button.dataset.action === 'delete') window.deleteEmployee(id).catch(error => {
+    logFirebaseError('Delete employee failed', error);
+    alert(t('alertSaveFailed', formatError(error)));
+  });
 });
 
 $('empTableBody').addEventListener('change', event => {
   const field = event.target.dataset.field;
   const id = event.target.dataset.id;
   if (!field || !id) return;
-  window.updateEmployeeField(id, field, event.target.value).catch(error => logFirebaseError('Update employee field failed', error));
+  window.updateEmployeeField(id, field, event.target.value).catch(error => {
+    logFirebaseError('Update employee field failed', error);
+    alert(t('alertSaveFailed', formatError(error)));
+    render();
+  });
 });
 
 window.addEventListener('storage', event => {
