@@ -500,18 +500,49 @@ function updateFormNote(emp = null) {
   $('formNote').textContent = emp ? `${t('editingPrefix')}: ${emp.name || emp.id}` : t('formNote');
 }
 
+function getParentPortalValue(key) {
+  try {
+    if (!window.parent || window.parent === window) return null;
+    return window.parent[key] || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function syncParentPortalProfile() {
+  const parentUser = getParentPortalValue('currentUser');
+  const parentProfile = getParentPortalValue('currentUserData');
+  if (parentUser && !currentAuthUser) currentAuthUser = parentUser;
+  if (parentProfile && (!currentUserProfile || !currentUserProfile.role)) {
+    currentUserProfile = { ...parentProfile };
+  }
+}
+
+function getEffectiveUserProfile() {
+  syncParentPortalProfile();
+  return currentUserProfile || getParentPortalValue('currentUserData') || null;
+}
+
+function hasLegacyEmployeePageAccess(profile) {
+  const schedulePages = Array.isArray(profile?.permissions_schedule) ? profile.permissions_schedule : [];
+  const legacyPages = Array.isArray(profile?.pages) ? profile.pages : [];
+  return schedulePages.map(String).includes('employees') || legacyPages.map(String).includes('employees');
+}
+
 function hasFullEmployeeActionAccess() {
-  const role = String(currentUserProfile?.role || '').trim().toLowerCase();
-  const email = String(currentAuthUser?.email || currentUserProfile?.email || '').trim().toLowerCase();
-  return currentUserProfile?.superAdmin === true || role === 'admin' || OWNER_EMAILS.includes(email);
+  const profile = getEffectiveUserProfile();
+  const role = String(profile?.role || '').trim().toLowerCase();
+  const email = String(currentAuthUser?.email || profile?.email || '').trim().toLowerCase();
+  return profile?.superAdmin === true || role === 'admin' || OWNER_EMAILS.includes(email);
 }
 
 function hasEmployeeAction(action) {
   if (hasFullEmployeeActionAccess()) return true;
-  const actions = Array.isArray(currentUserProfile?.permissions_employee_actions)
-    ? currentUserProfile.permissions_employee_actions
-    : [];
-  return actions.map(item => String(item || '').trim()).includes(action);
+  const profile = getEffectiveUserProfile();
+  if (!Array.isArray(profile?.permissions_employee_actions)) {
+    return hasLegacyEmployeePageAccess(profile);
+  }
+  return profile.permissions_employee_actions.map(item => String(item || '').trim()).includes(action);
 }
 
 function requireEmployeeAction(action) {
@@ -765,9 +796,10 @@ function findEmployeeIndex(list, incoming) {
 }
 
 async function saveEmployees(updated = emps) {
-  emps = updated.map(normalizeEmployee);
+  const normalized = updated.map(normalizeEmployee);
   await waitForSignedInUser();
-  await setDoc(scheduleDocRef, { data: { emps } }, { merge: true });
+  await setDoc(scheduleDocRef, { data: { emps: normalized } }, { merge: true });
+  emps = normalized;
 }
 
 function fillForm(emp) {
@@ -1254,6 +1286,7 @@ window.addEventListener('message', event => {
   applyLanguage({ rerender: true });
 });
 
+syncParentPortalProfile();
 applyLanguage();
 Promise.all([
   bindCurrentUserProfile(),
