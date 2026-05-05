@@ -138,6 +138,7 @@
     .cancelled{background:var(--cancel-bg);color:var(--cancel-t)}
     .actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
     .empty{padding:26px;color:var(--muted);font-weight:800;text-align:center;background:#fff}
+    .hidden{display:none!important}
     @media (max-width:850px){
       body{padding:12px}
       .glass{padding:18px;border-radius:18px}
@@ -181,7 +182,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="planListCard">
       <div class="list-head">
         <h3 style="color:var(--primary);font-size:20px;font-weight:900">📋 Plan List</h3>
         <div class="count-pill" id="planCount">0 خطة</div>
@@ -214,11 +215,15 @@ import {
   onSnapshot,
   addDoc,
   deleteDoc,
-  updateDoc
+  updateDoc,
+  getDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 let employees = [];
 let planList = [];
+let currentUser = null;
+let currentProfile = null;
+let canManagePlans = false;
 const $ = id => document.getElementById(id);
 
 function escapeHtml(value) {
@@ -235,15 +240,106 @@ function byDate(a, b) {
   return String(a.from || '').localeCompare(String(b.from || '')) || String(a.name || '').localeCompare(String(b.name || ''));
 }
 
+function norm(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getUserProfileFromParent(user) {
+  const profile = window.parent && window.parent.currentUserData;
+  if (profile && profile.uid === user.uid) return profile;
+  return null;
+}
+
+async function loadCurrentProfile(user) {
+  const parentProfile = getUserProfileFromParent(user);
+  if (parentProfile) return parentProfile;
+
+  const snap = await getDoc(doc(db, 'app_users', user.uid));
+  if (snap.exists()) return { id: snap.id, uid: user.uid, ...snap.data() };
+
+  return {
+    uid: user.uid,
+    email: user.email || '',
+    name: user.displayName || '',
+    role: 'employee',
+    active: true
+  };
+}
+
+function isManagerProfile(profile) {
+  const role = norm(profile && profile.role);
+  return role === 'admin' || role === 'supervisor' || profile?.superAdmin === true;
+}
+
+function employeeMatchesCurrentUser(emp) {
+  if (!emp || !currentUser) return false;
+  const profile = currentProfile || {};
+  const candidates = [
+    profile.uid,
+    currentUser.uid,
+    profile.email,
+    currentUser.email,
+    profile.technicianId,
+    profile.empNum,
+    profile.employeeId,
+    profile.name
+  ].map(norm).filter(Boolean);
+
+  const empValues = [
+    emp.id,
+    emp.fireId,
+    emp.uid,
+    emp.email,
+    emp.empNum,
+    emp.technicianId,
+    emp.employeeId,
+    emp.name
+  ].map(norm).filter(Boolean);
+
+  return empValues.some(value => candidates.includes(value));
+}
+
+function getFallbackCurrentEmployee() {
+  if (!currentUser) return null;
+  const profile = currentProfile || {};
+  const id = profile.uid || currentUser.uid;
+  if (!id) return null;
+
+  return {
+    id,
+    empNum: profile.technicianId || profile.empNum || profile.employeeId || id,
+    name: profile.name || currentUser.displayName || currentUser.email || 'Employee',
+    dept: profile.dept || profile.department || '',
+    jobTitle: profile.jobTitle || profile.role || 'Employee',
+    email: profile.email || currentUser.email || '',
+    active: true
+  };
+}
+
+function getVisibleEmployees() {
+  const activeEmployees = employees.filter(emp => emp.active !== false);
+  if (canManagePlans) return activeEmployees;
+  const matchedEmployees = activeEmployees.filter(employeeMatchesCurrentUser);
+  if (matchedEmployees.length) return matchedEmployees;
+  const fallbackEmployee = getFallbackCurrentEmployee();
+  return fallbackEmployee ? [fallbackEmployee] : [];
+}
+
+function applyRoleUi() {
+  $('planListCard').classList.toggle('hidden', !canManagePlans);
+  $('pEmp').disabled = !canManagePlans;
+}
+
 function renderEmployees() {
   const currentValue = $('pEmp').value;
-  const options = employees
-    .filter(emp => emp.active !== false)
+  const visibleEmployees = getVisibleEmployees();
+  const options = visibleEmployees
     .map(emp => `<option value="${escapeHtml(emp.id)}">${escapeHtml(emp.name || emp.id)}</option>`)
     .join('');
 
   $('pEmp').innerHTML = `<option value="">اختر الموظف...</option>${options}`;
-  if (employees.some(emp => String(emp.id) === String(currentValue))) $('pEmp').value = currentValue;
+  if (visibleEmployees.some(emp => String(emp.id) === String(currentValue))) $('pEmp').value = currentValue;
+  else if (!canManagePlans && visibleEmployees.length === 1) $('pEmp').value = visibleEmployees[0].id;
 }
 
 function statusLabel(status) {
@@ -308,9 +404,9 @@ window.addVacationPlan = async () => {
     return;
   }
 
-  const emp = employees.find(item => String(item.id) === String(empId));
+  const emp = getVisibleEmployees().find(item => String(item.id) === String(empId));
   if (!emp) {
-    alert('لم يتم العثور على الموظف المحدد');
+    alert(canManagePlans ? 'لم يتم العثور على الموظف المحدد' : 'لا يمكنك إضافة خطة إلا باسمك فقط');
     return;
   }
 
@@ -324,6 +420,8 @@ window.addVacationPlan = async () => {
     from,
     to,
     status: 'pending',
+    createdByUid: currentUser?.uid || '',
+    createdByEmail: currentUser?.email || currentProfile?.email || '',
     createdAt: new Date().toISOString(),
     actionBy: '',
     actionAt: ''
@@ -334,6 +432,10 @@ window.addVacationPlan = async () => {
 };
 
 window.setPlanStatus = async (id, status) => {
+  if (!canManagePlans) {
+    alert('هذه العملية مخصصة للمشرف فقط');
+    return;
+  }
   await waitForSignedInUser();
   await updateDoc(doc(db, 'vacations', id), {
     status,
@@ -342,22 +444,32 @@ window.setPlanStatus = async (id, status) => {
 };
 
 window.deletePlan = async id => {
+  if (!canManagePlans) {
+    alert('هذه العملية مخصصة للمشرف فقط');
+    return;
+  }
   if (!confirm('هل تريد حذف خطة الإجازة؟')) return;
   await waitForSignedInUser();
   await deleteDoc(doc(db, 'vacations', id));
 };
 
 async function bindSnapshots() {
-  await waitForSignedInUser();
+  currentUser = await waitForSignedInUser();
+  currentProfile = await loadCurrentProfile(currentUser);
+  canManagePlans = isManagerProfile(currentProfile);
+  applyRoleUi();
+
   onSnapshot(doc(db, 'schedule', 'jadwal_v6'), snap => {
     employees = snap.exists() ? (snap.data().data?.emps || []) : [];
     renderEmployees();
   }, error => logFirebaseError('Vacation plan employees listener failed', error));
 
-  onSnapshot(collection(db, 'vacations'), snap => {
-    planList = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-    renderPlanList();
-  }, error => logFirebaseError('Vacation plan list listener failed', error));
+  if (canManagePlans) {
+    onSnapshot(collection(db, 'vacations'), snap => {
+      planList = snap.docs.map(item => ({ id: item.id, ...item.data() }));
+      renderPlanList();
+    }, error => logFirebaseError('Vacation plan list listener failed', error));
+  }
 }
 
 $('btnAddPlan').addEventListener('click', () => {
@@ -366,7 +478,7 @@ $('btnAddPlan').addEventListener('click', () => {
 
 $('refreshBtn').addEventListener('click', () => {
   renderEmployees();
-  renderPlanList();
+  if (canManagePlans) renderPlanList();
 });
 
 window.addEventListener('DOMContentLoaded', () => {
