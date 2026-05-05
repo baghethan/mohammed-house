@@ -92,6 +92,46 @@
       background: #5d933a;
     }
 
+    button.danger {
+      background: #c00000;
+    }
+
+    button.danger:hover {
+      background: #8f0000;
+    }
+
+    .month-manager {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(260px, 1fr));
+      gap: 16px;
+      margin: 18px auto 0;
+      text-align: start;
+      max-width: 900px;
+    }
+
+    .month-field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .month-field label {
+      color: #1f4e79;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .month-field input,
+    .month-field select {
+      padding: 11px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fff;
+      color: #333;
+      font-size: 14px;
+      min-height: 43px;
+    }
+
     .note {
       font-size: 13px;
       color: #666;
@@ -108,7 +148,7 @@
 
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 18px;
       margin-bottom: 25px;
     }
@@ -126,6 +166,8 @@
     .kpi-card.green { border-top-color: #70ad47; }
     .kpi-card.red { border-top-color: #c00000; }
     .kpi-card.yellow { border-top-color: #ffc000; }
+    .kpi-card.blue { border-top-color: #5b9bd5; }
+    .kpi-card.purple { border-top-color: #7030a0; }
 
     .kpi-value {
       font-size: 32px;
@@ -171,6 +213,30 @@
 
     .full-width {
       grid-column: 1 / -1;
+    }
+
+    .dashboard-month {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+      margin-bottom: 18px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .dashboard-month h2 {
+      color: #1f4e79;
+      font-size: 20px;
+      margin: 0;
+    }
+
+    .dashboard-month span {
+      color: #666;
+      font-weight: bold;
     }
 
     canvas {
@@ -232,7 +298,8 @@
 
     @media (max-width: 1000px) {
       .kpi-grid,
-      .charts-grid {
+      .charts-grid,
+      .month-manager {
         grid-template-columns: 1fr;
       }
     }
@@ -253,8 +320,25 @@
 
     <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
 
+    <div class="month-manager">
+      <div class="month-field">
+        <label for="monthInput">Dashboard Month</label>
+        <input type="month" id="monthInput" />
+      </div>
+
+      <div class="month-field">
+        <label for="savedMonthSelect">Saved Monthly Database</label>
+        <select id="savedMonthSelect">
+          <option value="">No saved months yet</option>
+        </select>
+      </div>
+    </div>
+
     <div class="buttons">
       <button onclick="processFile()">Generate Dashboard</button>
+      <button onclick="saveCurrentMonth()">Save Month</button>
+      <button onclick="loadSavedMonth()">Load Saved Month</button>
+      <button class="danger" onclick="deleteSavedMonth()">Delete Saved Month</button>
       <button class="secondary" onclick="exportPowerPoint()">Export PowerPoint</button>
     </div>
 
@@ -269,10 +353,25 @@
 
   <div id="dashboard" class="hidden">
 
+    <div class="dashboard-month">
+      <h2>Executive IT Operations Dashboard</h2>
+      <span id="dashboardMonthLabel">Month not selected</span>
+    </div>
+
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-value" id="totalRequests">0</div>
         <div class="kpi-label">Total Requests</div>
+      </div>
+
+      <div class="kpi-card blue">
+        <div class="kpi-value" id="srRequests">0</div>
+        <div class="kpi-label">SR Service Requests</div>
+      </div>
+
+      <div class="kpi-card purple">
+        <div class="kpi-value" id="incRequests">0</div>
+        <div class="kpi-label">INC Incidents</div>
       </div>
 
       <div class="kpi-card orange">
@@ -308,6 +407,16 @@
         </select>
         <canvas id="statusChart"></canvas>
         <div id="statusChartTable" class="chart-table hidden"></div>
+      </div>
+
+      <div class="chart-card">
+        <h3>SR / INC by Status</h3>
+        <canvas id="typeStatusChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>INC by Group / Source</h3>
+        <canvas id="incGroupChart"></canvas>
       </div>
 
       <div class="chart-card">
@@ -390,6 +499,13 @@
   let charts = {};
   let dashboardMetrics = {};
   let STATUS_COLORS = {};
+  let currentMonthKey = "";
+  let currentSourceFileName = "";
+  let monthManuallySelected = false;
+
+  const DB_NAME = "ExecutiveITOperationsDashboardDB";
+  const DB_VERSION = 1;
+  const MONTH_STORE = "monthlyReports";
 
   let chartTypes = {
     statusChart: "doughnut",
@@ -410,6 +526,243 @@
     "#00b0f0",
     "#999999"
   ];
+
+  function getCurrentMonthKey() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function getMonthLabel(monthKey) {
+    if (!monthKey) return "Month not selected";
+
+    const parts = String(monthKey).split("-");
+
+    if (parts.length !== 2) return monthKey;
+
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+
+    if (!year || !month) return monthKey;
+
+    return new Date(year, month - 1, 1).toLocaleString("en-US", {
+      month: "long",
+      year: "numeric"
+    });
+  }
+
+  function setDashboardMonth(monthKey) {
+    currentMonthKey = monthKey || getCurrentMonthKey();
+
+    const monthInput = document.getElementById("monthInput");
+    const monthLabel = document.getElementById("dashboardMonthLabel");
+
+    if (monthInput) {
+      monthInput.value = currentMonthKey;
+    }
+
+    if (monthLabel) {
+      monthLabel.innerText = `${getMonthLabel(currentMonthKey)} (${currentMonthKey})`;
+    }
+  }
+
+  function getSelectedMonthKey(data = rawData) {
+    const selected = document.getElementById("monthInput")?.value;
+
+    if (selected) return selected;
+
+    return detectMonthFromData(data) || getCurrentMonthKey();
+  }
+
+  function detectMonthFromData(data) {
+    if (!Array.isArray(data)) return "";
+
+    for (const row of data) {
+      const parsed = parseDateValue(row["Created Date"]);
+
+      if (parsed) {
+        return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}`;
+      }
+    }
+
+    return "";
+  }
+
+  function openMonthlyDb() {
+    return new Promise((resolve, reject) => {
+      if (!window.indexedDB) {
+        reject(new Error("IndexedDB is not supported in this browser."));
+        return;
+      }
+
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+      request.onupgradeneeded = function() {
+        const db = request.result;
+
+        if (!db.objectStoreNames.contains(MONTH_STORE)) {
+          db.createObjectStore(MONTH_STORE, { keyPath: "monthKey" });
+        }
+      };
+
+      request.onsuccess = function() {
+        resolve(request.result);
+      };
+
+      request.onerror = function() {
+        reject(request.error);
+      };
+    });
+  }
+
+  async function runMonthStore(mode, action) {
+    const db = await openMonthlyDb();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(MONTH_STORE, mode);
+      const store = transaction.objectStore(MONTH_STORE);
+      const request = action(store);
+      let result;
+
+      if (request) {
+        request.onsuccess = function() {
+          result = request.result;
+        };
+
+        request.onerror = function() {
+          reject(request.error);
+        };
+      }
+
+      transaction.oncomplete = function() {
+        db.close();
+        resolve(result);
+      };
+
+      transaction.onerror = function() {
+        db.close();
+        reject(transaction.error);
+      };
+    });
+  }
+
+  async function getSavedMonths() {
+    return runMonthStore("readonly", store => store.getAll());
+  }
+
+  async function refreshSavedMonths(selectedKey = currentMonthKey) {
+    const select = document.getElementById("savedMonthSelect");
+
+    if (!select) return;
+
+    try {
+      const records = await getSavedMonths();
+      const sorted = records
+        .sort((a, b) => String(b.monthKey).localeCompare(String(a.monthKey)));
+
+      select.innerHTML = "";
+
+      if (sorted.length === 0) {
+        select.innerHTML = `<option value="">No saved months yet</option>`;
+        return;
+      }
+
+      select.innerHTML = `<option value="">Choose saved month</option>`;
+
+      sorted.forEach(record => {
+        const option = document.createElement("option");
+        option.value = record.monthKey;
+        option.textContent = `${record.monthLabel || getMonthLabel(record.monthKey)} - ${record.rows?.length || 0} rows`;
+        select.appendChild(option);
+      });
+
+      if (selectedKey && sorted.some(record => record.monthKey === selectedKey)) {
+        select.value = selectedKey;
+      }
+    } catch (error) {
+      console.error(error);
+      select.innerHTML = `<option value="">Database unavailable</option>`;
+    }
+  }
+
+  async function saveCurrentMonth() {
+    if (!rawData || rawData.length === 0) {
+      alert("Please generate dashboard first.");
+      return;
+    }
+
+    const monthKey = getSelectedMonthKey(rawData);
+    const record = {
+      monthKey,
+      monthLabel: getMonthLabel(monthKey),
+      rows: rawData,
+      savedAt: new Date().toISOString(),
+      sourceFileName: currentSourceFileName,
+      summary: {
+        total: dashboardMetrics.total || rawData.length,
+        srCount: dashboardMetrics.srCount || 0,
+        incCount: dashboardMetrics.incCount || 0
+      }
+    };
+
+    try {
+      await runMonthStore("readwrite", store => store.put(record));
+      setDashboardMonth(monthKey);
+      await refreshSavedMonths(monthKey);
+      setMessage(`Saved ${record.monthLabel} to monthly database successfully ✅`);
+    } catch (error) {
+      console.error(error);
+      alert("Could not save this month. The browser database may be full or blocked.");
+    }
+  }
+
+  async function loadSavedMonth() {
+    const monthKey = document.getElementById("savedMonthSelect")?.value;
+
+    if (!monthKey) {
+      alert("Please choose a saved month first.");
+      return;
+    }
+
+    try {
+      const record = await runMonthStore("readonly", store => store.get(monthKey));
+
+      if (!record || !Array.isArray(record.rows)) {
+        alert("Saved month was not found.");
+        return;
+      }
+
+      rawData = normalizeDashboardData(record.rows);
+      currentSourceFileName = record.sourceFileName || "";
+      buildDashboard(rawData, monthKey);
+      await refreshSavedMonths(monthKey);
+      setMessage(`Loaded ${record.monthLabel || getMonthLabel(monthKey)} from monthly database ✅`);
+    } catch (error) {
+      console.error(error);
+      alert("Could not load the saved month.");
+    }
+  }
+
+  async function deleteSavedMonth() {
+    const monthKey = document.getElementById("savedMonthSelect")?.value;
+
+    if (!monthKey) {
+      alert("Please choose a saved month first.");
+      return;
+    }
+
+    if (!confirm(`Delete ${getMonthLabel(monthKey)} from the monthly database?`)) {
+      return;
+    }
+
+    try {
+      await runMonthStore("readwrite", store => store.delete(monthKey));
+      await refreshSavedMonths("");
+      setMessage(`${getMonthLabel(monthKey)} deleted from monthly database.`);
+    } catch (error) {
+      console.error(error);
+      alert("Could not delete the saved month.");
+    }
+  }
 
   function setMessage(message) {
     document.getElementById("statusMessage").innerText = message;
@@ -445,7 +798,12 @@
   }
 
   window.addEventListener("DOMContentLoaded", async () => {
+    setDashboardMonth(getCurrentMonthKey());
+    document.getElementById("monthInput")?.addEventListener("change", () => {
+      monthManuallySelected = true;
+    });
     await loadStatusColors();
+    await refreshSavedMonths();
   });
 
   function getStatusColor(status, index = 0) {
@@ -468,22 +826,32 @@
 
     const reader = new FileReader();
 
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
       try {
         const data = e.target.result;
         const workbook = XLSX.read(data, { type: "binary" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
 
-        rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+        rawData = normalizeDashboardData(
+          XLSX.utils.sheet_to_json(worksheet, { defval: "" })
+        );
+        currentSourceFileName = file.name || "";
 
         if (rawData.length === 0) {
           alert("The file is empty.");
           return;
         }
 
-        buildDashboard(rawData);
-        setMessage("Dashboard generated successfully ✅");
+        const selectedMonth = document.getElementById("monthInput")?.value;
+        const detectedMonth = detectMonthFromData(rawData);
+        const monthKey = monthManuallySelected && selectedMonth
+          ? selectedMonth
+          : detectedMonth || selectedMonth || getCurrentMonthKey();
+
+        buildDashboard(rawData, monthKey);
+        await refreshSavedMonths(monthKey);
+        setMessage("Dashboard generated successfully ✅ Choose Save Month to store it in the monthly database.");
       } catch (error) {
         console.error(error);
         alert("Error while reading file. Please check file format.");
@@ -493,12 +861,112 @@
     reader.readAsBinaryString(file);
   }
 
-  function buildDashboard(data) {
+  function normalizeDashboardData(data) {
+    return data.map(row => {
+      const ticketType = detectTicketType(row);
+      const dashboardGroup = normalizeDashboardGroup(row["Group.Name"], ticketType);
+
+      return {
+        ...row,
+        "Dashboard.Type": ticketType,
+        "Dashboard.Group": dashboardGroup
+      };
+    });
+  }
+
+  function detectTicketType(row) {
+    const typeColumns = [
+      "Resource Request type",
+      "Request Type",
+      "Type",
+      "Request ID",
+      "RequestID",
+      "Ticket ID",
+      "ID"
+    ];
+
+    for (const column of typeColumns) {
+      const value = row[column];
+
+      if (value === undefined || value === null || String(value).trim() === "") {
+        continue;
+      }
+
+      const detected = classifyTicketType(value);
+
+      if (detected !== "Unknown") {
+        return detected;
+      }
+    }
+
+    return "Unknown";
+  }
+
+  function classifyTicketType(value) {
+    const text = String(value).trim().toLowerCase();
+    const compact = text.replace(/[\s_-]+/g, "");
+
+    if (
+      /^inc\d*/.test(compact) ||
+      /\binc\b/.test(text) ||
+      text.includes("incident") ||
+      text.includes("problem") ||
+      text.includes("حادث") ||
+      text.includes("مشكلة") ||
+      text.includes("بلاغ")
+    ) {
+      return "INC";
+    }
+
+    if (
+      /^sr\d*/.test(compact) ||
+      /\bsr\b/.test(text) ||
+      text.includes("service request") ||
+      text.includes("service") ||
+      text.includes("طلب خدمة") ||
+      text.includes("خدمة")
+    ) {
+      return "SR";
+    }
+
+    return "Unknown";
+  }
+
+  function normalizeDashboardGroup(groupValue, ticketType) {
+    let group = groupValue;
+
+    if (group === undefined || group === null || String(group).trim() === "") {
+      group = "Not Specified";
+    }
+
+    group = String(group).trim();
+
+    if (ticketType === "INC" && group.toLowerCase() === "hcl noc") {
+      return "Solarwinds";
+    }
+
+    return group;
+  }
+
+  function buildDashboard(data, monthKey = "") {
     document.getElementById("dashboard").classList.remove("hidden");
+    setDashboardMonth(monthKey || getSelectedMonthKey(data));
 
     const total = data.length;
 
     const statusCounts = countBy(data, "Status.Name", "Blank");
+    const requestTypeCounts = countBy(data, "Dashboard.Type", "Unknown");
+    const srCount = requestTypeCounts["SR"] || 0;
+    const incCount = requestTypeCounts["INC"] || 0;
+    const incData = data.filter(row => row["Dashboard.Type"] === "INC");
+    const requestTypeStatusData = aggregateByStatus(
+      data,
+      "Dashboard.Type",
+      "Status.Name",
+      "Unknown",
+      5
+    );
+    const incGroupCounts = topN(countBy(incData, "Dashboard.Group", "Not Specified"), 10);
 
     const departmentStatusData = aggregateByStatus(
       data,
@@ -530,7 +998,7 @@
 
     const slaGroupCounts = countSlaViolationsBy(
       data,
-      "Group.Name",
+      "Dashboard.Group",
       "Not Specified"
     );
 
@@ -556,12 +1024,19 @@
 
     dashboardMetrics = {
       total,
+      monthKey: currentMonthKey,
+      monthLabel: getMonthLabel(currentMonthKey),
+      srCount,
+      incCount,
       openCount,
       onHoldCount,
       closedCount,
       closureRate,
       totalSlaViolations,
       statusCounts,
+      requestTypeCounts,
+      requestTypeStatusData,
+      incGroupCounts,
       departmentStatusData,
       technicianStatusData,
       requesterStatusData,
@@ -573,6 +1048,8 @@
     };
 
     document.getElementById("totalRequests").innerText = total;
+    document.getElementById("srRequests").innerText = srCount;
+    document.getElementById("incRequests").innerText = incCount;
     document.getElementById("openRequests").innerText = openCount;
     document.getElementById("onHoldRequests").innerText = onHoldCount;
     document.getElementById("closureRate").innerText = Math.round(closureRate * 100) + "%";
@@ -776,6 +1253,8 @@
   function renderCharts() {
     const {
       statusCounts,
+      requestTypeStatusData,
+      incGroupCounts,
       departmentStatusData,
       technicianStatusData,
       requesterStatusData,
@@ -786,6 +1265,8 @@
     } = dashboardMetrics;
 
     renderStatusVisual("statusChart", statusCounts, chartTypes.statusChart);
+    renderStackedStatusBarChart("typeStatusChart", requestTypeStatusData);
+    renderCountBarChart("incGroupChart", incGroupCounts, "INC Tickets");
 
     renderGroupedStatusVisual(
       "departmentChart",
@@ -952,6 +1433,8 @@
   }
 
   function renderStackedStatusBarChart(canvasId, groupedStatusData) {
+    destroyChart(canvasId);
+
     const canvas = document.getElementById(canvasId);
 
     const datasets = groupedStatusData.statuses.map((status, index) => {
@@ -1040,6 +1523,52 @@
         scales: {
           y: {
             beginAtZero: true
+          }
+        }
+      }
+    });
+  }
+
+  function renderCountBarChart(canvasId, dataObj, label) {
+    destroyChart(canvasId);
+
+    const ctx = document.getElementById(canvasId);
+
+    charts[canvasId] = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: Object.keys(dataObj),
+        datasets: [{
+          label: label,
+          data: Object.values(dataObj),
+          backgroundColor: "#5b9bd5",
+          borderColor: "#ffffff",
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: "y",
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return `${label}: ${context.parsed.x}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: "Number of Tickets"
+            }
           }
         }
       }
@@ -1160,10 +1689,14 @@
   function renderInsights() {
     const {
       total,
+      monthLabel,
+      srCount,
+      incCount,
       openCount,
       onHoldCount,
       closureRate,
       totalSlaViolations,
+      incGroupCounts,
       departmentStatusData,
       technicianStatusData,
       requesterStatusData,
@@ -1180,11 +1713,15 @@
     const topSlaGroup = Object.keys(slaGroupCounts || {})[0] || "N/A";
     const topSlaTechnician = Object.keys(slaTechnicianCounts || {})[0] || "N/A";
     const topSlaCategory = Object.keys(slaCategoryCounts || {})[0] || "N/A";
+    const topIncGroup = Object.keys(incGroupCounts || {})[0] || "N/A";
 
     const openRate = total > 0 ? openCount / total : 0;
 
     const insights = [
+      `الشهر المعروض في لوحة التحكم هو: ${monthLabel || getMonthLabel(currentMonthKey)}.`,
       `إجمالي الطلبات في الملف الحالي هو ${total}.`,
+      `طلبات الخدمة SR عددها ${srCount}، والحوادث INC عددها ${incCount}.`,
+      `حوادث INC التي كانت على Group.Name بقيمة HCL NOC يتم عرضها ضمن Solarwinds.`,
       `عدد الطلبات المفتوحة هو ${openCount} بنسبة تقريبية ${Math.round(openRate * 100)}%.`,
       `عدد الطلبات المعلقة On Hold هو ${onHoldCount}.`,
       `نسبة الإغلاق الحالية هي ${Math.round(closureRate * 100)}%.`,
@@ -1192,6 +1729,7 @@
       `أكثر إدارة متأثرة حسب عدد الطلبات هي: ${topDepartment}.`,
       `أعلى حمل حسب الفنيين أو غير المسند هو: ${topTechnician}.`,
       `أكثر مستخدم قام بفتح طلبات هو: ${topRequester}.`,
+      `أعلى مجموعة أو مصدر للحوادث INC هو: ${topIncGroup}.`,
       `أعلى Group في مخالفات SLA هو: ${topSlaGroup}.`,
       `أعلى Technician في مخالفات SLA هو: ${topSlaTechnician}.`,
       `أعلى Category في مخالفات SLA هو: ${topSlaCategory}.`,
@@ -1267,6 +1805,9 @@
 
     const {
       total,
+      monthLabel,
+      srCount,
+      incCount,
       openCount,
       onHoldCount,
       closureRate,
@@ -1286,7 +1827,7 @@
       color: navy
     });
 
-    slide.addText("Monthly Service Requests Analysis", {
+    slide.addText(`Monthly SR / INC Analysis - ${monthLabel || getMonthLabel(currentMonthKey)}`, {
       x: 0.5,
       y: 0.9,
       w: 12.2,
@@ -1295,15 +1836,17 @@
       color: gray
     });
 
-    addKpiBox(slide, "Total Requests", total, 0.45, 1.8, navy);
-    addKpiBox(slide, "Open Requests", openCount, 2.95, 1.8, orange);
-    addKpiBox(slide, "On Hold", onHoldCount, 5.45, 1.8, yellow);
-    addKpiBox(slide, "Closure Rate", Math.round(closureRate * 100) + "%", 7.95, 1.8, green);
-    addKpiBox(slide, "SLA Violations", totalSlaViolations, 10.45, 1.8, red);
+    addKpiBox(slide, "Total Requests", total, 0.45, 1.55, navy);
+    addKpiBox(slide, "SR Service Requests", srCount, 2.95, 1.55, "5B9BD5");
+    addKpiBox(slide, "INC Incidents", incCount, 5.45, 1.55, "7030A0");
+    addKpiBox(slide, "Open Requests", openCount, 7.95, 1.55, orange);
+    addKpiBox(slide, "On Hold", onHoldCount, 10.45, 1.55, yellow);
+    addKpiBox(slide, "Closure Rate", Math.round(closureRate * 100) + "%", 3.75, 2.9, green);
+    addKpiBox(slide, "SLA Violations", totalSlaViolations, 6.25, 2.9, red);
 
     slide.addText("Executive Message", {
       x: 0.8,
-      y: 3.7,
+      y: 4.35,
       w: 11.5,
       h: 0.4,
       fontSize: 20,
@@ -1313,11 +1856,12 @@
 
     slide.addText(
       "• Dashboard supports multiple visual types: Doughnut, Pie, Bar, Stacked Bar, and Table.\n" +
-      "• Workload charts are segmented by request status.\n" +
+      "• SR means Service Request and INC means Incident.\n" +
+      "• HCL NOC incidents are grouped as Solarwinds in INC views.\n" +
       "• SLA violation views highlight overdue unresolved requests.",
       {
         x: 0.8,
-        y: 4.2,
+        y: 4.85,
         w: 11.5,
         h: 1.3,
         fontSize: 16,
@@ -1326,6 +1870,8 @@
     );
 
     await addChartSlide(pptx, "Requests Status Distribution", "statusChart");
+    await addChartSlide(pptx, "SR / INC by Status", "typeStatusChart");
+    await addChartSlide(pptx, "INC by Group / Source", "incGroupChart");
     await addChartSlide(pptx, "Top Affected Departments by Status", "departmentChart");
     await addChartSlide(pptx, "Technician Workload by Status", "technicianChart");
     await addChartSlide(pptx, "Top Requesters by Status", "requesterChart");
