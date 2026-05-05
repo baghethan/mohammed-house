@@ -219,6 +219,37 @@ function baseShift(emp, date, rotations) {
     return emp.fixed ? 'Night' : 'Morning';
 }
 
+function normalizeJobKey(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[()\[\]{}.:،؛]/g, '')
+        .replace(/[\s_\-\/\\]+/g, '');
+}
+
+function weeklyJobRank(emp) {
+    const key = normalizeJobKey(emp?.jobTitle || emp?.jobTitleAr || emp?.position || emp?.title || emp?.role);
+    if (!key) return 99;
+    if (['الفني', 'فني', 'technician', 'tech', 'employee', 'user'].includes(key)) return 1;
+    if (['المشرف', 'مشرف', 'supervisor', 'lead'].includes(key)) return 2;
+    if (['التمهير', 'تمهير', 'tamheer'].includes(key)) return 3;
+    if (['المتدرب', 'متدرب', 'trainee', 'intern', 'student'].includes(key)) return 4;
+    if (['المدير', 'مدير', 'manager', 'admin', 'administrator'].includes(key)) return 5;
+    return 99;
+}
+
+function employeeSortKey(emp) {
+    return String(emp?.empNum || emp?.name || emp?.id || '').trim();
+}
+
+function sortWeeklyEmployees(list) {
+    return [...list].sort((a, b) => {
+        const rankDiff = weeklyJobRank(a) - weeklyJobRank(b);
+        if (rankDiff) return rankDiff;
+        return employeeSortKey(a).localeCompare(employeeSortKey(b), currentLang === 'ar' ? 'ar' : 'en', { numeric: true, sensitivity: 'base' });
+    });
+}
+
 window.updateLabels = () => {
     const t = i18n[currentLang];
     $('mainHtml').dir = currentLang === 'ar' ? 'rtl' : 'ltr';
@@ -246,7 +277,7 @@ async function renderTable() {
     const thuDate = findDateByDay(dates, 4);
     const friDate = findDateByDay(dates, 5);
     const satDate = findDateByDay(dates, 6);
-    const activeEmps = emps.filter(e => e.active !== false);
+    const activeEmps = sortWeeklyEmployees(emps.filter(e => e.active !== false));
     const rotations = {
         thu: pickRotationEmployee(activeEmps.filter(e => normalizeRotation(e) === 'thu'), start, [thuDate, friDate, satDate].filter(Boolean)),
         fri: pickRotationEmployee(activeEmps.filter(e => normalizeRotation(e) === 'fri'), start, [friDate, satDate].filter(Boolean))
