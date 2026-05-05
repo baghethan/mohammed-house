@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Employee Management v1.5.0 - Auto Sync</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root{
       --primary:#0d2149;
@@ -43,6 +44,7 @@
     .soft-btn{background:#f8fafc;color:var(--primary);border:1px solid #e2e8f0}
     .btn:hover,.btn2:hover,.danger-btn:hover,.soft-btn:hover{transform:translateY(-1px)}
     .list-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    .list-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .count-pill{background:#f8fafc;color:var(--primary);border:1px solid #e2e8f0;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:900}
     .table-wrap{overflow-x:auto}
     table{width:100%;min-width:1280px;border-collapse:separate;border-spacing:0 8px}
@@ -57,6 +59,7 @@
     .status-hidden{background:var(--danger-bg);color:var(--danger-t)}
     .source-sync{background:#e0f2fe;color:#0369a1}
     .source-manual{background:var(--warn-bg);color:var(--warn-t)}
+    .source-excel{background:#ecfdf5;color:#166534}
     .compact-select{min-width:130px;padding:8px 10px;min-height:38px;font-size:12px;font-weight:800}
     .row-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
     .empty{padding:26px;color:var(--muted);font-weight:900;text-align:center}
@@ -103,7 +106,14 @@
       </div>
       <div>
         <label for="empJob">المسمى الوظيفي</label>
-        <input id="empJob" type="text" placeholder="مثال: Technician" />
+        <select id="empJob">
+          <option value="">اختر المسمى...</option>
+          <option value="المدير">المدير</option>
+          <option value="المشرف">المشرف</option>
+          <option value="الفني">الفني</option>
+          <option value="التمهير">التمهير</option>
+          <option value="المتدرب">المتدرب</option>
+        </select>
       </div>
       <div>
         <label for="empEmail">البريد الإلكتروني</label>
@@ -149,7 +159,12 @@
   <div class="card">
     <div class="list-head">
       <h3 style="color:var(--primary)">قائمة الموظفين (تحدث تلقائياً)</h3>
-      <div class="count-pill" id="empCount">0 موظف</div>
+      <div class="list-tools">
+        <button class="soft-btn" id="exportExcelBtn" type="button">تنزيل Excel</button>
+        <button class="btn" id="importExcelBtn" type="button">رفع Excel</button>
+        <input id="importExcelInput" type="file" accept=".xlsx,.xls,.csv" hidden />
+        <div class="count-pill" id="empCount">0 موظف</div>
+      </div>
     </div>
     <div class="table-wrap">
       <table>
@@ -191,6 +206,7 @@ let employeeRecords = [];
 let scheduleLoaded = false;
 const scheduleDocRef = doc(db, 'schedule', 'jadwal_v6');
 const $ = id => document.getElementById(id);
+const EMPLOYEE_JOB_TITLES = ['المدير', 'المشرف', 'الفني', 'التمهير', 'المتدرب'];
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -202,11 +218,78 @@ function escapeHtml(value) {
   })[char]);
 }
 
+function normalizeJobTitle(value, fallback = '') {
+  const raw = String(value || '').trim();
+  const key = raw.toLowerCase().replace(/\s+/g, '');
+  if (!key) return fallback;
+  if (EMPLOYEE_JOB_TITLES.includes(raw)) return raw;
+  if (['manager', 'admin', 'administrator', 'مدير', 'المدير'].includes(key)) return 'المدير';
+  if (['supervisor', 'lead', 'مشرف', 'المشرف'].includes(key)) return 'المشرف';
+  if (['technician', 'tech', 'employee', 'user', 'فني', 'الفني', 'موظف'].includes(key)) return 'الفني';
+  if (['tamheer', 'تمهير', 'التمهير'].includes(key)) return 'التمهير';
+  if (['trainee', 'intern', 'student', 'متدرب', 'المتدرب'].includes(key)) return 'المتدرب';
+  return fallback || raw;
+}
+
+function jobTitleOptions(selected) {
+  const current = normalizeJobTitle(selected);
+  return '<option value="">اختر المسمى...</option>' + EMPLOYEE_JOB_TITLES
+    .map(title => `<option value="${escapeHtml(title)}" ${current === title ? 'selected' : ''}>${escapeHtml(title)}</option>`)
+    .join('');
+}
+
 function normalizeRotation(value) {
   const rot = String(value || 'none');
   if (rot === 'thu_fri') return 'thu';
   if (rot === 'fri_sat') return 'fri';
   return ['none', 'thu', 'fri'].includes(rot) ? rot : 'none';
+}
+
+function normalizeExcelText(value) {
+  return String(value ?? '').trim();
+}
+
+function normalizeExcelHeader(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[()\[\]{}.:،؛]/g, '')
+    .replace(/[\s_\-\/\\]+/g, '');
+}
+
+function getExcelValue(row, aliases) {
+  const normalizedRow = {};
+  Object.keys(row || {}).forEach(key => {
+    normalizedRow[normalizeExcelHeader(key)] = row[key];
+  });
+
+  for (const alias of aliases) {
+    const key = normalizeExcelHeader(alias);
+    if (Object.prototype.hasOwnProperty.call(normalizedRow, key)) return normalizedRow[key];
+  }
+  return '';
+}
+
+function excelBoolean(value, fallback = true) {
+  if (typeof value === 'boolean') return value;
+  const text = normalizeExcelText(value).toLowerCase();
+  if (!text) return fallback;
+  if (['false', 'no', '0', 'inactive', 'hidden', 'مخفي', 'غيرنشط', 'غير نشط'].includes(text)) return false;
+  if (['true', 'yes', '1', 'active', 'visible', 'نشط', 'فعال'].includes(text)) return true;
+  return fallback;
+}
+
+function excelFixedShift(value) {
+  const text = normalizeExcelText(value).toLowerCase();
+  return text.includes('night') || text.includes('fixed') || text.includes('ليلي') || text.includes('ثابت');
+}
+
+function excelRotation(value) {
+  const text = normalizeExcelText(value).toLowerCase();
+  if (!text || text.includes('none') || text.includes('لا يوجد')) return 'none';
+  if (text.includes('thu') || text.includes('خميس')) return 'thu';
+  if (text.includes('fri') || text.includes('جمعة') || text.includes('on call') || text.includes('اون') || text.includes('أون')) return 'fri';
+  return normalizeRotation(text);
 }
 
 function rotationLabel(value) {
@@ -226,6 +309,7 @@ function shiftLabel(emp) {
 
 function sourceLabel(emp) {
   if (emp.source === 'employees') return 'Employees';
+  if (emp.source === 'excel') return 'Excel';
   return emp.source === 'manual' ? 'يدوي' : 'صلاحيات';
 }
 
@@ -242,7 +326,7 @@ function normalizeEmployee(emp) {
     name: emp.name || '',
     empNum: emp.empNum || emp.technicianId || '',
     dept: emp.dept || emp.department || '',
-    jobTitle: emp.jobTitle || emp.role || '',
+    jobTitle: normalizeJobTitle(emp.jobTitle || emp.role, 'الفني'),
     email: emp.email || '',
     phone: emp.phone || '',
     active: emp.active !== false,
@@ -261,7 +345,7 @@ function normalizeExternalEmployee(record, source) {
     empNum: record.empId || record.empNum || record.technicianId || '',
     name: record.name || record.fullName || 'موظف جديد',
     dept: record.dept || record.department || '',
-    jobTitle: record.jobTitle || record.role || 'Employee',
+    jobTitle: normalizeJobTitle(record.jobTitle || record.role, 'الفني'),
     email: record.email || '',
     phone: record.phone || record.mobile || '',
     active: !(record.active === false || status === 'inactive' || status === 'hidden'),
@@ -295,7 +379,8 @@ function fillForm(emp) {
   $('empNum').value = emp?.empNum || '';
   $('empName').value = emp?.name || '';
   $('empDept').value = emp?.dept || '';
-  $('empJob').value = emp?.jobTitle || '';
+  $('empJob').innerHTML = jobTitleOptions(emp?.jobTitle || '');
+  $('empJob').value = normalizeJobTitle(emp?.jobTitle || '');
   $('empEmail').value = emp?.email || '';
   $('empPhone').value = emp?.phone || '';
   $('empShift').value = emp?.fixed ? 'night' : 'morning';
@@ -307,8 +392,13 @@ function fillForm(emp) {
 function buildEmployeePayload(existing) {
   const empNum = $('empNum').value.trim();
   const name = $('empName').value.trim();
+  const jobTitle = normalizeJobTitle($('empJob').value);
   if (!empNum || !name) {
     alert('يرجى إدخال رقم الموظف واسم الموظف');
+    return null;
+  }
+  if (!jobTitle) {
+    alert('يرجى اختيار المسمى الوظيفي');
     return null;
   }
 
@@ -319,7 +409,7 @@ function buildEmployeePayload(existing) {
     empNum,
     name,
     dept: $('empDept').value.trim(),
-    jobTitle: $('empJob').value.trim(),
+    jobTitle,
     email: $('empEmail').value.trim(),
     phone: $('empPhone').value.trim(),
     fixed: $('empShift').value === 'night',
@@ -329,6 +419,143 @@ function buildEmployeePayload(existing) {
     source: existing?.source || 'manual',
     updatedAt: new Date().toISOString()
   };
+}
+
+function employeeToExcelRow(emp) {
+  const normalized = normalizeEmployee(emp);
+  return {
+    ID: normalized.id || '',
+    'رقم الموظف': normalized.empNum || '',
+    'اسم الموظف': normalized.name || '',
+    'القسم': normalized.dept || '',
+    'المسمى الوظيفي': normalized.jobTitle || '',
+    'البريد': normalized.email || '',
+    'الجوال': normalized.phone || '',
+    'نوع الدوام': normalized.fixed ? 'ليلي ثابت' : 'صباحي / متغير',
+    'الروتيشن': rotationLabel(normalized.rotType || normalized.rotation),
+    'الحالة': normalized.active !== false ? 'نشط' : 'مخفي',
+    'المصدر': sourceLabel(normalized)
+  };
+}
+
+function exportEmployeesToExcel() {
+  if (!window.XLSX) {
+    alert('تعذر تحميل مكتبة Excel. تأكد من الاتصال بالإنترنت ثم أعد المحاولة.');
+    return;
+  }
+
+  const rows = emps.length
+    ? emps.map(employeeToExcelRow)
+    : [{
+        ID: '',
+        'رقم الموظف': '',
+        'اسم الموظف': '',
+        'القسم': '',
+        'المسمى الوظيفي': 'الفني',
+        'البريد': '',
+        'الجوال': '',
+        'نوع الدوام': 'صباحي / متغير',
+        'الروتيشن': 'لا يوجد',
+        'الحالة': 'نشط',
+        'المصدر': 'Excel'
+      }];
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  worksheet['!cols'] = [
+    { wch: 24 }, { wch: 16 }, { wch: 28 }, { wch: 22 }, { wch: 24 },
+    { wch: 30 }, { wch: 16 }, { wch: 18 }, { wch: 34 }, { wch: 12 }, { wch: 14 }
+  ];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Employees');
+  XLSX.writeFile(workbook, `Employees_Schedule_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+function excelRowToEmployee(row, index) {
+  const id = normalizeExcelText(getExcelValue(row, ['ID', 'id', 'Doc ID', 'UID']));
+  const empNum = normalizeExcelText(getExcelValue(row, ['رقم الموظف', 'كود الموظف', 'empNum', 'empId', 'Employee ID', 'Employee Code']));
+  const name = normalizeExcelText(getExcelValue(row, ['اسم الموظف', 'الاسم', 'name', 'fullName', 'Employee Name']));
+  if (!empNum && !name) return null;
+
+  const dept = normalizeExcelText(getExcelValue(row, ['القسم', 'dept', 'department', 'Department']));
+  const jobTitle = normalizeJobTitle(getExcelValue(row, ['المسمى الوظيفي', 'role', 'jobTitle', 'Job Title', 'Position']), 'الفني');
+  const email = normalizeExcelText(getExcelValue(row, ['البريد', 'البريد الإلكتروني', 'email', 'Email']));
+  const phone = normalizeExcelText(getExcelValue(row, ['الجوال', 'الهاتف', 'phone', 'mobile', 'Mobile']));
+  const shift = getExcelValue(row, ['نوع الدوام', 'shift', 'Shift', 'fixed']);
+  const rotation = getExcelValue(row, ['الروتيشن', 'rotation', 'Rotation', 'rotType']);
+  const status = getExcelValue(row, ['الحالة', 'status', 'active', 'Active']);
+
+  return normalizeEmployee({
+    id: id || `excel_${Date.now()}_${index}`,
+    empNum: empNum || id,
+    name: name || `موظف ${index + 1}`,
+    dept,
+    jobTitle,
+    email,
+    phone,
+    fixed: excelFixedShift(shift),
+    rotation: excelRotation(rotation),
+    rotType: excelRotation(rotation),
+    active: excelBoolean(status, true),
+    source: 'excel',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+}
+
+async function handleExcelImport(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  if (!window.XLSX) {
+    alert('تعذر تحميل مكتبة Excel. تأكد من الاتصال بالإنترنت ثم أعد المحاولة.');
+    event.target.value = '';
+    return;
+  }
+
+  try {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+    const imported = rows.map(excelRowToEmployee).filter(Boolean);
+
+    if (!imported.length) {
+      alert('لم يتم العثور على صفوف موظفين صالحة داخل الملف.');
+      return;
+    }
+
+    const next = [...emps];
+    let added = 0;
+    let updated = 0;
+
+    imported.forEach(incoming => {
+      const index = findEmployeeIndex(next, incoming);
+      if (index === -1) {
+        next.push(incoming);
+        added++;
+        return;
+      }
+
+      const existing = normalizeEmployee(next[index]);
+      next[index] = normalizeEmployee({
+        ...existing,
+        ...incoming,
+        id: existing.id || incoming.id,
+        source: existing.source || incoming.source,
+        createdAt: existing.createdAt || incoming.createdAt,
+        updatedAt: new Date().toISOString()
+      });
+      updated++;
+    });
+
+    await saveEmployees(next);
+    alert(`تم رفع ملف Excel بنجاح. تمت إضافة ${added} وتحديث ${updated}.`);
+  } catch (error) {
+    logFirebaseError('Import employees Excel failed', error);
+    alert(`تعذر رفع ملف Excel: ${error.message || error}`);
+  } finally {
+    event.target.value = '';
+  }
 }
 
 function render() {
@@ -351,7 +578,11 @@ function render() {
         </td>
         <td>${escapeHtml(emp.empNum || '-')}</td>
         <td>${escapeHtml(emp.dept || '-')}</td>
-        <td>${escapeHtml(emp.jobTitle || '-')}</td>
+        <td>
+          <select class="compact-select" data-field="jobTitle" data-id="${escapeHtml(emp.id)}">
+            ${jobTitleOptions(emp.jobTitle)}
+          </select>
+        </td>
         <td>${escapeHtml(emp.email || '-')}</td>
         <td>${escapeHtml(emp.phone || '-')}</td>
         <td>
@@ -375,7 +606,7 @@ function render() {
           </select>
           <div><span class="status-pill ${emp.active !== false ? 'status-active' : 'status-hidden'}">${emp.active !== false ? 'نشط' : 'مخفي'}</span></div>
         </td>
-        <td><span class="source-pill ${source === 'manual' ? 'source-manual' : 'source-sync'}">${sourceLabel({...emp, source})}</span></td>
+        <td><span class="source-pill ${source === 'manual' ? 'source-manual' : source === 'excel' ? 'source-excel' : 'source-sync'}">${sourceLabel({...emp, source})}</span></td>
         <td>
           <div class="row-actions">
             <button class="btn" type="button" data-action="edit" data-id="${escapeHtml(emp.id)}">تعديل</button>
@@ -418,7 +649,7 @@ async function syncEmployees() {
       fixed: existing.fixed === true,
       rotation: existing.rotation || incoming.rotation,
       rotType: existing.rotType || incoming.rotType,
-      source: existing.source === 'manual' ? 'manual' : incoming.source,
+      source: ['manual', 'excel'].includes(existing.source) ? existing.source : incoming.source,
       createdAt: existing.createdAt || incoming.createdAt,
       updatedAt: existing.updatedAt || incoming.updatedAt || ''
     });
@@ -501,6 +732,7 @@ window.updateEmployeeField = async (id, field, value) => {
     if (String(emp.id) !== String(id)) return emp;
     if (field === 'fixed') return { ...emp, fixed: value === 'night', updatedAt: new Date().toISOString() };
     if (field === 'active') return { ...emp, active: value === 'true', updatedAt: new Date().toISOString() };
+    if (field === 'jobTitle') return { ...emp, jobTitle: normalizeJobTitle(value, 'الفني'), updatedAt: new Date().toISOString() };
     if (field === 'rotation') {
       const rot = normalizeRotation(value);
       return { ...emp, rotation: rot, rotType: rot, updatedAt: new Date().toISOString() };
@@ -513,6 +745,11 @@ window.updateEmployeeField = async (id, field, value) => {
 $('saveEmployeeBtn').addEventListener('click', () => window.saveEmployee().catch(error => logFirebaseError('Save employee failed', error)));
 $('clearFormBtn').addEventListener('click', () => fillForm(null));
 $('reloadBtn').addEventListener('click', render);
+$('exportExcelBtn').addEventListener('click', exportEmployeesToExcel);
+$('importExcelBtn').addEventListener('click', () => $('importExcelInput').click());
+$('importExcelInput').addEventListener('change', event => {
+  handleExcelImport(event).catch(error => logFirebaseError('Handle employee Excel import failed', error));
+});
 
 $('empTableBody').addEventListener('click', event => {
   const button = event.target.closest('[data-action]');
