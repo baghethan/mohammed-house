@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Executive IT Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs/dist/pptxgen.bundle.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, Tahoma, sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      color: #333;
+    }
+
+    header {
+      background: #1f4e79;
+      color: white;
+      padding: 24px 40px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 30px;
+    }
+
+    header p {
+      margin: 8px 0 0;
+      opacity: 0.9;
+    }
+
+    .container {
+      max-width: 1300px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    .upload-box {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+      margin-bottom: 25px;
+      text-align: center;
+    }
+
+    input[type="file"] {
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fff;
+      width: 320px;
+      max-width: 100%;
+    }
+
+    .buttons {
+      margin-top: 18px;
+    }
+
+    button {
+      background: #1f4e79;
+      color: white;
+      border: none;
+      padding: 12px 22px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+      margin: 5px;
+    }
+
+    button:hover {
+      background: #163a5c;
+    }
+
+    button.secondary {
+      background: #70ad47;
+    }
+
+    button.secondary:hover {
+      background: #5d933a;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      margin-bottom: 25px;
+    }
+
+    .kpi-card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+      border-top: 5px solid #1f4e79;
+    }
+
+    .kpi-card.orange {
+      border-top-color: #ed7d31;
+    }
+
+    .kpi-card.green {
+      border-top-color: #70ad47;
+    }
+
+    .kpi-card.red {
+      border-top-color: #c00000;
+    }
+
+    .kpi-value {
+      font-size: 34px;
+      font-weight: bold;
+      color: #1f4e79;
+    }
+
+    .kpi-label {
+      margin-top: 8px;
+      color: #666;
+      font-size: 15px;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 22px;
+      margin-bottom: 25px;
+    }
+
+    .chart-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+    }
+
+    .chart-card h3 {
+      margin-top: 0;
+      color: #1f4e79;
+      font-size: 20px;
+      text-align: center;
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    canvas {
+      max-height: 360px;
+    }
+
+    .insights {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+      margin-bottom: 25px;
+    }
+
+    .insights h2 {
+      color: #1f4e79;
+      margin-top: 0;
+    }
+
+    .insights ul {
+      line-height: 1.9;
+      font-size: 16px;
+    }
+
+    .table-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #1f4e79;
+      color: white;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .note {
+      font-size: 13px;
+      color: #666;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .kpi-grid, .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>Executive IT Operations Dashboard</h1>
+  <p>رفع ملف Excel أو CSV شهريًا وتحويله إلى Dashboard وPowerPoint</p>
+</header>
+
+<div class="container">
+
+  <div class="upload-box">
+    <h2>📁 Upload Monthly File</h2>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+    <div class="buttons">
+      <button onclick="processFile()">Generate Dashboard</button>
+      <button class="secondary" onclick="exportPowerPoint()">Export PowerPoint</button>
+    </div>
+    <div class="note">
+      الأعمدة المفضلة:
+      Request ID, Subject, Requester.Name, Technician.Name, Status.Name, Department.Name, Created Date, Due by date
+    </div>
+  </div>
+
+  <div id="dashboard" class="hidden">
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-value" id="totalRequests">0</div>
+        <div class="kpi-label">Total Requests</div>
+      </div>
+
+      <div class="kpi-card orange">
+        <div class="kpi-value" id="openRequests">0</div>
+        <div class="kpi-label">Open Requests</div>
+      </div>
+
+      <div class="kpi-card green">
+        <div class="kpi-value" id="onHoldRequests">0</div>
+        <div class="kpi-label">On Hold</div>
+      </div>
+
+      <div class="kpi-card red">
+        <div class="kpi-value" id="closureRate">0%</div>
+        <div class="kpi-label">Closure Rate</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Requests Status Distribution</h3>
+        <canvas id="statusChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Top Affected Departments</h3>
+        <canvas id="departmentChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Technician Workload</h3>
+        <canvas id="technicianChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Top Requesters</h3>
+        <canvas id="requesterChart"></canvas>
+      </div>
+
+      <div class="chart-card full-width">
+        <h3>Request Volume Trend</h3>
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+    <div class="insights">
+      <h2>Executive Insights</h2>
+      <ul id="insightList"></ul>
+    </div>
+
+    <div class="table-card">
+      <h2>Preview Data</h2>
+      <div id="tablePreview"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  let rawData = [];
+  let charts = {};
+  let dashboardMetrics = {};
+
+  function processFile() {
+    const fileInput = document.getElementById("fileInput");
+    const file = fileInput.files[0];
+
+    if (!file) {
+      alert("Please upload Excel or CSV file first.");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+      const data = e.target.result;
+      const workbook = XLSX.read(data, { type: "binary" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+
+      rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      if (rawData.length === 0) {
+        alert("The file is empty.");
+        return;
+      }
+
+      buildDashboard(rawData);
+    };
+
+    reader.readAsBinaryString(file);
+  }
+
+  function buildDashboard(data) {
+    document.getElementById("dashboard").classList.remove("hidden");
+
+    const total = data.length;
+
+    const statusCounts = countBy(data, "Status.Name", "Blank");
+    const departmentCounts = topN(countBy(data, "Department.Name", "Not Specified"), 10);
+    const technicianCounts = topN(countBy(data, "Technician.Name", "Unassigned"), 10);
+    const requesterCounts = topN(countBy(data, "Requester.Name", "Not Specified"), 10);
+    const trendCounts = countByDate(data, "Created Date");
+
+    const openCount = statusCounts["Open"] || 0;
+    const onHoldCount = statusCounts["On Hold"] || 0;
+    const closedCount = (statusCounts["Closed"] || 0) + (statusCounts["Resolved"] || 0);
+    const closureRate = total > 0 ? closedCount / total : 0;
+
+    dashboardMetrics = {
+      total,
+      openCount,
+      onHoldCount,
+      closedCount,
+      closureRate,
+      statusCounts,
+      departmentCounts,
+      technicianCounts,
+      requesterCounts,
+      trendCounts
+    };
+
+    document.getElementById("totalRequests").innerText = total;
+    document.getElementById("openRequests").innerText = openCount;
+    document.getElementById("onHoldRequests").innerText = onHoldCount;
+    document.getElementById("closureRate").innerText = Math.round(closureRate * 100) + "%";
+
+    renderCharts();
+    renderInsights();
+    renderTablePreview(data);
+  }
+
+  function countBy(data, column, emptyLabel) {
+    const result = {};
+
+    data.forEach(row => {
+      let value = row[column];
+
+      if (value === undefined || value === null || String(value).trim() === "") {
+        value = emptyLabel;
+      }
+
+      value = String(value).trim();
+      result[value] = (result[value] || 0) + 1;
+    });
+
+    return result;
+  }
+
+  function countByDate(data, column) {
+    const result = {};
+
+    data.forEach(row => {
+      let value = row[column];
+
+      if (!value) return;
+
+      let dateValue;
+
+      if (typeof value === "number") {
+        const excelDate = XLSX.SSF.parse_date_code(value);
+        if (excelDate) {
+          dateValue = `${excelDate.y}-${String(excelDate.m).padStart(2, "0")}-${String(excelDate.d).padStart(2, "0")}`;
+        }
+      } else {
+        const parsed = new Date(value);
+        if (!isNaN(parsed)) {
+          dateValue = parsed.toISOString().slice(0, 10);
+        }
+      }
+
+      if (dateValue) {
+        result[dateValue] = (result[dateValue] || 0) + 1;
+      }
+    });
+
+    return sortObjectByKey(result);
+  }
+
+  function topN(obj, n) {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, n)
+    );
+  }
+
+  function sortObjectByKey(obj) {
+    return Object.fromEntries(
+      Object.entries(obj).sort((a, b) => a[0].localeCompare(b[0]))
+    );
+  }
+
+  function destroyChart(chartId) {
+    if (charts[chartId]) {
+      charts[chartId].destroy();
+    }
+  }
+
+  function renderCharts() {
+    const {
+      statusCounts,
+      departmentCounts,
+      technicianCounts,
+      requesterCounts,
+      trendCounts
+    } = dashboardMetrics;
+
+    renderPieChart("statusChart", statusCounts);
+    renderBarChart("departmentChart", departmentCounts, "Departments");
+    renderBarChart("technicianChart", technicianCounts, "Technicians");
+    renderBarChart("requesterChart", requesterCounts, "Requesters");
+    renderLineChart("trendChart", trendCounts);
+  }
+
+  function renderPieChart(canvasId, dataObj) {
+    destroyChart(canvasId);
+
+    const ctx = document.getElementById(canvasId);
+
+    charts[canvasId] = new Chart(ctx, {
+      type: "pie",
+      data: {
+        labels: Object.keys(dataObj),
+        datasets: [{
+          data: Object.values(dataObj),
+          backgroundColor: ["#ed7d31", "#70ad47", "#5b9bd5", "#ffc000", "#a5a5a5"]
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: "bottom"
+          }
+        }
+      }
+    });
+  }
+
+  function renderBarChart(canvasId, dataObj, label) {
+    destroyChart(canvasId);
+
+    const ctx = document.getElementById(canvasId);
+
+    charts[canvasId] = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: Object.keys(dataObj),
+        datasets: [{
+          label: label,
+          data: Object.values(dataObj),
+          backgroundColor: "#1f4e79"
+        }]
+      },
+      options: {
+        responsive: true,
+        indexAxis: "y",
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  }
+
+  function renderLineChart(canvasId, dataObj) {
+    destroyChart(canvasId);
+
+    const ctx = document.getElementById(canvasId);
+
+    charts[canvasId] = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: Object.keys(dataObj),
+        datasets: [{
+          label: "Requests",
+          data: Object.values(dataObj),
+          borderColor: "#70ad47",
+          backgroundColor: "rgba(112, 173, 71, 0.15)",
+          fill: true,
+          tension: 0.25
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  }
+
+  function renderInsights() {
+    const {
+      total,
+      openCount,
+      onHoldCount,
+      closureRate,
+      departmentCounts,
+      technicianCounts
+    } = dashboardMetrics;
+
+    const topDepartment = Object.keys(departmentCounts)[0] || "N/A";
+    const topTechnician = Object.keys(technicianCounts)[0] || "N/A";
+    const openRate = total > 0 ? openCount / total : 0;
+
+    const insights = [
+      `إجمالي الطلبات في الملف الحالي هو ${total}.`,
+      `عدد الطلبات المفتوحة هو ${openCount} بنسبة تقريبية ${Math.round(openRate * 100)}%.`,
+      `عدد الطلبات المعلقة On Hold هو ${onHoldCount}.`,
+      `نسبة الإغلاق الحالية هي ${Math.round(closureRate * 100)}%.`,
+      `أكثر إدارة متأثرة حسب عدد الطلبات هي: ${topDepartment}.`,
+      `أعلى حمل ظاهر في التوزيع الحالي للفنيين/الإسناد هو: ${topTechnician}.`,
+      `التوصية التنفيذية: مراجعة التذاكر المفتوحة يوميًا، وتركيز RCA على الإدارات الأعلى طلبًا.`
+    ];
+
+    const list = document.getElementById("insightList");
+    list.innerHTML = "";
+
+    insights.forEach(item => {
+      const li = document.createElement("li");
+      li.innerText = item;
+      list.appendChild(li);
+    });
+  }
+
+  function renderTablePreview(data) {
+    const preview = data.slice(0, 20);
+
+    if (preview.length === 0) return;
+
+    const columns = Object.keys(preview[0]);
+    let html = "<table><thead><tr>";
+
+    columns.forEach(col => {
+      html += `<th>${escapeHtml(col)}</th>`;
+    });
+
+    html += "</tr></thead><tbody>";
+
+    preview.forEach(row => {
+      html += "<tr>";
+      columns.forEach(col => {
+        html += `<td>${escapeHtml(row[col])}</td>`;
+      });
+      html += "</tr>";
+    });
+
+    html += "</tbody></table>";
+
+    document.getElementById("tablePreview").innerHTML = html;
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  async function exportPowerPoint() {
+    if (!rawData || rawData.length === 0) {
+      alert("Please generate dashboard first.");
+      return;
+    }
+
+    const pptx = new pptxgen();
+    pptx.layout = "LAYOUT_WIDE";
+    pptx.author = "Executive IT Dashboard";
+
+    const navy = "1F4E79";
+    const orange = "ED7D31";
+    const green = "70AD47";
+    const red = "C00000";
+    const gray = "666666";
+    const white = "FFFFFF";
+
+    const {
+      total,
+      openCount,
+      onHoldCount,
+      closureRate
+    } = dashboardMetrics;
+
+    // Slide 1
+    let slide = pptx.addSlide();
+    slide.background = { color: "FFFFFF" };
+
+    slide.addText("Executive IT Operations Dashboard", {
+      x: 0.5, y: 0.35, w: 12.2, h: 0.5,
+      fontSize: 28, bold: true, color: navy
+    });
+
+    slide.addText("Monthly Service Requests Analysis", {
+      x: 0.5, y: 0.9, w: 12.2, h: 0.3,
+      fontSize: 13, color: gray
+    });
+
+    addKpiBox(slide, "Total Requests", total, 0.7, 1.8, navy);
+    addKpiBox(slide, "Open Requests", openCount, 3.5, 1.8, orange);
+    addKpiBox(slide, "On Hold", onHoldCount, 6.3, 1.8, green);
+    addKpiBox(slide, "Closure Rate", Math.round(closureRate * 100) + "%", 9.1, 1.8, red);
+
+    slide.addText("Executive Message", {
+      x: 0.8, y: 3.7, w: 11.5, h: 0.4,
+      fontSize: 20, bold: true, color: navy
+    });
+
+    slide.addText(
+      "• Current backlog requires management visibility.\n" +
+      "• Repeated operational issues should be reviewed through RCA governance.\n" +
+      "• Recommended focus: backlog closure, SLA control, and live monitoring.",
+      {
+        x: 0.8, y: 4.2, w: 11.5, h: 1.3,
+        fontSize: 16, color: gray, breakLine: false
+      }
+    );
+
+    // Chart Slides
+    await addChartSlide(pptx, "Requests Status Distribution", "statusChart");
+    await addChartSlide(pptx, "Top Affected Departments", "departmentChart");
+    await addChartSlide(pptx, "Technician Workload", "technicianChart");
+    await addChartSlide(pptx, "Top Requesters", "requesterChart");
+    await addChartSlide(pptx, "Request Volume Trend", "trendChart");
+
+    // Recommendations Slide
+    slide = pptx.addSlide();
+    slide.addText("Executive Risks & Recommended Actions", {
+      x: 0.5, y: 0.35, w: 12, h: 0.5,
+      fontSize: 26, bold: true, color: navy
+    });
+
+    slide.addText("Key Risks", {
+      x: 0.8, y: 1.3, w: 5.5, h: 0.4,
+      fontSize: 20, bold: true, color: red
+    });
+
+    slide.addText(
+      "• SLA breach exposure\n" +
+      "• Operational disruption to core departments\n" +
+      "• Recurring issues without RCA\n" +
+      "• Capacity and assignment imbalance",
+      {
+        x: 0.8, y: 1.9, w: 5.5, h: 2.5,
+        fontSize: 16, color: gray
+      }
+    );
+
+    slide.addText("Recommended Actions", {
+      x: 7.0, y: 1.3, w: 5.5, h: 0.4,
+      fontSize: 20, bold: true, color: green
+    });
+
+    slide.addText(
+      "• Weekly war-room for recurring issues\n" +
+      "• Daily backlog aging and assignment review\n" +
+      "• RCA governance for repeat incidents\n" +
+      "• Live dashboard for leadership",
+      {
+        x: 7.0, y: 1.9, w: 5.5, h: 2.5,
+        fontSize: 16, color: gray
+      }
+    );
+
+    // Action Plan Slide
+    slide = pptx.addSlide();
+    slide.addText("30-Day Executive Action Plan", {
+      x: 0.5, y: 0.35, w: 12, h: 0.5,
+      fontSize: 26, bold: true, color: navy
+    });
+
+    slide.addTable([
+      [
+        { text: "Week", options: { bold: true, color: white, fill: navy } },
+        { text: "Focus", options: { bold: true, color: white, fill: navy } },
+        { text: "Expected Outcome", options: { bold: true, color: white, fill: navy } }
+      ],
+      ["Week 1", "Backlog triage + assign all unassigned tickets", "Clear ownership and immediate SLA control"],
+      ["Week 2", "War-room for top recurring issues", "Reduce repeat tickets and operational noise"],
+      ["Week 3", "RCA governance + knowledge articles", "Permanent fixes and self-service enablement"],
+      ["Week 4", "Dashboard review + management meeting", "Sustained visibility and accountability"]
+    ], {
+      x: 0.7, y: 1.4, w: 12, h: 3.8,
+      border: { type: "solid", color: "CCCCCC" },
+      fontSize: 12,
+      color: gray,
+      valign: "mid",
+      colW: [1.5, 5.2, 5.3]
+    });
+
+    pptx.writeFile({ fileName: "Executive_IT_Dashboard_Report.pptx" });
+  }
+
+  function addKpiBox(slide, label, value, x, y, color) {
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: x, y: y, w: 2.4, h: 1.2,
+      fill: { color: color },
+      line: { color: color }
+    });
+
+    slide.addText(String(value), {
+      x: x, y: y + 0.18, w: 2.4, h: 0.4,
+      fontSize: 26, bold: true, color: "FFFFFF",
+      align: "center"
+    });
+
+    slide.addText(label, {
+      x: x, y: y + 0.72, w: 2.4, h: 0.3,
+      fontSize: 11, color: "FFFFFF",
+      align: "center"
+    });
+  }
+
+  async function addChartSlide(pptx, title, canvasId) {
+    const slide = pptx.addSlide();
+
+    slide.addText(title, {
+      x: 0.5, y: 0.35, w: 12, h: 0.5,
+      fontSize: 26, bold: true, color: "1F4E79"
+    });
+
+    const canvas = document.getElementById(canvasId);
+    const imageData = canvas.toDataURL("image/png");
+
+    slide.addImage({
+      data: imageData,
+      x: 1.0, y: 1.2, w: 11.3, h: 5.5
+    });
+  }
+</script>
+
+</body>
+</html>
