@@ -203,11 +203,11 @@ import {
   getDoc,
   onSnapshot,
   setDoc,
-  collection
+  collection,
+  writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 let emps = [];
-let appUsers = [];
 let employeeRecords = [];
 let scheduleLoaded = false;
 let currentAuthUser = null;
@@ -302,7 +302,7 @@ const I18N = {
     alertActionDenied: 'ليس لديك صلاحية تنفيذ هذا الإجراء.',
     alertSaveFailed: error => `تعذر حفظ التعديل: ${error}`,
     noAddPermission: 'لا توجد لديك صلاحية إضافة موظف جديد. يمكنك مراجعة مسؤول النظام لتفعيلها من Employee Actions.',
-    confirmDeleteSynced: 'هذا الموظف متزامن مع صفحة الصلاحيات وقد يعود عند إعادة المزامنة. هل تريد حذفه من سجل الجدول الآن؟',
+    confirmDeleteSynced: 'هذا الموظف متزامن من سجل employees. سيتم تحويل حالته إلى غير نشط بدلاً من حذف بياناته نهائياً. هل تريد المتابعة؟',
     confirmDelete: 'هل تريد حذف هذا الموظف؟'
   },
   en: {
@@ -373,7 +373,7 @@ const I18N = {
     alertActionDenied: 'You do not have permission to perform this action.',
     alertSaveFailed: error => `Could not save the change: ${error}`,
     noAddPermission: 'You do not have permission to add a new employee. Ask an administrator to enable it from Employee Actions.',
-    confirmDeleteSynced: 'This employee is synced from permissions and may return during the next sync. Delete it from the schedule record now?',
+    confirmDeleteSynced: 'This employee is synced from employees. It will be marked inactive instead of being permanently deleted. Continue?',
     confirmDelete: 'Delete this employee?'
   }
 };
@@ -740,10 +740,83 @@ function sourceLabel(emp) {
   return emp.source === 'manual' ? t('sourceManual') : t('sourcePermissions');
 }
 
+function cleanIdentityValue(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function employeeIdentityKeys(emp) {
+  const record = emp || {};
+  const keys = [];
+  [record.empNum, record.empId, record.employeeId, record.technicianId]
+    .map(cleanIdentityValue)
+    .filter(Boolean)
+    .forEach(value => keys.push(`emp:${value}`));
+  [record.email]
+    .map(cleanIdentityValue)
+    .filter(Boolean)
+    .forEach(value => keys.push(`email:${value}`));
+  [record.id, record.uid]
+    .map(cleanIdentityValue)
+    .filter(Boolean)
+    .forEach(value => keys.push(`id:${value}`));
+
+  if (!keys.length && cleanIdentityValue(record.name)) keys.push(`name:${cleanIdentityValue(record.name)}`);
+  return [...new Set(keys)];
+}
+
+function sourceRank(source) {
+  if (source === 'employees') return 4;
+  if (source === 'manual') return 3;
+  if (source === 'excel') return 2;
+  if (source === 'app_users') return 1;
+  return 0;
+}
+
+function isShiftLikeRole(value) {
+  const text = cleanIdentityValue(value).replace(/[\s_\-\/\\]+/g, '');
+  if (!text) return false;
+  return [
+    'morning', 'night', 'fixed', 'variable', 'shift', 'shifting', 'active', 'inactive', 'hidden',
+    'صباحي', 'ليلي', 'ثابت', 'متغير', 'نشط', 'مخفي', 'غيرنشط'
+  ].includes(text);
+}
+
+function jobTitleFromRecord(record, fallback = 'الفني') {
+  const directTitle = record.jobTitle || record.jobTitleAr || record.position || record.title;
+  if (directTitle) return normalizeJobTitle(directTitle, fallback);
+  if (record.role && !isShiftLikeRole(record.role)) return normalizeJobTitle(record.role, fallback);
+  return fallback;
+}
+
+function activeFromRecord(record, fallback = true) {
+  if (typeof record.active === 'boolean') return record.active;
+  const status = cleanIdentityValue(record.status);
+  if (['inactive', 'hidden', 'false', '0', 'مخفي', 'غيرنشط', 'غير نشط'].includes(status)) return false;
+  if (['active', 'visible', 'true', '1', 'نشط', 'فعال'].includes(status)) return true;
+  return fallback;
+}
+
+function fixedFromRecord(record) {
+  if (record.fixed === true) return true;
+  const shiftValue = record.shiftType || record.shift || record.role || record.workType || '';
+  return excelFixedShift(shiftValue);
+}
+
+function safeEmployeeDocId(emp) {
+  const normalized = normalizeEmployee(emp || {});
+  const generatedLocalId = /^excel_\d+_|^emp_\d+/.test(String(normalized.id || ''));
+  const raw = normalized.employeeDocId
+    ? normalized.employeeDocId
+    : (normalized.source === 'employees' && normalized.id && !generatedLocalId
+      ? normalized.id
+      : normalized.empNum || normalized.email || normalized.name || normalized.id || `emp_${Date.now()}`);
+  return String(raw).trim().replace(/[\/\\#?\[\]]+/g, '_') || `emp_${Date.now()}`;
+}
+
 function employeeSource(emp) {
   if (emp.source) return emp.source;
   if (employeeRecords.some(user => String(user.id) === String(emp.id) || String(user.empNum || user.empId || '') === String(emp.empNum || ''))) return 'employees';
-  return appUsers.some(user => String(user.id) === String(emp.id)) ? 'app_users' : 'manual';
+  return 'manual';
 }
 
 function normalizeEmployee(emp) {
@@ -751,52 +824,139 @@ function normalizeEmployee(emp) {
   return {
     ...emp,
     name: emp.name || '',
-    empNum: emp.empNum || emp.technicianId || '',
+    empNum: emp.empNum || emp.empId || emp.employeeId || emp.technicianId || '',
     dept: emp.dept || emp.department || '',
-    jobTitle: normalizeJobTitle(emp.jobTitle || emp.role, 'الفني'),
+    jobTitle: jobTitleFromRecord(emp, 'الفني'),
     email: emp.email || '',
-    phone: emp.phone || '',
-    active: emp.active !== false,
-    fixed: emp.fixed === true,
+    phone: emp.phone || emp.mobile || '',
+    active: activeFromRecord(emp, true),
+    fixed: fixedFromRecord(emp),
     rotation: rot,
     rotType: rot,
-    source: employeeSource(emp)
+    source: employeeSource(emp),
+    employeeDocId: emp.employeeDocId || (emp.source === 'employees' ? emp.id : '')
   };
 }
 
 function normalizeExternalEmployee(record, source) {
-  const status = String(record.status || '').trim().toLowerCase();
+  const id = String(record.id || record.uid || record.empId || record.empNum || `emp_${Date.now()}`);
   const rot = normalizeRotation(record.rotType || record.rotation);
   return {
-    id: String(record.id || record.uid || record.empId || record.empNum || `emp_${Date.now()}`),
-    empNum: record.empId || record.empNum || record.technicianId || '',
+    id,
+    empNum: record.empId || record.empNum || record.employeeId || record.technicianId || '',
     name: record.name || record.fullName || 'موظف جديد',
     dept: record.dept || record.department || '',
-    jobTitle: normalizeJobTitle(record.jobTitle || record.role, 'الفني'),
+    jobTitle: jobTitleFromRecord(record, 'الفني'),
     email: record.email || '',
     phone: record.phone || record.mobile || '',
-    active: !(record.active === false || status === 'inactive' || status === 'hidden'),
-    fixed: record.fixed === true,
+    active: activeFromRecord(record, true),
+    fixed: fixedFromRecord(record),
     rotation: rot,
     rotType: rot,
     source,
+    employeeDocId: source === 'employees' ? id : '',
     createdAt: record.createdAt || new Date().toISOString()
   };
 }
 
 function findEmployeeIndex(list, incoming) {
-  const incomingKeys = [incoming.id, incoming.empNum, incoming.email]
-    .map(value => String(value || '').trim().toLowerCase())
-    .filter(Boolean);
+  const incomingKeys = employeeIdentityKeys(incoming);
 
-  return list.findIndex(emp => [emp.id, emp.empNum, emp.email]
-    .map(value => String(value || '').trim().toLowerCase())
-    .filter(Boolean)
-    .some(value => incomingKeys.includes(value)));
+  return list.findIndex(emp => employeeIdentityKeys(emp).some(value => incomingKeys.includes(value)));
+}
+
+function mergeEmployeeRows(existingRow, incomingRow) {
+  const existing = normalizeEmployee(existingRow);
+  const incoming = normalizeEmployee(incomingRow);
+  const preferIncomingMaster = sourceRank(incoming.source) >= sourceRank(existing.source);
+  const master = preferIncomingMaster ? incoming : existing;
+  const schedule = existing;
+  const rot = normalizeRotation(schedule.rotType || schedule.rotation || incoming.rotType || incoming.rotation);
+
+  return normalizeEmployee({
+    ...master,
+    id: schedule.id || master.id,
+    employeeDocId: master.employeeDocId || incoming.employeeDocId || schedule.employeeDocId || '',
+    empNum: master.empNum || schedule.empNum,
+    name: master.name || schedule.name,
+    dept: master.dept || schedule.dept,
+    email: master.email || schedule.email,
+    phone: master.phone || schedule.phone,
+    jobTitle: schedule.jobTitle || master.jobTitle,
+    fixed: schedule.fixed === true,
+    rotation: rot,
+    rotType: rot,
+    active: schedule.active !== false,
+    source: preferIncomingMaster ? master.source : schedule.source,
+    createdAt: schedule.createdAt || master.createdAt,
+    updatedAt: schedule.updatedAt || master.updatedAt || ''
+  });
+}
+
+function dedupeEmployees(list) {
+  const result = [];
+  const indexByKey = new Map();
+
+  (list || []).forEach(raw => {
+    const item = normalizeEmployee(raw);
+    const keys = employeeIdentityKeys(item);
+    const existingKey = keys.find(key => indexByKey.has(key));
+
+    if (!existingKey) {
+      result.push(item);
+      const index = result.length - 1;
+      keys.forEach(key => indexByKey.set(key, index));
+      return;
+    }
+
+    const index = indexByKey.get(existingKey);
+    result[index] = mergeEmployeeRows(result[index], item);
+    employeeIdentityKeys(result[index]).forEach(key => indexByKey.set(key, index));
+  });
+
+  return result;
+}
+
+function employeeRecordPayload(emp, options = {}) {
+  const normalized = normalizeEmployee(emp);
+  const active = options.inactive ? false : normalized.active !== false;
+  return {
+    empId: normalized.empNum || '',
+    name: normalized.name || '',
+    dept: normalized.dept || '',
+    department: normalized.dept || '',
+    jobTitle: normalized.jobTitle || 'الفني',
+    email: normalized.email || '',
+    mobile: normalized.phone || '',
+    phone: normalized.phone || '',
+    active,
+    status: active ? 'active' : 'inactive',
+    updatedAt: new Date().toISOString(),
+    source: 'employee-Schedule'
+  };
+}
+
+async function saveEmployeeRecord(emp, options = {}) {
+  const id = safeEmployeeDocId(emp);
+  await setDoc(doc(db, 'employees', id), employeeRecordPayload({ ...emp, id, source: 'employees' }, options), { merge: true });
+  return normalizeExternalEmployee({ ...emp, id, ...employeeRecordPayload(emp, options) }, 'employees');
+}
+
+async function saveEmployeeRecords(records) {
+  const normalized = records.map(emp => normalizeEmployee({ ...emp, source: 'employees' }));
+  for (let start = 0; start < normalized.length; start += 450) {
+    const batch = writeBatch(db);
+    normalized.slice(start, start + 450).forEach(emp => {
+      const id = safeEmployeeDocId(emp);
+      batch.set(doc(db, 'employees', id), employeeRecordPayload({ ...emp, id, source: 'employees' }), { merge: true });
+    });
+    await batch.commit();
+  }
+  return normalized.map(emp => normalizeExternalEmployee({ ...emp, id: safeEmployeeDocId(emp) }, 'employees'));
 }
 
 async function saveEmployees(updated = emps) {
-  const normalized = updated.map(normalizeEmployee);
+  const normalized = dedupeEmployees(updated);
   await waitForSignedInUser();
   await setDoc(scheduleDocRef, { data: { emps: normalized } }, { merge: true });
   emps = normalized;
@@ -848,7 +1008,7 @@ function buildEmployeePayload(existing) {
     rotation: rot,
     rotType: rot,
     active: $('empStatus').value === 'true',
-    source: existing?.source || 'manual',
+    source: 'employees',
     updatedAt: new Date().toISOString()
   };
 }
@@ -988,11 +1148,12 @@ async function handleExcelImport(event) {
       return;
     }
 
+    const syncedImported = await saveEmployeeRecords(imported);
     const next = [...emps];
     let added = 0;
     let updated = 0;
 
-    imported.forEach(incoming => {
+    syncedImported.forEach(incoming => {
       const index = findEmployeeIndex(next, incoming);
       if (index === -1) {
         next.push(incoming);
@@ -1080,19 +1241,12 @@ function render() {
 }
 
 function getExternalEmployees() {
-  return [
-    ...appUsers.map(user => normalizeExternalEmployee({
-      ...user,
-      empNum: user.empNum || user.technicianId || user.employeeId,
-      jobTitle: user.jobTitle || user.role
-    }, 'app_users')),
-    ...employeeRecords.map(employee => normalizeExternalEmployee(employee, 'employees'))
-  ];
+  return employeeRecords.map(employee => normalizeExternalEmployee(employee, 'employees'));
 }
 
 async function syncEmployees() {
   let needsUpdate = false;
-  const next = [...emps];
+  const next = dedupeEmployees(emps);
 
   getExternalEmployees().forEach(incoming => {
     const index = findEmployeeIndex(next, incoming);
@@ -1103,26 +1257,19 @@ async function syncEmployees() {
     }
 
     const existing = normalizeEmployee(next[index]);
-    const candidate = normalizeEmployee({
-      ...incoming,
-      ...existing,
-      id: existing.id || incoming.id,
-      empNum: existing.empNum || incoming.empNum,
-      email: existing.email || incoming.email,
-      fixed: existing.fixed === true,
-      rotation: existing.rotation || incoming.rotation,
-      rotType: existing.rotType || incoming.rotType,
-      active: existing.active !== false,
-      source: ['manual', 'excel'].includes(existing.source) ? existing.source : incoming.source,
-      createdAt: existing.createdAt || incoming.createdAt,
-      updatedAt: existing.updatedAt || incoming.updatedAt || ''
-    });
+    const candidate = mergeEmployeeRows(existing, incoming);
 
     if (JSON.stringify(existing) !== JSON.stringify(candidate)) {
       next[index] = { ...candidate, updatedAt: new Date().toISOString() };
       needsUpdate = true;
     }
   });
+
+  const deduped = dedupeEmployees(next);
+  if (deduped.length !== next.length || JSON.stringify(deduped) !== JSON.stringify(next)) {
+    next.splice(0, next.length, ...deduped);
+    needsUpdate = true;
+  }
 
   if (needsUpdate) await saveEmployees(next);
 }
@@ -1151,12 +1298,6 @@ async function bindCurrentUserProfile() {
 async function bindSnapshots() {
   await waitForSignedInUser();
 
-  onSnapshot(collection(db, 'app_users'), snap => {
-    appUsers = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-    if (scheduleLoaded) syncEmployees().catch(error => logFirebaseError('Employee sync failed', error));
-    render();
-  }, error => logFirebaseError('Employee app_users listener failed', error));
-
   onSnapshot(collection(db, 'employees'), snap => {
     employeeRecords = snap.docs.map(item => ({ id: item.id, ...item.data() }));
     if (scheduleLoaded) syncEmployees().catch(error => logFirebaseError('Employees collection sync failed', error));
@@ -1164,9 +1305,9 @@ async function bindSnapshots() {
   }, error => logFirebaseError('Employees collection listener failed', error));
 
   onSnapshot(scheduleDocRef, snap => {
-    emps = snap.exists() ? (snap.data().data?.emps || []).map(normalizeEmployee) : [];
+    emps = snap.exists() ? dedupeEmployees(snap.data().data?.emps || []) : [];
     scheduleLoaded = true;
-    if (appUsers.length || employeeRecords.length) syncEmployees().catch(error => logFirebaseError('Employee sync failed', error));
+    if (employeeRecords.length) syncEmployees().catch(error => logFirebaseError('Employee sync failed', error));
     render();
   }, error => logFirebaseError('Employee schedule listener failed', error));
 }
@@ -1188,9 +1329,18 @@ window.saveEmployee = async () => {
     return;
   }
 
+  const syncedPayload = await saveEmployeeRecord(payload);
+  const schedulePayload = normalizeEmployee({
+    ...syncedPayload,
+    ...payload,
+    id: syncedPayload.id || payload.id,
+    source: 'employees',
+    createdAt: existing?.createdAt || payload.createdAt || new Date().toISOString()
+  });
+
   const updated = existing
-    ? emps.map(emp => String(emp.id) === String(existing.id) ? payload : emp)
-    : [...emps, { ...payload, createdAt: new Date().toISOString() }];
+    ? emps.map(emp => String(emp.id) === String(existing.id) ? schedulePayload : emp)
+    : [...emps, schedulePayload];
 
   await saveEmployees(updated);
   fillForm(null);
@@ -1208,11 +1358,18 @@ window.deleteEmployee = async id => {
   if (!requireEmployeeAction(EMPLOYEE_ACTIONS.delete)) return;
   const emp = emps.find(item => String(item.id) === String(id));
   if (!emp) return;
-  const isSynced = employeeSource(emp) !== 'manual';
+  const source = employeeSource(emp);
+  const isSynced = source === 'employees';
   const message = isSynced
     ? t('confirmDeleteSynced')
     : t('confirmDelete');
   if (!confirm(message)) return;
+  if (isSynced) {
+    const inactive = { ...normalizeEmployee(emp), active: false, status: 'inactive', updatedAt: new Date().toISOString() };
+    await saveEmployeeRecord(inactive, { inactive: true });
+    await saveEmployees(emps.map(item => String(item.id) === String(id) ? inactive : item));
+    return;
+  }
   await saveEmployees(emps.filter(item => String(item.id) !== String(id)));
 };
 
@@ -1232,6 +1389,10 @@ window.updateEmployeeField = async (id, field, value) => {
     }
     return emp;
   });
+  const changed = updated.find(emp => String(emp.id) === String(id));
+  if (changed && (field === 'jobTitle' || field === 'active')) {
+    await saveEmployeeRecord(changed, { inactive: field === 'active' && value !== 'true' });
+  }
   await saveEmployees(updated);
 };
 
