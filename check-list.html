@@ -35,6 +35,10 @@
     th { background: #f8fbff; color: var(--primary); position: sticky; top: 0; z-index: 10; font-weight: 800; }
     tr.clickable { cursor: pointer; transition: 0.2s; }
     tr.clickable:hover { background: #f1f7fd; }
+    .notice { margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; border: 1px solid #c7d7e8; background: #f8fbff; color: #0d4b73; font-weight: 800; }
+    .notice.warn { border-color: #fdba74; background: #fff7ed; color: #9a3412; }
+    .notice.ok { border-color: #86efac; background: #ecfdf5; color: #166534; }
+    select:disabled, input:disabled, button:disabled { opacity: 0.68; cursor: not-allowed; }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -44,6 +48,7 @@
       <section class="card">
         <h3>نموذج الفحص v3.1.8 (Native Object Sync) <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
+          <div id="technicianNotice" class="notice hidden"></div>
           <input id="editingChecklistId" type="hidden" />
           <div class="section-title">1- بيانات الفني والزيارة</div>
           <div class="grid-fields">
@@ -98,11 +103,163 @@
     };
 
     const esc = (v) => String(v == null || v === 'undefined' ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
-    var state = { checklists: [], checklistFields: [], technicians: [], userProfile: null, canEdit: false };
+    var state = {
+      checklists: [],
+      checklistFields: [],
+      technicians: [],
+      userProfile: null,
+      currentUser: null,
+      canEdit: false,
+      checklistUnsubs: []
+    };
     const $ = (id) => document.getElementById(id);
     const dynamicLabels = ["Network Cabinets Condition", "Upload 4-6 Mbps", "Low Current Infrastructure Condition", "Download 6-9 Mbps", "Server Room Temperature", "UPS Status", "PCs Condition", "Printers Condition", "Unified Communication", "Unused or Damaged IT Assets", "Unused or Damaged IT Assets - Note", "Operating System Up to Date", "Cleanup and Remove Unwanted Apps", "OneDrive Backup", "Customer Facing Portals", "ERP & Business Applications", "Training Requirement", "Upgrade Windows_11", "Number of devices (Q29A)", "Employee IDs for devices (Q29B)"];
 
     function resolveRef(id, lbl) { return (id && state.checklistFields.find(f => f.id === id)) || (lbl && state.checklistFields.find(f => f.label === lbl)) || null; }
+
+    function norm(v) { return String(v || '').trim().toLowerCase(); }
+
+    function getRole() {
+      return norm(state.userProfile && state.userProfile.role) || 'user';
+    }
+
+    function isTechnicianMode() {
+      return !state.canEdit;
+    }
+
+    function addValue(list, value) {
+      const text = String(value || '').trim();
+      if (text && !list.some(item => norm(item) === norm(text))) list.push(text);
+    }
+
+    function addValues(list, source, fields) {
+      fields.forEach(field => addValue(list, source && source[field]));
+    }
+
+    function getTechnicianValues(tech) {
+      const values = [];
+      addValues(values, tech || {}, [
+        'id',
+        '_docId',
+        'technicianId',
+        'technicianCode',
+        'code',
+        'authUid',
+        'uid',
+        'email',
+        'name',
+        'fullName'
+      ]);
+      return values;
+    }
+
+    function getProfileValues() {
+      const profile = state.userProfile || {};
+      const user = state.currentUser || {};
+      const values = [];
+      addValues(values, profile, ['technicianId', 'technicianCode', 'code', 'email', 'name', 'fullName']);
+      addValues(values, user, ['uid', 'email', 'displayName']);
+      return values;
+    }
+
+    function getCurrentTechnicianIdentity() {
+      const rawValues = getProfileValues();
+      const keys = new Set(rawValues.map(norm).filter(Boolean));
+      const matchedTech = state.technicians.find(t =>
+        getTechnicianValues(t).map(norm).some(value => keys.has(value))
+      ) || null;
+      getTechnicianValues(matchedTech).forEach(value => {
+        addValue(rawValues, value);
+        const key = norm(value);
+        if (key) keys.add(key);
+      });
+      return {
+        role: getRole(),
+        rawValues,
+        keys,
+        matchedTech,
+        matchedTechId: matchedTech ? (matchedTech.id || matchedTech._docId || '') : ''
+      };
+    }
+
+    function recordTechnicianValues(record) {
+      const values = [];
+      addValues(values, record || {}, [
+        'technicianDocId',
+        'technicianId',
+        'technicianUid',
+        'technicianAuthId',
+        'technicianEmail',
+        'technicianName'
+      ]);
+      return values;
+    }
+
+    function isRecordForCurrentTechnician(record) {
+      if (!isTechnicianMode()) return true;
+      const identity = getCurrentTechnicianIdentity();
+      return recordTechnicianValues(record).map(norm).some(key => identity.keys.has(key));
+    }
+
+    function isVisitCompleted(visit) {
+      const completedIds = new Set(state.checklists
+        .filter(isRecordForCurrentTechnician)
+        .map(c => c.visitDocId || c.linkedVisitId)
+        .filter(Boolean)
+        .map(String));
+      const status = norm(visit && visit.status);
+      return completedIds.has(String(visit && visit.id || ''))
+        || visit.checklistCompleted === true
+        || !!visit.checklistId
+        || status === 'completed'
+        || status === 'done';
+    }
+
+    function setTechnicianNotice(message, type) {
+      const box = $('technicianNotice');
+      if (!message) {
+        box.className = 'notice hidden';
+        box.textContent = '';
+        return;
+      }
+      box.className = `notice ${type || ''}`.trim();
+      box.textContent = message;
+    }
+
+    function fillTechnicianFields(t) {
+      $('cl_technician_email').value = t.email || (state.currentUser && state.currentUser.email) || '';
+      $('cl_technician_id').value = t.authUid || t.technicianId || t.technicianCode || t.id || '';
+    }
+
+    function applyTechnicianMode() {
+      if (!isTechnicianMode()) return false;
+      const identity = getCurrentTechnicianIdentity();
+      const tech = identity.matchedTech;
+      $('cl_technician').disabled = true;
+
+      if (!tech) {
+        $('cl_technician').innerHTML = '<option value="">لم يتم ربط حسابك بفني</option>';
+        $('cl_visit_ref').innerHTML = '<option value="">لا توجد زيارات متاحة</option>';
+        $('cl_visit_ref').disabled = true;
+        $('saveChecklistBtn').disabled = true;
+        setTechnicianNotice('حسابك غير مربوط بسجل فني. تواصل مع المسؤول لربط Technician ID أو البريد الإلكتروني.', 'warn');
+        return true;
+      }
+
+      $('cl_technician').innerHTML = `<option value="${esc(tech.id)}">${esc(tech.name || tech.id)}</option>`;
+      $('cl_technician').value = tech.id;
+      fillTechnicianFields(tech);
+      $('saveChecklistBtn').disabled = false;
+      setTechnicianNotice('وضع الفني: تظهر لك زياراتك غير المحفوظة فقط. بعد حفظ التقرير ستختفي الزيارة من القائمة.', 'ok');
+      loadVisitsForTech(tech.id);
+      return true;
+    }
+
+    function renderTechnicianSelector() {
+      if (applyTechnicianMode()) return;
+      $('cl_technician').disabled = false;
+      $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${esc(t.id)}">${esc(t.name || t.id)}</option>`).join('');
+    }
 
     async function checkAuth() {
       const auth = window.parent && window.parent.appAuth;
@@ -113,15 +270,39 @@
       }
       auth.onAuthStateChanged(async (user) => {
         if (user) {
-          const doc = await db.collection('app_users').doc(user.uid).get();
-          if (doc.exists) { state.userProfile = doc.data(); state.canEdit = (state.userProfile.role === 'admin' || state.userProfile.role === 'supervisor'); applyPrivacyUI(); }
+          state.currentUser = user;
+          const parentProfile = window.parent && window.parent.currentUserData && window.parent.currentUserData.uid === user.uid
+            ? window.parent.currentUserData
+            : null;
+          let profile = parentProfile;
+          if (!profile) {
+            const doc = await db.collection('app_users').doc(user.uid).get();
+            if (doc.exists) profile = doc.data();
+            else if (user.email) {
+              const byEmail = await db.collection('app_users').where('email', '==', user.email).limit(1).get();
+              if (!byEmail.empty) profile = byEmail.docs[0].data();
+            }
+          }
+          if (profile) {
+            state.userProfile = { ...profile, uid: user.uid, email: profile.email || user.email };
+            const role = getRole();
+            state.canEdit = (role === 'admin' || role === 'supervisor');
+            applyPrivacyUI();
+          } else {
+            state.userProfile = { role: 'technician', uid: user.uid, email: user.email };
+            state.canEdit = false;
+            applyPrivacyUI();
+          }
           boot();
         }
       });
     }
 
     function applyPrivacyUI() { 
-      if (!state.canEdit) { $('adminSidebar').classList.add('hidden'); $('mainLayout').classList.add('grid-full'); } 
+      const role = getRole();
+      $('roleBadge').textContent = state.canEdit ? role.toUpperCase() + ' VIEW' : 'TECHNICIAN VIEW';
+      document.body.classList.toggle('technician-mode', !state.canEdit);
+      if (!state.canEdit) { $('adminSidebar').classList.add('hidden'); $('mainLayout').classList.add('grid-full'); }
     }
 
     window.renderDynamicForm = function(answers = {}) {
@@ -159,15 +340,46 @@
 
     window.saveChecklist = async function() {
       const db = window.parent.appDb; const answers = window.collectAnswers(); const techDropdown = $('cl_technician');
+      if (!techDropdown.value) return alert('اختر الفني أولاً.');
+      if (!$('cl_visit_ref').value) return alert('لا توجد زيارة متاحة للحفظ.');
+      if (isTechnicianMode()) {
+        const identity = getCurrentTechnicianIdentity();
+        if (!identity.matchedTechId || String(techDropdown.value) !== String(identity.matchedTechId)) {
+          return alert('هذه الصفحة مخصصة لزيارات الفني الحالي فقط.');
+        }
+        const selectedVisitSnap = await db.collection('siteVisits').doc($('cl_visit_ref').value).get();
+        const selectedVisit = selectedVisitSnap.exists ? { id: selectedVisitSnap.id, ...selectedVisitSnap.data() } : { id: $('cl_visit_ref').value };
+        if (!isRecordForCurrentTechnician(selectedVisit)) {
+          await loadVisitsForTech(identity.matchedTechId);
+          return alert('هذه الزيارة ليست مرتبطة بالفني الحالي.');
+        }
+        if (!$('editingChecklistId').value && isVisitCompleted(selectedVisit)) {
+          await loadVisitsForTech(identity.matchedTechId);
+          return alert('تم حفظ هذه الزيارة مسبقاً ولم تعد متاحة للفني.');
+        }
+      }
       const payload = { 
         technicianDocId: techDropdown.value, technicianName: techDropdown.options[techDropdown.selectedIndex].text, technicianEmail: $('cl_technician_email').value, technicianAuthId: $('cl_technician_id').value, 
-        visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, dynamicAnswers: answers, createdAt: new Date().toISOString() 
+        visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, dynamicAnswers: answers, updatedAt: new Date().toISOString()
       };
       try { 
         const id = $('editingChecklistId').value; 
-        const readyData = nativeClean(payload);
+        const readyData = nativeClean(id ? payload : { ...payload, createdAt: new Date().toISOString() });
+        let savedChecklistId = id;
         if (id) await db.collection('branch_checklists').doc(id).update(readyData); 
-        else await db.collection('branch_checklists').add(readyData); 
+        else {
+          const ref = await db.collection('branch_checklists').add(readyData);
+          savedChecklistId = ref.id;
+        }
+        if (payload.visitDocId) {
+          await db.collection('siteVisits').doc(payload.visitDocId).set(nativeClean({
+            status: 'completed',
+            checklistCompleted: true,
+            checklistCompletedAt: new Date().toISOString(),
+            checklistId: savedChecklistId,
+            updatedAt: new Date().toISOString()
+          }), { merge: true });
+        }
         alert("تم الحفظ بنجاح!"); location.reload(); 
       } catch (e) { alert("خطأ: " + e.message); }
     };
@@ -223,12 +435,85 @@
       });
     }
 
+    async function queryVisitsByIdentity(values) {
+      const db = window.parent.appDb;
+      const rows = new Map();
+      const fields = ['technicianDocId', 'technicianId', 'technicianUid', 'technicianEmail'];
+      const uniqueValues = values.map(v => String(v || '').trim()).filter(Boolean)
+        .filter((value, index, arr) => arr.findIndex(item => norm(item) === norm(value)) === index)
+        .slice(0, 20);
+
+      for (const field of fields) {
+        for (const value of uniqueValues) {
+          try {
+            const snap = await db.collection('siteVisits').where(field, '==', value).get();
+            snap.docs.forEach(d => rows.set(d.id, { id: d.id, ...d.data() }));
+          } catch (err) {
+            console.warn('siteVisits technician query failed', field, err);
+          }
+        }
+      }
+      return Array.from(rows.values());
+    }
+
     async function loadVisitsForTech(techId, visitId = null) {
-      const db = window.parent.appDb; const vSnap = await db.collection('siteVisits').where('technicianDocId', '==', techId).get();
-      const visits = vSnap.docs.map(d => ({id:d.id, ...d.data()}));
-      const completedIds = state.checklists.map(c => c.visitDocId);
-      let filtered = state.canEdit ? visits : visits.filter(v => !completedIds.includes(v.id) || v.id === visitId);
-      $('cl_visit_ref').innerHTML = '<option value="">اختر الزيارة</option>' + filtered.map(v => `<option value="${v.id}" ${visitId===v.id?'selected':''}>${v.date} - ${v.branchName}</option>`).join('');
+      const tech = state.technicians.find(t => String(t.id) === String(techId) || String(t._docId) === String(techId));
+      const identity = getCurrentTechnicianIdentity();
+      const lookupValues = state.canEdit ? getTechnicianValues(tech) : identity.rawValues;
+      if (techId) addValue(lookupValues, techId);
+
+      let visits = await queryVisitsByIdentity(lookupValues);
+      if (!state.canEdit) visits = visits.filter(isRecordForCurrentTechnician);
+
+      let filtered = state.canEdit
+        ? visits
+        : visits.filter(v => !isVisitCompleted(v) || String(v.id) === String(visitId));
+
+      filtered = filtered
+        .filter(v => String(v.status || '').toLowerCase() !== 'cancelled')
+        .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+
+      $('cl_visit_ref').disabled = !state.canEdit && filtered.length === 0;
+      $('saveChecklistBtn').disabled = !state.canEdit && filtered.length === 0;
+      $('cl_visit_ref').innerHTML = filtered.length
+        ? '<option value="">اختر الزيارة</option>' + filtered.map(v => `<option value="${esc(v.id)}" ${String(visitId)===String(v.id)?'selected':''}>${esc(v.date || '')} - ${esc(v.branchName || v.branchId || '')} - ${esc(v.brand || '')}</option>`).join('')
+        : '<option value="">لا توجد زيارات جديدة مرتبطة بك</option>';
+
+      if (!state.canEdit && filtered.length === 1 && !visitId) {
+        $('cl_visit_ref').value = filtered[0].id;
+        fillSelectedVisit();
+      } else if (!filtered.length) {
+        clearVisitFields();
+      }
+    }
+
+    function clearVisitFields() {
+      ['cl_city','cl_region','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_visit_date','cl_month'].forEach(id => {
+        if ($(id)) $(id).value = '';
+      });
+    }
+
+    function fillSelectedVisit() {
+      const visitId = $('cl_visit_ref').value;
+      if (!visitId) {
+        clearVisitFields();
+        return;
+      }
+      const db = window.parent.appDb;
+      db.collection('siteVisits').doc(visitId).get().then(doc => {
+        if(doc.exists){
+          const v = { id: doc.id, ...doc.data() };
+          if (isTechnicianMode() && (!isRecordForCurrentTechnician(v) || isVisitCompleted(v))) {
+            const identity = getCurrentTechnicianIdentity();
+            $('cl_visit_ref').value = '';
+            clearVisitFields();
+            if (identity.matchedTechId) loadVisitsForTech(identity.matchedTechId);
+            return;
+          }
+          $('cl_brand').value=v.brand||''; $('cl_brandKey').value=v.brandKey||''; $('cl_branch_id').value=v.branchId||''; $('cl_location').value=v.branchName||''; $('cl_city').value=v.city||''; $('cl_region').value=v.region||''; $('cl_visit_date').value=v.date||'';
+          const d = new Date(v.date); if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
+        }
+      });
     }
 
     window.openChecklistLocally = async (id) => {
@@ -240,30 +525,84 @@
       window.renderDynamicForm(r.dynamicAnswers || {});
     };
 
+    function stopChecklistListeners() {
+      state.checklistUnsubs.forEach(unsub => { try { unsub(); } catch (err) {} });
+      state.checklistUnsubs = [];
+    }
+
+    function mergeChecklistRows(rowMap, snap) {
+      snap.docs.forEach(d => {
+        const row = { id: d.id, ...d.data() };
+        if (state.canEdit || isRecordForCurrentTechnician(row)) rowMap.set(d.id, row);
+      });
+      state.checklists = Array.from(rowMap.values())
+        .sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
+      if (state.canEdit) renderTable();
+      else {
+        const identity = getCurrentTechnicianIdentity();
+        if (identity.matchedTechId) loadVisitsForTech(identity.matchedTechId);
+      }
+    }
+
+    function listenChecklists() {
+      const db = window.parent.appDb;
+      stopChecklistListeners();
+
+      if (state.canEdit) {
+        const unsub = db.collection('branch_checklists').orderBy('createdAt','desc').onSnapshot(snap => {
+          state.checklists = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          renderTable();
+        });
+        state.checklistUnsubs.push(unsub);
+        return;
+      }
+
+      const rowMap = new Map();
+      const identity = getCurrentTechnicianIdentity();
+      if (!identity.matchedTechId) {
+        state.checklists = [];
+        return;
+      }
+
+      const fields = ['technicianDocId', 'technicianAuthId', 'technicianEmail', 'technicianName'];
+      const values = identity.rawValues
+        .map(v => String(v || '').trim())
+        .filter(Boolean)
+        .filter((value, index, arr) => arr.findIndex(item => norm(item) === norm(value)) === index)
+        .slice(0, 20);
+
+      fields.forEach(field => {
+        values.forEach(value => {
+          const unsub = db.collection('branch_checklists').where(field, '==', value).onSnapshot(
+            snap => mergeChecklistRows(rowMap, snap),
+            err => console.warn('branch_checklists technician listener failed', field, err)
+          );
+          state.checklistUnsubs.push(unsub);
+        });
+      });
+    }
+
     async function boot() {
       const db = window.parent.appDb;
-      db.collection('branch_checklists').orderBy('createdAt','desc').onSnapshot(snap => { state.checklists = snap.docs.map(d => ({id:d.id, ...d.data()})); if(state.canEdit) renderTable(); });
-      db.collection('technicians').onSnapshot(snap => { state.technicians = snap.docs.map(d => ({id:d.id, ...d.data()})); $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join(''); });
-      db.collection('checklist_fields').onSnapshot(snap => { 
-        state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0)); 
-        window.renderDynamicForm(); if(state.canEdit) { updateTableHeaders(); renderTable(); } 
+      db.collection('technicians').onSnapshot(snap => {
+        state.technicians = snap.docs.map(d => ({ ...d.data(), id: d.data().id || d.id, _docId: d.id }));
+        renderTechnicianSelector();
+        listenChecklists();
+      });
+      db.collection('checklist_fields').onSnapshot(snap => {
+        state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0));
+        window.renderDynamicForm(); if(state.canEdit) { updateTableHeaders(); renderTable(); }
       });
       $('exportExcelBtn').onclick = exportToExcel;
       $('importExcelInput').onchange = handleImport;
       $('saveChecklistBtn').onclick = window.saveChecklist;
-      
-      $('cl_technician').onchange = (e) => { 
-        const t = state.technicians.find(x => x.id === e.target.value); 
-        if(t){ $('cl_technician_email').value=t.email||''; $('cl_technician_id').value=t.authUid||t.id; loadVisitsForTech(e.target.value); } 
+
+      $('cl_technician').onchange = (e) => {
+        if (isTechnicianMode()) return;
+        const t = state.technicians.find(x => String(x.id) === String(e.target.value) || String(x._docId) === String(e.target.value));
+        if(t){ fillTechnicianFields(t); loadVisitsForTech(e.target.value); }
       };
-      $('cl_visit_ref').onchange = (e) => {
-        db.collection('siteVisits').doc(e.target.value).get().then(doc => {
-          if(doc.exists){
-            const v = doc.data(); $('cl_brand').value=v.brand||''; $('cl_brandKey').value=v.brandKey||''; $('cl_branch_id').value=v.branchId||''; $('cl_location').value=v.branchName||''; $('cl_city').value=v.city||''; $('cl_region').value=v.region||''; $('cl_visit_date').value=v.date||'';
-            const d = new Date(v.date); if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
-          }
-        });
-      };
+      $('cl_visit_ref').onchange = fillSelectedVisit;
     }
     checkAuth();
   })();

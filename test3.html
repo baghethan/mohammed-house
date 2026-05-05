@@ -175,6 +175,7 @@
 
         let allowedMainTabs = [];
         let allowedSubTabsByMain = {};
+        let preferredSubTabsByMain = {};
 
         auth.onAuthStateChanged(async function (user) {
             if (!user) {
@@ -207,8 +208,12 @@
             const access = getAllowedAccess(userData);
             allowedMainTabs = access.mainTabs;
             allowedSubTabsByMain = access.subTabs;
+            preferredSubTabsByMain = {};
+            if (role === 'technician' && (allowedSubTabsByMain.site_visit || []).includes('checklist')) {
+                preferredSubTabsByMain.site_visit = 'checklist';
+            }
             renderMainTabs(allowedMainTabs);
-            openMainTab(allowedMainTabs[0] || 'diagnostics');
+            openMainTab(preferredSubTabsByMain.site_visit ? 'site_visit' : (allowedMainTabs[0] || 'diagnostics'));
         });
 
         function hasFullPortalAccess(user, userData) {
@@ -334,14 +339,17 @@
                 return;
             }
 
-            tabs.forEach((tab, index) => {
+            const preferredKey = preferredSubTabsByMain[mainKey];
+            const initialTab = tabs.find(tab => tab.key === preferredKey) || tabs[0];
+
+            tabs.forEach((tab) => {
                 const btn = document.createElement('button');
                 btn.className = 'tab-btn sub-tab';
                 btn.textContent = tab.name;
                 btn.onclick = () => openSubTab(tab.file, btn);
                 subBox.appendChild(btn);
 
-                if (index === 0) openSubTab(tab.file, btn);
+                if (tab === initialTab) openSubTab(tab.file, btn);
             });
         }
 
