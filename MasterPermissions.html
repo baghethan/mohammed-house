@@ -447,7 +447,7 @@
         <p class="eyebrow">MMC IT Service Delivery</p>
         <h1>Unified Security & Permissions</h1>
       </div>
-      <span class="version-pill">v3.3.3</span>
+      <span class="version-pill">v3.3.4</span>
     </header>
 
     <div class="workspace">
@@ -492,6 +492,17 @@
       <section class="permission-layout">
         <div class="surface permission-panel">
           <div class="panel-title">
+            <h2>Diagnostics</h2>
+            <div class="action-group">
+              <button class="btn-mini" onclick="selAll('diag-c', true)">Select All</button>
+              <button class="btn-mini" onclick="selAll('diag-c', false)">Clear</button>
+            </div>
+          </div>
+          <div id="diagGrid" class="check-list"></div>
+        </div>
+
+        <div class="surface permission-panel">
+          <div class="panel-title">
             <h2>Schedule Pages</h2>
             <div class="action-group">
               <button class="btn-mini" onclick="selAll('sch-c', true)">Select All</button>
@@ -510,6 +521,17 @@
             </div>
           </div>
           <div id="svGrid" class="check-list"></div>
+        </div>
+
+        <div class="surface permission-panel">
+          <div class="panel-title">
+            <h2>Permissions</h2>
+            <div class="action-group">
+              <button class="btn-mini" onclick="selAll('perm-c', true)">Select All</button>
+              <button class="btn-mini" onclick="selAll('perm-c', false)">Clear</button>
+            </div>
+          </div>
+          <div id="permGrid" class="check-list"></div>
         </div>
       </section>
 
@@ -557,6 +579,10 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
 
+    const DIAG = {
+      diagnostics: "Diagnostics"
+    };
+
     const SCH = {
       dashboard: "Dashboard",
       schedule: "Schedule",
@@ -574,8 +600,11 @@
       visit: "Visits Entry",
       branches: "Branches",
       checklist_admin: "Checklist Admin",
-      reports: "Reports windows",
-      permissions: "Permissions"
+      reports: "Reports windows"
+    };
+
+    const PERM = {
+      permissions: "Master Permissions"
     };
 
     const userList = document.getElementById('userList');
@@ -583,8 +612,10 @@
     const selectedHint = document.getElementById('selectedHint');
     const saveBtn = document.getElementById('saveBtn');
 
+    document.getElementById('diagGrid').innerHTML = renderPermissionItems(DIAG, 'diag-c');
     document.getElementById('schGrid').innerHTML = renderPermissionItems(SCH, 'sch-c');
     document.getElementById('svGrid').innerHTML = renderPermissionItems(SV, 'sv-c');
+    document.getElementById('permGrid').innerHTML = renderPermissionItems(PERM, 'perm-c');
 
     window.selAll = (cls, state) => {
       document.querySelectorAll('.' + cls).forEach(input => input.checked = state);
@@ -604,6 +635,27 @@
         '"': '&quot;',
         "'": '&#039;'
       }[char]));
+    }
+
+    function normalizeMainTabs(user) {
+      const hasExplicitMainTabs = Array.isArray(user.permissions_main_tabs);
+      const mainTabs = new Set((hasExplicitMainTabs ? user.permissions_main_tabs : [])
+        .map(item => String(item || '').trim().toLowerCase())
+        .filter(Boolean));
+
+      if (!hasExplicitMainTabs) {
+        const diagnosticsPermissions = Array.isArray(user.permissions_diagnostics) ? user.permissions_diagnostics : [];
+        const schedulePermissions = Array.isArray(user.permissions_schedule) ? user.permissions_schedule : [];
+        const siteVisitPermissions = Array.isArray(user.permissions_site_visit) ? user.permissions_site_visit : [];
+        const permissionsPermissions = Array.isArray(user.permissions_permissions) ? user.permissions_permissions : [];
+
+        if (!Array.isArray(user.permissions_diagnostics) || diagnosticsPermissions.length || (!schedulePermissions.length && !siteVisitPermissions.length && !permissionsPermissions.length)) mainTabs.add('diagnostics');
+        if (schedulePermissions.length) mainTabs.add('schedule');
+        if (siteVisitPermissions.some(key => key !== 'permissions')) mainTabs.add('site_visit');
+        if (permissionsPermissions.includes('permissions') || siteVisitPermissions.includes('permissions')) mainTabs.add('permissions');
+      }
+
+      return Array.from(mainTabs);
     }
 
     async function loadTable() {
@@ -649,6 +701,9 @@
       document.getElementById('uTechId').value = user.technicianId || "";
       document.getElementById('uRole').value = (user.role || "technician").toLowerCase();
       document.getElementById('uActive').checked = user.active !== false;
+      const mainTabs = normalizeMainTabs(user);
+      document.querySelectorAll('.diag-c').forEach(input => input.checked = mainTabs.includes(input.dataset.id));
+      document.querySelectorAll('.perm-c').forEach(input => input.checked = mainTabs.includes(input.dataset.id));
       document.querySelectorAll('.sch-c').forEach(input => input.checked = (user.permissions_schedule || []).includes(input.dataset.id));
       document.querySelectorAll('.sv-c').forEach(input => input.checked = (user.permissions_site_visit || []).includes(input.dataset.id));
 
@@ -662,19 +717,24 @@
       const uid = document.getElementById('uId').value;
       if (!uid) return alert("Select user first.");
 
+      const diagnosticsPermissions = Array.from(document.querySelectorAll('.diag-c:checked')).map(input => input.dataset.id);
       const schedulePermissions = Array.from(document.querySelectorAll('.sch-c:checked')).map(input => input.dataset.id);
       const siteVisitPermissions = Array.from(document.querySelectorAll('.sv-c:checked')).map(input => input.dataset.id);
-      const mainTabs = ['diagnostics'];
+      const permissionsPermissions = Array.from(document.querySelectorAll('.perm-c:checked')).map(input => input.dataset.id);
+      const mainTabs = [];
+      if (diagnosticsPermissions.includes('diagnostics')) mainTabs.push('diagnostics');
       if (schedulePermissions.length) mainTabs.push('schedule');
-      if (siteVisitPermissions.some(key => key !== 'permissions')) mainTabs.push('site_visit');
-      if (siteVisitPermissions.includes('permissions')) mainTabs.push('permissions');
+      if (siteVisitPermissions.length) mainTabs.push('site_visit');
+      if (permissionsPermissions.includes('permissions')) mainTabs.push('permissions');
 
       const data = {
         technicianId: document.getElementById('uTechId').value,
         role: document.getElementById('uRole').value.toLowerCase(),
         active: document.getElementById('uActive').checked,
+        permissions_diagnostics: diagnosticsPermissions,
         permissions_schedule: schedulePermissions,
         permissions_site_visit: siteVisitPermissions,
+        permissions_permissions: permissionsPermissions,
         permissions_main_tabs: mainTabs,
         updatedAt: new Date().toISOString()
       };

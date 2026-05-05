@@ -264,6 +264,9 @@
 
             const schedulePerms = toPermissionSet(userData.permissions_schedule || [], scheduleAliases);
             const sitePerms = toPermissionSet(userData.permissions_site_visit || [], siteAliases);
+            const diagnosticsPerms = toPermissionSet(userData.permissions_diagnostics || []);
+            const permissionsPerms = toPermissionSet(userData.permissions_permissions || []);
+            const hasExplicitMainTabs = Array.isArray(userData.permissions_main_tabs);
             const legacyMain = toPermissionSet(userData.permissions_main_tabs || [], legacyMap);
             const subTabs = {
                 schedule: navigationConfig.schedule.tabs
@@ -274,10 +277,24 @@
                     .map(tab => tab.key)
             };
 
-            const mainTabs = ['diagnostics'];
-            if (subTabs.schedule.length || legacyMain.has('schedule')) mainTabs.push('schedule');
-            if (subTabs.site_visit.length || legacyMain.has('site_visit')) mainTabs.push('site_visit');
-            if (sitePerms.has('permissions') || legacyMain.has('permissions')) mainTabs.push('permissions');
+            const mainTabs = [];
+            const allowDiagnostics = hasExplicitMainTabs
+                ? legacyMain.has('diagnostics')
+                : diagnosticsPerms.has('diagnostics') || !Array.isArray(userData.permissions_diagnostics);
+            const allowSchedule = hasExplicitMainTabs
+                ? legacyMain.has('schedule')
+                : subTabs.schedule.length || legacyMain.has('schedule');
+            const allowSiteVisit = hasExplicitMainTabs
+                ? legacyMain.has('site_visit')
+                : subTabs.site_visit.length || legacyMain.has('site_visit');
+            const allowPermissions = hasExplicitMainTabs
+                ? legacyMain.has('permissions')
+                : permissionsPerms.has('permissions') || sitePerms.has('permissions') || legacyMain.has('permissions');
+
+            if (allowDiagnostics) mainTabs.push('diagnostics');
+            if (allowSchedule) mainTabs.push('schedule');
+            if (allowSiteVisit) mainTabs.push('site_visit');
+            if (allowPermissions) mainTabs.push('permissions');
 
             return {
                 mainTabs: [...new Set(mainTabs)],
