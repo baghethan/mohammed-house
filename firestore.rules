@@ -1,0 +1,111 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath() {
+      return /databases/$(database)/documents/app_users/$(request.auth.uid);
+    }
+
+    function hasProfile() {
+      return signedIn() && exists(userPath());
+    }
+
+    function profile() {
+      return get(userPath()).data;
+    }
+
+    function isOwner() {
+      return signedIn() && request.auth.token.email in ['baghethanmh@almajdouie.com'];
+    }
+
+    function isActive() {
+      return hasProfile()
+        && (!('active' in profile()) || profile().active != false)
+        && (!('status' in profile()) || !(profile().status in ['inactive', 'Inactive', 'INACTIVE']));
+    }
+
+    function isAdmin() {
+      return isOwner()
+        || (isActive()
+          && ((('superAdmin' in profile()) && profile().superAdmin == true)
+            || (('role' in profile()) && profile().role in ['admin', 'Admin'])));
+    }
+
+    function hasSiteVisitPage(page) {
+      return isAdmin()
+        || (isActive()
+          && (((('permissions_site_visit' in profile()) && profile().permissions_site_visit is list) && page in profile().permissions_site_visit)
+            || ((('pages' in profile()) && profile().pages is list) && page in profile().pages)));
+    }
+
+    function hasSchedulePage(page) {
+      return isAdmin()
+        || (isActive()
+          && (((('permissions_schedule' in profile()) && profile().permissions_schedule is list) && page in profile().permissions_schedule)
+            || ((('pages' in profile()) && profile().pages is list) && page in profile().pages)));
+    }
+
+    match /app_users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list, create, update, delete: if isAdmin();
+    }
+
+    match /brand_assets/{docId} {
+      allow read, write: if hasSiteVisitPage('brands');
+    }
+
+    match /branches/{docId} {
+      allow read: if hasSiteVisitPage('branches') || hasSiteVisitPage('visit') || hasSiteVisitPage('checklist') || hasSiteVisitPage('dashboard');
+      allow write: if hasSiteVisitPage('branches');
+    }
+
+    match /technicians/{docId} {
+      allow read: if hasSiteVisitPage('checklist') || hasSiteVisitPage('visit') || hasSiteVisitPage('dashboard') || hasSiteVisitPage('branches');
+      allow write: if isAdmin() || hasSiteVisitPage('permissions');
+    }
+
+    match /siteVisits/{docId} {
+      allow read: if hasSiteVisitPage('visit') || hasSiteVisitPage('checklist') || hasSiteVisitPage('dashboard') || hasSiteVisitPage('reports');
+      allow write: if hasSiteVisitPage('visit') || hasSiteVisitPage('checklist');
+    }
+
+    match /branch_checklists/{docId} {
+      allow read: if hasSiteVisitPage('checklist') || hasSiteVisitPage('dashboard') || hasSiteVisitPage('reports');
+      allow create, update: if hasSiteVisitPage('checklist');
+      allow delete: if isAdmin() || hasSiteVisitPage('checklist_admin');
+    }
+
+    match /checklist_fields/{docId} {
+      allow read: if hasSiteVisitPage('checklist') || hasSiteVisitPage('checklist_admin');
+      allow write: if isAdmin() || hasSiteVisitPage('checklist_admin');
+    }
+
+    match /windows_upgrades/{docId} {
+      allow read: if hasSiteVisitPage('upgrade') || hasSiteVisitPage('reports') || hasSiteVisitPage('dashboard');
+      allow write: if hasSiteVisitPage('upgrade');
+    }
+
+    match /schedule/{docId} {
+      allow read: if hasSchedulePage('dashboard') || hasSchedulePage('schedule') || hasSchedulePage('employees') || hasSchedulePage('annual') || hasSchedulePage('planning') || hasSchedulePage('settings');
+      allow write: if hasSchedulePage('schedule') || hasSchedulePage('employees') || hasSchedulePage('annual') || hasSchedulePage('planning') || hasSchedulePage('settings');
+    }
+
+    match /employees/{docId} {
+      allow read: if hasSchedulePage('employees') || hasSchedulePage('schedule') || hasSchedulePage('planning');
+      allow write: if hasSchedulePage('employees');
+    }
+
+    match /vacations/{docId} {
+      allow read: if hasSchedulePage('dashboard') || hasSchedulePage('schedule') || hasSchedulePage('planning');
+      allow write: if hasSchedulePage('planning');
+    }
+
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

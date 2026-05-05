@@ -180,6 +180,7 @@
       deleted:'تم حذف البراند.',
       deleteConfirm:'هل تريد حذف البراند؟',
       required:'أدخل اسم البراند أو المفتاح.',
+      permissionDenied:'لا توجد صلاحية من Firestore على brand_assets. أعط المستخدم صلاحية Brands وانشر قواعد Firestore.',
       sessionMissing:'الرجاء تسجيل الدخول من الصفحة الرئيسية أولًا، ثم افتح صفحة البراندات من داخل النظام.'
     },
     en: {
@@ -208,6 +209,7 @@
       deleted:'Brand deleted.',
       deleteConfirm:'Delete this brand?',
       required:'Enter brand name or key.',
+      permissionDenied:'Firestore does not allow access to brand_assets. Grant Brands permission and publish Firestore rules.',
       sessionMissing:'Please sign in from the main page first, then open Brands from inside the system.'
     }
   };
@@ -263,6 +265,15 @@
 
   function setMessage(msg){
     $('brandMessage').textContent = msg;
+  }
+
+  function friendlyFirestoreError(err, source){
+    var code = String(err && err.code || '').toLowerCase();
+    var message = String(err && err.message || err || '');
+    if (code.indexOf('permission-denied') > -1 || message.toLowerCase().indexOf('permission') > -1 || message.toLowerCase().indexOf('insufficient') > -1) {
+      return (source ? source + ': ' : '') + t('permissionDenied');
+    }
+    return (source ? source + ': ' : '') + message;
   }
 
   function setPreview(src){
@@ -358,8 +369,9 @@
       setMessage(t('deleted'));
       setAlert('', 'ok');
       clearBrandForm();
+      await loadBrands();
     } catch (err) {
-      setAlert(err.message || String(err));
+      setAlert(friendlyFirestoreError(err, 'brand_assets'));
     }
   }
 
@@ -397,9 +409,9 @@
       setMessage(t('saved'));
       setAlert('', 'ok');
       clearBrandForm();
+      await loadBrands();
     } catch (err) {
-      console.error(err);
-      setAlert(err.message || String(err));
+      setAlert(friendlyFirestoreError(err, 'brand_assets'));
     }
   }
 
@@ -431,19 +443,22 @@
     return ['admin','supervisor'].indexOf(String(profile.role || '').toLowerCase()) > -1;
   }
 
-  function listenBrands(){
+  async function loadBrands(){
     if (unsubscribeBrands) unsubscribeBrands();
     var db = window.parent.appDb;
-    unsubscribeBrands = db.collection('brand_assets').orderBy('nameAr').onSnapshot(function(snap){
+    try {
+      var snap = await db.collection('brand_assets').orderBy('nameAr').get();
       state.brands = snap.docs.map(function(d){
         var data = d.data() || {};
         data.id = d.id;
         return data;
       });
       renderBrands();
-    }, function(err){
-      setAlert('brand_assets: ' + err.message);
-    });
+    } catch (err) {
+      state.brands = [];
+      renderBrands();
+      setAlert(friendlyFirestoreError(err, 'brand_assets'));
+    }
   }
 
   function attachListeners(){
@@ -524,10 +539,9 @@
             return;
           }
           $('appRoot').classList.remove('hidden');
-          listenBrands();
+          await loadBrands();
         } catch (err) {
-          console.error(err);
-          setAlert(err.message || String(err));
+          setAlert(friendlyFirestoreError(err));
         }
       });
     } catch (e) {
