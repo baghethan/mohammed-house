@@ -2,10 +2,10 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>Executive IT Dashboard</title>
+  <title>Executive IT Operations Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Libraries -->
+  <!-- External Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pptxgenjs/dist/pptxgen.bundle.js"></script>
@@ -36,16 +36,22 @@
     }
 
     .container {
-      max-width: 1300px;
+      max-width: 1350px;
       margin: 30px auto;
       padding: 0 20px;
     }
 
-    .upload-box {
+    .upload-box,
+    .chart-card,
+    .insights,
+    .table-card {
       background: white;
-      padding: 24px;
       border-radius: 12px;
       box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+    }
+
+    .upload-box {
+      padding: 24px;
       margin-bottom: 25px;
       text-align: center;
     }
@@ -55,7 +61,7 @@
       border: 1px solid #ccc;
       border-radius: 8px;
       background: #fff;
-      width: 320px;
+      width: 340px;
       max-width: 100%;
     }
 
@@ -86,6 +92,13 @@
       background: #5d933a;
     }
 
+    .note {
+      font-size: 13px;
+      color: #666;
+      margin-top: 10px;
+      line-height: 1.7;
+    }
+
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -102,17 +115,9 @@
       border-top: 5px solid #1f4e79;
     }
 
-    .kpi-card.orange {
-      border-top-color: #ed7d31;
-    }
-
-    .kpi-card.green {
-      border-top-color: #70ad47;
-    }
-
-    .kpi-card.red {
-      border-top-color: #c00000;
-    }
+    .kpi-card.orange { border-top-color: #ed7d31; }
+    .kpi-card.green { border-top-color: #70ad47; }
+    .kpi-card.red { border-top-color: #c00000; }
 
     .kpi-value {
       font-size: 34px;
@@ -134,10 +139,8 @@
     }
 
     .chart-card {
-      background: white;
-      border-radius: 12px;
       padding: 20px;
-      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+      min-height: 430px;
     }
 
     .chart-card h3 {
@@ -156,10 +159,7 @@
     }
 
     .insights {
-      background: white;
-      border-radius: 12px;
       padding: 24px;
-      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
       margin-bottom: 25px;
     }
 
@@ -174,11 +174,9 @@
     }
 
     .table-card {
-      background: white;
-      border-radius: 12px;
       padding: 20px;
-      box-shadow: 0 3px 12px rgba(0,0,0,0.08);
       overflow-x: auto;
+      margin-bottom: 30px;
     }
 
     table {
@@ -203,14 +201,16 @@
       display: none;
     }
 
-    .note {
-      font-size: 13px;
-      color: #666;
-      margin-top: 10px;
+    .status-message {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #1f4e79;
+      font-weight: bold;
     }
 
     @media (max-width: 900px) {
-      .kpi-grid, .charts-grid {
+      .kpi-grid,
+      .charts-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -228,15 +228,21 @@
 
   <div class="upload-box">
     <h2>📁 Upload Monthly File</h2>
+
     <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+
     <div class="buttons">
       <button onclick="processFile()">Generate Dashboard</button>
       <button class="secondary" onclick="exportPowerPoint()">Export PowerPoint</button>
     </div>
+
     <div class="note">
       الأعمدة المفضلة:
+      <br>
       Request ID, Subject, Requester.Name, Technician.Name, Status.Name, Department.Name, Created Date, Due by date
     </div>
+
+    <div id="statusMessage" class="status-message"></div>
   </div>
 
   <div id="dashboard" class="hidden">
@@ -264,23 +270,24 @@
     </div>
 
     <div class="charts-grid">
+
       <div class="chart-card">
         <h3>Requests Status Distribution</h3>
         <canvas id="statusChart"></canvas>
       </div>
 
       <div class="chart-card">
-        <h3>Top Affected Departments</h3>
+        <h3>Top Affected Departments by Status</h3>
         <canvas id="departmentChart"></canvas>
       </div>
 
       <div class="chart-card">
-        <h3>Technician Workload</h3>
+        <h3>Technician Workload by Status</h3>
         <canvas id="technicianChart"></canvas>
       </div>
 
       <div class="chart-card">
-        <h3>Top Requesters</h3>
+        <h3>Top Requesters by Status</h3>
         <canvas id="requesterChart"></canvas>
       </div>
 
@@ -288,6 +295,7 @@
         <h3>Request Volume Trend</h3>
         <canvas id="trendChart"></canvas>
       </div>
+
     </div>
 
     <div class="insights">
@@ -309,6 +317,62 @@
   let charts = {};
   let dashboardMetrics = {};
 
+  let STATUS_COLORS = {};
+
+  const DEFAULT_STATUS_COLORS = [
+    "#ed7d31",
+    "#ffc000",
+    "#70ad47",
+    "#5b9bd5",
+    "#4472c4",
+    "#a5a5a5",
+    "#c00000",
+    "#7030a0",
+    "#00b0f0",
+    "#999999"
+  ];
+
+  function setMessage(message) {
+    document.getElementById("statusMessage").innerText = message;
+  }
+
+  async function loadStatusColors() {
+    try {
+      const response = await fetch("status-colors.json");
+
+      if (!response.ok) {
+        throw new Error("status-colors.json not found");
+      }
+
+      STATUS_COLORS = await response.json();
+      setMessage("Status color settings loaded successfully ✅");
+    } catch (error) {
+      console.warn("Could not load status-colors.json. Default colors will be used.", error);
+
+      STATUS_COLORS = {
+        "Open": "#ed7d31",
+        "On Hold": "#ffc000",
+        "Closed": "#70ad47",
+        "Resolved": "#5b9bd5",
+        "In Progress": "#4472c4",
+        "Pending": "#a5a5a5",
+        "Cancelled": "#c00000",
+        "Rejected": "#7030a0",
+        "Blank": "#bfbfbf"
+      };
+
+      setMessage("Default status colors loaded ⚠️");
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", async () => {
+    await loadStatusColors();
+  });
+
+  function getStatusColor(status, index = 0) {
+    return STATUS_COLORS[status] || DEFAULT_STATUS_COLORS[index % DEFAULT_STATUS_COLORS.length];
+  }
+
   function processFile() {
     const fileInput = document.getElementById("fileInput");
     const file = fileInput.files[0];
@@ -321,19 +385,25 @@
     const reader = new FileReader();
 
     reader.onload = function(e) {
-      const data = e.target.result;
-      const workbook = XLSX.read(data, { type: "binary" });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
+      try {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
 
-      rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+        rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-      if (rawData.length === 0) {
-        alert("The file is empty.");
-        return;
+        if (rawData.length === 0) {
+          alert("The file is empty.");
+          return;
+        }
+
+        buildDashboard(rawData);
+        setMessage("Dashboard generated successfully ✅");
+      } catch (error) {
+        console.error(error);
+        alert("Error while reading file. Please check file format.");
       }
-
-      buildDashboard(rawData);
     };
 
     reader.readAsBinaryString(file);
@@ -345,9 +415,31 @@
     const total = data.length;
 
     const statusCounts = countBy(data, "Status.Name", "Blank");
-    const departmentCounts = topN(countBy(data, "Department.Name", "Not Specified"), 10);
-    const technicianCounts = topN(countBy(data, "Technician.Name", "Unassigned"), 10);
-    const requesterCounts = topN(countBy(data, "Requester.Name", "Not Specified"), 10);
+
+    const departmentStatusData = aggregateByStatus(
+      data,
+      "Department.Name",
+      "Status.Name",
+      "Not Specified",
+      10
+    );
+
+    const technicianStatusData = aggregateByStatus(
+      data,
+      "Technician.Name",
+      "Status.Name",
+      "Unassigned",
+      10
+    );
+
+    const requesterStatusData = aggregateByStatus(
+      data,
+      "Requester.Name",
+      "Status.Name",
+      "Not Specified",
+      10
+    );
+
     const trendCounts = countByDate(data, "Created Date");
 
     const openCount = statusCounts["Open"] || 0;
@@ -362,9 +454,9 @@
       closedCount,
       closureRate,
       statusCounts,
-      departmentCounts,
-      technicianCounts,
-      requesterCounts,
+      departmentStatusData,
+      technicianStatusData,
+      requesterStatusData,
       trendCounts
     };
 
@@ -393,6 +485,52 @@
     });
 
     return result;
+  }
+
+  function aggregateByStatus(data, groupColumn, statusColumn = "Status.Name", emptyGroupLabel = "Not Specified", topLimit = 10) {
+    const totals = {};
+    const matrix = {};
+    const statusesSet = new Set();
+
+    data.forEach(row => {
+      let group = row[groupColumn];
+      let status = row[statusColumn];
+
+      if (group === undefined || group === null || String(group).trim() === "") {
+        group = emptyGroupLabel;
+      }
+
+      if (status === undefined || status === null || String(status).trim() === "") {
+        status = "Blank";
+      }
+
+      group = String(group).trim();
+      status = String(status).trim();
+
+      statusesSet.add(status);
+
+      if (!matrix[group]) {
+        matrix[group] = {};
+        totals[group] = 0;
+      }
+
+      matrix[group][status] = (matrix[group][status] || 0) + 1;
+      totals[group] += 1;
+    });
+
+    const topGroups = Object.entries(totals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, topLimit)
+      .map(item => item[0]);
+
+    const statuses = Array.from(statusesSet);
+
+    return {
+      groups: topGroups,
+      statuses: statuses,
+      matrix: matrix,
+      totals: totals
+    };
   }
 
   function countByDate(data, column) {
@@ -425,14 +563,6 @@
     return sortObjectByKey(result);
   }
 
-  function topN(obj, n) {
-    return Object.fromEntries(
-      Object.entries(obj)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, n)
-    );
-  }
-
   function sortObjectByKey(obj) {
     return Object.fromEntries(
       Object.entries(obj).sort((a, b) => a[0].localeCompare(b[0]))
@@ -448,16 +578,29 @@
   function renderCharts() {
     const {
       statusCounts,
-      departmentCounts,
-      technicianCounts,
-      requesterCounts,
+      departmentStatusData,
+      technicianStatusData,
+      requesterStatusData,
       trendCounts
     } = dashboardMetrics;
 
     renderPieChart("statusChart", statusCounts);
-    renderBarChart("departmentChart", departmentCounts, "Departments");
-    renderBarChart("technicianChart", technicianCounts, "Technicians");
-    renderBarChart("requesterChart", requesterCounts, "Requesters");
+
+    renderStackedStatusBarChart(
+      "departmentChart",
+      departmentStatusData
+    );
+
+    renderStackedStatusBarChart(
+      "technicianChart",
+      technicianStatusData
+    );
+
+    renderStackedStatusBarChart(
+      "requesterChart",
+      requesterStatusData
+    );
+
     renderLineChart("trendChart", trendCounts);
   }
 
@@ -465,14 +608,18 @@
     destroyChart(canvasId);
 
     const ctx = document.getElementById(canvasId);
+    const labels = Object.keys(dataObj);
+    const values = Object.values(dataObj);
 
     charts[canvasId] = new Chart(ctx, {
       type: "pie",
       data: {
-        labels: Object.keys(dataObj),
+        labels: labels,
         datasets: [{
-          data: Object.values(dataObj),
-          backgroundColor: ["#ed7d31", "#70ad47", "#5b9bd5", "#ffc000", "#a5a5a5"]
+          data: values,
+          backgroundColor: labels.map((status, index) => getStatusColor(status, index)),
+          borderColor: "#ffffff",
+          borderWidth: 2
         }]
       },
       options: {
@@ -486,32 +633,62 @@
     });
   }
 
-  function renderBarChart(canvasId, dataObj, label) {
+  function renderStackedStatusBarChart(canvasId, groupedStatusData) {
     destroyChart(canvasId);
 
     const ctx = document.getElementById(canvasId);
 
+    const datasets = groupedStatusData.statuses.map((status, index) => {
+      return {
+        label: status,
+        data: groupedStatusData.groups.map(group => {
+          return groupedStatusData.matrix[group][status] || 0;
+        }),
+        backgroundColor: getStatusColor(status, index),
+        borderColor: "#ffffff",
+        borderWidth: 1
+      };
+    });
+
     charts[canvasId] = new Chart(ctx, {
       type: "bar",
       data: {
-        labels: Object.keys(dataObj),
-        datasets: [{
-          label: label,
-          data: Object.values(dataObj),
-          backgroundColor: "#1f4e79"
-        }]
+        labels: groupedStatusData.groups,
+        datasets: datasets
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         indexAxis: "y",
         plugins: {
           legend: {
-            display: false
+            position: "bottom"
+          },
+          tooltip: {
+            callbacks: {
+              footer: function(items) {
+                let total = 0;
+
+                items.forEach(item => {
+                  total += item.parsed.x;
+                });
+
+                return "Total: " + total;
+              }
+            }
           }
         },
         scales: {
           x: {
-            beginAtZero: true
+            stacked: true,
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: "Number of Requests"
+            }
+          },
+          y: {
+            stacked: true
           }
         }
       }
@@ -538,6 +715,7 @@
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: {
             display: false
@@ -558,12 +736,15 @@
       openCount,
       onHoldCount,
       closureRate,
-      departmentCounts,
-      technicianCounts
+      departmentStatusData,
+      technicianStatusData,
+      requesterStatusData
     } = dashboardMetrics;
 
-    const topDepartment = Object.keys(departmentCounts)[0] || "N/A";
-    const topTechnician = Object.keys(technicianCounts)[0] || "N/A";
+    const topDepartment = departmentStatusData.groups[0] || "N/A";
+    const topTechnician = technicianStatusData.groups[0] || "N/A";
+    const topRequester = requesterStatusData.groups[0] || "N/A";
+
     const openRate = total > 0 ? openCount / total : 0;
 
     const insights = [
@@ -572,8 +753,9 @@
       `عدد الطلبات المعلقة On Hold هو ${onHoldCount}.`,
       `نسبة الإغلاق الحالية هي ${Math.round(closureRate * 100)}%.`,
       `أكثر إدارة متأثرة حسب عدد الطلبات هي: ${topDepartment}.`,
-      `أعلى حمل ظاهر في التوزيع الحالي للفنيين/الإسناد هو: ${topTechnician}.`,
-      `التوصية التنفيذية: مراجعة التذاكر المفتوحة يوميًا، وتركيز RCA على الإدارات الأعلى طلبًا.`
+      `أعلى حمل حسب الفنيين أو غير المسند هو: ${topTechnician}.`,
+      `أكثر مستخدم قام بفتح طلبات هو: ${topRequester}.`,
+      `التوصية التنفيذية: مراجعة التذاكر المفتوحة يوميًا، وتركيز RCA على الإدارات والفنيين والمستخدمين الأعلى تكرارًا.`
     ];
 
     const list = document.getElementById("insightList");
@@ -602,9 +784,11 @@
 
     preview.forEach(row => {
       html += "<tr>";
+
       columns.forEach(col => {
         html += `<td>${escapeHtml(row[col])}</td>`;
       });
+
       html += "</tr>";
     });
 
@@ -646,18 +830,27 @@
       closureRate
     } = dashboardMetrics;
 
-    // Slide 1
+    // Slide 1: Executive Summary
     let slide = pptx.addSlide();
     slide.background = { color: "FFFFFF" };
 
     slide.addText("Executive IT Operations Dashboard", {
-      x: 0.5, y: 0.35, w: 12.2, h: 0.5,
-      fontSize: 28, bold: true, color: navy
+      x: 0.5,
+      y: 0.35,
+      w: 12.2,
+      h: 0.5,
+      fontSize: 28,
+      bold: true,
+      color: navy
     });
 
     slide.addText("Monthly Service Requests Analysis", {
-      x: 0.5, y: 0.9, w: 12.2, h: 0.3,
-      fontSize: 13, color: gray
+      x: 0.5,
+      y: 0.9,
+      w: 12.2,
+      h: 0.3,
+      fontSize: 13,
+      color: gray
     });
 
     addKpiBox(slide, "Total Requests", total, 0.7, 1.8, navy);
@@ -666,37 +859,58 @@
     addKpiBox(slide, "Closure Rate", Math.round(closureRate * 100) + "%", 9.1, 1.8, red);
 
     slide.addText("Executive Message", {
-      x: 0.8, y: 3.7, w: 11.5, h: 0.4,
-      fontSize: 20, bold: true, color: navy
+      x: 0.8,
+      y: 3.7,
+      w: 11.5,
+      h: 0.4,
+      fontSize: 20,
+      bold: true,
+      color: navy
     });
 
     slide.addText(
       "• Current backlog requires management visibility.\n" +
-      "• Repeated operational issues should be reviewed through RCA governance.\n" +
-      "• Recommended focus: backlog closure, SLA control, and live monitoring.",
+      "• Workload charts are segmented by request status.\n" +
+      "• Recommended focus: backlog closure, SLA control, and RCA governance.",
       {
-        x: 0.8, y: 4.2, w: 11.5, h: 1.3,
-        fontSize: 16, color: gray, breakLine: false
+        x: 0.8,
+        y: 4.2,
+        w: 11.5,
+        h: 1.3,
+        fontSize: 16,
+        color: gray,
+        breakLine: false
       }
     );
 
     // Chart Slides
     await addChartSlide(pptx, "Requests Status Distribution", "statusChart");
-    await addChartSlide(pptx, "Top Affected Departments", "departmentChart");
-    await addChartSlide(pptx, "Technician Workload", "technicianChart");
-    await addChartSlide(pptx, "Top Requesters", "requesterChart");
+    await addChartSlide(pptx, "Top Affected Departments by Status", "departmentChart");
+    await addChartSlide(pptx, "Technician Workload by Status", "technicianChart");
+    await addChartSlide(pptx, "Top Requesters by Status", "requesterChart");
     await addChartSlide(pptx, "Request Volume Trend", "trendChart");
 
-    // Recommendations Slide
+    // Risks and Actions Slide
     slide = pptx.addSlide();
+
     slide.addText("Executive Risks & Recommended Actions", {
-      x: 0.5, y: 0.35, w: 12, h: 0.5,
-      fontSize: 26, bold: true, color: navy
+      x: 0.5,
+      y: 0.35,
+      w: 12,
+      h: 0.5,
+      fontSize: 26,
+      bold: true,
+      color: navy
     });
 
     slide.addText("Key Risks", {
-      x: 0.8, y: 1.3, w: 5.5, h: 0.4,
-      fontSize: 20, bold: true, color: red
+      x: 0.8,
+      y: 1.3,
+      w: 5.5,
+      h: 0.4,
+      fontSize: 20,
+      bold: true,
+      color: red
     });
 
     slide.addText(
@@ -705,14 +919,23 @@
       "• Recurring issues without RCA\n" +
       "• Capacity and assignment imbalance",
       {
-        x: 0.8, y: 1.9, w: 5.5, h: 2.5,
-        fontSize: 16, color: gray
+        x: 0.8,
+        y: 1.9,
+        w: 5.5,
+        h: 2.5,
+        fontSize: 16,
+        color: gray
       }
     );
 
     slide.addText("Recommended Actions", {
-      x: 7.0, y: 1.3, w: 5.5, h: 0.4,
-      fontSize: 20, bold: true, color: green
+      x: 7.0,
+      y: 1.3,
+      w: 5.5,
+      h: 0.4,
+      fontSize: 20,
+      bold: true,
+      color: green
     });
 
     slide.addText(
@@ -721,16 +944,26 @@
       "• RCA governance for repeat incidents\n" +
       "• Live dashboard for leadership",
       {
-        x: 7.0, y: 1.9, w: 5.5, h: 2.5,
-        fontSize: 16, color: gray
+        x: 7.0,
+        y: 1.9,
+        w: 5.5,
+        h: 2.5,
+        fontSize: 16,
+        color: gray
       }
     );
 
     // Action Plan Slide
     slide = pptx.addSlide();
+
     slide.addText("30-Day Executive Action Plan", {
-      x: 0.5, y: 0.35, w: 12, h: 0.5,
-      fontSize: 26, bold: true, color: navy
+      x: 0.5,
+      y: 0.35,
+      w: 12,
+      h: 0.5,
+      fontSize: 26,
+      bold: true,
+      color: navy
     });
 
     slide.addTable([
@@ -744,7 +977,10 @@
       ["Week 3", "RCA governance + knowledge articles", "Permanent fixes and self-service enablement"],
       ["Week 4", "Dashboard review + management meeting", "Sustained visibility and accountability"]
     ], {
-      x: 0.7, y: 1.4, w: 12, h: 3.8,
+      x: 0.7,
+      y: 1.4,
+      w: 12,
+      h: 3.8,
       border: { type: "solid", color: "CCCCCC" },
       fontSize: 12,
       color: gray,
@@ -757,20 +993,32 @@
 
   function addKpiBox(slide, label, value, x, y, color) {
     slide.addShape(pptx.ShapeType.roundRect, {
-      x: x, y: y, w: 2.4, h: 1.2,
+      x: x,
+      y: y,
+      w: 2.4,
+      h: 1.2,
       fill: { color: color },
       line: { color: color }
     });
 
     slide.addText(String(value), {
-      x: x, y: y + 0.18, w: 2.4, h: 0.4,
-      fontSize: 26, bold: true, color: "FFFFFF",
+      x: x,
+      y: y + 0.18,
+      w: 2.4,
+      h: 0.4,
+      fontSize: 26,
+      bold: true,
+      color: "FFFFFF",
       align: "center"
     });
 
     slide.addText(label, {
-      x: x, y: y + 0.72, w: 2.4, h: 0.3,
-      fontSize: 11, color: "FFFFFF",
+      x: x,
+      y: y + 0.72,
+      w: 2.4,
+      h: 0.3,
+      fontSize: 11,
+      color: "FFFFFF",
       align: "center"
     });
   }
@@ -779,8 +1027,13 @@
     const slide = pptx.addSlide();
 
     slide.addText(title, {
-      x: 0.5, y: 0.35, w: 12, h: 0.5,
-      fontSize: 26, bold: true, color: "1F4E79"
+      x: 0.5,
+      y: 0.35,
+      w: 12,
+      h: 0.5,
+      fontSize: 26,
+      bold: true,
+      color: "1F4E79"
     });
 
     const canvas = document.getElementById(canvasId);
@@ -788,7 +1041,10 @@
 
     slide.addImage({
       data: imageData,
-      x: 1.0, y: 1.2, w: 11.3, h: 5.5
+      x: 1.0,
+      y: 1.2,
+      w: 11.3,
+      h: 5.5
     });
   }
 </script>
