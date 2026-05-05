@@ -201,7 +201,7 @@
 <script>
 (function(){
     const $ = id => document.getElementById(id);
-    let charts = {}, state = { allVisits: [], filteredVisits: [], brands: [] };
+    let charts = {}, state = { allVisits: [], filteredVisits: [], brands: [], listenerErrors: {} };
 
     // 🕵️ الربط النهائي مع الرموز الحقيقية في قاعدة بياناتك 🕵️
     const SCHEMA = {
@@ -252,8 +252,52 @@
             </div>`).join('');
 
         $('syncStatus').innerText = "Status: Connected ✅";
-        db.collection('brand_assets').onSnapshot(snap => { state.brands = snap.docs.map(d => d.data()); window.updateUI(); });
-        db.collection('branch_checklists').onSnapshot(snap => { state.allVisits = snap.docs.map(d => d.data()); window.filterData(); });
+        db.collection('brand_assets').onSnapshot(
+            snap => {
+                delete state.listenerErrors.brand_assets;
+                state.brands = snap.docs.map(d => d.data());
+                updateSyncStatus();
+                window.updateUI();
+            },
+            err => handleDashboardListenerError('brand_assets', err)
+        );
+        db.collection('branch_checklists').onSnapshot(
+            snap => {
+                delete state.listenerErrors.branch_checklists;
+                state.allVisits = snap.docs.map(d => d.data());
+                updateSyncStatus();
+                window.filterData();
+            },
+            err => handleDashboardListenerError('branch_checklists', err)
+        );
+    }
+
+    function isPermissionError(err) {
+        const code = String(err?.code || '').toLowerCase();
+        const message = String(err?.message || '').toLowerCase();
+        return code.includes('permission-denied') || message.includes('permission') || message.includes('insufficient');
+    }
+
+    function handleDashboardListenerError(source, err) {
+        state.listenerErrors[source] = isPermissionError(err) ? 'permission' : 'error';
+        if (source === 'brand_assets') state.brands = [];
+        if (source === 'branch_checklists') state.allVisits = [];
+        updateSyncStatus();
+        window.filterData();
+    }
+
+    function updateSyncStatus() {
+        const denied = Object.values(state.listenerErrors).filter(value => value === 'permission').length;
+        const failed = Object.keys(state.listenerErrors).length;
+        if (denied) {
+            $('syncStatus').innerText = "Status: Permission required ⚠️";
+            return;
+        }
+        if (failed) {
+            $('syncStatus').innerText = "Status: Some data failed to load ⚠️";
+            return;
+        }
+        $('syncStatus').innerText = "Status: Connected ✅";
     }
 
     window.filterData = function() {
