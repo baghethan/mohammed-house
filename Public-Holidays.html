@@ -65,7 +65,7 @@
 
     <section class="card">
       <h1 class="section-title" id="pageTitle">Public Holidays</h1>
-      <p class="section-desc" id="pageDesc">Add public holidays and assign the responsible employee. Data is saved in schedule / jadwal_holidays.</p>
+      <p class="section-desc" id="pageDesc">Add public holidays and assign the responsible employee. Employees are read from employees. Data is saved in schedule / jadwal_holidays.</p>
       <div id="messageBox" class="message"></div>
 
       <div class="form-box">
@@ -111,10 +111,9 @@
 
   <script type="module">
     import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
-    import { doc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { doc, collection, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
     const LANG_KEY = 'lang';
-    const scheduleRef = doc(db, 'schedule', 'jadwal_v6');
     const holidaysRef = doc(db, 'schedule', 'jadwal_holidays');
     const $ = id => document.getElementById(id);
     let currentLang = normalizeLang(localStorage.getItem(LANG_KEY) || 'ar');
@@ -125,7 +124,7 @@
       ar: {
         brandSub: 'إدارة العطل الرسمية',
         title: 'العطل الرسمية',
-        desc: 'إضافة العطل الرسمية وتحديد الموظف المكلف. تحفظ البيانات في schedule / jadwal_holidays.',
+        desc: 'إضافة العطل الرسمية وتحديد الموظف المكلف. تقرأ الموظفين من employees وتحفظ العطل في schedule / jadwal_holidays.',
         connected: 'متصل',
         refresh: 'تحديث',
         name: 'اسم العطلة',
@@ -156,7 +155,7 @@
       en: {
         brandSub: 'Public Holidays Management',
         title: 'Public Holidays',
-        desc: 'Add public holidays and assign the responsible employee. Data is saved in schedule / jadwal_holidays.',
+        desc: 'Add public holidays and assign the responsible employee. Employees are read from employees. Data is saved in schedule / jadwal_holidays.',
         connected: 'Connected',
         refresh: 'Refresh',
         name: 'Holiday Name',
@@ -333,9 +332,20 @@
 
     async function bindData() {
       await waitForSignedInUser();
-
-      onSnapshot(scheduleRef, snapshot => {
-        employees = snapshot.exists() ? (snapshot.data().data?.emps || []) : [];
+      // Unified mode: employees come from employees collection only.
+      onSnapshot(collection(db, 'employees'), snapshot => {
+        employees = snapshot.docs.map(item => {
+          const data = item.data() || {};
+          const empNum = data.empId || data.empNum || data.employeeId || data.technicianId || item.id;
+          return {
+            id: String(empNum || item.id),
+            employeeDocId: item.id,
+            empNum: String(empNum || ''),
+            name: data.name || data.fullName || String(empNum || item.id),
+            email: data.email || '',
+            active: data.active !== false && String(data.status || 'active').toLowerCase() !== 'inactive'
+          };
+        });
         renderEmployeeSelect();
         renderHolidays();
       }, error => {
