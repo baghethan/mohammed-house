@@ -220,7 +220,6 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 let employees = [];
-let scheduleEmployees = [];
 let employeeRecords = [];
 let planList = [];
 let currentUser = null;
@@ -262,7 +261,7 @@ function employeeKey(emp) {
 
 function refreshEmployeeSources() {
   const merged = new Map();
-  [...scheduleEmployees, ...employeeRecords].forEach(emp => {
+  employeeRecords.forEach(emp => {
     const normalized = normalizeVacationEmployee(emp, emp.source || 'employees');
     const key = employeeKey(normalized);
     if (!key) return;
@@ -445,6 +444,8 @@ window.addVacationPlan = async () => {
   await waitForSignedInUser();
   await addDoc(collection(db, 'vacations'), {
     empId: emp.empNum || emp.id,
+    employeeId: emp.empNum || emp.id,
+    employeeDocId: emp.id || '',
     fireId: emp.id || '',
     name: emp.name || '',
     dept: emp.dept || '',
@@ -490,11 +491,7 @@ async function bindSnapshots() {
   currentProfile = await loadCurrentProfile(currentUser);
   canManagePlans = isManagerProfile(currentProfile);
   applyRoleUi();
-
-  onSnapshot(doc(db, 'schedule', 'jadwal_v6'), snap => {
-    scheduleEmployees = snap.exists() ? (snap.data().data?.emps || []) : [];
-    refreshEmployeeSources();
-  }, error => logFirebaseError('Vacation plan employees listener failed', error));
+  // Unified mode: employees are read only from employees collection.
 
   onSnapshot(collection(db, 'employees'), snap => {
     employeeRecords = snap.docs.map(item => ({ id: item.id, ...item.data() }));
