@@ -409,6 +409,38 @@ function weeklyJobRank(emp) {
     return weeklyJobRankValue(employeeJobValue(emp));
 }
 
+function normalizeEmployeeForWeekly(record) {
+    const status = String(record?.status || '').trim().toLowerCase();
+    const role = String(record?.role || record?.shift || record?.shiftType || '').trim().toLowerCase();
+    const rotation = normalizeRotation(record);
+    return {
+        ...record,
+        id: String(record?.id || record?.empId || record?.empNum || record?.employeeId || record?.technicianId || ''),
+        empNum: record?.empNum || record?.empId || record?.employeeId || record?.technicianId || '',
+        name: record?.name || record?.fullName || record?.displayName || record?.empId || record?.id || '',
+        dept: record?.dept || record?.department || '',
+        department: record?.department || record?.dept || '',
+        jobTitle: record?.jobTitle || record?.jobTitleAr || record?.position || record?.title || (record?.employeeType === 'technician' ? 'الفني' : ''),
+        email: record?.email || '',
+        phone: record?.phone || record?.mobile || '',
+        active: record?.active !== false && !['inactive', 'hidden', 'false', '0'].includes(status),
+        fixed: record?.fixed === true || role.includes('night') || role.includes('ليلي'),
+        rotation,
+        rotType: rotation,
+        source: 'employees'
+    };
+}
+
+function normalizeVacationPlan(record) {
+    return {
+        ...record,
+        empId: record.empId || record.employeeId || record.technicianId || record.fireId || '',
+        from: record.from || record.start || '',
+        to: record.to || record.end || '',
+        status: record.status || 'approved'
+    };
+}
+
 function employeeSortKey(emp) {
     return String(emp?.empNum || emp?.name || emp?.id || '').trim();
 }
@@ -555,12 +587,16 @@ $('datePicker').onchange = renderTable;
 
 async function bindSnapshots() {
     await waitForSignedInUser();
-    onSnapshot(doc(db, 'schedule', 'jadwal_v6'), s => { emps = s.data()?.data?.emps || []; renderTable(); }, e => logFirebaseError('Weekly schedule employees listener failed', e));
-    onSnapshot(collection(db, 'employees'), s => { employeeRecords = s.docs.map(item => ({ id: item.id, ...item.data() })); renderTable(); }, e => logFirebaseError('Weekly schedule employees collection listener failed', e));
+    // Master employees source: employees only. Do not read employees from schedule/jadwal_v6.
+    onSnapshot(collection(db, 'employees'), s => {
+        employeeRecords = s.docs.map(item => ({ id: item.id, ...item.data() }));
+        emps = dedupeWeeklyEmployees(employeeRecords.map(normalizeEmployeeForWeekly));
+        renderTable();
+    }, e => logFirebaseError('Weekly schedule employees listener failed', e));
     onSnapshot(doc(db, 'schedule', 'jadwal_holidays'), s => { holidayDuties = s.exists() ? (s.data().duties || []) : []; renderTable(); }, e => logFirebaseError('Weekly schedule public holidays listener failed', e));
     onSnapshot(doc(db, 'schedule', 'manual_overrides'), s => { overrides = s.data() || {}; renderTable(); }, e => logFirebaseError('Weekly schedule overrides listener failed', e));
-    onSnapshot(doc(db, 'schedule', 'jadwal_annual_leave'), s => { annualLeaves = s.exists() ? (s.data().vacations || []) : []; renderTable(); }, e => logFirebaseError('Weekly schedule annual leave listener failed', e));
-    onSnapshot(collection(db, 'vacations'), s => { vacationPlans = s.docs.map(item => ({ id: item.id, ...item.data() })); renderTable(); }, e => logFirebaseError('Weekly schedule vacation plans listener failed', e));
+    // Master vacations source: vacations only. schedule/jadwal_annual_leave is no longer used by this page.
+    onSnapshot(collection(db, 'vacations'), s => { vacationPlans = s.docs.map(item => normalizeVacationPlan({ id: item.id, ...item.data() })); renderTable(); }, e => logFirebaseError('Weekly schedule vacation plans listener failed', e));
 }
 
 window.onload = () => {
