@@ -413,11 +413,32 @@ function employeeSortKey(emp) {
     return String(emp?.empNum || emp?.name || emp?.id || '').trim();
 }
 
-// ترتيب الموظفين في الجدول حسب Job Title: Technician, Supervisor, Tamheer, Trainee, Manager.
+function isNightShiftEmployee(emp) {
+    const record = findEmployeeRecord(emp) || {};
+    const values = [emp?.fixed, record?.fixed, emp?.shiftType, record?.shiftType, emp?.shift, record?.shift, emp?.role, record?.role]
+        .map(value => String(value ?? '').trim().toLowerCase());
+    return values.includes('true') || values.includes('night') || values.includes('fixed') || values.includes('ليلي');
+}
+
+function weeklyManualOrder(emp) {
+    const record = findEmployeeRecord(emp) || {};
+    const value = emp?.weeklyOrder ?? emp?.scheduleOrder ?? emp?.sortOrder ?? record?.weeklyOrder ?? record?.scheduleOrder ?? record?.sortOrder;
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : 9999;
+}
+
+// ترتيب الموظفين: شفت الليل أولاً، ثم الترتيب اليدوي، ثم Job Title، ثم الرقم/الاسم.
 function sortWeeklyEmployees(list) {
     return [...list].sort((a, b) => {
+        const nightDiff = Number(!isNightShiftEmployee(a)) - Number(!isNightShiftEmployee(b));
+        if (nightDiff) return nightDiff;
+
+        const manualDiff = weeklyManualOrder(a) - weeklyManualOrder(b);
+        if (manualDiff) return manualDiff;
+
         const rankDiff = weeklyJobRank(a) - weeklyJobRank(b);
         if (rankDiff) return rankDiff;
+
         return employeeSortKey(a).localeCompare(employeeSortKey(b), currentLang === 'ar' ? 'ar' : 'en', { numeric: true, sensitivity: 'base' });
     });
 }
