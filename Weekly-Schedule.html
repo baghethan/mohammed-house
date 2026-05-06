@@ -179,12 +179,96 @@ function normalizeRotation(emp) {
 }
 
 function getEmployeeKeys(emp) {
-    return [emp?.id, emp?.empNum, emp?.empId, emp?.employeeId, emp?.technicianId, emp?.email, emp?.name].filter(Boolean).map(v => String(v).trim().toLowerCase());
+    const aliases = Array.isArray(emp?.aliasIds) ? emp.aliasIds : [];
+    return [emp?.id, emp?.empNum, emp?.empId, emp?.employeeId, emp?.technicianId, emp?.email, emp?.name, ...aliases]
+        .filter(Boolean)
+        .map(v => String(v).trim().toLowerCase());
 }
 
 function matchesEmployee(record, emp) {
     const keys = new Set(getEmployeeKeys(emp));
     return [record.empId, record.fireId, record.employeeId, record.technicianId, record.email, record.name].filter(Boolean).some(v => keys.has(String(v).trim().toLowerCase()));
+}
+
+function normalizeIdentityValue(value) {
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function dedupeIdentityKeys(emp) {
+    const keys = [];
+    const add = (prefix, value) => {
+        const normalized = normalizeIdentityValue(value);
+        if (normalized) keys.push(`${prefix}:${normalized}`);
+    };
+    [emp?.empNum, emp?.empId, emp?.employeeId, emp?.technicianId].forEach(value => add('emp', value));
+    (Array.isArray(emp?.aliasIds) ? emp.aliasIds : []).forEach(value => add('id', value));
+    add('id', emp?.id);
+    add('email', emp?.email);
+    add('name', emp?.name);
+    return [...new Set(keys)];
+}
+
+function employeeCompletenessScore(emp) {
+    return [
+        emp?.empNum || emp?.empId || emp?.employeeId || emp?.technicianId,
+        emp?.email,
+        emp?.jobTitle || emp?.jobTitleAr || emp?.jobTitleEn || emp?.position || emp?.title,
+        emp?.dept || emp?.department,
+        emp?.phone || emp?.mobile
+    ].filter(Boolean).length + (emp?.source === 'employees' ? 2 : 0) + (findEmployeeRecord(emp) ? 3 : 0);
+}
+
+function mergeWeeklyEmployee(existing, incoming) {
+    const preferred = employeeCompletenessScore(incoming) > employeeCompletenessScore(existing) ? incoming : existing;
+    const fallback = preferred === incoming ? existing : incoming;
+    const aliasIds = new Set([
+        ...(Array.isArray(existing.aliasIds) ? existing.aliasIds : []),
+        ...(Array.isArray(incoming.aliasIds) ? incoming.aliasIds : []),
+        existing.id,
+        incoming.id,
+        existing.empNum,
+        incoming.empNum
+    ].filter(Boolean).map(value => String(value)));
+
+    const preferredRotation = normalizeRotation(preferred);
+    const fallbackRotation = normalizeRotation(fallback);
+    const rotation = preferredRotation !== 'none' ? preferredRotation : fallbackRotation;
+
+    return {
+        ...fallback,
+        ...preferred,
+        id: preferred.id || fallback.id,
+        empNum: preferred.empNum || preferred.empId || fallback.empNum || fallback.empId || '',
+        name: preferred.name || fallback.name || '',
+        email: preferred.email || fallback.email || '',
+        active: existing.active !== false || incoming.active !== false,
+        fixed: preferred.fixed === true || fallback.fixed === true,
+        rotation,
+        rotType: rotation,
+        aliasIds: Array.from(aliasIds)
+    };
+}
+
+function dedupeWeeklyEmployees(list) {
+    const result = [];
+    const indexByKey = new Map();
+
+    (list || []).forEach(employee => {
+        const keys = dedupeIdentityKeys(employee);
+        const foundKey = keys.find(key => indexByKey.has(key));
+        if (!foundKey) {
+            result.push(employee);
+            const index = result.length - 1;
+            keys.forEach(key => indexByKey.set(key, index));
+            return;
+        }
+
+        const index = indexByKey.get(foundKey);
+        result[index] = mergeWeeklyEmployee(result[index], employee);
+        dedupeIdentityKeys(result[index]).forEach(key => indexByKey.set(key, index));
+    });
+
+    return result;
 }
 
 function isDateInRange(date, start, end) {
@@ -208,8 +292,20 @@ function isAssignedHolidayEmployee(emp, holiday) {
     return !!holiday && matchesEmployee(holiday, emp);
 }
 
+function employeeIdsForOverrides(emp) {
+    return [emp?.id, ...(Array.isArray(emp?.aliasIds) ? emp.aliasIds : [])]
+        .filter(Boolean)
+        .map(value => String(value));
+}
+
+function manualShiftForEmployee(emp, dateString) {
+    return employeeIdsForOverrides(emp)
+        .map(id => overrides[`${id}_${dateString}`])
+        .find(Boolean) || '';
+}
+
 function isManualUnavailable(emp, date) {
-    const shift = overrides[`${emp.id}_${formatLocalDate(date)}`];
+    const shift = manualShiftForEmployee(emp, formatLocalDate(date));
     return shift === 'Vacation' || shift === 'Absent';
 }
 
@@ -335,7 +431,7 @@ async function renderTable() {
     const thuDate = findDateByDay(dates, 4);
     const friDate = findDateByDay(dates, 5);
     const satDate = findDateByDay(dates, 6);
-    const activeEmps = sortWeeklyEmployees(emps.filter(e => e.active !== false));
+    const activeEmps = sortWeeklyEmployees(dedupeWeeklyEmployees(emps).filter(e => e.active !== false));
     const rotations = {
         thu: pickRotationEmployee(activeEmps.filter(e => normalizeRotation(e) === 'thu'), start, [thuDate, friDate, satDate].filter(Boolean)),
         fri: pickRotationEmployee(activeEmps.filter(e => normalizeRotation(e) === 'fri'), start, [friDate, satDate].filter(Boolean))
@@ -351,7 +447,7 @@ async function renderTable() {
         let row = `<td class="emp-name">${escapeHtml(emp.name)}</td>`;
         dates.forEach(d => {
             const dStr = formatLocalDate(d);
-            const manualShift = overrides[`${emp.id}_${dStr}`];
+            const manualShift = manualShiftForEmployee(emp, dStr);
             const publicHoliday = publicHolidayForDate(d);
             const isHolidayCoverage = publicHoliday && isAssignedHolidayEmployee(emp, publicHoliday);
             let shift = manualShift || (isVacationDay(emp, d) ? 'Vacation' : publicHoliday ? (isHolidayCoverage ? 'Work' : 'Holiday') : baseShift(emp, d, rotations));
