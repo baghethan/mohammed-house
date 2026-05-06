@@ -215,7 +215,7 @@ function isManualUnavailable(emp, date) {
 
 function isUnavailable(emp, date) {
     const holiday = publicHolidayForDate(date);
-    return emp.active === false || isVacationDay(emp, date) || (holiday && !isAssignedHolidayEmployee(emp, holiday)) || isManualUnavailable(emp, date);
+    return emp.active === false || isVacationDay(emp, date) || (holiday && isAssignedHolidayEmployee(emp, holiday)) || isManualUnavailable(emp, date);
 }
 
 function weekIndex(start) {
@@ -353,7 +353,8 @@ async function renderTable() {
             const dStr = formatLocalDate(d);
             const manualShift = overrides[`${emp.id}_${dStr}`];
             const publicHoliday = publicHolidayForDate(d);
-            let shift = manualShift || (isVacationDay(emp, d) ? 'Vacation' : publicHoliday && !isAssignedHolidayEmployee(emp, publicHoliday) ? 'Holiday' : baseShift(emp, d, rotations));
+            const isHolidayCoverage = publicHoliday && isAssignedHolidayEmployee(emp, publicHoliday);
+            let shift = manualShift || (isVacationDay(emp, d) ? 'Vacation' : publicHoliday ? (isHolidayCoverage ? 'Work' : 'Holiday') : baseShift(emp, d, rotations));
             const icons = { Morning:'☀️', Night:'🌙', Vacation:'🌴', Holiday:'🎊', Absent:'🚫', OnCall:'📞', Work:'🏢', Off:'⌛' };
             row += `<td><div class="schedule-badge ${shift}" onclick="window.openDialog('${safeJs(emp.id)}','${dStr}','${safeJs(emp.name)}','${shift}')">${icons[shift] || ''} ${t[shift.toLowerCase()] || shift}</div></td>`;
         });
