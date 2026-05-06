@@ -47,8 +47,14 @@
     .badge { display:inline-flex; justify-content:center; align-items:center; border-radius:999px; padding:6px 10px; font-size:11px; font-weight:900; background:#eef6ff; color:#0d4b73; }
     .status { display:inline-flex; min-width:90px; justify-content:center; border-radius:999px; padding:6px 10px; font-size:12px; font-weight:900; }
     .pending { background:var(--warn-bg); color:var(--warn); } .approved { background:var(--ok-bg); color:var(--ok); } .cancelled { background:var(--bad-bg); color:var(--bad); }
-    .stat-grid { display:grid; grid-template-columns:repeat(4,minmax(180px,1fr)); gap:14px; margin-bottom:16px; }
-    .stat-card { background:#fff; border:1px solid var(--border); border-radius:20px; padding:20px; text-align:center; box-shadow:0 8px 20px rgba(15,23,42,.04); }
+    .stat-grid { display:grid; grid-template-columns:repeat(5,minmax(150px,1fr)); gap:14px; margin-bottom:16px; }
+    .stat-card { background:#fff; border:1px solid var(--border); border-radius:20px; padding:20px; text-align:center; box-shadow:0 8px 20px rgba(15,23,42,.04); position:relative; overflow:hidden; }
+    .stat-card::before { content:""; position:absolute; inset:0 0 auto 0; height:6px; background:var(--primary); }
+    .stat-card.total::before { background:linear-gradient(90deg,#1d4ed8,#60a5fa); }
+    .stat-card.active::before { background:linear-gradient(90deg,#059669,#34d399); }
+    .stat-card.pending-stat::before { background:linear-gradient(90deg,#d97706,#fbbf24); }
+    .stat-card.finished::before { background:linear-gradient(90deg,#6d28d9,#a78bfa); }
+    .stat-card.employees-stat::before { background:linear-gradient(90deg,#0f766e,#5eead4); }
     .stat-label { color:var(--muted); font-size:12px; font-weight:900; } .stat-val { color:var(--primary); font-size:34px; font-weight:900; margin-top:7px; }
     .capture { background:#f8fafc; border-radius:24px; padding:20px; }
     .report-head { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; border-bottom:2px solid #e5e7eb; padding-bottom:14px; margin-bottom:16px; }
@@ -64,11 +70,19 @@
     .month { display:flex; align-items:center; justify-content:center; border-left:1px solid rgba(255,255,255,.13); padding:8px; }
     .timeline-row { border-bottom:1px solid #edf2f7; }
     .bar { position:absolute; top:50%; transform:translateY(-50%); height:26px; border-radius:999px; background:#1b4fa3; color:#fff; font-size:10px; font-weight:900; display:flex; align-items:center; justify-content:center; padding:0 8px; overflow:hidden; white-space:nowrap; }
-    .department-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:0 0 16px; }
-    .department-card { background:#fff; border:1px solid var(--border); border-radius:16px; padding:14px 16px; box-shadow:0 8px 20px rgba(15,23,42,.04); }
-    .department-card .dept-name { color:var(--primary); font-weight:900; font-size:13px; margin-bottom:6px; }
-    .department-card .dept-count { color:#0f172a; font-size:26px; font-weight:900; }
-    .department-card .dept-sub { color:var(--muted); font-size:11px; font-weight:800; margin-top:2px; }
+    .department-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; margin:0 0 16px; }
+    .department-card { background:#fff; border:1px solid var(--border); border-radius:18px; padding:16px; box-shadow:0 10px 24px rgba(15,23,42,.06); position:relative; overflow:hidden; }
+    .department-card::before { content:""; position:absolute; inset:0 0 auto 0; height:7px; background:linear-gradient(90deg,#1d4ed8,#60a5fa); }
+    .department-card:nth-child(2n)::before { background:linear-gradient(90deg,#059669,#34d399); }
+    .department-card:nth-child(3n)::before { background:linear-gradient(90deg,#7c3aed,#c4b5fd); }
+    .department-card:nth-child(4n)::before { background:linear-gradient(90deg,#ea580c,#fdba74); }
+    .department-card .dept-name { color:var(--primary); font-weight:900; font-size:14px; margin-bottom:8px; padding-top:3px; }
+    .department-card .dept-count { color:#0f172a; font-size:30px; font-weight:900; line-height:1; }
+    .department-card .dept-sub { color:var(--muted); font-size:11px; font-weight:800; margin-top:7px; display:flex; gap:8px; flex-wrap:wrap; }
+    .mini-pill { display:inline-flex; align-items:center; gap:4px; border-radius:999px; padding:5px 8px; font-size:10px; font-weight:900; background:#f1f5f9; color:#334155; }
+    .mini-pill.finished-pill { background:#f3e8ff; color:#6d28d9; }
+    .mini-pill.active-pill { background:#dcfce7; color:#166534; }
+    .mini-pill.pending-pill { background:#fff7ed; color:#9a3412; }
     .empty { padding:28px; text-align:center; color:var(--muted); font-weight:900; }
     @media(max-width:1000px) { .grid,.plan-grid,.stat-grid,.filter-grid { grid-template-columns:1fr; } main { padding:0 10px; } .tab { padding:14px 18px; } }
   </style>
@@ -150,18 +164,27 @@ function renderDashboard(){
   $('rangeText').textContent=label;
   const filtered=plans.filter(p=>{ const m=new Date(p.from).getMonth(); return m>=sm && m<=em; });
   const today=new Date();
-  $('stats').innerHTML = `<div class="stat-card"><div class="stat-label">Total Leaves</div><div class="stat-val">${filtered.length}</div></div><div class="stat-card"><div class="stat-label">Active Today</div><div class="stat-val">${plans.filter(p=>today>=new Date(p.from)&&today<=new Date(p.to)).length}</div></div><div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val">${plans.filter(p=>p.status==='pending').length}</div></div><div class="stat-card"><div class="stat-label">Employees</div><div class="stat-val">${new Set(filtered.map(p=>p.empId)).size}</div></div>`;
+  today.setHours(0,0,0,0);
+  const isActive = p => { const from=new Date(p.from); const to=new Date(p.to); from.setHours(0,0,0,0); to.setHours(0,0,0,0); return today>=from && today<=to; };
+  const isFinished = p => { const to=new Date(p.to); to.setHours(0,0,0,0); return to < today; };
+  const finishedCount = filtered.filter(isFinished).length;
+  const activeTodayCount = plans.filter(isActive).length;
+  const pendingCount = filtered.filter(p=>p.status==='pending').length;
+  $('stats').innerHTML = `<div class="stat-card total"><div class="stat-label">Total Leaves</div><div class="stat-val">${filtered.length}</div></div><div class="stat-card active"><div class="stat-label">Active Today</div><div class="stat-val">${activeTodayCount}</div></div><div class="stat-card pending-stat"><div class="stat-label">Pending</div><div class="stat-val">${pendingCount}</div></div><div class="stat-card finished"><div class="stat-label">Finished Leaves</div><div class="stat-val">${finishedCount}</div></div><div class="stat-card employees-stat"><div class="stat-label">Employees</div><div class="stat-val">${new Set(filtered.map(p=>p.empId)).size}</div></div>`;
 
   const deptCounts={};
   filtered.forEach(p=>{
     const dept=(p.departmentName || 'No Department').trim() || 'No Department';
-    if(!deptCounts[dept]) deptCounts[dept]={leaves:0, employees:new Set()};
+    if(!deptCounts[dept]) deptCounts[dept]={leaves:0, finished:0, active:0, pending:0, employees:new Set()};
     deptCounts[dept].leaves++;
+    if(isFinished(p)) deptCounts[dept].finished++;
+    if(isActive(p)) deptCounts[dept].active++;
+    if(p.status === 'pending') deptCounts[dept].pending++;
     if(p.empId) deptCounts[dept].employees.add(p.empId);
   });
   const deptNames=Object.keys(deptCounts).sort((a,b)=>deptCounts[b].leaves-deptCounts[a].leaves || a.localeCompare(b));
   $('departmentSummary').innerHTML = deptNames.length
-    ? deptNames.map(dept=>`<div class="department-card"><div class="dept-name">${esc(dept)}</div><div class="dept-count">${deptCounts[dept].leaves}</div><div class="dept-sub">Leave plans • ${deptCounts[dept].employees.size} employee(s)</div></div>`).join('')
+    ? deptNames.map(dept=>`<div class="department-card"><div class="dept-name">${esc(dept)}</div><div class="dept-count">${deptCounts[dept].leaves}</div><div class="dept-sub"><span class="mini-pill">${deptCounts[dept].employees.size} employee(s)</span><span class="mini-pill active-pill">${deptCounts[dept].active} active</span><span class="mini-pill pending-pill">${deptCounts[dept].pending} pending</span><span class="mini-pill finished-pill">${deptCounts[dept].finished} finished</span></div></div>`).join('')
     : '<div class="empty" style="grid-column:1/-1">No department data in this range</div>';
 
   const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
