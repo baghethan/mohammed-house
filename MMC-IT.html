@@ -54,14 +54,21 @@
     .report-head { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; border-bottom:2px solid #e5e7eb; padding-bottom:14px; margin-bottom:16px; }
     .report-brand { display:flex; align-items:center; gap:12px; }
     .timeline { min-width:1000px; background:#fff; border:1px solid var(--border); border-radius:16px; overflow:hidden; }
-    .timeline-row,.timeline-head { display:grid; grid-template-columns:230px 1fr; min-height:50px; }
+    .timeline-row,.timeline-head { display:grid; grid-template-columns:150px 190px 1fr; min-height:50px; }
     .timeline-head { background:var(--primary); color:#fff; font-size:12px; font-weight:900; }
-    .timeline-name { padding:12px; border-right:1px solid #edf2f7; display:flex; align-items:center; justify-content:flex-start; font-weight:900; color:var(--primary); background:#fafbfc; }
+    .timeline-name { padding:10px; border-right:1px solid #edf2f7; display:flex; align-items:center; justify-content:flex-start; font-weight:900; color:var(--primary); background:#fafbfc; font-size:11px; line-height:1.25; }
+    .timeline-employee { font-size:10px; }
+    .timeline-department { padding:10px; border-right:1px solid #edf2f7; display:flex; align-items:center; justify-content:flex-start; font-weight:800; color:#475569; background:#fff; font-size:11px; line-height:1.25; }
     .timeline-months { display:grid; grid-template-columns:repeat(12,1fr); position:relative; min-height:50px; }
-    .timeline-head .timeline-name { color:#fff; background:var(--primary); justify-content:center; }
+    .timeline-head .timeline-name, .timeline-head .timeline-department { color:#fff; background:var(--primary); justify-content:center; border-right:1px solid rgba(255,255,255,.16); }
     .month { display:flex; align-items:center; justify-content:center; border-left:1px solid rgba(255,255,255,.13); padding:8px; }
     .timeline-row { border-bottom:1px solid #edf2f7; }
     .bar { position:absolute; top:50%; transform:translateY(-50%); height:26px; border-radius:999px; background:#1b4fa3; color:#fff; font-size:10px; font-weight:900; display:flex; align-items:center; justify-content:center; padding:0 8px; overflow:hidden; white-space:nowrap; }
+    .department-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin:0 0 16px; }
+    .department-card { background:#fff; border:1px solid var(--border); border-radius:16px; padding:14px 16px; box-shadow:0 8px 20px rgba(15,23,42,.04); }
+    .department-card .dept-name { color:var(--primary); font-weight:900; font-size:13px; margin-bottom:6px; }
+    .department-card .dept-count { color:#0f172a; font-size:26px; font-weight:900; }
+    .department-card .dept-sub { color:var(--muted); font-size:11px; font-weight:800; margin-top:2px; }
     .empty { padding:28px; text-align:center; color:var(--muted); font-weight:900; }
     @media(max-width:1000px) { .grid,.plan-grid,.stat-grid,.filter-grid { grid-template-columns:1fr; } main { padding:0 10px; } .tab { padding:14px 18px; } }
   </style>
@@ -82,7 +89,7 @@
 <main>
   <section id="dashboard" class="panel active">
     <div class="topline"><div><h2>Vacation Dashboard</h2><p class="sub">Shows locally saved vacation data in this browser.</p></div><div class="tools"><select id="dashRange" onchange="renderDashboard()"><option value="year">Full Year</option><option value="q1">Q1</option><option value="q2">Q2</option><option value="q3">Q3</option><option value="q4">Q4</option></select><button class="btn2" onclick="copyDashboardImage()">Copy Report Image</button></div></div>
-    <div id="dashboardCapture" class="capture"><div class="report-head"><div class="report-brand"><img src="LOGO-almajdouie.png" style="height:52px;background:#fff;border-radius:10px;padding:4px" alt="logo" onerror="this.style.display='none'" /><div><h2>Almajdouie Motors</h2><p class="sub">Annual Leave Statistics Report</p></div></div><div class="count-pill" id="rangeText">Full Year</div></div><div class="stat-grid" id="stats"></div><div class="card" style="margin:0"><div class="topline"><h3 style="color:var(--primary)">Smart Timeline</h3></div><div class="table-wrap"><div id="timeline" class="timeline"></div></div></div></div>
+    <div id="dashboardCapture" class="capture"><div class="report-head"><div class="report-brand"><img src="LOGO-almajdouie.png" style="height:52px;background:#fff;border-radius:10px;padding:4px" alt="logo" onerror="this.style.display='none'" /><div><h2>Almajdouie Motors</h2><p class="sub">Annual Leave Statistics Report</p></div></div><div class="count-pill" id="rangeText">Full Year</div></div><div class="stat-grid" id="stats"></div><div class="card" style="margin-bottom:16px"><div class="topline"><h3 style="color:var(--primary)">Department Summary</h3></div><div id="departmentSummary" class="department-summary"></div></div><div class="card" style="margin:0"><div class="topline"><h3 style="color:var(--primary)">Smart Timeline</h3></div><div class="table-wrap"><div id="timeline" class="timeline"></div></div></div></div>
   </section>
 
   <section id="plan" class="panel">
@@ -138,7 +145,47 @@ function deletePlan(id){ if(!confirm('Delete this plan?')) return; plans = plans
 function clearPlans(){ if(!confirm('Clear all vacation plans?')) return; plans=[]; savePlans(); renderAll(); }
 function renderPlans(){ $('planCount').textContent = `${plans.length} Plan${plans.length === 1 ? '' : 's'}`; if(!plans.length){ $('plansBody').innerHTML = '<tr><td class="empty" colspan="7">No vacation plans yet</td></tr>'; return; } const sorted=[...plans].sort((a,b)=>String(a.from).localeCompare(String(b.from)) || String(a.name).localeCompare(String(b.name))); $('plansBody').innerHTML = sorted.map(p => `<tr><td class="name">${esc(p.name)}</td><td>${esc(p.departmentName || '')}</td><td>${esc(p.from)}</td><td>${esc(p.to)}</td><td>${daysBetween(p.from,p.to)}</td><td><span class="status ${statusClass(p.status)}">${statusAr(p.status)}</span></td><td><button class="btn" onclick="setStatus('${p.id}','approved')">Approve</button> <button class="btn" onclick="setStatus('${p.id}','cancelled')">Cancel</button> <button class="danger" onclick="deletePlan('${p.id}')">Delete</button></td></tr>`).join(''); }
 function rangeMonths(){ const r=$('dashRange').value; const map={year:[0,11,'Full Year'],q1:[0,2,'Q1'],q2:[3,5,'Q2'],q3:[6,8,'Q3'],q4:[9,11,'Q4']}; return map[r] || map.year; }
-function renderDashboard(){ const [sm,em,label]=rangeMonths(); $('rangeText').textContent=label; const filtered=plans.filter(p=>{ const m=new Date(p.from).getMonth(); return m>=sm && m<=em; }); const today=new Date(); $('stats').innerHTML = `<div class="stat-card"><div class="stat-label">Total Leaves</div><div class="stat-val">${filtered.length}</div></div><div class="stat-card"><div class="stat-label">Active Today</div><div class="stat-val">${plans.filter(p=>today>=new Date(p.from)&&today<=new Date(p.to)).length}</div></div><div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val">${plans.filter(p=>p.status==='pending').length}</div></div><div class="stat-card"><div class="stat-label">Employees</div><div class="stat-val">${new Set(plans.map(p=>p.empId)).size}</div></div>`; const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; let html=`<div class="timeline-head"><div class="timeline-name">Employee</div><div class="timeline-months" style="grid-template-columns:repeat(${em-sm+1},1fr)">`; for(let i=sm;i<=em;i++) html += `<div class="month">${months[i]}</div>`; html += `</div></div>`; const grouped={}; filtered.forEach(p=>{ if(!grouped[p.name]) grouped[p.name]=[]; grouped[p.name].push(p); }); const span=em-sm+1; Object.keys(grouped).sort().forEach(name=>{ html += `<div class="timeline-row"><div class="timeline-name">${esc(name)}</div><div class="timeline-months" style="grid-template-columns:repeat(${span},1fr)">`; grouped[name].forEach((p,idx)=>{ const s=new Date(p.from), e=new Date(p.to); const sM=Math.max(s.getMonth(),sm), eM=Math.min(e.getMonth(),em); const left=((sM-sm)/span)*100; const width=Math.max(((eM-sM+1)/span)*100, 8); const colors=['#1b4fa3','#0f766e','#7e22ce','#b45309']; html += `<div class="bar" style="left:${left}%;width:${width}%;background:${colors[idx%colors.length]}">${esc(p.from)} → ${esc(p.to)}</div>`; }); html += `</div></div>`; }); if(!Object.keys(grouped).length) html += '<div class="empty">No data in this range</div>'; $('timeline').innerHTML=html; }
+function renderDashboard(){
+  const [sm,em,label]=rangeMonths();
+  $('rangeText').textContent=label;
+  const filtered=plans.filter(p=>{ const m=new Date(p.from).getMonth(); return m>=sm && m<=em; });
+  const today=new Date();
+  $('stats').innerHTML = `<div class="stat-card"><div class="stat-label">Total Leaves</div><div class="stat-val">${filtered.length}</div></div><div class="stat-card"><div class="stat-label">Active Today</div><div class="stat-val">${plans.filter(p=>today>=new Date(p.from)&&today<=new Date(p.to)).length}</div></div><div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val">${plans.filter(p=>p.status==='pending').length}</div></div><div class="stat-card"><div class="stat-label">Employees</div><div class="stat-val">${new Set(filtered.map(p=>p.empId)).size}</div></div>`;
+
+  const deptCounts={};
+  filtered.forEach(p=>{
+    const dept=(p.departmentName || 'No Department').trim() || 'No Department';
+    if(!deptCounts[dept]) deptCounts[dept]={leaves:0, employees:new Set()};
+    deptCounts[dept].leaves++;
+    if(p.empId) deptCounts[dept].employees.add(p.empId);
+  });
+  const deptNames=Object.keys(deptCounts).sort((a,b)=>deptCounts[b].leaves-deptCounts[a].leaves || a.localeCompare(b));
+  $('departmentSummary').innerHTML = deptNames.length
+    ? deptNames.map(dept=>`<div class="department-card"><div class="dept-name">${esc(dept)}</div><div class="dept-count">${deptCounts[dept].leaves}</div><div class="dept-sub">Leave plans • ${deptCounts[dept].employees.size} employee(s)</div></div>`).join('')
+    : '<div class="empty" style="grid-column:1/-1">No department data in this range</div>';
+
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let html=`<div class="timeline-head"><div class="timeline-name timeline-employee">Employee</div><div class="timeline-department">Department</div><div class="timeline-months" style="grid-template-columns:repeat(${em-sm+1},1fr)">`;
+  for(let i=sm;i<=em;i++) html += `<div class="month">${months[i]}</div>`;
+  html += `</div></div>`;
+  const grouped={};
+  filtered.forEach(p=>{ const key=p.empId || p.name; if(!grouped[key]) grouped[key]={name:p.name, departmentName:p.departmentName || '', plans:[]}; grouped[key].plans.push(p); });
+  const span=em-sm+1;
+  Object.values(grouped).sort((a,b)=>(a.departmentName||'').localeCompare(b.departmentName||'') || (a.name||'').localeCompare(b.name||'')).forEach(group=>{
+    html += `<div class="timeline-row"><div class="timeline-name timeline-employee">${esc(group.name)}</div><div class="timeline-department">${esc(group.departmentName || '-')}</div><div class="timeline-months" style="grid-template-columns:repeat(${span},1fr)">`;
+    group.plans.forEach((p,idx)=>{
+      const s=new Date(p.from), e=new Date(p.to);
+      const sM=Math.max(s.getMonth(),sm), eM=Math.min(e.getMonth(),em);
+      const left=((sM-sm)/span)*100;
+      const width=Math.max(((eM-sM+1)/span)*100, 8);
+      const colors=['#1b4fa3','#0f766e','#7e22ce','#b45309'];
+      html += `<div class="bar" style="left:${left}%;width:${width}%;background:${colors[idx%colors.length]}">${esc(p.from)} → ${esc(p.to)}</div>`;
+    });
+    html += `</div></div>`;
+  });
+  if(!Object.keys(grouped).length) html += '<div class="empty">No data in this range</div>';
+  $('timeline').innerHTML=html;
+}
 function uniqueValues(key){ return [...new Set(employees.map(e=>String(e[key]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b)); }
 function fillFilter(id, values, label){ const current=$(id).value; $(id).innerHTML = `<option value="">${label}</option>` + values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join(''); if(values.includes(current)) $(id).value=current; }
 function renderEmployeeFilters(){ fillFilter('departmentFilter', uniqueValues('departmentName'), 'All Departments'); fillFilter('jobFilter', uniqueValues('jobTitleGroup'), 'All Job Groups'); fillFilter('regionFilter', uniqueValues('region'), 'All Regions'); }
