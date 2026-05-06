@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Firestore Cleanup & Migration Tool</title>
+  <style>
+    :root{--primary:#0d2149;--primary2:#1b4fa3;--ok:#15803d;--warn:#b45309;--danger:#b91c1c;--bg:#f1f5f9;--card:#fff;--border:#dbe4ef;--muted:#64748b}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:Segoe UI,Tahoma,Arial,sans-serif;color:#0f172a;padding:18px}
+    .shell{max-width:1180px;margin:0 auto}.top{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border-radius:18px;padding:18px 20px;margin-bottom:16px;box-shadow:0 12px 30px rgba(13,33,73,.18)}
+    h1{margin:0;font-size:24px}.sub{opacity:.9;margin-top:6px;font-size:13px;line-height:1.7}.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 8px 24px rgba(15,23,42,.06)}
+    h2{font-size:17px;color:var(--primary);margin:0 0 10px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.stat{border:1px solid var(--border);border-radius:14px;padding:14px;background:#f8fafc}.stat b{display:block;font-size:28px;color:var(--primary)}
+    .actions{display:flex;gap:10px;flex-wrap:wrap}.btn{border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--primary);font-weight:800;padding:10px 16px;cursor:pointer}.btn.primary{background:var(--primary);color:#fff}.btn.warn{background:#fff7ed;color:var(--warn);border-color:#fed7aa}.btn.danger{background:#fef2f2;color:var(--danger);border-color:#fecaca}.btn:disabled{opacity:.55;cursor:not-allowed}
+    .note{border:1px dashed #bfd7e8;background:#f8fbff;color:#33546b;border-radius:12px;padding:12px;line-height:1.8;font-size:13px}.log{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:12px;min-height:260px;max-height:520px;overflow:auto;white-space:pre-wrap;font-family:Consolas,monospace;font-size:12px;direction:ltr;text-align:left}.ok{color:#86efac}.warnTxt{color:#fde68a}.err{color:#fecaca}
+    table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}th,td{border-bottom:1px solid #edf2f7;padding:10px;text-align:right;font-size:13px}th{background:#f8fafc;color:var(--primary)}code{background:#f1f5f9;padding:2px 6px;border-radius:6px;direction:ltr;display:inline-block}
+  </style>
+</head>
+<body>
+<main class="shell">
+  <div class="top">
+    <h1>أداة توحيد وتنظيف Firestore</h1>
+    <div class="sub">تشغّل من داخل الصفحة الرئيسية فقط لأنها تستخدم <b>window.parent.appDb</b>. الأداة لا تحذف Collections تلقائياً، فقط تنقل وتوحد البيانات في الأماكن الصحيحة.</div>
+  </div>
+
+  <section class="card">
+    <h2>1) فحص قبل الدمج</h2>
+    <div class="grid" id="statsGrid"></div>
+    <div class="actions" style="margin-top:12px">
+      <button class="btn primary" id="scanBtn">فحص البيانات</button>
+      <button class="btn warn" id="migrateBtn" disabled>تنفيذ الدمج الآمن</button>
+      <button class="btn" id="exportBtn" disabled>تنزيل تقرير JSON</button>
+    </div>
+    <p class="note">قبل التنفيذ: خذ نسخة Backup من Firestore. من Firebase Console افتح Firestore ثم Export أو استخدم Google Cloud Backup. لا تحذف <code>technicians</code> أو <code>schedule/jadwal_annual_leave</code> إلا بعد تجربة الصفحات الجديدة.</p>
+  </section>
+
+  <section class="card">
+    <h2>2) ماذا ستفعل الأداة؟</h2>
+    <table>
+      <thead><tr><th>المصدر القديم</th><th>المكان الموحد</th><th>الإجراء</th></tr></thead>
+      <tbody>
+        <tr><td><code>technicians</code></td><td><code>employees</code></td><td>نسخ الفنيين كموظفين مع <code>employeeType: technician</code></td></tr>
+        <tr><td><code>schedule/jadwal_v6.data.emps</code></td><td><code>employees</code></td><td>نسخ أي موظف قديم غير موجود في employees</td></tr>
+        <tr><td><code>schedule/jadwal_annual_leave.vacations</code></td><td><code>vacations</code></td><td>نقل الإجازات القديمة إلى Collection الإجازات</td></tr>
+        <tr><td><code>siteVisits</code></td><td><code>siteVisits</code></td><td>إضافة <code>technicianEmpId</code> و <code>branchId</code> عند الإمكان بدون حذف الحقول القديمة</td></tr>
+        <tr><td><code>app_users</code></td><td><code>app_users</code></td><td>إضافة <code>employeeId</code> من <code>technicianId</code> للتوافق</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>3) سجل التنفيذ</h2>
+    <div class="log" id="logBox">Waiting...</div>
+  </section>
+</main>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const state = { scanned:false, report:{ generatedAt:null, counts:{}, actions:[], warnings:[] } };
+  const norm = v => String(v || '').trim();
+  const cleanId = v => norm(v).replace(/[\\/#?\[\]]+/g,'_');
+  const lower = v => norm(v).toLowerCase();
+
+  function db(){
+    if (!window.parent || !window.parent.appDb) throw new Error('Open this page inside the main system page so window.parent.appDb is available.');
+    return window.parent.appDb;
+  }
+  function log(msg, cls=''){
+    const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    const box = $('logBox');
+    if (box.textContent === 'Waiting...') box.textContent = '';
+    if (cls) box.innerHTML += `<span class="${cls}">${escapeHtml(line)}</span>\n`; else box.textContent += line + '\n';
+    box.scrollTop = box.scrollHeight;
+  }
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function statCard(name,count){return `<div class="stat"><span>${name}</span><b>${count}</b></div>`;}
+  async function getAll(col){ const snap = await db().collection(col).get(); return snap.docs.map(d=>({ id:d.id, ...d.data() })); }
+  async function getDoc(col,id){ const s = await db().collection(col).doc(id).get(); return s.exists ? { id:s.id, ...s.data() } : null; }
+  function employeeDocId(r){ return cleanId(r.empId || r.empNum || r.employeeId || r.technicianId || r.technicianCode || r.id || r.email || r.name || ('emp_' + Date.now())); }
+  function employeePayload(raw, type){
+    const empId = norm(raw.empId || raw.empNum || raw.employeeId || raw.technicianId || raw.technicianCode || raw.id);
+    const phone = norm(raw.phone || raw.mobile || raw.mobileNumber);
+    const active = raw.active === false || lower(raw.status) === 'inactive' || lower(raw.status) === 'hidden' ? false : true;
+    return {
+      empId,
+      empNum: empId,
+      name: norm(raw.name || raw.fullName || raw.technicianName || raw.displayName || 'Unnamed'),
+      email: norm(raw.email || raw.technicianEmail),
+      phone,
+      mobile: phone,
+      dept: norm(raw.dept || raw.department || raw.section || 'IT'),
+      department: norm(raw.department || raw.dept || raw.section || 'IT'),
+      jobTitle: norm(raw.jobTitle || raw.title || raw.position || (type === 'technician' ? 'Technician' : 'Employee')),
+      employeeType: type || raw.employeeType || (lower(raw.jobTitle).includes('tech') ? 'technician' : 'employee'),
+      role: raw.role || raw.shiftType || raw.shift || '',
+      fixed: raw.fixed === true || lower(raw.shiftType || raw.shift || raw.role).includes('night'),
+      shiftType: raw.shiftType || raw.shift || raw.role || '',
+      rotation: raw.rotation || raw.rotType || 'none',
+      rotType: raw.rotType || raw.rotation || 'none',
+      region: raw.region || raw.allowedRegion || '',
+      city: raw.city || '',
+      brand: raw.brand || '',
+      allowedRegion: raw.allowedRegion || raw.region || '',
+      allowedBranchIds: Array.isArray(raw.allowedBranchIds) ? raw.allowedBranchIds : [],
+      authUid: raw.authUid || raw.uid || '',
+      active,
+      status: active ? 'active' : 'inactive',
+      source: 'migration-tool',
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  async function scan(){
+    $('logBox').textContent = '';
+    log('Starting scan...');
+    const database = db();
+    const [employees, technicians, visits, vacations, appUsers] = await Promise.all([
+      getAll('employees').catch(()=>[]), getAll('technicians').catch(()=>[]), getAll('siteVisits').catch(()=>[]), getAll('vacations').catch(()=>[]), getAll('app_users').catch(()=>[])
+    ]);
+    const scheduleEmpDoc = await database.collection('schedule').doc('jadwal_v6').get().catch(()=>null);
+    const annualDoc = await database.collection('schedule').doc('jadwal_annual_leave').get().catch(()=>null);
+    const scheduleEmployees = scheduleEmpDoc && scheduleEmpDoc.exists ? ((scheduleEmpDoc.data().data||{}).emps || []) : [];
+    const oldAnnualLeaves = annualDoc && annualDoc.exists ? (annualDoc.data().vacations || []) : [];
+    state.report = { generatedAt:new Date().toISOString(), counts:{ employees:employees.length, technicians:technicians.length, siteVisits:visits.length, vacations:vacations.length, app_users:appUsers.length, scheduleEmployees:scheduleEmployees.length, oldAnnualLeaves:oldAnnualLeaves.length }, actions:[], warnings:[] };
+    $('statsGrid').innerHTML = Object.entries(state.report.counts).map(([k,v])=>statCard(k,v)).join('');
+    state.scanned = true;
+    $('migrateBtn').disabled = false; $('exportBtn').disabled = false;
+    log('Scan completed.', 'ok');
+  }
+
+  async function migrate(){
+    if (!state.scanned) await scan();
+    log('Starting safe migration...', 'warnTxt');
+    const database = db();
+    const employees = await getAll('employees').catch(()=>[]);
+    const empKeys = new Set();
+    employees.forEach(e => [e.id,e.empId,e.empNum,e.employeeId,e.technicianId,e.email].forEach(v=>{ if(norm(v)) empKeys.add(lower(v)); }));
+
+    async function upsertEmployee(raw,type){
+      const payload = employeePayload(raw,type);
+      const id = employeeDocId(payload);
+      const keys = [id,payload.empId,payload.email].map(lower).filter(Boolean);
+      const exists = keys.some(k=>empKeys.has(k));
+      await database.collection('employees').doc(id).set(payload,{merge:true});
+      keys.forEach(k=>empKeys.add(k));
+      state.report.actions.push({type: exists ? 'updated_employee' : 'created_employee', id, source:type});
+      log(`${exists?'Updated':'Created'} employees/${id}`,'ok');
+    }
+
+    const technicians = await getAll('technicians').catch(()=>[]);
+    for (const t of technicians) await upsertEmployee(t,'technician');
+
+    const scheduleEmpDoc = await database.collection('schedule').doc('jadwal_v6').get().catch(()=>null);
+    const scheduleEmployees = scheduleEmpDoc && scheduleEmpDoc.exists ? ((scheduleEmpDoc.data().data||{}).emps || []) : [];
+    for (const e of scheduleEmployees) await upsertEmployee(e, lower(e.jobTitle).includes('tech') ? 'technician' : 'employee');
+
+    const annualDoc = await database.collection('schedule').doc('jadwal_annual_leave').get().catch(()=>null);
+    const oldAnnualLeaves = annualDoc && annualDoc.exists ? (annualDoc.data().vacations || []) : [];
+    for (const [index,v] of oldAnnualLeaves.entries()){
+      const empId = norm(v.empId || v.employeeId || v.id);
+      if (!empId || !(v.start || v.from) || !(v.end || v.to)) { state.report.warnings.push({type:'skip_leave', index, v}); continue; }
+      const id = cleanId(`${empId}_${v.start||v.from}_${v.end||v.to}`);
+      await database.collection('vacations').doc(id).set({ empId, employeeId:empId, from:v.from||v.start, to:v.to||v.end, start:v.start||v.from, end:v.end||v.to, type:v.type||'Annual Leave', status:v.status||'approved', source:'migration-tool', createdAt:v.createdAt||new Date().toISOString(), updatedAt:new Date().toISOString() }, {merge:true});
+      state.report.actions.push({type:'migrated_vacation', id});
+      log(`Migrated vacation ${id}`,'ok');
+    }
+
+    const visits = await getAll('siteVisits').catch(()=>[]);
+    for (const v of visits){
+      const update = {};
+      const tech = norm(v.technicianEmpId || v.technicianId || v.technicianDocId || v.technicianUid || v.technicianCode);
+      const branch = norm(v.branchId || v.branchCode || v.branchNo);
+      if (tech && !v.technicianEmpId) update.technicianEmpId = tech;
+      if (branch && !v.branchId) update.branchId = branch;
+      if (Object.keys(update).length){
+        update.updatedAt = new Date().toISOString(); update.normalizedBy = 'migration-tool';
+        await database.collection('siteVisits').doc(v.id).set(update,{merge:true});
+        state.report.actions.push({type:'normalized_visit', id:v.id, update});
+        log(`Normalized siteVisits/${v.id}`,'ok');
+      }
+    }
+
+    const users = await getAll('app_users').catch(()=>[]);
+    for (const u of users){
+      if (!u.employeeId && u.technicianId){
+        await database.collection('app_users').doc(u.id).set({ employeeId:u.technicianId, updatedAt:new Date().toISOString() },{merge:true});
+        state.report.actions.push({type:'app_user_employeeId_added', id:u.id});
+        log(`Added employeeId to app_users/${u.id}`,'ok');
+      }
+    }
+    state.report.finishedAt = new Date().toISOString();
+    $('exportBtn').disabled = false;
+    log('Safe migration finished. Review pages before deleting old collections.', 'ok');
+  }
+
+  function exportReport(){
+    const blob = new Blob([JSON.stringify(state.report,null,2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'firestore-migration-report.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  $('scanBtn').onclick = () => scan().catch(e=>log(e.message,'err'));
+  $('migrateBtn').onclick = () => { if(confirm('هل أخذت نسخة احتياطية؟ سيتم الدمج بدون حذف البيانات القديمة.')) migrate().catch(e=>log(e.message,'err')); };
+  $('exportBtn').onclick = exportReport;
+})();
+</script>
+</body>
+</html>
