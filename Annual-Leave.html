@@ -68,7 +68,7 @@
 
 <script type="module">
 import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
-import { doc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { collection, doc, onSnapshot, addDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
     ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', assign:'تعيين إجازة' },
@@ -89,21 +89,34 @@ window.addAnnualLeave = async () => {
         return;
     }
 
-    const newVacation = { empId, start, end, createdAt: new Date().toISOString() };
-    const updatedList = [...vacationsList, newVacation];
+    const emp = employees.find(e => String(e.key) === String(empId));
+    const now = new Date().toISOString();
+    const newVacation = {
+        empId,
+        employeeDocId: emp?.id || empId,
+        employeeName: emp?.name || '',
+        start,
+        end,
+        from: start,
+        to: end,
+        type: 'Annual Leave',
+        status: 'approved',
+        createdAt: now,
+        updatedAt: now,
+        source: 'Annual-Leave'
+    };
     
     await waitForSignedInUser();
-    await setDoc(doc(db, 'schedule', 'jadwal_annual_leave'), { vacations: updatedList }, { merge: true });
+    await addDoc(collection(db, 'vacations'), newVacation);
     
     $('aStart').value = ''; 
     $('aEnd').value = '';
 };
 
-window.deleteVacation = async (index) => {
+window.deleteVacation = async (id) => {
     if(!confirm(currentLang==='ar'?'هل تريد حذف هذه الإجازة؟':'Are you sure you want to delete this leave?')) return;
-    const updatedList = vacationsList.filter((_, i) => i !== index);
     await waitForSignedInUser();
-    await setDoc(doc(db, 'schedule', 'jadwal_annual_leave'), { vacations: updatedList }, { merge: true });
+    await deleteDoc(doc(db, 'vacations', id));
 };
 
 // --- 2. Rendering ---
@@ -113,19 +126,19 @@ function renderUI() {
     const select = $('aEmp');
     const currentVal = select.value;
     select.innerHTML = `<option value="">${t.selectEmp}</option>` + 
-        employees.filter(e => e.active).map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        employees.filter(e => e.active !== false).map(e => `<option value="${e.key}">${e.name}</option>`).join('');
     select.value = currentVal;
 
     // Table
     $('annualBody').innerHTML = vacationsList.map((v, index) => {
-        const emp = employees.find(e => e.id === v.empId);
+        const emp = employees.find(e => String(e.key) === String(v.empId) || String(e.id) === String(v.employeeDocId));
         return `
             <tr>
                 <td class="emp-name-cell">${emp ? emp.name : v.empId}</td>
-                <td>${v.start}</td>
-                <td>${v.end}</td>
+                <td>${v.start || v.from || ''}</td>
+                <td>${v.end || v.to || ''}</td>
                 <td>
-                    <button class="danger-btn" onclick="window.deleteVacation(${index})">X</button>
+                    <button class="danger-btn" onclick="window.deleteVacation('${v.id}')">X</button>
                 </td>
             </tr>
         `;
@@ -133,16 +146,36 @@ function renderUI() {
 }
 
 // --- 3. Data Sync ---
+function normalizeEmployee(record) {
+    const empId = record.empId || record.empNum || record.employeeId || record.technicianId || record.id;
+    const status = String(record.status || '').toLowerCase();
+    return {
+        ...record,
+        key: String(empId || record.id),
+        name: record.name || record.fullName || empId || '',
+        active: record.active !== false && !['inactive', 'hidden', 'false', '0'].includes(status)
+    };
+}
+
+function normalizeVacation(record) {
+    return {
+        ...record,
+        empId: record.empId || record.employeeId || record.technicianId || '',
+        start: record.start || record.from || '',
+        end: record.end || record.to || ''
+    };
+}
+
 async function bindSnapshots(){
     await waitForSignedInUser();
-    // Fetch Employees
-    onSnapshot(doc(db, 'schedule', 'jadwal_v6'), s => {
-        employees = s.exists() ? (s.data().data?.emps || []) : [];
+    // Master employees source: employees only
+    onSnapshot(collection(db, 'employees'), s => {
+        employees = s.docs.map(item => normalizeEmployee({ id: item.id, ...item.data() }));
         renderUI();
     }, e => logFirebaseError('Annual leave employees listener failed', e));
-    // Fetch Vacations
-    onSnapshot(doc(db, 'schedule', 'jadwal_annual_leave'), s => {
-        vacationsList = s.exists() ? (s.data().vacations || []) : [];
+    // Master vacations source: vacations only
+    onSnapshot(collection(db, 'vacations'), s => {
+        vacationsList = s.docs.map(item => normalizeVacation({ id: item.id, ...item.data() }));
         renderUI();
     }, e => logFirebaseError('Annual leave vacations listener failed', e));
 }
