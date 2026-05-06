@@ -135,7 +135,7 @@ const i18n = {
     en: { title:'Weekly Shift Schedule', morning:'Morning', night:'Night', vacation:'Vacation', absent:'Absent', oncall:'On Call', work:'Coverage', off:'Off', employee:'Employee', allDay:'Full Day', help:'As Needed', copyImage:'Copy Image', copied:'Schedule image copied.', downloaded:'Direct copy was blocked, so the image was downloaded instead.', copyFailed:'Could not create the schedule image.', generated:'Generated', range:(from,to)=>`From ${from} to ${to}`, days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] }
 };
 
-let emps = [], overrides = {}, annualLeaves = [], vacationPlans = [], currentLang = localStorage.getItem('lang') || 'ar', selectedCell = null, selectedOption = null;
+let emps = [], employeeRecords = [], overrides = {}, annualLeaves = [], vacationPlans = [], currentLang = localStorage.getItem('lang') || 'ar', selectedCell = null, selectedOption = null;
 const $ = id => document.getElementById(id);
 
 function escapeHtml(value) {
@@ -177,12 +177,12 @@ function normalizeRotation(emp) {
 }
 
 function getEmployeeKeys(emp) {
-    return [emp?.id, emp?.empNum, emp?.technicianId, emp?.name].filter(Boolean).map(v => String(v).trim());
+    return [emp?.id, emp?.empNum, emp?.empId, emp?.employeeId, emp?.technicianId, emp?.email, emp?.name].filter(Boolean).map(v => String(v).trim().toLowerCase());
 }
 
 function matchesEmployee(record, emp) {
     const keys = new Set(getEmployeeKeys(emp));
-    return [record.empId, record.fireId, record.technicianId, record.name].filter(Boolean).some(v => keys.has(String(v).trim()));
+    return [record.empId, record.fireId, record.employeeId, record.technicianId, record.email, record.name].filter(Boolean).some(v => keys.has(String(v).trim().toLowerCase()));
 }
 
 function isDateInRange(date, start, end) {
@@ -250,17 +250,32 @@ function normalizeJobKey(value) {
     return String(value || '')
         .trim()
         .toLowerCase()
+        .replace(/[إأآا]/g, 'ا')
+        .replace(/[ىي]/g, 'ي')
+        .replace(/[ة]/g, 'ه')
         .replace(/[()\[\]{}.:،؛]/g, '')
         .replace(/[\s_\-\/\\]+/g, '');
 }
 
+function findEmployeeRecord(emp) {
+    const keys = new Set(getEmployeeKeys(emp));
+    return employeeRecords.find(record => getEmployeeKeys(record).some(key => keys.has(key))) || null;
+}
+
+function employeeJobValue(emp) {
+    const record = findEmployeeRecord(emp);
+    return emp?.jobTitle || emp?.jobTitleAr || emp?.jobTitleEn || emp?.position || emp?.title ||
+        record?.jobTitle || record?.jobTitleAr || record?.jobTitleEn || record?.position || record?.title ||
+        emp?.role || record?.role || '';
+}
+
 function weeklyJobRank(emp) {
-    const key = normalizeJobKey(emp?.jobTitle || emp?.jobTitleAr || emp?.position || emp?.title || emp?.role);
+    const key = normalizeJobKey(employeeJobValue(emp));
     if (!key) return 99;
-    if (['الفني', 'فني', 'technician', 'tech', 'employee', 'user'].includes(key)) return 1;
-    if (['المشرف', 'مشرف', 'supervisor', 'lead'].includes(key)) return 2;
+    if (['الفني', 'فني', 'فنى', 'technician', 'tech', 'employee', 'user'].includes(key)) return 1;
+    if (['المشرف', 'مشرف', 'supervisor', 'superviser', 'lead', 'leader'].includes(key)) return 2;
     if (['التمهير', 'تمهير', 'tamheer'].includes(key)) return 3;
-    if (['المتدرب', 'متدرب', 'trainee', 'intern', 'student'].includes(key)) return 4;
+    if (['المتدرب', 'متدرب', 'trainee', 'intern', 'internship', 'student'].includes(key)) return 4;
     if (['المدير', 'مدير', 'manager', 'admin', 'administrator'].includes(key)) return 5;
     return 99;
 }
@@ -409,6 +424,7 @@ $('datePicker').onchange = renderTable;
 async function bindSnapshots() {
     await waitForSignedInUser();
     onSnapshot(doc(db, 'schedule', 'jadwal_v6'), s => { emps = s.data()?.data?.emps || []; renderTable(); }, e => logFirebaseError('Weekly schedule employees listener failed', e));
+    onSnapshot(collection(db, 'employees'), s => { employeeRecords = s.docs.map(item => ({ id: item.id, ...item.data() })); renderTable(); }, e => logFirebaseError('Weekly schedule employees collection listener failed', e));
     onSnapshot(doc(db, 'schedule', 'manual_overrides'), s => { overrides = s.data() || {}; renderTable(); }, e => logFirebaseError('Weekly schedule overrides listener failed', e));
     onSnapshot(doc(db, 'schedule', 'jadwal_annual_leave'), s => { annualLeaves = s.exists() ? (s.data().vacations || []) : []; renderTable(); }, e => logFirebaseError('Weekly schedule annual leave listener failed', e));
     onSnapshot(collection(db, 'vacations'), s => { vacationPlans = s.docs.map(item => ({ id: item.id, ...item.data() })); renderTable(); }, e => logFirebaseError('Weekly schedule vacation plans listener failed', e));
