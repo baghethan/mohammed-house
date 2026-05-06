@@ -204,6 +204,30 @@
 
   function clearAllListeners(){ Object.keys(unsub).forEach(function(key){ if (unsub[key]) unsub[key](); unsub[key] = null; }); }
   function normalizeMatchValue(v){ return String(v || '').trim().toLowerCase(); }
+  function normalizeEmployeeAsTechnician(data, docId){
+    data = data || {};
+    var empId = data.empId || data.empNum || data.employeeId || data.technicianId || data.code || docId || '';
+    return {
+      ...data,
+      id: String(empId || docId || ''),
+      _docId: docId || data._docId || '',
+      empId: String(empId || ''),
+      technicianId: data.technicianId || empId || '',
+      technicianCode: data.technicianCode || data.code || empId || '',
+      name: data.name || data.fullName || data.displayName || empId || docId || '',
+      email: data.email || '',
+      authUid: data.authUid || data.uid || '',
+      status: data.status || (data.active === false ? 'inactive' : 'active'),
+      employeeType: data.employeeType || data.type || '',
+      jobTitle: data.jobTitle || data.title || data.position || '',
+      allowedBranchIds: Array.isArray(data.allowedBranchIds) ? data.allowedBranchIds : []
+    };
+  }
+  function isTechnicianEmployee(row){
+    var type = normalizeMatchValue(row.employeeType || row.type);
+    var title = normalizeMatchValue(row.jobTitle || row.title || row.position || row.role);
+    return type === 'technician' || title.indexOf('technician') > -1 || title.indexOf('فني') > -1 || row.isTechnician === true;
+  }
   function getDefaultPagesForRole(role){ return permissionRoleDefaults[role] ? permissionRoleDefaults[role].slice() : permissionRoleDefaults.user.slice(); }
   function getEffectivePagesForProfile(profile){ if (Array.isArray(profile && profile.pages) && profile.pages.length) return profile.pages; return getDefaultPagesForRole((profile && profile.role) || 'user'); }
   function isProfileActive(profile){ if (!profile) return false; if (profile.active === true) return true; if (String(profile.status || '').toLowerCase() === 'active') return true; if (profile.active === false) return false; if (String(profile.status || '').toLowerCase() === 'inactive') return false; return true; }
@@ -224,7 +248,7 @@
     var user = state.currentUser || {};
     function norm(v){ return String(v || '').trim().toLowerCase(); }
     var keys = new Set([norm(profile.technicianId), norm(user.uid), norm(user.email)].filter(Boolean));
-    var matchedTech = state.technicians.find(function(t){ return [norm(t.id), norm(t.technicianCode), norm(t.authUid), norm(t.email)].some(function(v){ return keys.has(v); }); });
+    var matchedTech = state.technicians.find(function(t){ return [norm(t.id), norm(t._docId), norm(t.empId), norm(t.technicianCode), norm(t.authUid), norm(t.email)].some(function(v){ return keys.has(v); }); });
     [matchedTech && matchedTech.id, matchedTech && matchedTech.technicianCode, matchedTech && matchedTech.authUid, matchedTech && matchedTech.email].forEach(function(v){ var value = norm(v); if (value) keys.add(value); });
     return { role: profile.role || 'user', keys: keys, matchedTechId: matchedTech ? (matchedTech.id || '') : '' };
   }
@@ -233,7 +257,7 @@
     var identity = getCurrentTechnicianIdentity();
     if (identity.role === 'admin' || identity.role === 'supervisor') return true;
     if (identity.role !== 'technician') return true;
-    var recordKeys = [String(record && record.technicianDocId || '').trim().toLowerCase(), String(record && record.technicianId || '').trim().toLowerCase(), String(record && record.technicianUid || '').trim().toLowerCase(), String(record && record.technicianEmail || '').trim().toLowerCase()].filter(Boolean);
+    var recordKeys = [String(record && record.technicianEmpId || '').trim().toLowerCase(), String(record && record.technicianDocId || '').trim().toLowerCase(), String(record && record.technicianId || '').trim().toLowerCase(), String(record && record.technicianUid || '').trim().toLowerCase(), String(record && record.technicianEmail || '').trim().toLowerCase()].filter(Boolean);
     return recordKeys.some(function(key){ return identity.keys.has(key); });
   }
 
@@ -257,6 +281,7 @@
 
   function isBranchVisibleForTechnician(branch, tech){
     if (!tech) return true;
+    if (Array.isArray(tech.allowedBranchIds) && tech.allowedBranchIds.length && tech.allowedBranchIds.map(String).indexOf(String(branch.id)) === -1) return false;
     if (tech.assignedBranchId && String(branch.id) !== String(tech.assignedBranchId)) return false;
     if (tech.brand && normalizeMatchValue(branch.brand) !== normalizeMatchValue(tech.brand)) return false;
     if (tech.region && normalizeMatchValue(branch.region) !== normalizeMatchValue(tech.region)) return false;
@@ -324,15 +349,12 @@
   function buildVisitPayload(branch, tech, brandName, targetGroupId, multiBrand){
     var fv = window.parent.firebase.firestore.FieldValue;
     var payload = buildParentPlainObject();
+    // Unified master-data mode: siteVisits stores IDs only; display values are read from employees and branches.
     payload.branchId = branch.id || '';
-    payload.branchName = branch.branchName || branch.id || '';
-    payload.region = branch.region || '';
-    payload.city = branch.city || '';
-    payload.technicianId = tech.authUid || tech.id || '';
-    payload.technicianDocId = tech.id || '';
-    payload.technicianUid = tech.authUid || tech.id || '';
-    payload.technicianName = tech.name || tech.id || '';
-    payload.technicianEmail = tech.email || '';
+    payload.technicianEmpId = tech.empId || tech.id || '';
+    payload.technicianDocId = tech._docId || tech.id || '';
+    payload.technicianId = tech.empId || tech.technicianId || tech.id || '';
+    payload.technicianUid = tech.authUid || '';
     payload.date = $('visitDate').value;
     payload.status = $('visitStatus').value;
     payload.notes = $('visitNotes').value.trim();
@@ -412,7 +434,7 @@
     if (!visit) return;
     if (!isVisitVisibleForCurrentUser(visit)) { window.alert(t('noRecordPermission')); return; }
     $('editingVisitId').value = visit.id;
-    $('visitTechnician').value = visit.technicianDocId || '';
+    $('visitTechnician').value = visit.technicianEmpId || visit.technicianDocId || visit.technicianId || '';
     renderBranchSelectors();
     $('visitBranch').value = visit.branchId || '';
     $('visitDate').value = visit.date || '';
@@ -432,15 +454,30 @@
     if ($('resultsBadge')) $('resultsBadge').textContent = rows.length;
   }
 
+  function findBranchById(id){ return state.branches.find(function(b){ return String(b.id) === String(id); }) || {}; }
+  function findTechForVisit(v){
+    return state.technicians.find(function(t){
+      return [t.id, t._docId, t.empId, t.technicianId, t.authUid, t.email].map(String).indexOf(String(v.technicianEmpId || v.technicianDocId || v.technicianId || v.technicianUid || v.technicianEmail || '')) > -1;
+    }) || {};
+  }
+  function getVisitDisplay(v, field){
+    var branch = findBranchById(v.branchId);
+    var tech = findTechForVisit(v);
+    if (field === 'branchName') return branch.branchName || v.branchName || v.branchId || '';
+    if (field === 'brand') return v.brand || branch.brand || '';
+    if (field === 'technicianName') return tech.name || v.technicianName || v.technicianEmpId || v.technicianDocId || v.technicianId || '';
+    return v[field] || '';
+  }
+
   function renderVisitsTable(){
     var q = String($('visitSearch').value || '').trim().toLowerCase();
     var rows = state.visits.filter(isVisitVisibleForCurrentUser).filter(function(v){
       if (!q) return true;
-      return [v.date, v.branchName, v.brand, v.technicianName, v.status, v.branchId].some(function(x){ return String(x || '').toLowerCase().indexOf(q) > -1; });
+      return [v.date, getVisitDisplay(v,'branchName'), getVisitDisplay(v,'brand'), getVisitDisplay(v,'technicianName'), v.status, v.branchId].some(function(x){ return String(x || '').toLowerCase().indexOf(q) > -1; });
     }).sort(function(a,b){ return String(b.date || '').localeCompare(String(a.date || '')); });
     if ($('resultsBadge')) $('resultsBadge').textContent = rows.length;
     $('visitsTableBody').innerHTML = rows.length
-      ? rows.map(function(v){ return '<tr class="clickable" data-id="' + esc(v.id) + '"><td>' + esc(v.date) + '</td><td>' + esc(v.branchName) + '</td><td>' + esc(v.brand) + '</td><td>' + esc(v.technicianName) + '</td><td>' + esc(v.status) + '</td></tr>'; }).join('')
+      ? rows.map(function(v){ return '<tr class="clickable" data-id="' + esc(v.id) + '"><td>' + esc(v.date) + '</td><td>' + esc(getVisitDisplay(v,'branchName')) + '</td><td>' + esc(getVisitDisplay(v,'brand')) + '</td><td>' + esc(getVisitDisplay(v,'technicianName')) + '</td><td>' + esc(v.status) + '</td></tr>'; }).join('')
       : '<tr><td colspan="5">' + esc(t('noVisits')) + '</td></tr>';
   }
 
@@ -457,11 +494,11 @@
   function listenTechnicians(){
     if (unsub.technicians) unsub.technicians();
     var db = window.parent.appDb;
-    unsub.technicians = db.collection('technicians').orderBy('name').onSnapshot(function(snap){
-      state.technicians = snap.docs.map(function(d){ var data = d.data() || {}; data.id = d.id; return data; });
+    unsub.technicians = db.collection('employees').orderBy('name').onSnapshot(function(snap){
+      state.technicians = snap.docs.map(function(d){ return normalizeEmployeeAsTechnician(d.data() || {}, d.id); }).filter(function(row){ return isTechnicianEmployee(row) && row.status !== 'inactive'; });
       renderTechnicianSelectors();
       renderBranchSelectors();
-    }, function(err){ setAlert('visitError', 'technicians: ' + err.message); });
+    }, function(err){ setAlert('visitError', 'employees: ' + err.message); });
   }
 
   function listenVisits(){
