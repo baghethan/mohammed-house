@@ -1,425 +1,47 @@
 <!DOCTYPE html>
-<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.0 - PERMISSION CONTROL MODE -->
 <html lang="en" dir="ltr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MMC IT Service Delivery | Al-Majdouie Motors</title>
-    <style>
-        :root {
-            --primary: #0d4b73;
-            --dark: #0d2149;
-            --accent: #4ade80;
-            --shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-        }
-
-        body {
-            margin: 0;
-            font-family: 'Segoe UI', sans-serif;
-            background: #f1f5f9;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        header {
-            background: var(--dark);
-            color: white;
-            padding: 12px 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-        }
-
-        .tab-bar {
-            background: #fff;
-            display: flex;
-            border-bottom: 1px solid #e2e8f0;
-            overflow-x: auto;
-            scrollbar-width: none;
-        }
-
-        .tab-bar.hidden {
-            display: none;
-        }
-
-        .tab-btn {
-            padding: 16px 25px;
-            border: none;
-            background: none;
-            cursor: pointer;
-            font-weight: 800;
-            color: #64748b;
-            border-bottom: 4px solid transparent;
-            transition: 0.3s;
-            white-space: nowrap;
-        }
-
-        .tab-btn.active {
-            color: var(--primary);
-            border-bottom-color: var(--primary);
-            background: #f8fafc;
-        }
-
-        .tab-btn:hover {
-            background: #f1f5f9;
-        }
-
-        .main-container {
-            flex: 1;
-            padding: 12px;
-            box-sizing: border-box;
-        }
-
-        #viewFrameBox {
-            width: 100%;
-            height: 100%;
-            background: #fff;
-            border-radius: 15px;
-            box-shadow: var(--shadow);
-            overflow: hidden;
-        }
-
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-
-        .admin-badge {
-            background: var(--accent);
-            color: var(--dark);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: 900;
-            margin-left: 8px;
-            vertical-align: middle;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MMC IT Vacation Portal</title>
+  <style>
+    :root{--primary:#0d4b73;--dark:#0d2149;--line:#e2e8f0;--bg:#f1f5f9;--shadow:0 10px 30px rgba(0,0,0,.12)}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);height:100vh;display:flex;flex-direction:column;overflow:hidden;color:#0f172a}
+    header{background:var(--dark);color:#fff;padding:12px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+    .brand{display:flex;align-items:center;gap:14px;min-width:0}
+    .brand img{height:34px;background:#fff;border-radius:4px;object-fit:contain}
+    .title{font-weight:900;letter-spacing:.9px;text-transform:uppercase;text-align:center;flex:1}
+    .mode{background:#16a34a;color:#fff;border-radius:999px;padding:7px 12px;font-size:12px;font-weight:900;white-space:nowrap}
+    nav{background:#fff;display:flex;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+    button.tab{padding:16px 28px;border:0;background:#fff;cursor:pointer;font-weight:900;color:#64748b;border-bottom:4px solid transparent;font-family:inherit;font-size:15px;white-space:nowrap}
+    button.tab.active{color:#003f65;border-bottom-color:#003f65;background:#f8fafc}
+    main{flex:1;padding:12px;min-height:0}
+    .framebox{width:100%;height:100%;background:#fff;border-radius:16px;box-shadow:var(--shadow);overflow:hidden;border:1px solid #e5e7eb}
+    iframe{width:100%;height:100%;border:0;background:#fff}
+    @media(max-width:720px){header{padding:10px}.title{font-size:13px}.mode{display:none}button.tab{padding:14px 18px;font-size:13px}}
+  </style>
 </head>
 <body>
-    <header>
-        <div style="display:flex; align-items:center; gap:15px">
-            <img src="LOGO-almajdouie.png" height="35" alt="MMC">
-            <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">Authenticating...</div>
-        </div>
-        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.0</div>
-        <button onclick="handleLogout()" style="background:#ef4444; color:white; border:none; padding:8px 18px; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s;">Logout</button>
-    </header>
-
-    <nav class="tab-bar" id="mainTabsBox"></nav>
-    <nav class="tab-bar hidden" id="subTabsBox"></nav>
-
-    <main class="main-container">
-        <div id="viewFrameBox"><iframe id="contentFrame"></iframe></div>
-    </main>
-
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
-            authDomain: "baghethan-ba325.firebaseapp.com",
-            projectId: "baghethan-ba325"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        window.appAuth = auth;
-        window.appDb = db;
-        window.currentUser = null;
-        window.currentUserData = null;
-
-        const navigationConfig = {
-            diagnostics: {
-                name: 'Diagnostics',
-                file: 'Diagnostics.html',
-                noSubTab: true
-            },
-            schedule: {
-                name: 'Schedule',
-                tabs: [
-                    { key: 'dashboard', name: '\uD83D\uDCCA Dashboard', file: 'dashboard-plan-Vacation-MMC-IT.html' },
-                    { key: 'schedule', name: '\uD83D\uDCC5 Schedule', file: 'Weekly-Schedule.html' },
-                    { key: 'holidays', name: '\uD83C\uDF8A Public-Holidays', file: 'Public-Holidays.html' },
-                    { key: 'employees', name: '\uD83D\uDC65 employee', file: 'employee-Schedule.html' },
-                    { key: 'annual', name: 'Annual-Leave', file: 'Annual-Leave.html' },
-                    { key: 'planning', name: '\uD83D\uDCCB plan-Vacation', file: 'plan-Vacation-MMC-IT.html' },
-                    { key: 'settings', name: '\u23F1\uFE0F Shift-Settings', file: 'Shift-Settings.html' }
-                ]
-            },
-            site_visit: {
-                name: 'Site-Visit',
-                tabs: [
-                    { key: 'dashboard', name: 'Dashboard', file: 'dashboard.html' },
-                    { key: 'checklist', name: 'Checklist', file: 'check-list.html' },
-                    { key: 'brands', name: 'Brands', file: 'brands.html' },
-                    { key: 'branches', name: 'Branches', file: 'branches.html' },
-                    { key: 'visit', name: 'Visits', file: 'visits.html' },
-                    { key: 'upgrade', name: 'Upgrade Windows', file: 'upgrade-windows.html' },
-                    { key: 'checklist_admin', name: 'Checklist Admin', file: 'dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html' },
-                    { key: 'reports', name: 'Reports windows', file: 'windows-report.html' }
-                ]
-            },
-            permissions: {
-                name: 'Permissions',
-                file: 'MasterPermissions.html',
-                noSubTab: true
-            }
-        };
-
-        let allowedMainTabs = [];
-        let allowedSubTabsByMain = {};
-        let preferredSubTabsByMain = {};
-
-        auth.onAuthStateChanged(async function (user) {
-            if (!user) {
-                window.location.replace("login.html");
-                return;
-            }
-
-            const snap = await db.collection('app_users').doc(user.uid).get();
-            if (!snap.exists) return;
-
-            const userData = snap.data();
-            window.currentUser = user;
-            window.currentUserData = {
-                ...userData,
-                uid: user.uid,
-                email: user.email
-            };
-            const role = (userData.role || "technician").toLowerCase();
-            const adminLabel = role === 'admin' ? '<span class="admin-badge">ADMIN</span>' : '';
-            document.getElementById('uDisplay').innerHTML = `User: <b>${userData.name || user.email || 'User'}</b> ${adminLabel}`;
-
-            if (hasFullPortalAccess(user, userData)) {
-                allowedSubTabsByMain = getAllSubTabs();
-                allowedMainTabs = Object.keys(navigationConfig);
-                renderMainTabs(allowedMainTabs);
-                openMainTab('permissions');
-                return;
-            }
-
-            const access = getAllowedAccess(userData);
-            allowedMainTabs = access.mainTabs;
-            allowedSubTabsByMain = access.subTabs;
-            preferredSubTabsByMain = {};
-            if (role === 'technician' && (allowedSubTabsByMain.site_visit || []).includes('checklist')) {
-                preferredSubTabsByMain.site_visit = 'checklist';
-            }
-            renderMainTabs(allowedMainTabs);
-            openMainTab(preferredSubTabsByMain.site_visit ? 'site_visit' : (allowedMainTabs[0] || 'diagnostics'));
-        });
-
-        function hasFullPortalAccess(user, userData) {
-            const ownerEmails = ['baghethanmh@almajdouie.com'];
-            return userData.superAdmin === true || ownerEmails.includes(String(user.email || '').toLowerCase());
-        }
-
-        function toPermissionSet(value, aliases = {}) {
-            const items = Array.isArray(value) ? value : (value ? [value] : []);
-            return new Set(items
-                .map(item => String(item || '').trim().toLowerCase())
-                .map(item => aliases[item] || item)
-                .filter(Boolean));
-        }
-
-        function getAllSubTabs() {
-            return {
-                schedule: navigationConfig.schedule.tabs.map(tab => tab.key),
-                site_visit: navigationConfig.site_visit.tabs.map(tab => tab.key)
-            };
-        }
-
-        function getAllowedAccess(userData) {
-            const scheduleAliases = {
-                employee: 'employees',
-                leave: 'annual',
-                holiday: 'holidays',
-                holidays: 'holidays',
-                public_holidays: 'holidays',
-                'public-holidays': 'holidays',
-                vacation: 'planning',
-                shift: 'settings',
-                shift_settings: 'settings',
-                'shift-settings': 'settings'
-            };
-            const siteAliases = {
-                visits: 'visit',
-                upgrade_windows: 'upgrade',
-                'upgrade-windows': 'upgrade',
-                checklist_admin: 'checklist_admin',
-                'checklist-admin': 'checklist_admin',
-                reports_windows: 'reports',
-                'reports-windows': 'reports'
-            };
-            const legacyMap = {
-                diagnostics: 'diagnostics',
-                permissions: 'permissions',
-                schedule: 'schedule',
-                site_visit: 'site_visit',
-                'site-visit': 'site_visit'
-            };
-
-            const schedulePerms = toPermissionSet(userData.permissions_schedule || [], scheduleAliases);
-            const sitePerms = toPermissionSet(userData.permissions_site_visit || [], siteAliases);
-            const diagnosticsPerms = toPermissionSet(userData.permissions_diagnostics || []);
-            const permissionsPerms = toPermissionSet(userData.permissions_permissions || []);
-            const hasExplicitMainTabs = Array.isArray(userData.permissions_main_tabs);
-            const legacyMain = toPermissionSet(userData.permissions_main_tabs || [], legacyMap);
-            const subTabs = {
-                schedule: navigationConfig.schedule.tabs
-                    .filter(tab => schedulePerms.has(tab.key))
-                    .map(tab => tab.key),
-                site_visit: navigationConfig.site_visit.tabs
-                    .filter(tab => sitePerms.has(tab.key))
-                    .map(tab => tab.key)
-            };
-
-            const mainTabs = [];
-            const allowDiagnostics = hasExplicitMainTabs
-                ? legacyMain.has('diagnostics')
-                : diagnosticsPerms.has('diagnostics') || !Array.isArray(userData.permissions_diagnostics);
-            const allowSchedule = hasExplicitMainTabs
-                ? legacyMain.has('schedule')
-                : subTabs.schedule.length || legacyMain.has('schedule');
-            const allowSiteVisit = hasExplicitMainTabs
-                ? legacyMain.has('site_visit')
-                : subTabs.site_visit.length || legacyMain.has('site_visit');
-            const allowPermissions = hasExplicitMainTabs
-                ? legacyMain.has('permissions')
-                : permissionsPerms.has('permissions') || sitePerms.has('permissions') || legacyMain.has('permissions');
-
-            if (allowDiagnostics) mainTabs.push('diagnostics');
-            if (allowSchedule) mainTabs.push('schedule');
-            if (allowSiteVisit) mainTabs.push('site_visit');
-            if (allowPermissions) mainTabs.push('permissions');
-
-            return {
-                mainTabs: [...new Set(mainTabs)],
-                subTabs
-            };
-        }
-
-        function renderMainTabs(keys) {
-            const mainBox = document.getElementById('mainTabsBox');
-            mainBox.innerHTML = '';
-
-            keys.forEach(key => {
-                const section = navigationConfig[key];
-                if (!section) return;
-
-                const btn = document.createElement('button');
-                btn.className = 'tab-btn main-tab';
-                btn.textContent = section.name;
-                btn.onclick = () => openMainTab(key);
-                mainBox.appendChild(btn);
-            });
-        }
-
-        function openMainTab(mainKey) {
-            if (!allowedMainTabs.includes(mainKey)) return;
-
-            document.querySelectorAll('.main-tab').forEach(btn => btn.classList.remove('active'));
-            const targetBtn = [...document.querySelectorAll('.main-tab')]
-                .find(btn => btn.textContent === navigationConfig[mainKey].name);
-
-            if (targetBtn) targetBtn.classList.add('active');
-
-            const section = navigationConfig[mainKey];
-            if (section.noSubTab) {
-                hideSubTabs();
-                openFile(section.file);
-                return;
-            }
-
-            renderSubTabs(mainKey);
-        }
-
-        function renderSubTabs(mainKey) {
-            const subBox = document.getElementById('subTabsBox');
-            const section = navigationConfig[mainKey];
-            if (!section || !section.tabs || !section.tabs.length) {
-                hideSubTabs();
-                return;
-            }
-
-            subBox.classList.remove('hidden');
-            subBox.innerHTML = '';
-
-            const allowedTabs = (allowedSubTabsByMain[mainKey] || []);
-            const tabs = section.tabs.filter(tab => allowedTabs.includes(tab.key));
-            if (!tabs.length) {
-                hideSubTabs();
-                openFile('Diagnostics.html');
-                return;
-            }
-
-            const preferredKey = preferredSubTabsByMain[mainKey];
-            const initialTab = tabs.find(tab => tab.key === preferredKey) || tabs[0];
-
-            tabs.forEach((tab) => {
-                const btn = document.createElement('button');
-                btn.className = 'tab-btn sub-tab';
-                btn.textContent = tab.name;
-                btn.onclick = () => openSubTab(tab.file, btn);
-                subBox.appendChild(btn);
-
-                if (tab === initialTab) openSubTab(tab.file, btn);
-            });
-        }
-
-        function hideSubTabs() {
-            const subBox = document.getElementById('subTabsBox');
-            subBox.innerHTML = '';
-            subBox.classList.add('hidden');
-        }
-
-        function openSubTab(file, btn) {
-            document.querySelectorAll('.sub-tab').forEach(item => item.classList.remove('active'));
-            if (btn) btn.classList.add('active');
-            openFile(file);
-        }
-
-        function normalizePortalLanguage(value) {
-            return String(value || '').trim().toLowerCase().startsWith('ar') ? 'ar' : 'en';
-        }
-
-        function getPortalLanguage() {
-            let storedLang = '';
-            try {
-                storedLang = localStorage.getItem('lang') || '';
-            } catch (error) {}
-
-            return normalizePortalLanguage(storedLang || document.documentElement.lang || 'en');
-        }
-
-        function openFile(file) {
-            const params = new URLSearchParams({
-                auth: 'active',
-                lang: getPortalLanguage()
-            });
-
-            if (window.currentUser && window.currentUser.uid) {
-                params.set('user', window.currentUser.uid);
-            }
-
-            const separator = file.includes('?') ? '&' : '?';
-            document.getElementById('contentFrame').src = `${file}${separator}${params.toString()}`;
-        }
-
-        async function handleLogout() {
-            if (confirm("Are you sure?")) {
-                await auth.signOut();
-                window.location.replace("login.html");
-            }
-        }
-    </script>
+  <header>
+    <div class="brand"><img src="LOGO-almajdouie.png" alt="Almajdouie"><strong>MMC IT</strong></div>
+    <div class="title">MMC IT Vacation Portal</div>
+    <div class="mode">NO FIREBASE</div>
+  </header>
+  <nav>
+    <button class="tab active" data-file="dashboard-plan-Vacation-MMC-IT.html">Vacation Dashboard</button>
+    <button class="tab" data-file="plan-Vacation-MMC-IT.html">Vacation Plan</button>
+  </nav>
+  <main><div class="framebox"><iframe id="contentFrame" src="dashboard-plan-Vacation-MMC-IT.html"></iframe></div></main>
+  <script>
+    const frame = document.getElementById('contentFrame');
+    document.querySelectorAll('.tab').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        frame.src = btn.dataset.file;
+      });
+    });
+  </script>
 </body>
 </html>
