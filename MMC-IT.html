@@ -108,7 +108,7 @@
 
   <section id="plan" class="panel">
     <div class="card"><div class="topline"><div><h2>Vacation Plan</h2><p class="sub">No login and no Firebase. Employees are loaded from the Employees page or from Excel.</p></div><div class="tools"><input id="employeeFile" type="file" accept=".xlsx,.xls,.csv" hidden /><button class="btn" onclick="document.getElementById('employeeFile').click()">Upload Employee Excel</button><button class="btn muted-btn" onclick="resetEmployees()">Restore MMC IT Employees</button></div></div><div class="plan-grid"><div><label>Employee ID</label><input id="empIdInput" list="employeeIdList" placeholder="Enter employee ID" autocomplete="off" oninput="handleEmployeeIdInput()" /><datalist id="employeeIdList"></datalist><div id="empLookupNote" class="lookup-note">Enter the employee ID to show the name.</div></div><div><label>Employee Name</label><input id="empNameDisplay" placeholder="Employee name will appear here" readonly /></div><div><label>From Date</label><input type="date" id="fromDate" /></div><div><label>To Date</label><input type="date" id="toDate" /></div><button class="btn2" onclick="addPlan()">Add Plan</button></div></div>
-    <div class="card"><div class="topline"><h3 style="color:var(--primary)">Vacation Plan List</h3><div class="tools"><span class="count-pill" id="planCount">0 Plans</span><button class="btn" onclick="exportPlansCsv()">Export CSV</button><button class="danger" onclick="clearPlans()">Clear All Plans</button></div></div><div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Action</th></tr></thead><tbody id="plansBody"></tbody></table></div></div>
+    <div class="card"><div class="topline"><h3 style="color:var(--primary)">Vacation Plan List</h3><div class="tools"><input id="planFile" type="file" accept=".xlsx,.xls,.csv" hidden /><span class="count-pill" id="planCount">0 Plans</span><button class="btn" onclick="document.getElementById('planFile').click()">Upload Vacation Excel</button><button class="btn" onclick="downloadPlanTemplate()">Download Template</button><button class="btn" onclick="exportPlansCsv()">Export CSV</button><button class="danger" onclick="clearPlans()">Clear All Plans</button></div></div><div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Action</th></tr></thead><tbody id="plansBody"></tbody></table></div></div>
   </section>
 
   <section id="employeesPanel" class="panel">
@@ -219,6 +219,66 @@ function mapEmployeeRow(r){ const get=(...keys)=>{ for(const k of keys) if(r[k]!
 async function handleEmployeeUpload(ev){ const file=ev.target.files[0]; if(!file) return; try { const buffer=await file.arrayBuffer(); const wb=XLSX.read(buffer, {type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]]; const rows=XLSX.utils.sheet_to_json(ws, {defval:''}); const mapped=rows.map(mapEmployeeRow).filter(e=>e.empId && e.name); if(!mapped.length) return alert('No valid employees were found. Make sure the file contains empId and name.'); employees=mapped; saveEmployees(); renderAll(); alert(`${employees.length} employees uploaded successfully`); } catch(err) { alert('Could not read the file: '+err.message); } finally { ev.target.value=''; } }
 $('employeeFile').addEventListener('change', handleEmployeeUpload);
 $('employeeFileEmployees').addEventListener('change', handleEmployeeUpload);
+function excelDateToIso(value){
+  if(value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0,10);
+  if(typeof value === 'number'){
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if(parsed) return `${parsed.y}-${String(parsed.m).padStart(2,'0')}-${String(parsed.d).padStart(2,'0')}`;
+  }
+  const raw = String(value || '').trim();
+  if(!raw) return '';
+  const iso = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if(iso) return `${iso[1]}-${iso[2].padStart(2,'0')}-${iso[3].padStart(2,'0')}`;
+  const us = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if(us) return `${us[3]}-${us[1].padStart(2,'0')}-${us[2].padStart(2,'0')}`;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? raw : d.toISOString().slice(0,10);
+}
+function mapPlanRow(r, index){
+  const get=(...keys)=>{ for(const k of keys){ if(r[k]!==undefined && String(r[k]).trim()!=='') return r[k]; } return ''; };
+  const empId = String(get('empId','Employee ID','EmployeeID','Employee Number','Assignment Number','ID')).trim();
+  const from = excelDateToIso(get('from','From','From Date','Start Date','Start','dateFrom'));
+  const to = excelDateToIso(get('to','To','To Date','End Date','End','dateTo'));
+  if(!empId || !from || !to) return null;
+  const emp = getEmployee(empId);
+  const statusRaw = norm(get('status','Status'));
+  const status = ['approved','approve','accepted'].includes(statusRaw) ? 'approved' : ['cancelled','canceled','cancel','rejected'].includes(statusRaw) ? 'cancelled' : 'pending';
+  return {
+    id:'p_excel_'+Date.now()+'_'+index,
+    empId,
+    name: emp?.name || String(get('name','Employee Name','Employee')).trim() || empId,
+    departmentName: emp?.departmentName || String(get('departmentName','Department','Department Name')).trim(),
+    jobTitleGroup: emp?.jobTitleGroup || String(get('jobTitleGroup','Job Title Group','Job Title')).trim(),
+    from,
+    to,
+    status,
+    createdAt:new Date().toISOString()
+  };
+}
+async function handlePlanUpload(ev){
+  const file=ev.target.files[0];
+  if(!file) return;
+  try {
+    const buffer=await file.arrayBuffer();
+    const wb=XLSX.read(buffer, {type:'array', cellDates:true});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws, {defval:''});
+    const imported=rows.map(mapPlanRow).filter(Boolean).filter(p=>new Date(p.from) <= new Date(p.to));
+    if(!imported.length) return alert('No valid vacation plans were found. Required columns: empId, from, to.');
+    const replace = confirm(`Found ${imported.length} vacation plan(s). Press OK to replace current plans, or Cancel to add them to the existing list.`);
+    plans = replace ? imported : [...plans, ...imported];
+    savePlans();
+    renderAll();
+    alert(`${imported.length} vacation plan(s) uploaded successfully`);
+  } catch(err) {
+    alert('Could not read the vacation plan file: '+err.message);
+  } finally { ev.target.value=''; }
+}
+$('planFile').addEventListener('change', handlePlanUpload);
+function downloadPlanTemplate(){
+  const rows=[['empId','from','to','status'],['71133','2026-04-12','2026-04-18','pending']];
+  downloadText('vacation_plan_template.csv', csvString(rows));
+}
 function resetEmployees(){ if(!confirm('Restore the MMC IT employee list from the latest cleaned file?')) return; employees=DEFAULT_EMPLOYEES; saveEmployees(); renderAll(); }
 function exportPlansCsv(){ const headers=['empId','name','departmentName','from','to','days','status']; const rows=plans.map(p=>[p.empId,p.name,p.departmentName,p.from,p.to,daysBetween(p.from,p.to),p.status]); downloadText('vacation_plans.csv', csvString([headers,...rows])); }
 function exportEmployeesCsv(){ const headers=['empId','name','email','positionTitle','jobTitleGroup','employeeType','departmentId','departmentName','departmentPath','supervisorEmpId','supervisorName','region','active']; const rows=sortedEmployees().map(e=>headers.map(h=>e[h]??'')); downloadText('employees_mmc_it.csv', csvString([headers,...rows])); }
