@@ -292,6 +292,50 @@
       margin-bottom: 30px;
     }
 
+
+
+    .subject-tools {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin: 12px 0 18px;
+      align-items: end;
+    }
+
+    .subject-tools label {
+      color: #1f4e79;
+      font-weight: bold;
+      font-size: 13px;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .subject-tools input,
+    .subject-tools select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fff;
+      color: #333;
+      font-size: 14px;
+    }
+
+    .subject-badge {
+      display: inline-block;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #eef4fb;
+      color: #1f4e79;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .trend-up { color: #c00000; font-weight: bold; }
+    .trend-down { color: #70ad47; font-weight: bold; }
+    .trend-flat { color: #666; font-weight: bold; }
+
     .hidden {
       display: none !important;
     }
@@ -372,6 +416,11 @@
       <div class="kpi-card purple">
         <div class="kpi-value" id="incRequests">0</div>
         <div class="kpi-label">INC Incidents</div>
+      </div>
+
+      <div class="kpi-card blue">
+        <div class="kpi-value" id="recurringSubjectGroups">0</div>
+        <div class="kpi-label">Recurring Subject Groups</div>
       </div>
 
       <div class="kpi-card orange">
@@ -478,6 +527,44 @@
         <canvas id="slaCategoryChart"></canvas>
       </div>
 
+      <div class="chart-card full-width">
+        <h3>Subject Similarity Groups - Count & Sorting</h3>
+        <canvas id="subjectGroupChart"></canvas>
+      </div>
+
+      <div class="chart-card full-width">
+        <h3>Subject Trend by Top Similar Groups</h3>
+        <canvas id="subjectTrendChart"></canvas>
+      </div>
+
+    </div>
+
+    <div class="table-card">
+      <h2>Subject Grouping / Similarity Analysis</h2>
+      <div class="subject-tools">
+        <div>
+          <label for="subjectSearchInput">Search Subject / Group</label>
+          <input type="text" id="subjectSearchInput" placeholder="Example: attendance, switch, email" oninput="renderSubjectAnalysisTable()" />
+        </div>
+        <div>
+          <label for="subjectSortSelect">Sort By</label>
+          <select id="subjectSortSelect" onchange="renderSubjectAnalysisTable()">
+            <option value="countDesc">Highest Count</option>
+            <option value="trendDesc">Highest Increase</option>
+            <option value="nameAsc">Group Name</option>
+          </select>
+        </div>
+        <div>
+          <label for="subjectLimitSelect">Show Top</label>
+          <select id="subjectLimitSelect" onchange="renderSubjectAnalysisTable()">
+            <option value="15">Top 15</option>
+            <option value="30" selected>Top 30</option>
+            <option value="50">Top 50</option>
+            <option value="9999">All</option>
+          </select>
+        </div>
+      </div>
+      <div id="subjectAnalysisTable" class="chart-table"></div>
     </div>
 
     <div class="insights">
@@ -995,6 +1082,8 @@
     const trendCounts = countByDate(data, "Created Date");
 
     const categoryColumn = detectCategoryColumn(data);
+    const subjectAnalysis = analyzeSubjects(data);
+    const recurringSubjectGroupCount = subjectAnalysis.rows.filter(item => item.count > 1).length;
 
     const slaGroupCounts = countSlaViolationsBy(
       data,
@@ -1042,6 +1131,8 @@
       requesterStatusData,
       trendCounts,
       categoryColumn,
+      subjectAnalysis,
+      recurringSubjectGroupCount,
       slaGroupCounts,
       slaTechnicianCounts,
       slaCategoryCounts
@@ -1050,6 +1141,7 @@
     document.getElementById("totalRequests").innerText = total;
     document.getElementById("srRequests").innerText = srCount;
     document.getElementById("incRequests").innerText = incCount;
+    document.getElementById("recurringSubjectGroups").innerText = recurringSubjectGroupCount;
     document.getElementById("openRequests").innerText = openCount;
     document.getElementById("onHoldRequests").innerText = onHoldCount;
     document.getElementById("closureRate").innerText = Math.round(closureRate * 100) + "%";
@@ -1259,6 +1351,7 @@
       technicianStatusData,
       requesterStatusData,
       trendCounts,
+      subjectAnalysis,
       slaGroupCounts,
       slaTechnicianCounts,
       slaCategoryCounts
@@ -1287,6 +1380,9 @@
     );
 
     renderLineChart("trendChart", trendCounts);
+    renderSubjectGroupChart(subjectAnalysis);
+    renderSubjectTrendChart(subjectAnalysis);
+    renderSubjectAnalysisTable();
 
     renderSlaViolationChart("slaGroupChart", slaGroupCounts, "SLA Violation by Group");
     renderSlaViolationChart("slaTechnicianChart", slaTechnicianCounts, "SLA Violation by Technician");
@@ -1703,7 +1799,9 @@
       slaGroupCounts,
       slaTechnicianCounts,
       slaCategoryCounts,
-      categoryColumn
+      categoryColumn,
+      subjectAnalysis,
+      recurringSubjectGroupCount
     } = dashboardMetrics;
 
     const topDepartment = departmentStatusData.groups[0] || "N/A";
@@ -1714,6 +1812,9 @@
     const topSlaTechnician = Object.keys(slaTechnicianCounts || {})[0] || "N/A";
     const topSlaCategory = Object.keys(slaCategoryCounts || {})[0] || "N/A";
     const topIncGroup = Object.keys(incGroupCounts || {})[0] || "N/A";
+    const topSubjectGroup = subjectAnalysis?.rows?.[0]?.group || "N/A";
+    const topSubjectCount = subjectAnalysis?.rows?.[0]?.count || 0;
+    const risingSubject = [...(subjectAnalysis?.rows || [])].sort((a, b) => b.trendDelta - a.trendDelta)[0]?.group || "N/A";
 
     const openRate = total > 0 ? openCount / total : 0;
 
@@ -1722,6 +1823,9 @@
       `إجمالي الطلبات في الملف الحالي هو ${total}.`,
       `طلبات الخدمة SR عددها ${srCount}، والحوادث INC عددها ${incCount}.`,
       `حوادث INC التي كانت على Group.Name بقيمة HCL NOC يتم عرضها ضمن Solarwinds.`,
+      `تم ربط تحليل Subject مع الصفحة: عدد مجموعات المواضيع المتشابهة المتكررة هو ${recurringSubjectGroupCount}.`,
+      `أعلى مجموعة Subject متكررة هي: ${topSubjectGroup} بعدد ${topSubjectCount}.`,
+      `أكثر مجموعة Subject صاعدة في الترند هي: ${risingSubject}.`,
       `عدد الطلبات المفتوحة هو ${openCount} بنسبة تقريبية ${Math.round(openRate * 100)}%.`,
       `عدد الطلبات المعلقة On Hold هو ${onHoldCount}.`,
       `نسبة الإغلاق الحالية هي ${Math.round(closureRate * 100)}%.`,
@@ -1785,6 +1889,260 @@
       .replaceAll("'", "&#039;");
   }
 
+
+
+  function normalizeSubjectText(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[ً-ٰٟ]/g, "")
+      .replace(/inc[-\s]?\d+/g, " ")
+      .replace(/sr[-\s]?\d+/g, " ")
+      .replace(/psa\s*\d+/g, "psa ")
+      .replace(/\d{4,}/g, " ")
+      .replace(/[\-_\/\|:;,.()[\]{}]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function classifySubjectGroup(subject) {
+    const text = normalizeSubjectText(subject);
+
+    if (!text) return "Blank Subject";
+
+    const rules = [
+      { group: "Attendance Machine / Biometric", words: ["attendance", "biometric", "finger", "machine", "حضور", "بصمة"] },
+      { group: "Network / Switch / Internet / WiFi", words: ["switch", "network", "internet", "wifi", "wi fi", "router", "firewall", "down", "link", "شبكة", "انترنت"] },
+      { group: "Video Conference / Teams Room", words: ["video conference", "conference", "teams", "meeting room", "vc", "camera", "zoom"] },
+      { group: "Email / Outlook / Office 365", words: ["email", "outlook", "mail", "office 365", "o365", "exchange", "ايميل", "بريد"] },
+      { group: "Account / Access / Login", words: ["access", "login", "password", "account", "permission", "unlock", "reset", "user id", "صلاحية", "كلمة", "دخول"] },
+      { group: "Printer / Scanner", words: ["printer", "print", "scanner", "scan", "طابعة", "سكانر"] },
+      { group: "Laptop / PC / Hardware", words: ["laptop", "desktop", "pc", "computer", "keyboard", "mouse", "monitor", "screen", "hardware", "جهاز", "كمبيوتر"] },
+      { group: "Software / Application Issue", words: ["software", "application", "app", "system error", "not working", "issue", "error", "problem", "برنامج", "تطبيق"] },
+      { group: "Reports / BI / Data", words: ["report", "dashboard", "power bi", "bi", "data", "excel", "pending branch demands", "تقرير"] },
+      { group: "ERP / Autoline / PSA / System Transaction", words: ["erp", "sap", "autoline", "psa", "mcap", "kerridge", "invoice", "vin", "job card"] },
+      { group: "Phone / Mobile / SIM", words: ["phone", "mobile", "sim", "extension", "telephone", "جوال", "هاتف"] },
+      { group: "New User / Onboarding", words: ["new user", "create user", "onboarding", "joining", "new employee"] },
+      { group: "Deletion / Disable / Offboarding", words: ["delete", "disable", "offboarding", "resigned", "termination", "حذف", "ايقاف"] }
+    ];
+
+    for (const rule of rules) {
+      if (rule.words.some(word => text.includes(word))) {
+        return rule.group;
+      }
+    }
+
+    const stopWords = new Set(["the", "is", "are", "and", "for", "to", "of", "in", "on", "a", "an", "please", "pls", "request", "issue", "problem", "not", "working", "went", "off"]);
+    const words = text.split(" ").filter(word => word.length > 2 && !stopWords.has(word));
+    return words.slice(0, 4).join(" ") || text.slice(0, 40);
+  }
+
+  function getTrendDirection(firstHalf, secondHalf) {
+    if (secondHalf > firstHalf) return "Increasing";
+    if (secondHalf < firstHalf) return "Decreasing";
+    return "Stable";
+  }
+
+  function analyzeSubjects(data) {
+    const groups = {};
+    const datedRows = [];
+
+    data.forEach(row => {
+      const subject = row["Subject"] || "";
+      const group = classifySubjectGroup(subject);
+      const parsedDate = parseDateValue(row["Created Date"]);
+      const dateKey = parsedDate ? parsedDate.toISOString().slice(0, 10) : "No Date";
+
+      if (!groups[group]) {
+        groups[group] = {
+          group,
+          count: 0,
+          examples: [],
+          statuses: {},
+          technicians: {},
+          dates: {},
+          firstHalf: 0,
+          secondHalf: 0
+        };
+      }
+
+      groups[group].count += 1;
+      if (subject && groups[group].examples.length < 3 && !groups[group].examples.includes(subject)) {
+        groups[group].examples.push(subject);
+      }
+
+      const status = String(row["Status.Name"] || "Blank").trim() || "Blank";
+      const tech = String(row["Technician.Name"] || "Unassigned").trim() || "Unassigned";
+      groups[group].statuses[status] = (groups[group].statuses[status] || 0) + 1;
+      groups[group].technicians[tech] = (groups[group].technicians[tech] || 0) + 1;
+      groups[group].dates[dateKey] = (groups[group].dates[dateKey] || 0) + 1;
+
+      if (parsedDate) {
+        datedRows.push({ group, parsedDate });
+      }
+    });
+
+    let minTime = null;
+    let maxTime = null;
+    datedRows.forEach(item => {
+      const t = item.parsedDate.getTime();
+      minTime = minTime === null ? t : Math.min(minTime, t);
+      maxTime = maxTime === null ? t : Math.max(maxTime, t);
+    });
+
+    const midTime = minTime !== null && maxTime !== null ? minTime + ((maxTime - minTime) / 2) : null;
+
+    datedRows.forEach(item => {
+      const bucket = item.parsedDate.getTime() <= midTime ? "firstHalf" : "secondHalf";
+      groups[item.group][bucket] += 1;
+    });
+
+    const rows = Object.values(groups).map(item => {
+      const topStatus = Object.entries(item.statuses).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
+      const topTechnician = Object.entries(item.technicians).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
+      const trendDelta = item.secondHalf - item.firstHalf;
+
+      return {
+        ...item,
+        topStatus,
+        topTechnician,
+        trendDelta,
+        trendDirection: getTrendDirection(item.firstHalf, item.secondHalf)
+      };
+    }).sort((a, b) => b.count - a.count);
+
+    const topGroupCounts = Object.fromEntries(rows.slice(0, 12).map(item => [item.group, item.count]));
+    const allDates = Array.from(new Set(rows.flatMap(item => Object.keys(item.dates)).filter(date => date !== "No Date"))).sort();
+    const topTrendGroups = rows.slice(0, 5).map(item => item.group);
+
+    return {
+      rows,
+      topGroupCounts,
+      allDates,
+      topTrendGroups
+    };
+  }
+
+  function renderSubjectGroupChart(subjectAnalysis) {
+    destroyChart("subjectGroupChart");
+    const ctx = document.getElementById("subjectGroupChart");
+    const labels = Object.keys(subjectAnalysis.topGroupCounts || {});
+
+    charts.subjectGroupChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          label: "Similar Subjects Count",
+          data: Object.values(subjectAnalysis.topGroupCounts || {}),
+          backgroundColor: "#1f4e79",
+          borderColor: "#ffffff",
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: "y",
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true, title: { display: true, text: "Number of Requests" } } }
+      }
+    });
+  }
+
+  function renderSubjectTrendChart(subjectAnalysis) {
+    destroyChart("subjectTrendChart");
+    const ctx = document.getElementById("subjectTrendChart");
+    const dates = subjectAnalysis.allDates || [];
+
+    const datasets = (subjectAnalysis.topTrendGroups || []).map((group, index) => {
+      const row = subjectAnalysis.rows.find(item => item.group === group);
+      return {
+        label: group,
+        data: dates.map(date => row?.dates?.[date] || 0),
+        borderColor: DEFAULT_STATUS_COLORS[index % DEFAULT_STATUS_COLORS.length],
+        backgroundColor: DEFAULT_STATUS_COLORS[index % DEFAULT_STATUS_COLORS.length],
+        fill: false,
+        tension: 0.25
+      };
+    });
+
+    charts.subjectTrendChart = new Chart(ctx, {
+      type: "line",
+      data: { labels: dates, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom" } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  }
+
+  function renderSubjectAnalysisTable() {
+    const container = document.getElementById("subjectAnalysisTable");
+    if (!container || !dashboardMetrics.subjectAnalysis) return;
+
+    const search = String(document.getElementById("subjectSearchInput")?.value || "").toLowerCase().trim();
+    const sortMode = document.getElementById("subjectSortSelect")?.value || "countDesc";
+    const limit = Number(document.getElementById("subjectLimitSelect")?.value || 30);
+
+    let rows = [...dashboardMetrics.subjectAnalysis.rows];
+
+    if (search) {
+      rows = rows.filter(row => {
+        return row.group.toLowerCase().includes(search) || row.examples.join(" ").toLowerCase().includes(search);
+      });
+    }
+
+    if (sortMode === "trendDesc") {
+      rows.sort((a, b) => b.trendDelta - a.trendDelta || b.count - a.count);
+    } else if (sortMode === "nameAsc") {
+      rows.sort((a, b) => a.group.localeCompare(b.group));
+    } else {
+      rows.sort((a, b) => b.count - a.count);
+    }
+
+    rows = rows.slice(0, limit);
+
+    let html = `
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Similar Subject Group</th>
+            <th>Count</th>
+            <th>Trend</th>
+            <th>First Half</th>
+            <th>Second Half</th>
+            <th>Top Status</th>
+            <th>Top Technician</th>
+            <th>Example Subjects</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    rows.forEach((row, index) => {
+      const trendClass = row.trendDirection === "Increasing" ? "trend-up" : row.trendDirection === "Decreasing" ? "trend-down" : "trend-flat";
+      const trendText = row.trendDirection === "Increasing" ? `▲ +${row.trendDelta}` : row.trendDirection === "Decreasing" ? `▼ ${row.trendDelta}` : "▬ 0";
+      html += `
+        <tr>
+          <td>${index + 1}</td>
+          <td><span class="subject-badge">${escapeHtml(row.group)}</span></td>
+          <td><strong>${row.count}</strong></td>
+          <td class="${trendClass}">${trendText}</td>
+          <td>${row.firstHalf}</td>
+          <td>${row.secondHalf}</td>
+          <td>${escapeHtml(row.topStatus)}</td>
+          <td>${escapeHtml(row.topTechnician)}</td>
+          <td>${escapeHtml(row.examples.join(" | "))}</td>
+        </tr>
+      `;
+    });
+
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+  }
   async function exportPowerPoint() {
     if (!rawData || rawData.length === 0) {
       alert("Please generate dashboard first.");
@@ -1876,6 +2234,8 @@
     await addChartSlide(pptx, "Technician Workload by Status", "technicianChart");
     await addChartSlide(pptx, "Top Requesters by Status", "requesterChart");
     await addChartSlide(pptx, "Request Volume Trend", "trendChart");
+    await addChartSlide(pptx, "Subject Similarity Groups", "subjectGroupChart");
+    await addChartSlide(pptx, "Subject Trend by Top Similar Groups", "subjectTrendChart");
     await addChartSlide(pptx, "SLA Violation by Group", "slaGroupChart");
     await addChartSlide(pptx, "SLA Violation by Technician", "slaTechnicianChart");
     await addChartSlide(pptx, "SLA Violation by Category", "slaCategoryChart");
