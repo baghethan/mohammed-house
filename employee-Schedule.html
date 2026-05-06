@@ -929,6 +929,11 @@ function employeeRecordPayload(emp, options = {}) {
     email: normalized.email || '',
     mobile: normalized.phone || '',
     phone: normalized.phone || '',
+    fixed: normalized.fixed === true,
+    shiftType: normalized.fixed === true ? 'night' : 'morning',
+    rotation: normalized.rotation || normalized.rotType || 'none',
+    rotType: normalized.rotType || normalized.rotation || 'none',
+    employeeType: normalizeJobTitle(normalized.jobTitle, '').includes('الفني') ? 'technician' : (normalized.employeeType || 'employee'),
     active,
     status: active ? 'active' : 'inactive',
     updatedAt: new Date().toISOString(),
@@ -956,10 +961,11 @@ async function saveEmployeeRecords(records) {
 }
 
 async function saveEmployees(updated = emps) {
+  // Unified mode: employees are stored in the employees collection only.
+  // schedule/jadwal_v6 must keep schedule settings only and should not duplicate employee records.
   const normalized = dedupeEmployees(updated);
-  await waitForSignedInUser();
-  await setDoc(scheduleDocRef, { data: { emps: normalized } }, { merge: true });
   emps = normalized;
+  render();
 }
 
 function fillForm(emp) {
@@ -1298,18 +1304,14 @@ async function bindCurrentUserProfile() {
 async function bindSnapshots() {
   await waitForSignedInUser();
 
+  // Unified mode: read employees from employees collection only.
+  // Do not read or write employee copies in schedule/jadwal_v6.
   onSnapshot(collection(db, 'employees'), snap => {
-    employeeRecords = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-    if (scheduleLoaded) syncEmployees().catch(error => logFirebaseError('Employees collection sync failed', error));
+    employeeRecords = snap.docs.map(item => normalizeExternalEmployee({ id: item.id, ...item.data() }, 'employees'));
+    emps = dedupeEmployees(employeeRecords);
+    scheduleLoaded = true;
     render();
   }, error => logFirebaseError('Employees collection listener failed', error));
-
-  onSnapshot(scheduleDocRef, snap => {
-    emps = snap.exists() ? dedupeEmployees(snap.data().data?.emps || []) : [];
-    scheduleLoaded = true;
-    if (employeeRecords.length) syncEmployees().catch(error => logFirebaseError('Employee sync failed', error));
-    render();
-  }, error => logFirebaseError('Employee schedule listener failed', error));
 }
 
 window.saveEmployee = async () => {
@@ -1390,7 +1392,7 @@ window.updateEmployeeField = async (id, field, value) => {
     return emp;
   });
   const changed = updated.find(emp => String(emp.id) === String(id));
-  if (changed && (field === 'jobTitle' || field === 'active')) {
+  if (changed) {
     await saveEmployeeRecord(changed, { inactive: field === 'active' && value !== 'true' });
   }
   await saveEmployees(updated);
