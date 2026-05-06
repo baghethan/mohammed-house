@@ -12,6 +12,7 @@
       --morning-bg: #7f9ee5; --morning-t: #ffffff;
       --night-bg: #7551D3; --night-t: #ffffff;
       --vacation-bg: #ffe4e6; --vacation-t: #9f1239;
+      --holiday-bg: #fff7ed; --holiday-t: #9a3412;
       --absent-bg: #fee2e2; --absent-t: #991b1b;
       --oncall-t: #075985;
       --work-bg: #dcfce7; --work-t: #166534;
@@ -42,6 +43,7 @@
     .Morning { background-color: var(--morning-bg); color: var(--morning-t); }
     .Night { background-color: var(--night-bg); color: var(--night-t); }
     .Vacation { background-color: var(--vacation-bg); color: var(--vacation-t); }
+    .Holiday { background-color: var(--holiday-bg); color: var(--holiday-t); }
     .Absent { background-color: var(--absent-bg); color: var(--absent-t); }
     .Work { background-color: var(--work-bg); color: var(--work-t); }
     .Off { background-color: var(--off-bg); color: var(--off-t); }
@@ -131,11 +133,11 @@ import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js
 import { doc, collection, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { title:'جدول المناوبات الأسبوعي', morning:'صباحي', night:'ليلي', vacation:'إجازة', absent:'غائب', oncall:'أون كول', work:'تغطية', off:'أوف', employee:'الموظف', allDay:'طوال اليوم', help:'حسب الحاجة', copyImage:'نسخ صورة', copied:'تم نسخ صورة الجدول.', downloaded:'تعذر النسخ المباشر، تم تنزيل الصورة بدلاً من ذلك.', copyFailed:'تعذر إنشاء صورة الجدول.', generated:'تم الإنشاء', range:(from,to)=>`من ${from} إلى ${to}`, days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'] },
-    en: { title:'Weekly Shift Schedule', morning:'Morning', night:'Night', vacation:'Vacation', absent:'Absent', oncall:'On Call', work:'Coverage', off:'Off', employee:'Employee', allDay:'Full Day', help:'As Needed', copyImage:'Copy Image', copied:'Schedule image copied.', downloaded:'Direct copy was blocked, so the image was downloaded instead.', copyFailed:'Could not create the schedule image.', generated:'Generated', range:(from,to)=>`From ${from} to ${to}`, days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] }
+    ar: { title:'جدول المناوبات الأسبوعي', morning:'صباحي', night:'ليلي', vacation:'إجازة', holiday:'Holiday', absent:'غائب', oncall:'أون كول', work:'تغطية', off:'أوف', employee:'الموظف', allDay:'طوال اليوم', help:'حسب الحاجة', copyImage:'نسخ صورة', copied:'تم نسخ صورة الجدول.', downloaded:'تعذر النسخ المباشر، تم تنزيل الصورة بدلاً من ذلك.', copyFailed:'تعذر إنشاء صورة الجدول.', generated:'تم الإنشاء', range:(from,to)=>`من ${from} إلى ${to}`, days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'] },
+    en: { title:'Weekly Shift Schedule', morning:'Morning', night:'Night', vacation:'Vacation', holiday:'Holiday', absent:'Absent', oncall:'On Call', work:'Coverage', off:'Off', employee:'Employee', allDay:'Full Day', help:'As Needed', copyImage:'Copy Image', copied:'Schedule image copied.', downloaded:'Direct copy was blocked, so the image was downloaded instead.', copyFailed:'Could not create the schedule image.', generated:'Generated', range:(from,to)=>`From ${from} to ${to}`, days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] }
 };
 
-let emps = [], employeeRecords = [], overrides = {}, annualLeaves = [], vacationPlans = [], currentLang = localStorage.getItem('lang') || 'ar', selectedCell = null, selectedOption = null;
+let emps = [], employeeRecords = [], holidayDuties = [], overrides = {}, annualLeaves = [], vacationPlans = [], currentLang = localStorage.getItem('lang') || 'ar', selectedCell = null, selectedOption = null;
 const $ = id => document.getElementById(id);
 
 function escapeHtml(value) {
@@ -198,13 +200,22 @@ function isVacationDay(emp, date) {
     return annual || approvedPlan;
 }
 
+function publicHolidayForDate(date) {
+    return holidayDuties.find(holiday => isDateInRange(date, holiday.start, holiday.end)) || null;
+}
+
+function isAssignedHolidayEmployee(emp, holiday) {
+    return !!holiday && matchesEmployee(holiday, emp);
+}
+
 function isManualUnavailable(emp, date) {
     const shift = overrides[`${emp.id}_${formatLocalDate(date)}`];
     return shift === 'Vacation' || shift === 'Absent';
 }
 
 function isUnavailable(emp, date) {
-    return emp.active === false || isVacationDay(emp, date) || isManualUnavailable(emp, date);
+    const holiday = publicHolidayForDate(date);
+    return emp.active === false || isVacationDay(emp, date) || (holiday && !isAssignedHolidayEmployee(emp, holiday)) || isManualUnavailable(emp, date);
 }
 
 function weekIndex(start) {
@@ -302,6 +313,7 @@ window.updateLabels = () => {
         <div class="pill Morning">☀️ ${t.morning} <span>07:30 - 17:00</span></div>
         <div class="pill Night">🌙 ${t.night} <span>13:00 - 22:00</span></div>
         <div class="pill Vacation">🌴 ${t.vacation} <span>${t.allDay}</span></div>
+        <div class="pill Holiday">🎊 ${t.holiday} <span>${t.allDay}</span></div>
         <div class="pill Absent">🚫 ${t.absent} <span>${t.allDay}</span></div>
         <div class="pill OnCall">📞 ${t.oncall} <span>${t.help}</span></div>
         <div class="pill Work">🏢 ${t.work} <span>10:00 - 19:00</span></div>
@@ -340,8 +352,9 @@ async function renderTable() {
         dates.forEach(d => {
             const dStr = formatLocalDate(d);
             const manualShift = overrides[`${emp.id}_${dStr}`];
-            let shift = manualShift || (isVacationDay(emp, d) ? 'Vacation' : baseShift(emp, d, rotations));
-            const icons = { Morning:'☀️', Night:'🌙', Vacation:'🌴', Absent:'🚫', OnCall:'📞', Work:'🏢', Off:'⌛' };
+            const publicHoliday = publicHolidayForDate(d);
+            let shift = manualShift || (isVacationDay(emp, d) ? 'Vacation' : publicHoliday && !isAssignedHolidayEmployee(emp, publicHoliday) ? 'Holiday' : baseShift(emp, d, rotations));
+            const icons = { Morning:'☀️', Night:'🌙', Vacation:'🌴', Holiday:'🎊', Absent:'🚫', OnCall:'📞', Work:'🏢', Off:'⌛' };
             row += `<td><div class="schedule-badge ${shift}" onclick="window.openDialog('${safeJs(emp.id)}','${dStr}','${safeJs(emp.name)}','${shift}')">${icons[shift] || ''} ${t[shift.toLowerCase()] || shift}</div></td>`;
         });
         return `<tr>${row}</tr>`;
@@ -352,7 +365,7 @@ window.openDialog = (empId, date, name, current) => {
     selectedCell = { empId, date }; selectedOption = current;
     const t = i18n[currentLang];
     $('dialogTitle').innerHTML = `<div style="font-size:16px">${escapeHtml(name)}</div><div style="font-size:11px; opacity:0.6">${escapeHtml(date)}</div>`;
-    const opts = ['Morning', 'Night', 'OnCall', 'Work', 'Vacation', 'Absent', 'Off'];
+    const opts = ['Morning', 'Night', 'OnCall', 'Work', 'Vacation', 'Holiday', 'Absent', 'Off'];
     $('shiftOptions').innerHTML = opts.map(o => `<div class="opt-btn ${selectedOption === o ? 'active' : ''}" onclick="window.selectOpt('${o}')">${t[o.toLowerCase()]}</div>`).join('');
     $('shiftOverlay').style.display = 'flex';
 };
@@ -425,6 +438,7 @@ async function bindSnapshots() {
     await waitForSignedInUser();
     onSnapshot(doc(db, 'schedule', 'jadwal_v6'), s => { emps = s.data()?.data?.emps || []; renderTable(); }, e => logFirebaseError('Weekly schedule employees listener failed', e));
     onSnapshot(collection(db, 'employees'), s => { employeeRecords = s.docs.map(item => ({ id: item.id, ...item.data() })); renderTable(); }, e => logFirebaseError('Weekly schedule employees collection listener failed', e));
+    onSnapshot(doc(db, 'schedule', 'jadwal_holidays'), s => { holidayDuties = s.exists() ? (s.data().duties || []) : []; renderTable(); }, e => logFirebaseError('Weekly schedule public holidays listener failed', e));
     onSnapshot(doc(db, 'schedule', 'manual_overrides'), s => { overrides = s.data() || {}; renderTable(); }, e => logFirebaseError('Weekly schedule overrides listener failed', e));
     onSnapshot(doc(db, 'schedule', 'jadwal_annual_leave'), s => { annualLeaves = s.exists() ? (s.data().vacations || []) : []; renderTable(); }, e => logFirebaseError('Weekly schedule annual leave listener failed', e));
     onSnapshot(collection(db, 'vacations'), s => { vacationPlans = s.docs.map(item => ({ id: item.id, ...item.data() })); renderTable(); }, e => logFirebaseError('Weekly schedule vacation plans listener failed', e));
