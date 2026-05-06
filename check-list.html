@@ -141,6 +141,9 @@
       addValues(values, tech || {}, [
         'id',
         '_docId',
+        'empId',
+        'empNum',
+        'employeeId',
         'technicianId',
         'technicianCode',
         'code',
@@ -157,7 +160,7 @@
       const profile = state.userProfile || {};
       const user = state.currentUser || {};
       const values = [];
-      addValues(values, profile, ['technicianId', 'technicianCode', 'code', 'email', 'name', 'fullName']);
+      addValues(values, profile, ['employeeId', 'empId', 'technicianId', 'technicianCode', 'code', 'email', 'name', 'fullName']);
       addValues(values, user, ['uid', 'email', 'displayName']);
       return values;
     }
@@ -185,6 +188,7 @@
     function recordTechnicianValues(record) {
       const values = [];
       addValues(values, record || {}, [
+        'technicianEmpId',
         'technicianDocId',
         'technicianId',
         'technicianUid',
@@ -228,7 +232,7 @@
 
     function fillTechnicianFields(t) {
       $('cl_technician_email').value = t.email || (state.currentUser && state.currentUser.email) || '';
-      $('cl_technician_id').value = t.authUid || t.technicianId || t.technicianCode || t.id || '';
+      $('cl_technician_id').value = t.empId || t.empNum || t.employeeId || t.technicianId || t.technicianCode || t.id || '';
     }
 
     function applyTechnicianMode() {
@@ -358,8 +362,9 @@
           return alert('تم حفظ هذه الزيارة مسبقاً ولم تعد متاحة للفني.');
         }
       }
+      const selectedTech = state.technicians.find(t => String(t.id) === String(techDropdown.value) || String(t._docId) === String(techDropdown.value)) || {};
       const payload = { 
-        technicianDocId: techDropdown.value, technicianName: techDropdown.options[techDropdown.selectedIndex].text, technicianEmail: $('cl_technician_email').value, technicianAuthId: $('cl_technician_id').value, 
+        technicianEmpId: selectedTech.empId || selectedTech.empNum || selectedTech.employeeId || techDropdown.value, technicianDocId: selectedTech._docId || techDropdown.value, technicianEmail: $('cl_technician_email').value, technicianAuthId: selectedTech.authUid || '', 
         visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, dynamicAnswers: answers, updatedAt: new Date().toISOString()
       };
       try { 
@@ -438,7 +443,7 @@
     async function queryVisitsByIdentity(values) {
       const db = window.parent.appDb;
       const rows = new Map();
-      const fields = ['technicianDocId', 'technicianId', 'technicianUid', 'technicianEmail'];
+      const fields = ['technicianEmpId', 'technicianDocId', 'technicianId', 'technicianUid', 'technicianEmail'];
       const uniqueValues = values.map(v => String(v || '').trim()).filter(Boolean)
         .filter((value, index, arr) => arr.findIndex(item => norm(item) === norm(value)) === index)
         .slice(0, 20);
@@ -510,7 +515,7 @@
             if (identity.matchedTechId) loadVisitsForTech(identity.matchedTechId);
             return;
           }
-          $('cl_brand').value=v.brand||''; $('cl_brandKey').value=v.brandKey||''; $('cl_branch_id').value=v.branchId||''; $('cl_location').value=v.branchName||''; $('cl_city').value=v.city||''; $('cl_region').value=v.region||''; $('cl_visit_date').value=v.date||'';
+          $('cl_brand').value=v.brand||''; $('cl_brandKey').value=v.brandKey||''; $('cl_branch_id').value=v.branchId||''; $('cl_location').value=v.branchName||v.branchId||''; $('cl_city').value=v.city||''; $('cl_region').value=v.region||''; $('cl_visit_date').value=v.date||'';
           const d = new Date(v.date); if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
         }
       });
@@ -564,7 +569,7 @@
         return;
       }
 
-      const fields = ['technicianDocId', 'technicianAuthId', 'technicianEmail', 'technicianName'];
+      const fields = ['technicianEmpId', 'technicianDocId', 'technicianAuthId', 'technicianEmail'];
       const values = identity.rawValues
         .map(v => String(v || '').trim())
         .filter(Boolean)
@@ -584,8 +589,8 @@
 
     async function boot() {
       const db = window.parent.appDb;
-      db.collection('technicians').onSnapshot(snap => {
-        state.technicians = snap.docs.map(d => ({ ...d.data(), id: d.data().id || d.id, _docId: d.id }));
+      db.collection('employees').onSnapshot(snap => {
+        state.technicians = snap.docs.map(d => { const data = d.data() || {}; const empId = data.empId || data.empNum || data.employeeId || data.technicianId || d.id; return { ...data, id: String(empId || d.id), _docId: d.id, empId: String(empId || ''), technicianId: data.technicianId || empId || '', technicianCode: data.technicianCode || data.code || empId || '', name: data.name || data.fullName || empId || d.id, status: data.status || (data.active === false ? 'inactive' : 'active') }; }).filter(t => t.status !== 'inactive' && (String(t.employeeType || t.type || '').toLowerCase() === 'technician' || String(t.jobTitle || t.title || t.position || '').toLowerCase().includes('technician') || String(t.jobTitle || '').includes('فني') || t.isTechnician === true));
         renderTechnicianSelector();
         listenChecklists();
       });
