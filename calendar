@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>التقويم الهجري السنوي وحساب العمر</title>
+
+  <style>
+    :root{
+      --primary:#2d185f;
+      --brown:#ad8466;
+      --line:#666;
+      --paper:#fff;
+      --bg:#f1eee9;
+      --text:#3b2d28;
+      --muted:#7d6a60;
+      --pink:#ff9fc4;
+      --green:#82e875;
+      --yellow:#f8ef47;
+      --orange:#ffb356;
+      --cyan:#bdf7ef;
+      --blue:#62a8ff;
+      --purple:#ec87ff;
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:"Tahoma","Arial",sans-serif;
+    }
+
+    .page{
+      width:min(1320px,98%);
+      margin:18px auto;
+      background:var(--paper);
+      min-height:100vh;
+      padding:24px 26px 32px;
+      box-shadow:0 15px 45px rgba(0,0,0,.12);
+      border-radius:8px;
+    }
+
+    .top{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:10px;
+    }
+
+    .logo-space{width:170px}
+
+    .logo{
+      min-width:170px;
+      text-align:center;
+      color:var(--brown);
+      font-weight:bold;
+      line-height:1.45;
+      font-size:13px;
+    }
+
+    .logo-mark{
+      width:64px;
+      height:64px;
+      margin:0 auto 5px;
+      border:3px solid var(--brown);
+      border-radius:20px 20px 6px 20px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:30px;
+      opacity:.9;
+    }
+
+    .title-wrap{
+      flex:1;
+      text-align:center;
+      padding-top:4px;
+    }
+
+    .title-bg{
+      display:inline-block;
+      position:relative;
+      padding:8px 34px;
+      color:var(--brown);
+      font-size:38px;
+      font-weight:900;
+      line-height:1.25;
+    }
+
+    .title-bg::before,
+    .title-bg::after{
+      content:"";
+      position:absolute;
+      left:0;
+      right:0;
+      height:14px;
+      background:rgba(173,132,102,.13);
+      border-radius:30px;
+      z-index:0;
+    }
+
+    .title-bg::before{top:0}
+    .title-bg::after{bottom:0}
+    .title-bg span{position:relative;z-index:1}
+
+    .tabs{
+      display:flex;
+      justify-content:center;
+      gap:8px;
+      margin:12px 0 14px;
+      flex-wrap:wrap;
+    }
+
+    .tab-btn,.btn{
+      border:1px solid #c9b7a8;
+      background:#fff8f1;
+      color:#6d4f3d;
+      padding:9px 13px;
+      border-radius:10px;
+      font-weight:bold;
+      cursor:pointer;
+      transition:.2s;
+      font-family:inherit;
+    }
+
+    .tab-btn:hover,.btn:hover{transform:translateY(-1px);background:#f2e7dc}
+    .tab-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+    .panel{display:none}
+    .panel.active{display:block}
+
+    .controls{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+      margin:8px 0 12px;
+      direction:ltr;
+    }
+
+    .year-box{
+      min-width:110px;
+      text-align:center;
+      background:#fff;
+      border:2px solid var(--brown);
+      color:var(--brown);
+      padding:7px 10px;
+      border-radius:12px;
+      font-size:22px;
+      font-weight:900;
+    }
+
+    input,select{
+      border:1px solid #c9b7a8;
+      background:#fff;
+      color:#402d24;
+      padding:10px 12px;
+      border-radius:10px;
+      font-size:15px;
+      outline:none;
+      font-family:inherit;
+    }
+
+    .numeric{
+      direction:ltr;
+      text-align:center;
+      unicode-bidi:plaintext;
+    }
+
+    .quick-years{
+      display:flex;
+      gap:7px;
+      flex-wrap:wrap;
+      justify-content:center;
+      width:100%;
+      margin-top:3px;
+    }
+
+    .month-buttons{
+      display:flex;
+      justify-content:center;
+      flex-wrap:wrap;
+      gap:6px;
+      margin:8px 0 14px;
+    }
+
+    .month-btn{
+      border:1px solid #c9b7a8;
+      background:#fff8f1;
+      color:#5d4334;
+      padding:8px 10px;
+      border-radius:10px;
+      font-weight:bold;
+      cursor:pointer;
+      transition:.2s;
+      font-size:12px;
+      font-family:inherit;
+    }
+
+    .month-btn:hover{background:#f2e7dc;transform:translateY(-1px)}
+    .month-btn.active{background:var(--brown);color:#fff;border-color:var(--brown)}
+
+    .calendar{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:17px 24px;
+      direction:ltr;
+      align-items:start;
+    }
+
+    .month{
+      direction:rtl;
+      break-inside:avoid;
+    }
+
+    .month.hidden{display:none}
+
+    .month-title{
+      color:var(--brown);
+      font-weight:900;
+      margin-bottom:5px;
+      font-size:16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      direction:rtl;
+    }
+
+    .hijri-month-name{
+      text-align:right;
+      flex:1;
+      white-space:nowrap;
+    }
+
+    .greg-month-name{
+      text-align:left;
+      flex:1;
+      color:#9c8a7e;
+      font-size:12px;
+      font-weight:900;
+      direction:ltr;
+      white-space:nowrap;
+    }
+
+    .table{
+      border:2px solid #777;
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      background:#fff;
+      direction:rtl;
+    }
+
+    .th{
+      background:var(--primary);
+      color:#fff;
+      font-size:10.5px;
+      font-weight:bold;
+      text-align:center;
+      padding:5px 1px;
+      border-left:1px solid #8c82aa;
+    }
+
+    .cell{
+      height:38px;
+      border-top:1px solid #9a9a9a;
+      border-left:1px solid #9a9a9a;
+      position:relative;
+      text-align:center;
+      padding:2px 1px;
+      background:#fff;
+      overflow:hidden;
+    }
+
+    .cell.empty{background:#fafafa}
+
+    .hday{
+      display:block;
+      font-size:20px;
+      line-height:1;
+      color:#9b735e;
+      font-weight:800;
+      font-family:"Times New Roman",serif;
+    }
+
+    .gday{
+      display:block;
+      font-size:9px;
+      color:#585858;
+      margin-top:1px;
+      direction:ltr;
+    }
+
+    .event-name{
+      position:absolute;
+      left:1px;
+      right:1px;
+      bottom:0;
+      font-size:7px;
+      color:#3a2a23;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      font-weight:bold;
+    }
+
+    .ev-pink{background:var(--pink)!important}
+    .ev-green{background:var(--green)!important}
+    .ev-yellow{background:var(--yellow)!important}
+    .ev-orange{background:var(--orange)!important}
+    .ev-cyan{background:var(--cyan)!important}
+    .ev-blue{background:var(--blue)!important}
+    .ev-purple{background:var(--purple)!important}
+
+    .dash-lines{
+      color:#777;
+      font-size:12px;
+      line-height:1;
+      margin-top:3px;
+      letter-spacing:2px;
+      overflow:hidden;
+      height:24px;
+    }
+
+    .legend{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:7px 18px;
+      margin-top:20px;
+      font-size:12px;
+      color:#4a3d37;
+    }
+
+    .legend-item{
+      display:flex;
+      align-items:center;
+      gap:7px;
+      white-space:nowrap;
+    }
+
+    .color{
+      width:17px;
+      height:17px;
+      display:inline-block;
+      border:1px solid #999;
+    }
+
+    .event-editor{
+      margin-top:14px;
+      padding:12px;
+      border-radius:16px;
+      background:#fffaf4;
+      border:1px dashed #c5ad9b;
+    }
+
+    .event-editor h3{
+      margin:0 0 9px;
+      color:var(--primary);
+      font-size:17px;
+    }
+
+    .event-row{
+      display:grid;
+      grid-template-columns:1fr 1fr 1.5fr 1fr auto;
+      gap:8px;
+      margin-top:8px;
+    }
+
+    .events-list{
+      margin-top:10px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      font-size:12px;
+    }
+
+    .event-chip{
+      background:#fff;
+      border:1px solid #d5c0af;
+      padding:6px 9px;
+      border-radius:999px;
+    }
+
+    .age-layout{
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:18px;
+      margin-top:12px;
+    }
+
+    .card{
+      border:1px solid #d8c8b8;
+      background:#fffaf4;
+      border-radius:18px;
+      padding:18px;
+    }
+
+    .card h2{
+      margin:0 0 14px;
+      color:var(--primary);
+      font-size:24px;
+    }
+
+    .form-grid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:12px;
+    }
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    label{
+      font-weight:bold;
+      color:#6d4f3d;
+      font-size:13px;
+    }
+
+    .result{
+      margin-top:14px;
+      display:grid;
+      gap:10px;
+    }
+
+    .result-box{
+      background:#fff;
+      border:1px solid #dbc9b7;
+      border-radius:14px;
+      padding:12px;
+      line-height:1.8;
+    }
+
+    .big{
+      font-size:25px;
+      font-weight:900;
+      color:#2d185f;
+    }
+
+    .zodiac{
+      display:inline-block;
+      margin-top:6px;
+      padding:8px 14px;
+      border-radius:999px;
+      background:#f3e6d7;
+      color:#5f3e27;
+      font-weight:900;
+    }
+
+    .note{
+      color:#6d5d54;
+      line-height:1.9;
+      font-size:15px;
+    }
+
+    @media print{
+      body{background:#fff}
+      .page{
+        width:100%;
+        margin:0;
+        box-shadow:none;
+        border-radius:0;
+        padding:10px 14px;
+      }
+      .tabs,.controls,.month-buttons,.event-editor{display:none!important}
+      .calendar{grid-template-columns:repeat(3,1fr);gap:11px 18px}
+      .cell{height:32px}
+      .hday{font-size:17px}
+      .gday{font-size:8px}
+      .title-bg{font-size:30px}
+      .legend{font-size:10.5px;gap:5px 12px;margin-top:12px}
+    }
+
+    @media(max-width:1000px){
+      .calendar{grid-template-columns:repeat(2,1fr)}
+      .legend{grid-template-columns:repeat(2,1fr)}
+      .age-layout{grid-template-columns:1fr}
+      .event-row{grid-template-columns:1fr 1fr}
+    }
+
+    @media(max-width:650px){
+      .page{padding:16px 10px;width:100%}
+      .top{display:block}
+      .logo,.logo-space{display:none}
+      .title-bg{font-size:24px;padding:8px 16px}
+      .calendar{grid-template-columns:1fr;gap:16px}
+      .legend{grid-template-columns:1fr}
+      .form-grid{grid-template-columns:1fr}
+      .event-row{grid-template-columns:1fr}
+      .btn,.tab-btn{font-size:13px;padding:8px 10px}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <header class="top">
+      <div class="logo-space"></div>
+
+      <div class="title-wrap">
+        <div class="title-bg">
+          <span>التقويم الهجري لعام <span id="titleYear">1447</span>هـ</span>
+        </div>
+      </div>
+
+<div class="logo-space"></div>
+    </header>
+
+    <nav class="tabs">
+      <button type="button" class="tab-btn active" onclick="showTab('calendarPanel', this)">التقويم السنوي</button>
+      <button type="button" class="tab-btn" onclick="showTab('agePanel', this)">حساب العمر والأبراج</button>
+    </nav>
+
+    <section id="calendarPanel" class="panel active">
+      <div class="controls">
+        <button type="button" class="btn" onclick="changeHijriYear(-1)">السنة السابقة</button>
+        <div class="year-box" id="yearBox">1447</div>
+        <button type="button" class="btn" onclick="changeHijriYear(1)">السنة التالية</button>
+
+        <input id="hijriYearInput" class="numeric" type="text" inputmode="numeric" placeholder="اكتب السنة الهجرية">
+        <button type="button" class="btn" onclick="goHijriYear()">عرض السنة</button>
+        <button type="button" class="btn" onclick="window.print()">طباعة / PDF</button>
+
+        <div class="quick-years">
+          <button type="button" class="btn" onclick="changeHijriYear(-10)">-10</button>
+          <button type="button" class="btn" onclick="changeHijriYear(-5)">-5</button>
+          <button type="button" class="btn" onclick="changeHijriYear(-1)">-1</button>
+          <button type="button" class="btn" onclick="setCurrentHijriYear()">السنة الحالية</button>
+          <button type="button" class="btn" onclick="changeHijriYear(1)">+1</button>
+          <button type="button" class="btn" onclick="changeHijriYear(5)">+5</button>
+          <button type="button" class="btn" onclick="changeHijriYear(10)">+10</button>
+        </div>
+      </div>
+
+      <div class="month-buttons" id="monthButtons"></div>
+      <div id="calendar" class="calendar"></div>
+      <div class="legend" id="legend"></div>
+
+      <div class="event-editor">
+        <h3>إضافة مناسبة ملونة على التقويم</h3>
+        <div class="event-row">
+          <input id="eventMonth" class="numeric" type="text" inputmode="numeric" placeholder="رقم الشهر الهجري">
+          <input id="eventDay" class="numeric" type="text" inputmode="numeric" placeholder="اليوم">
+          <input id="eventName" type="text" placeholder="اسم المناسبة">
+          <select id="eventColor">
+            <option value="pink">وردي</option>
+            <option value="green">أخضر</option>
+            <option value="yellow">أصفر</option>
+            <option value="orange">برتقالي</option>
+            <option value="cyan">سماوي</option>
+            <option value="blue">أزرق</option>
+            <option value="purple">بنفسجي</option>
+          </select>
+          <button type="button" class="btn" onclick="addEvent()">إضافة</button>
+        </div>
+        <div class="events-list" id="eventsList"></div>
+      </div>
+    </section>
+
+    <section id="agePanel" class="panel">
+      <div class="age-layout">
+        <div class="card">
+          <h2>حساب العمر</h2>
+
+          <div class="form-grid">
+            <div class="field">
+              <label>نوع التاريخ</label>
+              <select id="dateType">
+                <option value="gregorian">ميلادي</option>
+                <option value="hijri">هجري تقريبي</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>السنة</label>
+              <input id="birthYear" class="numeric" type="text" inputmode="numeric" placeholder="مثال: 1995 أو 1415">
+            </div>
+
+            <div class="field">
+              <label>الشهر</label>
+              <input id="birthMonth" class="numeric" type="text" inputmode="numeric" placeholder="1 - 12">
+            </div>
+
+            <div class="field">
+              <label>اليوم</label>
+              <input id="birthDay" class="numeric" type="text" inputmode="numeric" placeholder="1 - 31">
+            </div>
+
+            <div class="field">
+              <label>تنفيذ</label>
+              <button type="button" class="btn" onclick="calculateAge()">احسب العمر</button>
+            </div>
+          </div>
+
+          <div id="ageResult" class="result"></div>
+        </div>
+
+        <div class="card">
+          <h2>ملاحظات</h2>
+          <div class="note">
+            تم ضبط الصفحة بحيث يظهر التقويم كاملًا أولاً، وبعدها تقدر تختار شهر محدد من الأزرار.
+            <br><br>
+            حقول الأرقام تقبل الأرقام الإنجليزية والعربية مثل: 1447 أو ١٤٤٧.
+            <br><br>
+            التاريخ الهجري يعتمد على تقويم المتصفح وقد يختلف يومًا واحدًا حسب أم القرى أو رؤية الهلال.
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const hijriMonths = [
+      "محرم", "صفر", "ربيع الأول", "ربيع الآخر",
+      "جمادى الأولى", "جمادى الآخر", "رجب", "شعبان",
+      "رمضان", "شوال", "ذو القعدة", "ذو الحجة"
+    ];
+
+    const weekdays = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+
+    const colorMap = {
+      pink: "بداية الفصل الدراسي",
+      green: "إجازة اليوم الوطني",
+      yellow: "بداية إجازة نهاية العام الدراسي",
+      orange: "بداية إجازة منتصف العام الدراسي",
+      cyan: "إجازة نهاية أسبوع مطولة",
+      blue: "بداية إجازة عيد الفطر",
+      purple: "بداية الدراسة بعد الإجازة"
+    };
+
+    const cssColorClass = {
+      pink: "ev-pink",
+      green: "ev-green",
+      yellow: "ev-yellow",
+      orange: "ev-orange",
+      cyan: "ev-cyan",
+      blue: "ev-blue",
+      purple: "ev-purple"
+    };
+
+    let selectedMonth = 0;
+
+    const hijriPartsFormatter = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn", {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric"
+    });
+
+    const gregDayFormatter = new Intl.DateTimeFormat("en-GB", {
+      day: "numeric"
+    });
+
+    const gregMonthFormatter = new Intl.DateTimeFormat("ar-SA-u-ca-gregory", {
+      month: "long"
+    });
+
+    let currentHijriYear = getCurrentHijriYear();
+
+    let customEvents = [
+      { month: 1, day: 1, name: "بداية العام الهجري", color: "yellow" },
+      { month: 3, day: 23, name: "إجازة اليوم الوطني", color: "green" },
+      { month: 9, day: 1, name: "بداية رمضان", color: "cyan" },
+      { month: 10, day: 1, name: "عيد الفطر", color: "blue" },
+      { month: 12, day: 10, name: "عيد الأضحى", color: "pink" }
+    ];
+
+    function showTab(id, btn){
+      document.querySelectorAll(".panel").forEach(function(p){ p.classList.remove("active"); });
+      document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
+      document.getElementById(id).classList.add("active");
+      btn.classList.add("active");
+      window.scrollTo({top:0, behavior:"smooth"});
+    }
+
+    function normalizeNumber(value){
+      return String(value || "")
+        .replace(/[٠-٩]/g, function(d){ return "٠١٢٣٤٥٦٧٨٩".indexOf(d); })
+        .replace(/[۰-۹]/g, function(d){ return "۰۱۲۳۴۵۶۷۸۹".indexOf(d); })
+        .replace(/[^0-9]/g, "");
+    }
+
+    function toArabicNumber(value){
+      return String(value).replace(/\d/g, function(d){ return "٠١٢٣٤٥٦٧٨٩"[d]; });
+    }
+
+    function getCurrentHijriYear(){
+      try{
+        const f = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn", {year:"numeric"});
+        const yearPart = f.formatToParts(new Date()).find(function(p){ return p.type === "year"; });
+        return Number(yearPart.value);
+      }catch(e){
+        return 1447;
+      }
+    }
+
+    function getHijriParts(date){
+      const parts = hijriPartsFormatter.formatToParts(date);
+      const obj = {};
+      parts.forEach(function(p){
+        if(p.type === "day") obj.day = Number(p.value);
+        if(p.type === "month") obj.month = Number(p.value);
+        if(p.type === "year") obj.year = Number(p.value);
+      });
+      return obj;
+    }
+
+    function estimateGregorianStartYear(hYear){
+      return Math.floor((hYear - 1) * 0.970224 + 622);
+    }
+
+    function collectHijriYearDays(hYear){
+      const startG = estimateGregorianStartYear(hYear) - 1;
+      const start = new Date(startG, 0, 1);
+      const end = new Date(startG + 3, 11, 31);
+      const months = Array.from({length:12}, function(){ return []; });
+      const d = new Date(start);
+
+      while(d <= end){
+        const hp = getHijriParts(d);
+        if(hp.year === hYear && hp.month >= 1 && hp.month <= 12){
+          months[hp.month - 1].push({
+            hDay: hp.day,
+            hMonth: hp.month,
+            hYear: hp.year,
+            gDate: new Date(d),
+            weekday: d.getDay()
+          });
+        }
+        d.setDate(d.getDate() + 1);
+      }
+      return months;
+    }
+
+    function renderCalendar(){
+      document.getElementById("titleYear").textContent = toArabicNumber(currentHijriYear);
+      document.getElementById("yearBox").textContent = toArabicNumber(currentHijriYear);
+      document.getElementById("hijriYearInput").value = currentHijriYear;
+
+      const allMonths = collectHijriYearDays(currentHijriYear);
+      const calendar = document.getElementById("calendar");
+      calendar.innerHTML = "";
+
+      allMonths.forEach(function(days, index){
+        const month = document.createElement("div");
+        month.className = "month";
+        month.dataset.monthIndex = index + 1;
+
+        if(selectedMonth !== 0 && selectedMonth !== index + 1){
+          month.classList.add("hidden");
+        }
+
+        let gregMonthTitle = "";
+        if(days.length){
+          const firstMonth = gregMonthFormatter.format(days[0].gDate);
+          const lastMonth = gregMonthFormatter.format(days[days.length - 1].gDate);
+          gregMonthTitle = firstMonth === lastMonth ? firstMonth : firstMonth + " / " + lastMonth;
+        }
+
+        const title = document.createElement("div");
+        title.className = "month-title";
+        title.innerHTML =
+          '<span class="hijri-month-name">' + hijriMonths[index] + " (" + toArabicNumber(index + 1) + ")" + '</span>' +
+          '<span class="greg-month-name">' + gregMonthTitle + '</span>';
+        month.appendChild(title);
+
+        const table = document.createElement("div");
+        table.className = "table";
+
+        weekdays.forEach(function(w){
+          const th = document.createElement("div");
+          th.className = "th";
+          th.textContent = w;
+          table.appendChild(th);
+        });
+
+        if(days.length){
+          const firstWeekday = days[0].weekday;
+          for(let i=0; i<firstWeekday; i++){
+            const empty = document.createElement("div");
+            empty.className = "cell empty";
+            table.appendChild(empty);
+          }
+
+          days.forEach(function(info){
+            const cell = document.createElement("div");
+            cell.className = "cell";
+
+            const ev = customEvents.find(function(e){
+              return e.month === info.hMonth && e.day === info.hDay;
+            });
+
+            if(ev){
+              cell.classList.add(cssColorClass[ev.color]);
+            }
+
+            const gText = gregDayFormatter.format(info.gDate);
+            cell.innerHTML =
+              '<span class="hday">' + toArabicNumber(info.hDay) + '</span>' +
+              '<span class="gday">' + gText + '</span>' +
+              (ev ? '<span class="event-name">' + ev.name + '</span>' : '');
+
+            table.appendChild(cell);
+          });
+        }
+
+        month.appendChild(table);
+
+        const dash = document.createElement("div");
+        dash.className = "dash-lines";
+        dash.innerHTML = "------------------------------<br>------------------------------";
+        month.appendChild(dash);
+
+        calendar.appendChild(month);
+      });
+
+      renderMonthButtons();
+      renderLegend();
+      renderEventsList();
+    }
+
+    function renderMonthButtons(){
+      const wrap = document.getElementById("monthButtons");
+      wrap.innerHTML = "";
+
+      const allBtn = document.createElement("button");
+      allBtn.type = "button";
+      allBtn.className = "month-btn" + (selectedMonth === 0 ? " active" : "");
+      allBtn.textContent = "عرض كل الأشهر";
+      allBtn.onclick = function(){ selectMonth(0); };
+      wrap.appendChild(allBtn);
+
+      hijriMonths.forEach(function(name, i){
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "month-btn" + (selectedMonth === i + 1 ? " active" : "");
+        btn.textContent = name;
+        btn.onclick = function(){ selectMonth(i + 1); };
+        wrap.appendChild(btn);
+      });
+    }
+
+    function selectMonth(monthNumber){
+      selectedMonth = monthNumber;
+      renderCalendar();
+      if(monthNumber !== 0){
+        setTimeout(function(){
+          const monthEl = document.querySelector('.month[data-month-index="' + monthNumber + '"]');
+          if(monthEl) monthEl.scrollIntoView({behavior:"smooth", block:"center"});
+        }, 50);
+      }
+    }
+
+    function renderLegend(){
+      const legend = document.getElementById("legend");
+      legend.innerHTML = "";
+      Object.keys(colorMap).forEach(function(color){
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        item.innerHTML = '<span class="color ev-' + color + '"></span><span>' + colorMap[color] + '</span>';
+        legend.appendChild(item);
+      });
+    }
+
+    function renderEventsList(){
+      const list = document.getElementById("eventsList");
+      list.innerHTML = "";
+      customEvents.forEach(function(e, i){
+        const chip = document.createElement("span");
+        chip.className = "event-chip";
+        chip.innerHTML = hijriMonths[e.month-1] + " " + toArabicNumber(e.day) + " - " + e.name +
+          ' <button type="button" onclick="removeEvent(' + i + ')" style="border:0;background:transparent;color:#a33;cursor:pointer;font-weight:bold">×</button>';
+        list.appendChild(chip);
+      });
+    }
+
+    function addEvent(){
+      const month = Number(normalizeNumber(document.getElementById("eventMonth").value));
+      const day = Number(normalizeNumber(document.getElementById("eventDay").value));
+      const name = document.getElementById("eventName").value.trim();
+      const color = document.getElementById("eventColor").value;
+
+      if(!month || !day || !name || month < 1 || month > 12 || day < 1 || day > 30){
+        alert("أدخل الشهر واليوم واسم المناسبة بشكل صحيح");
+        return;
+      }
+
+      customEvents.push({month:month, day:day, name:name, color:color});
+      selectedMonth = 0;
+      renderCalendar();
+
+      document.getElementById("eventMonth").value = "";
+      document.getElementById("eventDay").value = "";
+      document.getElementById("eventName").value = "";
+    }
+
+    function removeEvent(index){
+      customEvents.splice(index, 1);
+      renderCalendar();
+    }
+
+    function changeHijriYear(step){
+      currentHijriYear += step;
+      selectedMonth = 0;
+      renderCalendar();
+    }
+
+    function goHijriYear(){
+      const y = Number(normalizeNumber(document.getElementById("hijriYearInput").value));
+      if(!y || y < 1300 || y > 1600){
+        alert("أدخل سنة هجرية صحيحة بين 1300 و 1600");
+        return;
+      }
+      currentHijriYear = y;
+      selectedMonth = 0;
+      renderCalendar();
+    }
+
+    function setCurrentHijriYear(){
+      currentHijriYear = getCurrentHijriYear();
+      selectedMonth = 0;
+      renderCalendar();
+    }
+
+    function hijriToGregorianApprox(hYear, hMonth, hDay){
+      const jd = Math.floor((11 * hYear + 3) / 30) + 354 * hYear + 30 * hMonth - Math.floor((hMonth - 1) / 2) + hDay + 1948440 - 385;
+      return jdToGregorian(jd);
+    }
+
+    function jdToGregorian(jd){
+      let l = jd + 68569;
+      let n = Math.floor((4 * l) / 146097);
+      l = l - Math.floor((146097 * n + 3) / 4);
+      let i = Math.floor((4000 * (l + 1)) / 1461001);
+      l = l - Math.floor((1461 * i) / 4) + 31;
+      let j = Math.floor((80 * l) / 2447);
+      let day = l - Math.floor((2447 * j) / 80);
+      l = Math.floor(j / 11);
+      let month = j + 2 - 12 * l;
+      let year = 100 * (n - 49) + i + l;
+      return new Date(year, month - 1, day);
+    }
+
+    function calculateAge(){
+      const type = document.getElementById("dateType").value;
+      const y = Number(normalizeNumber(document.getElementById("birthYear").value));
+      const m = Number(normalizeNumber(document.getElementById("birthMonth").value));
+      const d = Number(normalizeNumber(document.getElementById("birthDay").value));
+      const result = document.getElementById("ageResult");
+
+      if(!y || !m || !d || m < 1 || m > 12 || d < 1 || d > 31){
+        result.innerHTML = '<div class="result-box">الرجاء إدخال تاريخ صحيح.</div>';
+        return;
+      }
+
+      const birthDate = type === "gregorian" ? new Date(y, m - 1, d) : hijriToGregorianApprox(y, m, d);
+      const today = new Date();
+
+      if(isNaN(birthDate.getTime()) || birthDate > today){
+        result.innerHTML = '<div class="result-box">تاريخ الميلاد غير صحيح أو في المستقبل.</div>';
+        return;
+      }
+
+      let years = today.getFullYear() - birthDate.getFullYear();
+      let months = today.getMonth() - birthDate.getMonth();
+      let days = today.getDate() - birthDate.getDate();
+
+      if(days < 0){
+        months--;
+        days += new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+      }
+
+      if(months < 0){
+        years--;
+        months += 12;
+      }
+
+      const totalDays = Math.floor((today - birthDate) / (1000*60*60*24));
+      const zodiac = getZodiac(birthDate.getDate(), birthDate.getMonth()+1);
+      const usedDate = birthDate.toLocaleDateString("en-GB");
+
+      result.innerHTML =
+        '<div class="result-box">' +
+          '<strong>العمر:</strong>' +
+          '<div class="big">' + toArabicNumber(years) + ' سنة، ' + toArabicNumber(months) + ' شهر، ' + toArabicNumber(days) + ' يوم</div>' +
+        '</div>' +
+        '<div class="result-box"><strong>عدد الأيام التقريبي:</strong> ' + toArabicNumber(totalDays.toLocaleString("en-US")) + ' يوم</div>' +
+        '<div class="result-box"><strong>التاريخ المستخدم للحساب:</strong> ' + usedDate + '</div>' +
+        '<div class="result-box"><strong>البرج:</strong><br><span class="zodiac">' + zodiac.icon + ' ' + zodiac.ar + ' - ' + zodiac.en + '</span></div>';
+    }
+
+    function getZodiac(day, month){
+      const signs = [
+        { en:"Capricorn", ar:"الجدي", icon:"♑", from:[12,22], to:[1,19] },
+        { en:"Aquarius", ar:"الدلو", icon:"♒", from:[1,20], to:[2,18] },
+        { en:"Pisces", ar:"الحوت", icon:"♓", from:[2,19], to:[3,20] },
+        { en:"Aries", ar:"الحمل", icon:"♈", from:[3,21], to:[4,19] },
+        { en:"Taurus", ar:"الثور", icon:"♉", from:[4,20], to:[5,20] },
+        { en:"Gemini", ar:"الجوزاء", icon:"♊", from:[5,21], to:[6,20] },
+        { en:"Cancer", ar:"السرطان", icon:"♋", from:[6,21], to:[7,22] },
+        { en:"Leo", ar:"الأسد", icon:"♌", from:[7,23], to:[8,22] },
+        { en:"Virgo", ar:"العذراء", icon:"♍", from:[8,23], to:[9,22] },
+        { en:"Libra", ar:"الميزان", icon:"♎", from:[9,23], to:[10,22] },
+        { en:"Scorpio", ar:"العقرب", icon:"♏", from:[10,23], to:[11,21] },
+        { en:"Sagittarius", ar:"القوس", icon:"♐", from:[11,22], to:[12,21] }
+      ];
+
+      for(let i=0; i<signs.length; i++){
+        const s = signs[i];
+        const fm = s.from[0], fd = s.from[1], tm = s.to[0], td = s.to[1];
+
+        if(fm <= tm){
+          if((month > fm || (month === fm && day >= fd)) &&
+             (month < tm || (month === tm && day <= td))){
+            return s;
+          }
+        }else{
+          if((month > fm || (month === fm && day >= fd)) ||
+             (month < tm || (month === tm && day <= td))){
+            return s;
+          }
+        }
+      }
+
+      return signs[0];
+    }
+
+    document.addEventListener("DOMContentLoaded", function(){
+      renderCalendar();
+    });
+  </script>
+</body>
+</html>
