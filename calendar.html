@@ -988,6 +988,45 @@
       display:block;
     }
 
+    .moon-phase-visual{
+      position:relative;
+      height:154px;
+      overflow:hidden;
+      background:
+        radial-gradient(circle at 18% 24%, rgba(255,255,255,.8) 0 1px, transparent 2px),
+        radial-gradient(circle at 78% 18%, rgba(255,255,255,.7) 0 1px, transparent 2px),
+        radial-gradient(circle at 62% 72%, rgba(255,255,255,.55) 0 1px, transparent 2px),
+        linear-gradient(135deg, #06131c, #0b2430 60%, #08131b);
+    }
+
+    .moon-phase-visual::before{
+      content:"";
+      position:absolute;
+      width:132px;
+      height:132px;
+      right:18px;
+      top:10px;
+      border-radius:50%;
+      background:
+        radial-gradient(circle at 68% 30%, rgba(255,255,255,.72) 0 5px, transparent 6px),
+        radial-gradient(circle at 58% 58%, rgba(255,255,255,.38) 0 8px, transparent 9px),
+        radial-gradient(circle at 76% 74%, rgba(0,0,0,.22) 0 9px, transparent 10px),
+        radial-gradient(circle at 42% 40%, rgba(0,0,0,.24) 0 7px, transparent 8px),
+        radial-gradient(circle at 60% 45%, #f4f6f1 0, #aeb7b8 45%, #586368 72%, #243039 100%);
+      box-shadow:0 0 38px rgba(203,230,230,.38);
+    }
+
+    .moon-phase-visual::after{
+      content:"";
+      position:absolute;
+      width:132px;
+      height:132px;
+      right:76px;
+      top:10px;
+      border-radius:50%;
+      background:linear-gradient(90deg, rgba(6,19,28,1), rgba(6,19,28,.94) 48%, rgba(6,19,28,.30) 74%, transparent 100%);
+    }
+
     .moon-card-body{
       padding:10px 12px 12px;
     }
@@ -1302,11 +1341,11 @@
 
     <aside class="utility-rail">
       <section class="moon-card">
-        <img src="image_dba186.png" alt="Almajdouie background">
+        <div class="moon-phase-visual" role="img" aria-label="Moon phase"></div>
         <div class="moon-card-body">
-          <span class="pill">المجدوعي</span>
-          <h3>تقويم هجري / ميلادي</h3>
-          <p>عرض شهري واسع مع مناسبات ملونة ونظام أوف عفاف.</p>
+          <span class="pill">هلال</span>
+          <h3>طور القمر</h3>
+          <p>القمر حاليًا في طور الهلال المتزايد، فرصة مثالية للتخطيط وبدء مشاريع جديدة مع بداية الشهر القمري.</p>
         </div>
       </section>
       <section class="rail-card">
@@ -1443,7 +1482,7 @@
 
     let selectedMonth = getCurrentHijriMonth();
     let afafScheduleEnabled = false;
-    const afafStartDate = new Date(2024, 11, 19); // 19-Dec-2024 same Excel base date
+    const afafStartDate = new Date(2026, 4, 14); // 27 Dhu al-Qadah 1447: first Afaf off day
 
     const hijriPartsFormatter = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn", {
       day: "numeric",
@@ -1632,11 +1671,11 @@
       });
 
       const moonPill = document.querySelector(".moon-card .pill");
-      if(moonPill) moonPill.textContent = currentLang === "ar" ? "المجدوعي" : "Almajdouie";
+      if(moonPill) moonPill.textContent = currentLang === "ar" ? "هلال" : "Crescent";
       const moonTitle = document.querySelector(".moon-card h3");
-      if(moonTitle) moonTitle.textContent = currentLang === "ar" ? "تقويم هجري / ميلادي" : "Hijri / Gregorian calendar";
+      if(moonTitle) moonTitle.textContent = currentLang === "ar" ? "طور القمر" : "Moon phase";
       const moonText = document.querySelector(".moon-card p");
-      if(moonText) moonText.textContent = currentLang === "ar" ? "عرض شهري واسع مع مناسبات ملونة ونظام أوف عفاف." : "Wide monthly view with colored events and Afaf off-day schedule.";
+      if(moonText) moonText.textContent = currentLang === "ar" ? "القمر حاليًا في طور الهلال المتزايد، فرصة مثالية للتخطيط وبدء مشاريع جديدة مع بداية الشهر القمري." : "The moon is currently in a waxing crescent phase, a fitting moment for planning and beginning new projects with the lunar month.";
 
       const title = document.querySelector(".calendar-title h1");
       if(title){
@@ -1750,6 +1789,11 @@
       return hijri + " | " + event.gregorian;
     }
 
+    function parseGregorianDate(value){
+      const parts = String(value).split("/").map(Number);
+      return new Date(parts[2], parts[1] - 1, parts[0]);
+    }
+
     function getCurrentHijriYear(){
       try{
         const f = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn", {year:"numeric"});
@@ -1816,6 +1860,9 @@
     function isAfafOffDay(date){
       const oneDay = 1000 * 60 * 60 * 24;
       const diffDays = Math.floor((clearTime(date) - clearTime(afafStartDate)) / oneDay);
+      if(diffDays < 0){
+        return { off:false, type:"", label:"" };
+      }
       const block = Math.floor(diffDays / 14);
       const cycle = ((block % 2) + 2) % 2;
       const day = date.getDay();
@@ -2042,7 +2089,13 @@
       const list = document.getElementById("latestEventsList");
       if(!list) return;
       list.innerHTML = "";
-      latestEvents.forEach(function(event){
+      const today = clearTime(new Date());
+      const upcoming = latestEvents
+        .filter(function(event){ return parseGregorianDate(event.gregorian) >= today; })
+        .sort(function(a, b){ return parseGregorianDate(a.gregorian) - parseGregorianDate(b.gregorian); });
+      const eventsToShow = (upcoming.length ? upcoming : latestEvents.slice().sort(function(a, b){ return parseGregorianDate(b.gregorian) - parseGregorianDate(a.gregorian); })).slice(0, 6);
+
+      eventsToShow.forEach(function(event){
         const item = document.createElement("div");
         item.className = "latest-event";
         item.innerHTML =
