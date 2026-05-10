@@ -192,6 +192,46 @@
       box-shadow:0 10px 22px rgba(19,27,46,.18);
     }
 
+    .mode-switch{
+      display:flex;
+      gap:5px;
+      padding:4px;
+      border-radius:999px;
+      background:rgba(255,255,255,.50);
+      border:1px solid rgba(19,27,46,.10);
+    }
+
+    .mode-switch .btn{
+      box-shadow:none;
+      padding:7px 12px;
+    }
+
+    .mode-switch .btn.active{
+      background:var(--secondary);
+      color:#fff;
+      border-color:var(--secondary);
+    }
+
+    body.lang-en .app-shell,
+    body.lang-en .side-nav,
+    body.lang-en .utility-rail,
+    body.lang-en .main-canvas,
+    body.lang-en .calendar-card,
+    body.lang-en .dashboard-grid,
+    body.lang-en .rail-card,
+    body.lang-en .moon-card{
+      direction:ltr;
+    }
+
+    body.lang-en .calendar,
+    body.lang-en .table{
+      direction:ltr;
+    }
+
+    body.lang-en .cell{
+      text-align:left;
+    }
+
     input,select{
       border:1px solid rgba(19,27,46,.18);
       background:rgba(255,255,255,.78);
@@ -1264,6 +1304,10 @@
         </header>
 
         <div class="controls">
+          <div class="mode-switch">
+            <button type="button" class="btn active" id="hijriModeBtn" onclick="setCalendarMode('hijri')">هجري</button>
+            <button type="button" class="btn" id="gregorianModeBtn" onclick="setCalendarMode('gregorian')">ميلادي</button>
+          </div>
           <div class="year-box" id="yearBox">1447</div>
           <input id="hijriYearInput" class="numeric" type="text" inputmode="numeric" placeholder="اكتب السنة الهجرية">
           <button type="button" class="btn" onclick="goHijriYear()">عرض السنة</button>
@@ -1372,6 +1416,16 @@
       "Ramadan", "Shawwal", "Dhu al-Qadah", "Dhu al-Hijjah"
     ];
 
+    const gregMonthsAr = [
+      "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+      "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
+    ];
+
+    const gregMonthsEn = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+
     const weekdaysAr = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
     const weekdaysEn = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
@@ -1379,7 +1433,11 @@
       ar: {
         language: "English",
         calendarTitle: "التقويم الهجري لعام",
+        gregorianCalendarTitle: "التقويم الميلادي لعام",
         hijriSuffix: "هـ",
+        gregorianSuffix: "م",
+        modeHijri: "هجري",
+        modeGregorian: "ميلادي",
         previousYear: "السنة السابقة",
         today: "اليوم",
         nextYear: "السنة التالية",
@@ -1407,6 +1465,9 @@
         age: "العمر",
         totalDays: "عدد الأيام التقريبي",
         usedDate: "التاريخ المستخدم للحساب",
+        birthGregorian: "الميلاد بالميلادي",
+        birthHijri: "الميلاد بالهجري",
+        convertedBirthDate: "تحويل تاريخ الميلاد",
         zodiac: "البرج",
         article: "مقال قصير عن البرج",
         entertainment: "ملاحظة: الأبراج هنا للمتعة والوصف العام وليست حكمًا علميًا أو قرارًا شخصيًا.",
@@ -1420,7 +1481,11 @@
       en: {
         language: "العربية",
         calendarTitle: "Hijri calendar for",
+        gregorianCalendarTitle: "Gregorian calendar for",
         hijriSuffix: "AH",
+        gregorianSuffix: "CE",
+        modeHijri: "Hijri",
+        modeGregorian: "Gregorian",
         previousYear: "Previous year",
         today: "Today",
         nextYear: "Next year",
@@ -1448,6 +1513,9 @@
         age: "Age",
         totalDays: "Approx. total days",
         usedDate: "Date used",
+        birthGregorian: "Birth date in Gregorian",
+        birthHijri: "Birth date in Hijri",
+        convertedBirthDate: "Converted birth date",
         zodiac: "Zodiac",
         article: "Short zodiac article",
         entertainment: "Note: zodiac content is for general entertainment, not scientific or personal decision guidance.",
@@ -1480,7 +1548,10 @@
       purple: "ev-purple"
     };
 
+    let calendarMode = "hijri";
     let selectedMonth = getCurrentHijriMonth();
+    let currentGregorianYear = new Date().getFullYear();
+    let selectedGregorianMonth = new Date().getMonth() + 1;
     let afafScheduleEnabled = false;
     const afafStartDate = new Date(2026, 4, 14); // 27 Dhu al-Qadah 1447: first Afaf off day
 
@@ -1641,10 +1712,40 @@
       btn.textContent = afafScheduleEnabled ? text("afafOff") : text("afafOn");
     }
 
+    function updateCalendarModeControls(){
+      const hijriBtn = document.getElementById("hijriModeBtn");
+      const gregBtn = document.getElementById("gregorianModeBtn");
+      if(hijriBtn){
+        hijriBtn.textContent = text("modeHijri");
+        hijriBtn.classList.toggle("active", calendarMode === "hijri");
+      }
+      if(gregBtn){
+        gregBtn.textContent = text("modeGregorian");
+        gregBtn.classList.toggle("active", calendarMode === "gregorian");
+      }
+    }
+
+    function updateCalendarTitle(){
+      const title = document.querySelector(".calendar-title h1");
+      if(!title) return;
+      const year = calendarMode === "hijri" ? currentHijriYear : currentGregorianYear;
+      const titleText = calendarMode === "hijri" ? text("calendarTitle") : text("gregorianCalendarTitle");
+      const suffix = calendarMode === "hijri" ? text("hijriSuffix") : text("gregorianSuffix");
+      title.innerHTML = titleText + ' <span id="titleYear">' + displayNumber(year) + '</span>' + suffix;
+    }
+
+    function setCalendarMode(mode){
+      calendarMode = mode;
+      updateCalendarModeControls();
+      applyLanguage();
+      renderCalendar();
+    }
+
     function applyLanguage(){
       document.documentElement.lang = currentLang;
       document.documentElement.dir = currentLang === "ar" ? "rtl" : "ltr";
       document.body.dir = currentLang === "ar" ? "rtl" : "ltr";
+      document.body.classList.toggle("lang-en", currentLang === "en");
 
       const languageToggle = document.getElementById("languageToggle");
       if(languageToggle) languageToggle.textContent = text("language");
@@ -1677,10 +1778,8 @@
       const moonText = document.querySelector(".moon-card p");
       if(moonText) moonText.textContent = currentLang === "ar" ? "القمر حاليًا في طور الهلال المتزايد، فرصة مثالية للتخطيط وبدء مشاريع جديدة مع بداية الشهر القمري." : "The moon is currently in a waxing crescent phase, a fitting moment for planning and beginning new projects with the lunar month.";
 
-      const title = document.querySelector(".calendar-title h1");
-      if(title){
-        title.innerHTML = text("calendarTitle") + ' <span id="titleYear">' + displayNumber(currentHijriYear) + '</span>' + text("hijriSuffix");
-      }
+      updateCalendarModeControls();
+      updateCalendarTitle();
 
       const topButtons = document.querySelectorAll(".top-actions .btn");
       if(topButtons[0]) topButtons[0].textContent = text("previousYear");
@@ -1693,7 +1792,9 @@
       if(controlsButtons[1]) controlsButtons[1].textContent = text("showFullYear");
 
       const hijriYearInput = document.getElementById("hijriYearInput");
-      if(hijriYearInput) hijriYearInput.placeholder = currentLang === "ar" ? "اكتب السنة الهجرية" : "Enter Hijri year";
+      if(hijriYearInput) hijriYearInput.placeholder = calendarMode === "hijri"
+        ? (currentLang === "ar" ? "اكتب السنة الهجرية" : "Enter Hijri year")
+        : (currentLang === "ar" ? "اكتب السنة الميلادية" : "Enter Gregorian year");
 
       const metricLabel = document.querySelector(".metric-card span");
       if(metricLabel) metricLabel.textContent = text("activeMonth");
@@ -1726,7 +1827,9 @@
       const eventTitle = document.querySelector(".event-editor h3");
       if(eventTitle) eventTitle.textContent = text("eventTitle");
       const eventMonth = document.getElementById("eventMonth");
-      if(eventMonth) eventMonth.placeholder = currentLang === "ar" ? "رقم الشهر الهجري" : "Hijri month number";
+      if(eventMonth) eventMonth.placeholder = calendarMode === "hijri"
+        ? (currentLang === "ar" ? "رقم الشهر الهجري" : "Hijri month number")
+        : (currentLang === "ar" ? "رقم الشهر الميلادي" : "Gregorian month number");
       const eventDay = document.getElementById("eventDay");
       if(eventDay) eventDay.placeholder = text("day");
       const eventName = document.getElementById("eventName");
@@ -1778,6 +1881,14 @@
       return currentLang === "ar" ? weekdaysAr : weekdaysEn;
     }
 
+    function getGregorianMonthNames(){
+      return currentLang === "ar" ? gregMonthsAr : gregMonthsEn;
+    }
+
+    function getGregorianMonthName(index){
+      return getGregorianMonthNames()[index] || "";
+    }
+
     function getEventName(event){
       if(!event) return "";
       if(event.name) return event.name;
@@ -1787,6 +1898,16 @@
     function getEventDateLabel(event){
       const hijri = displayNumber(event.day) + " " + getHijriMonthName(event.month - 1) + " " + displayNumber(event.year) + " " + text("hijriSuffix");
       return hijri + " | " + event.gregorian;
+    }
+
+    function formatGregorianDate(date){
+      const value = date.toLocaleDateString("en-GB");
+      return currentLang === "ar" ? toArabicNumber(value) : value;
+    }
+
+    function formatHijriDate(date){
+      const hp = getHijriParts(date);
+      return displayNumber(hp.day) + " " + getHijriMonthName(hp.month - 1) + " " + displayNumber(hp.year) + " " + text("hijriSuffix");
     }
 
     function parseGregorianDate(value){
@@ -1852,6 +1973,28 @@
       return months;
     }
 
+    function collectGregorianYearDays(gYear){
+      const months = Array.from({length:12}, function(){ return []; });
+      for(let month=0; month<12; month++){
+        const daysInMonth = new Date(gYear, month + 1, 0).getDate();
+        for(let day=1; day<=daysInMonth; day++){
+          const gDate = new Date(gYear, month, day);
+          const hp = getHijriParts(gDate);
+          months[month].push({
+            gDay: day,
+            gMonth: month + 1,
+            gYear: gYear,
+            gDate: gDate,
+            weekday: gDate.getDay(),
+            hDay: hp.day,
+            hMonth: hp.month,
+            hYear: hp.year
+          });
+        }
+      }
+      return months;
+    }
+
 
     function clearTime(date){
       return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -1897,6 +2040,11 @@
 
 
     function renderCalendar(){
+      if(calendarMode === "gregorian"){
+        renderGregorianCalendar();
+        return;
+      }
+      updateCalendarTitle();
       const titleYear = document.getElementById("titleYear");
       if(titleYear) titleYear.textContent = displayNumber(currentHijriYear);
       document.getElementById("yearBox").textContent = displayNumber(currentHijriYear);
@@ -2017,21 +2165,144 @@
       renderLatestEvents();
     }
 
+    function renderGregorianCalendar(){
+      updateCalendarTitle();
+      const titleYear = document.getElementById("titleYear");
+      if(titleYear) titleYear.textContent = displayNumber(currentGregorianYear);
+      document.getElementById("yearBox").textContent = displayNumber(currentGregorianYear);
+      document.getElementById("hijriYearInput").value = currentGregorianYear;
+
+      const allMonths = collectGregorianYearDays(currentGregorianYear);
+      const calendar = document.getElementById("calendar");
+      calendar.className = "calendar " + (selectedGregorianMonth === 0 ? "annual-view" : "month-view");
+      calendar.innerHTML = "";
+
+      const activeMonthName = document.getElementById("activeMonthName");
+      const activeMonthMeta = document.getElementById("activeMonthMeta");
+      const monthSubTitle = document.getElementById("monthSubTitle");
+
+      if(selectedGregorianMonth === 0){
+        if(activeMonthName) activeMonthName.textContent = text("fullYear");
+        if(activeMonthMeta) activeMonthMeta.textContent = currentLang === "ar" ? "كل أشهر " + displayNumber(currentGregorianYear) + text("gregorianSuffix") : "All months - " + displayNumber(currentGregorianYear) + " " + text("gregorianSuffix");
+        if(monthSubTitle) monthSubTitle.textContent = currentLang === "ar" ? "عرض كل أشهر السنة الميلادية" : "All Gregorian months";
+      }else{
+        const selectedDays = allMonths[selectedGregorianMonth - 1] || [];
+        let hijriTitle = "";
+        if(selectedDays.length){
+          const firstHijri = getHijriMonthName(selectedDays[0].hMonth - 1);
+          const lastHijri = getHijriMonthName(selectedDays[selectedDays.length - 1].hMonth - 1);
+          hijriTitle = firstHijri === lastHijri ? firstHijri : firstHijri + " / " + lastHijri;
+        }
+        if(activeMonthName) activeMonthName.textContent = getGregorianMonthName(selectedGregorianMonth - 1);
+        if(activeMonthMeta) activeMonthMeta.textContent = hijriTitle ? hijriTitle + " - " + displayNumber(currentGregorianYear) + text("gregorianSuffix") : displayNumber(currentGregorianYear) + text("gregorianSuffix");
+        if(monthSubTitle) monthSubTitle.textContent = hijriTitle ? getGregorianMonthName(selectedGregorianMonth - 1) + " - " + hijriTitle : getGregorianMonthName(selectedGregorianMonth - 1);
+      }
+
+      allMonths.forEach(function(days, index){
+        const month = document.createElement("div");
+        month.className = "month";
+        month.dataset.monthIndex = index + 1;
+
+        if(selectedGregorianMonth !== 0 && selectedGregorianMonth !== index + 1){
+          month.classList.add("hidden");
+        }
+
+        let hijriMonthTitle = "";
+        if(days.length){
+          const firstHijri = getHijriMonthName(days[0].hMonth - 1);
+          const lastHijri = getHijriMonthName(days[days.length - 1].hMonth - 1);
+          hijriMonthTitle = firstHijri === lastHijri ? firstHijri : firstHijri + " / " + lastHijri;
+        }
+
+        const title = document.createElement("div");
+        title.className = "month-title";
+        title.innerHTML =
+          '<span class="hijri-month-name">' + getGregorianMonthName(index) + " (" + displayNumber(index + 1) + ")" + '</span>' +
+          '<span class="greg-month-name">' + hijriMonthTitle + '</span>';
+        month.appendChild(title);
+
+        const table = document.createElement("div");
+        table.className = "table";
+
+        getWeekdayNames().forEach(function(w){
+          const th = document.createElement("div");
+          th.className = "th";
+          th.textContent = w;
+          table.appendChild(th);
+        });
+
+        if(days.length){
+          const firstWeekday = days[0].weekday;
+          for(let i=0; i<firstWeekday; i++){
+            const empty = document.createElement("div");
+            empty.className = "cell empty";
+            table.appendChild(empty);
+          }
+
+          days.forEach(function(info){
+            const cell = document.createElement("div");
+            cell.className = "cell";
+
+            const ev = customEvents.find(function(e){
+              return e.month === info.hMonth && e.day === info.hDay && (!e.year || e.year === info.hYear);
+            });
+
+            let afaf = {off:false, type:"", label:""};
+            if(afafScheduleEnabled && info.hMonth !== 9){
+              afaf = isAfafOffDay(info.gDate);
+            }
+
+            if(ev){
+              cell.classList.add(cssColorClass[ev.color]);
+            }
+
+            if(afaf.off){
+              cell.classList.add(afaf.type === "a" ? "afaf-off-a" : "afaf-off-b");
+            }
+
+            cell.innerHTML =
+              (afaf.off ? '<span class="afaf-label">' + afaf.label + '</span>' : '') +
+              '<span class="hday">' + displayNumber(info.gDay) + '</span>' +
+              '<span class="gday">' + displayNumber(info.hDay) + " " + getHijriMonthName(info.hMonth - 1) + '</span>' +
+              (ev ? '<span class="event-name">' + getEventName(ev) + '</span>' : '');
+
+            table.appendChild(cell);
+          });
+        }
+
+        month.appendChild(table);
+
+        const dash = document.createElement("div");
+        dash.className = "dash-lines";
+        dash.innerHTML = "------------------------------<br>------------------------------";
+        month.appendChild(dash);
+
+        calendar.appendChild(month);
+      });
+
+      renderMonthButtons();
+      renderLegend();
+      renderEventsList();
+      renderLatestEvents();
+    }
+
     function renderMonthButtons(){
       const wrap = document.getElementById("monthButtons");
       wrap.innerHTML = "";
+      const selected = calendarMode === "hijri" ? selectedMonth : selectedGregorianMonth;
+      const monthNames = calendarMode === "hijri" ? getHijriMonthNames() : getGregorianMonthNames();
 
       const allBtn = document.createElement("button");
       allBtn.type = "button";
-      allBtn.className = "month-btn" + (selectedMonth === 0 ? " active" : "");
+      allBtn.className = "month-btn" + (selected === 0 ? " active" : "");
       allBtn.textContent = text("fullYear");
       allBtn.onclick = function(){ selectMonth(0); };
       wrap.appendChild(allBtn);
 
-      getHijriMonthNames().forEach(function(name, i){
+      monthNames.forEach(function(name, i){
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = "month-btn" + (selectedMonth === i + 1 ? " active" : "");
+        btn.className = "month-btn" + (selected === i + 1 ? " active" : "");
         btn.textContent = name;
         btn.onclick = function(){ selectMonth(i + 1); };
         wrap.appendChild(btn);
@@ -2039,7 +2310,11 @@
     }
 
     function selectMonth(monthNumber){
-      selectedMonth = monthNumber;
+      if(calendarMode === "hijri"){
+        selectedMonth = monthNumber;
+      }else{
+        selectedGregorianMonth = monthNumber;
+      }
       renderCalendar();
       setTimeout(function(){
         const target = monthNumber === 0 ? document.getElementById("calendarPanel") : document.querySelector('.month[data-month-index="' + monthNumber + '"]');
@@ -2116,8 +2391,16 @@
         return;
       }
 
-      customEvents.push({year:currentHijriYear, month:month, day:day, name:name, color:color});
-      selectedMonth = month;
+      if(calendarMode === "gregorian"){
+        const eventDate = new Date(currentGregorianYear, month - 1, day);
+        const hp = getHijriParts(eventDate);
+        const gregorian = String(day).padStart(2, "0") + "/" + String(month).padStart(2, "0") + "/" + currentGregorianYear;
+        customEvents.push({year:hp.year, month:hp.month, day:hp.day, gregorian:gregorian, name:name, color:color});
+        selectedGregorianMonth = month;
+      }else{
+        customEvents.push({year:currentHijriYear, month:month, day:day, name:name, color:color});
+        selectedMonth = month;
+      }
       renderCalendar();
 
       document.getElementById("eventMonth").value = "";
@@ -2131,25 +2414,45 @@
     }
 
     function changeHijriYear(step){
-      currentHijriYear += step;
-      selectedMonth = selectedMonth || 1;
+      if(calendarMode === "hijri"){
+        currentHijriYear += step;
+        selectedMonth = selectedMonth || 1;
+      }else{
+        currentGregorianYear += step;
+        selectedGregorianMonth = selectedGregorianMonth || 1;
+      }
       renderCalendar();
     }
 
     function goHijriYear(){
       const y = Number(normalizeNumber(document.getElementById("hijriYearInput").value));
-      if(!y || y < 1300 || y > 1600){
-        alert(currentLang === "ar" ? "أدخل سنة هجرية صحيحة بين 1300 و 1600" : "Enter a valid Hijri year between 1300 and 1600.");
+      const minYear = calendarMode === "hijri" ? 1300 : 1900;
+      const maxYear = calendarMode === "hijri" ? 1600 : 2200;
+      if(!y || y < minYear || y > maxYear){
+        alert(calendarMode === "hijri"
+          ? (currentLang === "ar" ? "أدخل سنة هجرية صحيحة بين 1300 و 1600" : "Enter a valid Hijri year between 1300 and 1600.")
+          : (currentLang === "ar" ? "أدخل سنة ميلادية صحيحة بين 1900 و 2200" : "Enter a valid Gregorian year between 1900 and 2200."));
         return;
       }
-      currentHijriYear = y;
-      selectedMonth = selectedMonth || 1;
+      if(calendarMode === "hijri"){
+        currentHijriYear = y;
+        selectedMonth = selectedMonth || 1;
+      }else{
+        currentGregorianYear = y;
+        selectedGregorianMonth = selectedGregorianMonth || 1;
+      }
       renderCalendar();
     }
 
     function setCurrentHijriYear(){
-      currentHijriYear = getCurrentHijriYear();
-      selectedMonth = getCurrentHijriMonth();
+      const today = new Date();
+      if(calendarMode === "hijri"){
+        currentHijriYear = getCurrentHijriYear();
+        selectedMonth = getCurrentHijriMonth();
+      }else{
+        currentGregorianYear = today.getFullYear();
+        selectedGregorianMonth = today.getMonth() + 1;
+      }
       renderCalendar();
     }
 
@@ -2208,7 +2511,11 @@
 
       const totalDays = Math.floor((today - birthDate) / (1000*60*60*24));
       const zodiac = getZodiac(birthDate.getDate(), birthDate.getMonth()+1);
-      const usedDate = birthDate.toLocaleDateString("en-GB");
+      const usedDate = formatGregorianDate(birthDate);
+      const birthGregorianText = formatGregorianDate(birthDate);
+      const birthHijriText = type === "hijri"
+        ? displayNumber(d) + " " + getHijriMonthName(m - 1) + " " + displayNumber(y) + " " + text("hijriSuffix")
+        : formatHijriDate(birthDate);
       const article = zodiacArticles[zodiac.en];
       const tags = currentLang === "ar" ? article.tagsAr : article.tagsEn;
       const articleTitle = currentLang === "ar" ? article.arTitle : article.enTitle;
@@ -2222,6 +2529,10 @@
         '</div>' +
         '<div class="result-box"><strong>' + text("totalDays") + ':</strong> ' + displayNumber(totalDays.toLocaleString("en-US")) + ' ' + text("daysWord") + '</div>' +
         '<div class="result-box"><strong>' + text("usedDate") + ':</strong> ' + usedDate + '</div>' +
+        '<div class="result-box"><strong>' + text("convertedBirthDate") + ':</strong><br>' +
+          text("birthGregorian") + ': ' + birthGregorianText + '<br>' +
+          text("birthHijri") + ': ' + birthHijriText +
+        '</div>' +
         '<div class="result-box"><strong>' + text("zodiac") + ':</strong><br><span class="zodiac">' + zodiac.icon + ' ' + zodiacName + '</span>' +
           '<div class="zodiac-article">' +
             '<h3>' + text("article") + ': ' + articleTitle + '</h3>' +
