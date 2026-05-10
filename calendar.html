@@ -1502,8 +1502,8 @@
         leaveDuration: "مدة الإجازة",
         leaveDaysWord: "أيام",
         weekendOverlap: "داخل الويكند",
-        substituteAfter: "أيام بدل مقترحة بعد الإجازة",
-        substituteBefore: "أيام بدل مقترحة قبل الإجازة",
+        substituteAfter: "أيام بدل بعد الإجازة",
+        substituteBefore: "أيام بدل قبل الإجازة",
         noWeekendOverlap: "لا يوجد تداخل مع الويكند حسب التاريخ الميلادي",
         substituteAlertShort: "تنبيه بدل",
         latestTitle: "المواعيد الأحدث",
@@ -1561,8 +1561,8 @@
         leaveDuration: "Leave duration",
         leaveDaysWord: "days",
         weekendOverlap: "Weekend overlap",
-        substituteAfter: "Suggested substitute days after leave",
-        substituteBefore: "Suggested substitute days before leave",
+        substituteAfter: "Substitute days after leave",
+        substituteBefore: "Substitute days before leave",
         noWeekendOverlap: "No weekend overlap by Gregorian date",
         substituteAlertShort: "Substitute alert",
         latestTitle: "Latest dates",
@@ -2049,6 +2049,18 @@
       return mode === "before" ? dates.reverse() : dates;
     }
 
+    function isEidEvent(event){
+      const names = [event.name, event.ar, event.en].filter(Boolean).join(" ").toLowerCase();
+      return event.color === "pink" || names.indexOf("عيد") !== -1 || names.indexOf("eid") !== -1;
+    }
+
+    function getEffectiveCompMode(event){
+      if(isEidEvent(event) && getEventDuration(event) > 1){
+        return "after";
+      }
+      return event.compMode || "none";
+    }
+
     function getHolidayInfo(event){
       const duration = getEventDuration(event);
       if(duration <= 1){
@@ -2057,7 +2069,7 @@
 
       const start = getEventStartDate(event);
       if(!start){
-        return {duration:duration, weekendDates:[], substituteDates:[], compMode:event.compMode || "none"};
+        return {duration:duration, weekendDates:[], substituteDates:[], compMode:getEffectiveCompMode(event)};
       }
 
       const weekendDates = [];
@@ -2068,7 +2080,7 @@
         }
       }
 
-      const compMode = event.compMode || "none";
+      const compMode = getEffectiveCompMode(event);
       return {
         duration:duration,
         weekendDates:weekendDates,
@@ -2120,6 +2132,10 @@
             const current = clearTime(info.gDate);
             const end = addDays(start, duration - 1);
             if(current >= start && current <= end){
+              return true;
+            }
+            const holidayInfo = getHolidayInfo(event);
+            if(holidayInfo && holidayInfo.substituteDates.some(function(date){ return clearTime(date).getTime() === current.getTime(); })){
               return true;
             }
           }
