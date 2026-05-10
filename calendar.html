@@ -27,7 +27,9 @@
 
     body{
       margin:0;
-      background:var(--bg);
+      background:
+        linear-gradient(rgba(241,238,233,.88), rgba(241,238,233,.88)),
+        url("image_dba186.png") center center / cover fixed no-repeat;
       color:var(--text);
       font-family:"Tahoma","Arial",sans-serif;
     }
@@ -55,23 +57,16 @@
     .logo{
       min-width:170px;
       text-align:center;
-      color:var(--brown);
-      font-weight:bold;
-      line-height:1.45;
-      font-size:13px;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
     }
 
-    .logo-mark{
-      width:64px;
-      height:64px;
-      margin:0 auto 5px;
-      border:3px solid var(--brown);
-      border-radius:20px 20px 6px 20px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:30px;
-      opacity:.9;
+    .company-logo{
+      max-width:155px;
+      max-height:78px;
+      object-fit:contain;
+      display:block;
     }
 
     .title-wrap{
@@ -316,6 +311,37 @@
     .ev-blue{background:var(--blue)!important}
     .ev-purple{background:var(--purple)!important}
 
+    .afaf-off-a{
+      background:#ffd6e7!important;
+      outline:2px solid #e84f91;
+      outline-offset:-2px;
+    }
+
+    .afaf-off-b{
+      background:#d7f8dd!important;
+      outline:2px solid #2fbf61;
+      outline-offset:-2px;
+    }
+
+    .afaf-label{
+      position:absolute;
+      left:1px;
+      right:1px;
+      top:1px;
+      font-size:7px;
+      color:#2d185f;
+      font-weight:900;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .btn.afaf-active{
+      background:#2d185f;
+      color:#fff;
+      border-color:#2d185f;
+    }
+
     .dash-lines{
       color:#777;
       font-size:12px;
@@ -460,7 +486,13 @@
     }
 
     @media print{
-      body{background:#fff}
+      body{
+        background:
+          linear-gradient(rgba(255,255,255,.92), rgba(255,255,255,.92)),
+          url("image_dba186.png") center center / cover fixed no-repeat;
+        -webkit-print-color-adjust:exact;
+        print-color-adjust:exact;
+      }
       .page{
         width:100%;
         margin:0;
@@ -526,6 +558,7 @@
         <input id="hijriYearInput" class="numeric" type="text" inputmode="numeric" placeholder="اكتب السنة الهجرية">
         <button type="button" class="btn" onclick="goHijriYear()">عرض السنة</button>
         <button type="button" class="btn" onclick="window.print()">طباعة / PDF</button>
+        <button type="button" class="btn" id="afafBtn" onclick="toggleAfafSchedule()">عفاف: تفعيل الأوف</button>
 
         <div class="quick-years">
           <button type="button" class="btn" onclick="changeHijriYear(-10)">-10</button>
@@ -645,6 +678,8 @@
     };
 
     let selectedMonth = 0;
+    let afafScheduleEnabled = false;
+    const afafStartDate = new Date(2024, 11, 19); // 19-Dec-2024 same Excel base date
 
     const hijriPartsFormatter = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura-nu-latn", {
       day: "numeric",
@@ -737,6 +772,48 @@
       return months;
     }
 
+
+    function clearTime(date){
+      return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    }
+
+    function isAfafOffDay(date){
+      const oneDay = 1000 * 60 * 60 * 24;
+      const diffDays = Math.floor((clearTime(date) - clearTime(afafStartDate)) / oneDay);
+      const block = Math.floor(diffDays / 14);
+      const cycle = ((block % 2) + 2) % 2;
+      const day = date.getDay();
+      // JavaScript days: Sunday=0, Monday=1, Tuesday=2, Wednesday=3, Thursday=4, Friday=5, Saturday=6
+
+      if(cycle === 0){
+        // Week block 1: off Thursday and Friday
+        if(day === 4 || day === 5){
+          return { off:true, type:"a", label:"أوف عفاف" };
+        }
+      }else{
+        // Week block 2: off Friday and Saturday
+        if(day === 5 || day === 6){
+          return { off:true, type:"b", label:"أوف عفاف" };
+        }
+      }
+
+      return { off:false, type:"", label:"" };
+    }
+
+    function toggleAfafSchedule(){
+      afafScheduleEnabled = !afafScheduleEnabled;
+      const btn = document.getElementById("afafBtn");
+      if(afafScheduleEnabled){
+        btn.textContent = "عفاف: إلغاء الأوف";
+        btn.classList.add("afaf-active");
+      }else{
+        btn.textContent = "عفاف: تفعيل الأوف";
+        btn.classList.remove("afaf-active");
+      }
+      renderCalendar();
+    }
+
+
     function renderCalendar(){
       document.getElementById("titleYear").textContent = toArabicNumber(currentHijriYear);
       document.getElementById("yearBox").textContent = toArabicNumber(currentHijriYear);
@@ -795,12 +872,22 @@
               return e.month === info.hMonth && e.day === info.hDay;
             });
 
+            let afaf = {off:false, type:"", label:""};
+            if(afafScheduleEnabled && info.hMonth !== 9){
+              afaf = isAfafOffDay(info.gDate);
+            }
+
             if(ev){
               cell.classList.add(cssColorClass[ev.color]);
             }
 
+            if(afaf.off){
+              cell.classList.add(afaf.type === "a" ? "afaf-off-a" : "afaf-off-b");
+            }
+
             const gText = gregDayFormatter.format(info.gDate);
             cell.innerHTML =
+              (afaf.off ? '<span class="afaf-label">' + afaf.label + '</span>' : '') +
               '<span class="hday">' + toArabicNumber(info.hDay) + '</span>' +
               '<span class="gday">' + gText + '</span>' +
               (ev ? '<span class="event-name">' + ev.name + '</span>' : '');
@@ -865,6 +952,21 @@
         item.innerHTML = '<span class="color ev-' + color + '"></span><span>' + colorMap[color] + '</span>';
         legend.appendChild(item);
       });
+
+      const afafA = document.createElement("div");
+      afafA.className = "legend-item";
+      afafA.innerHTML = '<span class="color afaf-off-a"></span><span>عفاف: أوف الخميس والجمعة</span>';
+      legend.appendChild(afafA);
+
+      const afafB = document.createElement("div");
+      afafB.className = "legend-item";
+      afafB.innerHTML = '<span class="color afaf-off-b"></span><span>عفاف: أوف الجمعة والسبت</span>';
+      legend.appendChild(afafB);
+
+      const ramadanNote = document.createElement("div");
+      ramadanNote.className = "legend-item";
+      ramadanNote.innerHTML = '<span class="color" style="background:#fff;border:2px solid #2d185f"></span><span>رمضان: دوام عادي بدون نظام شفت عفاف</span>';
+      legend.appendChild(ramadanNote);
     }
 
     function renderEventsList(){
