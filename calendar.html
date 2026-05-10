@@ -714,21 +714,21 @@
     .app-shell{
       min-height:100vh;
       display:grid;
-      grid-template-columns:180px minmax(0,1fr);
+      grid-template-columns:220px minmax(0,1fr);
       grid-template-areas:
         "nav nav"
         "utility main";
-      gap:12px;
-      padding:12px;
+      gap:18px;
+      padding:18px;
       direction:ltr;
       align-content:start;
     }
 
     .page.app-shell{
-      width:min(1280px,calc(100% - 28px));
-      max-width:1280px;
-      margin:14px auto;
-      border-radius:8px;
+      width:min(1720px,calc(100vw - 24px));
+      max-width:1720px;
+      margin:12px auto;
+      border-radius:14px;
     }
 
     .side-nav,
@@ -844,7 +844,7 @@
       background:rgba(230,238,235,.74);
       border:1px solid rgba(255,255,255,.58);
       border-radius:8px;
-      padding:12px;
+      padding:18px;
       box-shadow:0 24px 60px rgba(0,0,0,.14);
       backdrop-filter:blur(14px);
       -webkit-backdrop-filter:blur(14px);
@@ -925,8 +925,8 @@
     }
 
     .calendar.annual-view{
-      grid-template-columns:repeat(3,1fr);
-      gap:12px;
+      grid-template-columns:repeat(4,1fr);
+      gap:14px;
     }
 
     .calendar.month-view .month{
@@ -947,7 +947,7 @@
     .calendar.month-view .table{
       width:100%;
       max-width:100%;
-      min-height:295px;
+      min-height:430px;
       border:0;
       background:rgba(255,255,255,.18);
       border-radius:6px;
@@ -966,9 +966,9 @@
 
     .calendar.month-view .cell{
       height:auto;
-      min-height:50px;
+      min-height:78px;
       text-align:right;
-      padding:7px;
+      padding:10px;
       background:rgba(255,255,255,.13);
       border-color:rgba(19,27,46,.07);
     }
@@ -978,13 +978,13 @@
     }
 
     .calendar.month-view .hday{
-      font-size:14px;
+      font-size:22px;
       font-family:Tahoma,Arial,sans-serif;
       color:#101820;
     }
 
     .calendar.month-view .gday{
-      font-size:10px;
+      font-size:12px;
       color:var(--secondary);
       margin-top:2px;
       font-weight:900;
@@ -992,22 +992,22 @@
 
     .calendar.month-view .event-name{
       bottom:auto;
-      top:32px;
-      left:8px;
-      right:8px;
-      padding:4px 7px;
-      font-size:9px;
+      top:43px;
+      left:10px;
+      right:10px;
+      padding:5px 8px;
+      font-size:10px;
       color:#fff;
       background:#3a2818;
     }
 
     .calendar.month-view .afaf-label{
       top:auto;
-      bottom:8px;
-      left:8px;
-      right:8px;
-      padding:4px 7px;
-      font-size:9px;
+      bottom:9px;
+      left:10px;
+      right:10px;
+      padding:5px 8px;
+      font-size:10px;
     }
 
     .calendar.month-view .cell.empty{
@@ -1375,6 +1375,25 @@
       .group-grid{grid-template-columns:1fr}
       .day-checks{grid-template-columns:repeat(2,1fr)}
       .group-chip{display:block}
+    }
+
+
+
+    @media(min-width:1500px){
+      .page.app-shell{
+        width:min(1800px,calc(100vw - 24px));
+        max-width:1800px;
+      }
+      .app-shell{
+        grid-template-columns:240px minmax(0,1fr);
+        gap:20px;
+      }
+      .calendar.month-view .cell{
+        min-height:92px;
+      }
+      .calendar.month-view .table{
+        min-height:520px;
+      }
     }
 
     @media print{
@@ -2376,11 +2395,10 @@
     }
 
     function isShiftOffForHoliday(date){
-      if(!afafScheduleEnabled){
-        return false;
-      }
-      const offInfo = isAfafOffDay(date);
-      return !!offInfo.off;
+      // Official Eid leave must count only real working days.
+      // Friday/Saturday weekends and the selected group off days are NOT counted,
+      // but the group-off label itself will not be displayed inside Eid days.
+      return isWeekendDate(date) || !!getRawShiftOffDay(date).off;
     }
 
     function getOfficialEidCoverage(event){
@@ -2515,7 +2533,7 @@
             if(coverageItem.countedIndex){
               label += " " + displayNumber(coverageItem.countedIndex) + "/" + displayNumber(duration);
             }else if(coverageItem.isOffNotCounted){
-              label += currentLang === "ar" ? " - أوف لا يُحسب" : " - Off not counted";
+              label += currentLang === "ar" ? " - لا يُحسب" : " - Not counted";
             }
           }
         }else{
@@ -2924,7 +2942,7 @@
               for(let t=1; t<=trailingDays; t++){
                 const nextDate = addDays(lastDate, t);
                 const hp = getHijriParts(nextDate);
-                appendGregorianDayCell({
+                const outsideInfo = {
                   gDay: nextDate.getDate(),
                   gMonth: nextDate.getMonth() + 1,
                   gYear: nextDate.getFullYear(),
@@ -2933,7 +2951,14 @@
                   hDay: hp.day,
                   hMonth: hp.month,
                   hYear: hp.year
-                }, true);
+                };
+                // Do not show ordinary days from the next month.
+                // Show only official Eid extension days, so the month stays clean
+                // while still showing the final 4/4 day if Eid extends past month-end.
+                const outsideEvent = findCalendarEvent(outsideInfo);
+                if(outsideEvent && isOfficialEidEvent(outsideEvent)){
+                  appendGregorianDayCell(outsideInfo, true);
+                }
               }
             }
           }
@@ -3365,27 +3390,9 @@
       renderCalendar();
     }
 
-    function isOfficialHolidayDate(date){
-      const hp = getHijriParts(date);
-      const info = {
-        gDate: date,
-        hDay: hp.day,
-        hMonth: hp.month,
-        hYear: hp.year,
-        weekday: date.getDay()
-      };
-      const ev = findCalendarEvent(info);
-      if(!ev) return false;
-      const name = getEventName(ev).toLowerCase();
-      return getEventDuration(ev) > 1 || name.includes("eid") || name.includes("عيد") || name.includes("holiday") || name.includes("إجازة");
-    }
-
-    function isAfafOffDay(date){
-      if(isOfficialHolidayDate(date)){
-        return { off:false, type:"", label:"" };
-      }
+    function getRawShiftOffDay(date){
       const group = shiftGroupsV2[selectedShiftGroupIdV2] || shiftGroupsV2.groupA;
-      if(!group){
+      if(!afafScheduleEnabled || !group){
         return { off:false, type:"", label:"" };
       }
       const hp = getHijriParts(date);
@@ -3410,6 +3417,10 @@
         };
       }
       return { off:false, type:"", label:"" };
+    }
+
+    function isAfafOffDay(date){
+      return getRawShiftOffDay(date);
     }
 
     function setAfafButtonLabel(){
@@ -3702,7 +3713,8 @@
 
 
     /* ===== Official Eid duration fix =====
-       Official Eid days stay 4 calendar days. Group off days are hidden during Eid. */
+       Official Eid is 4 counted official days. Shift off days inside Eid are hidden and not counted,
+       so the Eid display extends until 4 counted days are completed. */
     function normalizeOfficialEidEvents(){
       customEvents.forEach(function(event){
         const name = [event.ar, event.en, event.name].filter(Boolean).join(" ").toLowerCase();
@@ -3730,6 +3742,7 @@
       if(location.hash === "#events") showEventPage();
       if(location.hash === "#groups") showGroupPage();
     });
+    // FIX_VERSION_EID_WEEKEND_2026_05_10
   </script>
 </body>
 </html>
