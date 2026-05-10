@@ -372,6 +372,7 @@
 
     .cell:hover{background:rgba(255,255,255,.78)}
     .cell.empty{background:rgba(255,255,255,.18)}
+    .cell.outside{opacity:.62;background:rgba(255,255,255,.10)}
 
     .hday{
       display:block;
@@ -512,7 +513,8 @@
     }
 
     .standalone-page.active{
-      display:block;
+      display:block!important;
+      min-height:420px;
     }
 
     .standalone-header{
@@ -712,7 +714,7 @@
     .app-shell{
       min-height:100vh;
       display:grid;
-      grid-template-columns:148px minmax(0,744px);
+      grid-template-columns:180px minmax(0,1fr);
       grid-template-areas:
         "nav nav"
         "utility main";
@@ -723,8 +725,8 @@
     }
 
     .page.app-shell{
-      width:min(940px,calc(100% - 28px));
-      max-width:940px;
+      width:min(1280px,calc(100% - 28px));
+      max-width:1280px;
       margin:14px auto;
       border-radius:8px;
     }
@@ -1262,6 +1264,119 @@
       display:none;
     }
 
+
+    .shift-selector{
+      min-width:160px;
+      height:34px;
+      padding:6px 10px;
+      font-size:11px;
+      font-weight:900;
+      border-radius:999px;
+      background:rgba(255,255,255,.78);
+    }
+
+    .settings-card{
+      margin-top:14px;
+      padding:16px;
+      border-radius:8px;
+      background:rgba(255,255,255,.62);
+      border:1px solid rgba(255,255,255,.55);
+      box-shadow:0 14px 34px rgba(19,27,46,.08);
+    }
+
+    .settings-card h3{
+      margin:0 0 10px;
+      color:var(--primary);
+      font-size:18px;
+    }
+
+    .settings-help{
+      margin:10px 0 0;
+      color:var(--muted);
+      line-height:1.8;
+      font-size:13px;
+    }
+
+    .group-grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:10px;
+      align-items:end;
+    }
+
+    .day-checks{
+      display:grid;
+      grid-template-columns:repeat(7,minmax(0,1fr));
+      gap:6px;
+      grid-column:1/-1;
+    }
+
+    .day-check{
+      display:flex;
+      align-items:center;
+      gap:4px;
+      padding:7px 8px;
+      border-radius:8px;
+      background:rgba(255,255,255,.65);
+      border:1px solid rgba(19,27,46,.10);
+      font-size:12px;
+      font-weight:800;
+      cursor:pointer;
+    }
+
+    .day-check input{
+      width:auto;
+      box-shadow:none;
+    }
+
+    .groups-list{
+      margin-top:12px;
+      display:grid;
+      gap:8px;
+    }
+
+    .group-chip{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      padding:10px 12px;
+      background:rgba(255,255,255,.72);
+      border:1px solid rgba(19,27,46,.10);
+      border-radius:8px;
+      line-height:1.6;
+      font-size:12px;
+    }
+
+    .group-chip strong{font-size:13px;color:var(--primary)}
+
+    .mini-table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:10px;
+      font-size:12px;
+      overflow:hidden;
+      border-radius:8px;
+    }
+
+    .mini-table th,.mini-table td{
+      border:1px solid rgba(19,27,46,.12);
+      padding:8px;
+      background:rgba(255,255,255,.55);
+      text-align:center;
+    }
+
+    .mini-table th{
+      background:rgba(19,27,46,.90);
+      color:#fff;
+    }
+
+    @media(max-width:650px){
+      .group-grid{grid-template-columns:1fr}
+      .day-checks{grid-template-columns:repeat(2,1fr)}
+      .group-chip{display:block}
+    }
+
     @media print{
       body{
         background:
@@ -1371,7 +1486,7 @@
       <div class="brand-lockup">
         <img class="company-logo" src="LOGO-almajdouie.png" alt="Almajdouie">
         <strong>Dual Chronology</strong>
-        <span>Heritage System</span>
+        <span>Heritage System • Events & Groups v4</span>
       </div>
       <button type="button" class="nav-item active" onclick="showHomePage('calendarPanel', this)">
         <span>Calendar</span>
@@ -1389,6 +1504,10 @@
         <span>Events</span>
         <span>الإضافات</span>
       </button>
+      <button type="button" class="nav-item" onclick="showGroupPage(this)">
+        <span>Groups</span>
+        <span>القروبات</span>
+      </button>
       <button type="button" class="language-toggle" id="languageToggle" onclick="toggleLanguage()">العربية</button>
     </aside>
 
@@ -1403,7 +1522,10 @@
             <button type="button" class="btn" onclick="changeHijriYear(-1)">السنة السابقة</button>
             <button type="button" class="btn" onclick="setCurrentHijriYear()">اليوم</button>
             <button type="button" class="btn" onclick="changeHijriYear(1)">السنة التالية</button>
-            <button type="button" class="btn" id="afafBtn" onclick="toggleAfafSchedule()">عفاف: تفعيل الأوف</button>
+            <select id="shiftGroupSelect" class="shift-selector" onchange="selectShiftGroup(this.value)"></select>
+            <button type="button" class="btn" id="afafBtn" onclick="toggleAfafSchedule()">Group: enable off days</button>
+            <button type="button" class="btn" onclick="showEventPage()">إضافة مناسبة</button>
+            <button type="button" class="btn" onclick="showGroupPage()">إعداد القروبات</button>
           </div>
         </header>
 
@@ -1464,9 +1586,9 @@
           </div>
           <div id="ageResult" class="result"></div>
         </section>
+      </section>
 
-
-      <section id="eventPage" class="standalone-page event-page" hidden>
+      <section id="eventPage" class="standalone-page event-page" style="display:none;">
         <div class="standalone-header">
           <div>
             <span class="pill">Events</span>
@@ -1499,6 +1621,68 @@
             <button type="button" class="btn" onclick="addEvent()">إضافة</button>
           </div>
           <div class="events-list" id="eventsList"></div>
+        </section>
+      </section>
+
+      <section id="groupPage" class="standalone-page group-page" style="display:none;">
+        <div class="standalone-header">
+          <div>
+            <span class="pill">Groups</span>
+            <h2>إعدادات القروبات والأوف داي</h2>
+            <p>من هنا تقدر تضيف قروب جديد وتحدد أيام الأوف بنفسك بدون تعديل الكود.</p>
+          </div>
+          <button type="button" class="btn" onclick="showHomePage('calendarPanel')">العودة للتقويم</button>
+        </div>
+
+        <section class="settings-card">
+          <h3>إضافة / تحديث قروب</h3>
+          <div class="group-grid">
+            <div class="field">
+              <label>كود القروب</label>
+              <input id="groupIdInput" type="text" placeholder="groupD">
+            </div>
+            <div class="field">
+              <label>اسم القروب عربي</label>
+              <input id="groupArInput" type="text" placeholder="قروب D">
+            </div>
+            <div class="field">
+              <label>اسم القروب English</label>
+              <input id="groupEnInput" type="text" placeholder="Group D">
+            </div>
+            <div class="field">
+              <label>تاريخ بداية الدورة</label>
+              <input id="groupStartInput" type="date" value="2026-05-14">
+            </div>
+            <div class="field">
+              <label>رمضان</label>
+              <select id="groupRamadanInput">
+                <option value="exclude">إيقاف الشفت في رمضان</option>
+                <option value="include">تطبيق الشفت في رمضان</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>تنفيذ</label>
+              <button type="button" class="btn" onclick="saveShiftGroupFromForm()">حفظ القروب</button>
+            </div>
+            <div class="field" style="grid-column:1/-1">
+              <label>أيام الأوف في أول أسبوعين</label>
+              <div class="day-checks" id="groupBlockA"></div>
+            </div>
+            <div class="field" style="grid-column:1/-1">
+              <label>أيام الأوف في ثاني أسبوعين</label>
+              <div class="day-checks" id="groupBlockB"></div>
+            </div>
+          </div>
+          <p class="settings-help">مثال: Group A = أول أسبوعين الخميس/الجمعة، ثاني أسبوعين الجمعة/السبت. Group B = العكس.</p>
+        </section>
+
+        <section class="settings-card">
+          <h3>القروبات الحالية</h3>
+          <div id="groupsList" class="groups-list"></div>
+          <table class="mini-table">
+            <thead><tr><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr></thead>
+            <tbody><tr><td>الأحد</td><td>الاثنين</td><td>الثلاثاء</td><td>الأربعاء</td><td>الخميس</td><td>الجمعة</td><td>السبت</td></tr></tbody>
+          </table>
         </section>
       </section>
     </main>
@@ -1723,12 +1907,12 @@
       { year:1447, month:9, day:5, gregorian:"22/02/2026", color:"green", ar:"إجازة يوم التأسيس", en:"Founding Day holiday" },
       { year:1447, month:9, day:17, gregorian:"06/03/2026", color:"blue", ar:"إجازة عيد الفطر للمدارس", en:"Eid al-Fitr school holiday" },
       { year:1447, month:9, day:22, gregorian:"11/03/2026", color:"purple", ar:"يوم العلَم السعودي", en:"Saudi Flag Day" },
-      { year:1447, month:10, day:1, gregorian:"20/03/2026", color:"blue", ar:"عيد الفطر", en:"Eid al-Fitr" },
+      { year:1447, month:10, day:1, gregorian:"20/03/2026", color:"blue", ar:"عيد الفطر", en:"Eid al-Fitr", duration:4, compMode:"none", officialEid:true },
       { year:1447, month:12, day:5, gregorian:"22/05/2026", color:"pink", ar:"إجازة عيد الأضحى للمدارس", en:"Eid al-Adha school holiday" },
-      { year:1447, month:12, day:10, gregorian:"27/05/2026", color:"pink", ar:"عيد الأضحى", en:"Eid al-Adha" },
+      { year:1447, month:12, day:10, gregorian:"27/05/2026", color:"pink", ar:"عيد الأضحى", en:"Eid al-Adha", duration:4, compMode:"none", officialEid:true },
       { year:1448, month:3, day:10, gregorian:"23/08/2026", color:"yellow", ar:"بداية العام الدراسي 1448-1449", en:"Start of school year 1448-1449" },
       { year:1448, month:9, day:1, gregorian:"08/02/2027", color:"blue", ar:"بداية رمضان 1448", en:"Ramadan 1448 begins" },
-      { year:1448, month:10, day:1, gregorian:"09/03/2027", color:"blue", ar:"عيد الفطر 1448", en:"Eid al-Fitr 1448" }
+      { year:1448, month:10, day:1, gregorian:"09/03/2027", color:"blue", ar:"عيد الفطر 1448", en:"Eid al-Fitr 1448", duration:4, compMode:"none", officialEid:true }
     ];
 
     let customEvents = [
@@ -1940,13 +2124,15 @@
             ["Calendar","التقويم"],
             ["Calculators","الحسابات"],
             ["Print","طباعة"],
-            ["Events","الإضافات"]
+            ["Events","الإضافات"],
+            ["Groups","القروبات"]
           ]
         : [
             ["Calendar",""],
             ["Calculators",""],
             ["Print",""],
-            ["Events",""]
+            ["Events",""],
+            ["Groups",""]
           ];
       navItems.forEach(function(item, index){
         const labels = navLabels[index];
@@ -1969,6 +2155,7 @@
       if(topButtons[0]) topButtons[0].textContent = text("previousYear");
       if(topButtons[1]) topButtons[1].textContent = text("today");
       if(topButtons[2]) topButtons[2].textContent = text("nextYear");
+      populateShiftGroupSelect();
       setAfafButtonLabel();
 
       const controlsButtons = document.querySelectorAll(".controls > .btn");
@@ -2175,11 +2362,73 @@
 
     function isEidEvent(event){
       const names = [event.name, event.ar, event.en].filter(Boolean).join(" ").toLowerCase();
-      return event.color === "pink" || names.indexOf("عيد") !== -1 || names.indexOf("eid") !== -1;
+      return names.indexOf("عيد") !== -1 || names.indexOf("eid") !== -1;
+    }
+
+    function isOfficialEidEvent(event){
+      if(!event) return false;
+      if(event.officialEid) return true;
+      const names = [event.name, event.ar, event.en].filter(Boolean).join(" ").toLowerCase();
+      return (names.indexOf("عيد الفطر") !== -1 || names.indexOf("عيد الأضحى") !== -1 || names.indexOf("eid al-fitr") !== -1 || names.indexOf("eid al-adha") !== -1)
+        && names.indexOf("school") === -1
+        && names.indexOf("مدارس") === -1
+        && names.indexOf("school holiday") === -1;
+    }
+
+    function isShiftOffForHoliday(date){
+      if(!afafScheduleEnabled){
+        return false;
+      }
+      const offInfo = isAfafOffDay(date);
+      return !!offInfo.off;
+    }
+
+    function getOfficialEidCoverage(event){
+      const duration = getEventDuration(event);
+      const start = getEventStartDate(event);
+      if(!start || duration <= 1){
+        return [];
+      }
+
+      const coverage = [];
+      let counted = 0;
+      let cursor = clearTime(start);
+      let guard = 0;
+
+      while(counted < duration && guard < 45){
+        const isOff = isShiftOffForHoliday(cursor);
+        const item = {
+          date: clearTime(cursor),
+          isOffNotCounted: isOff,
+          countedIndex: null
+        };
+
+        if(!isOff){
+          counted += 1;
+          item.countedIndex = counted;
+        }
+
+        coverage.push(item);
+        cursor = addDays(cursor, 1);
+        guard += 1;
+      }
+
+      return coverage;
+    }
+
+    function getOfficialEidCoverageForDate(event, date){
+      if(!isOfficialEidEvent(event)){
+        return null;
+      }
+      const target = clearTime(date).getTime();
+      const coverage = getOfficialEidCoverage(event);
+      return coverage.find(function(item){
+        return item.date.getTime() === target;
+      }) || null;
     }
 
     function getEffectiveCompMode(event){
-      if(isEidEvent(event) && getEventDuration(event) > 1){
+      if(isOfficialEidEvent(event) && getEventDuration(event) > 1){
         return "after";
       }
       return event.compMode || "none";
@@ -2194,6 +2443,18 @@
       const start = getEventStartDate(event);
       if(!start){
         return {duration:duration, weekendDates:[], substituteDates:[], compMode:getEffectiveCompMode(event)};
+      }
+
+      if(isOfficialEidEvent(event)){
+        const coverage = getOfficialEidCoverage(event);
+        const offDates = coverage.filter(function(item){ return item.isOffNotCounted; }).map(function(item){ return item.date; });
+        return {
+          duration:duration,
+          weekendDates:offDates,
+          substituteDates:[],
+          compMode:"extend",
+          coverage:coverage
+        };
       }
 
       const weekendDates = [];
@@ -2240,11 +2501,34 @@
       return !!(info && info.weekendDates.length && info.compMode !== "none");
     }
 
-    function getCalendarEventLabel(event){
+    function getCalendarEventLabel(event, info){
       if(!event){
         return "";
       }
-      return getEventName(event) + (hasSubstituteAlert(event) ? " - " + text("substituteAlertShort") : "");
+      let label = getEventName(event);
+      const duration = getEventDuration(event);
+
+      if(duration > 1 && info){
+        if(isOfficialEidEvent(event)){
+          const coverageItem = getOfficialEidCoverageForDate(event, info.gDate);
+          if(coverageItem){
+            if(coverageItem.countedIndex){
+              label += " " + displayNumber(coverageItem.countedIndex) + "/" + displayNumber(duration);
+            }else if(coverageItem.isOffNotCounted){
+              label += currentLang === "ar" ? " - أوف لا يُحسب" : " - Off not counted";
+            }
+          }
+        }else{
+          const start = getEventStartDate(event);
+          if(start){
+            const diff = Math.floor((clearTime(info.gDate).getTime() - clearTime(start).getTime()) / 86400000) + 1;
+            if(diff >= 1 && diff <= duration){
+              label += " " + displayNumber(diff) + "/" + displayNumber(duration);
+            }
+          }
+        }
+      }
+      return label + (!isOfficialEidEvent(event) && hasSubstituteAlert(event) ? " - " + text("substituteAlertShort") : "");
     }
 
     function findCalendarEvent(info){
@@ -2254,6 +2538,11 @@
           const start = getEventStartDate(event);
           if(start){
             const current = clearTime(info.gDate);
+
+            if(isOfficialEidEvent(event)){
+              return !!getOfficialEidCoverageForDate(event, current);
+            }
+
             const end = addDays(start, duration - 1);
             if(current >= start && current <= end){
               return true;
@@ -2477,7 +2766,8 @@
             const ev = findCalendarEvent(info);
 
             let afaf = {off:false, type:"", label:""};
-            if(afafScheduleEnabled && info.hMonth !== 9){
+            const isOfficialEidDay = !!(ev && isOfficialEidEvent(ev));
+            if(afafScheduleEnabled && info.hMonth !== 9 && !isOfficialEidDay){
               afaf = isAfafOffDay(info.gDate);
             }
 
@@ -2494,7 +2784,7 @@
               (afaf.off ? '<span class="afaf-label">' + afaf.label + '</span>' : '') +
               '<span class="hday">' + displayNumber(info.hDay) + '</span>' +
               '<span class="gday">' + gText + '</span>' +
-              (ev ? '<span class="event-name">' + getCalendarEventLabel(ev) + '</span>' : '');
+              (ev ? '<span class="event-name">' + getCalendarEventLabel(ev, info) + '</span>' : '');
 
             table.appendChild(cell);
           });
@@ -2590,33 +2880,63 @@
             table.appendChild(empty);
           }
 
-          days.forEach(function(info){
+          function appendGregorianDayCell(info, outsideMonth){
             const cell = document.createElement("div");
-            cell.className = "cell";
+            cell.className = "cell" + (outsideMonth ? " outside" : "");
 
             const ev = findCalendarEvent(info);
 
             let afaf = {off:false, type:"", label:""};
-            if(afafScheduleEnabled && info.hMonth !== 9){
+            const isOfficialEidDay = !!(ev && isOfficialEidEvent(ev));
+            if(afafScheduleEnabled && info.hMonth !== 9 && !isOfficialEidDay){
               afaf = isAfafOffDay(info.gDate);
             }
 
             if(ev){
               cell.classList.add(cssColorClass[ev.color]);
+              if(isOfficialEidEvent(ev)){
+                cell.classList.remove("afaf-off-a", "afaf-off-b");
+              }
             }
 
-            if(afaf.off){
+            if(afaf.off && !isOfficialEidDay){
               cell.classList.add(afaf.type === "a" ? "afaf-off-a" : "afaf-off-b");
             }
 
             cell.innerHTML =
-              (afaf.off ? '<span class="afaf-label">' + afaf.label + '</span>' : '') +
+              (afaf.off && !isOfficialEidDay ? '<span class="afaf-label">' + afaf.label + '</span>' : '') +
               '<span class="hday">' + displayNumber(info.gDay) + '</span>' +
               '<span class="gday">' + displayNumber(info.hDay) + " " + getHijriMonthName(info.hMonth - 1) + '</span>' +
-              (ev ? '<span class="event-name">' + getCalendarEventLabel(ev) + '</span>' : '');
+              (ev ? '<span class="event-name">' + getCalendarEventLabel(ev, info) + '</span>' : '');
 
             table.appendChild(cell);
+          }
+
+          days.forEach(function(info){
+            appendGregorianDayCell(info, false);
           });
+
+          if(selectedGregorianMonth !== 0){
+            const cellsUsed = firstWeekday + days.length;
+            const trailingDays = (7 - (cellsUsed % 7)) % 7;
+            if(trailingDays){
+              const lastDate = clearTime(days[days.length - 1].gDate);
+              for(let t=1; t<=trailingDays; t++){
+                const nextDate = addDays(lastDate, t);
+                const hp = getHijriParts(nextDate);
+                appendGregorianDayCell({
+                  gDay: nextDate.getDate(),
+                  gMonth: nextDate.getMonth() + 1,
+                  gYear: nextDate.getFullYear(),
+                  gDate: nextDate,
+                  weekday: nextDate.getDay(),
+                  hDay: hp.day,
+                  hMonth: hp.month,
+                  hYear: hp.year
+                }, true);
+              }
+            }
+          }
         }
 
         month.appendChild(table);
@@ -2942,9 +3262,473 @@
       return signs[0];
     }
 
-    document.addEventListener("DOMContentLoaded", function(){
-      applyLanguage();
+
+
+    /* ===== Custom group settings v2 ===== */
+    const defaultShiftGroupsV2 = {
+      groupA: {
+        arName: "قروب A",
+        enName: "Group A",
+        startDate: "2026-05-14",
+        cycleDays: 14,
+        blocks: [
+          { type:"a", offDays:[4,5], ar:"أوف الخميس والجمعة", en:"Thu/Fri off" },
+          { type:"b", offDays:[5,6], ar:"أوف الجمعة والسبت", en:"Fri/Sat off" }
+        ],
+        excludeHijriMonths: [9]
+      },
+      groupB: {
+        arName: "قروب B",
+        enName: "Group B",
+        startDate: "2026-05-14",
+        cycleDays: 14,
+        blocks: [
+          { type:"a", offDays:[5,6], ar:"أوف الجمعة والسبت", en:"Fri/Sat off" },
+          { type:"b", offDays:[4,5], ar:"أوف الخميس والجمعة", en:"Thu/Fri off" }
+        ],
+        excludeHijriMonths: [9]
+      },
+      groupC: {
+        arName: "قروب C",
+        enName: "Group C",
+        startDate: "2026-05-14",
+        cycleDays: 14,
+        blocks: [
+          { type:"a", offDays:[0,1], ar:"أوف الأحد والاثنين", en:"Sun/Mon off" },
+          { type:"b", offDays:[2,3], ar:"أوف الثلاثاء والأربعاء", en:"Tue/Wed off" }
+        ],
+        excludeHijriMonths: [9]
+      }
+    };
+
+    let shiftGroupsV2 = loadShiftGroupsV2();
+    let selectedShiftGroupIdV2 = localStorage.getItem("selectedShiftGroupIdV2") || Object.keys(shiftGroupsV2)[0] || "groupA";
+
+    function loadShiftGroupsV2(){
+      try{
+        const saved = localStorage.getItem("shiftGroupsV2");
+        return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(defaultShiftGroupsV2));
+      }catch(e){
+        return JSON.parse(JSON.stringify(defaultShiftGroupsV2));
+      }
+    }
+
+    function saveShiftGroupsV2(){
+      localStorage.setItem("shiftGroupsV2", JSON.stringify(shiftGroupsV2));
+      localStorage.setItem("selectedShiftGroupIdV2", selectedShiftGroupIdV2);
+    }
+
+    function parseLocalDate(value){
+      const parts = String(value || "").split("-").map(Number);
+      if(parts.length === 3 && parts[0] && parts[1] && parts[2]){
+        return new Date(parts[0], parts[1] - 1, parts[2]);
+      }
+      return new Date(2026, 4, 14);
+    }
+
+    function groupDisplayName(group){
+      if(!group) return currentLang === "ar" ? "قروب" : "Group";
+      return currentLang === "ar" ? group.arName : group.enName;
+    }
+
+    function weekdayShortName(day){
+      const ar = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+      const en = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+      return currentLang === "ar" ? ar[day] : en[day];
+    }
+
+    function formatOffDays(days){
+      return (days || []).map(weekdayShortName).join(" + ");
+    }
+
+    function populateShiftGroupSelect(){
+      const select = document.getElementById("shiftGroupSelect");
+      if(!select) return;
+      select.innerHTML = "";
+      Object.keys(shiftGroupsV2).forEach(function(id){
+        const group = shiftGroupsV2[id];
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = group.enName + " / " + group.arName;
+        if(id === selectedShiftGroupIdV2) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    function selectShiftGroup(id){
+      if(!shiftGroupsV2[id]) return;
+      selectedShiftGroupIdV2 = id;
+      saveShiftGroupsV2();
+      fillShiftGroupForm(id);
+      setAfafButtonLabel();
+      renderGroupsList();
       renderCalendar();
+    }
+
+    function isOfficialHolidayDate(date){
+      const hp = getHijriParts(date);
+      const info = {
+        gDate: date,
+        hDay: hp.day,
+        hMonth: hp.month,
+        hYear: hp.year,
+        weekday: date.getDay()
+      };
+      const ev = findCalendarEvent(info);
+      if(!ev) return false;
+      const name = getEventName(ev).toLowerCase();
+      return getEventDuration(ev) > 1 || name.includes("eid") || name.includes("عيد") || name.includes("holiday") || name.includes("إجازة");
+    }
+
+    function isAfafOffDay(date){
+      if(isOfficialHolidayDate(date)){
+        return { off:false, type:"", label:"" };
+      }
+      const group = shiftGroupsV2[selectedShiftGroupIdV2] || shiftGroupsV2.groupA;
+      if(!group){
+        return { off:false, type:"", label:"" };
+      }
+      const hp = getHijriParts(date);
+      if((group.excludeHijriMonths || []).includes(hp.month)){
+        return { off:false, type:"", label:"" };
+      }
+      const startDate = parseLocalDate(group.startDate);
+      const oneDay = 1000 * 60 * 60 * 24;
+      const diffDays = Math.floor((clearTime(date) - clearTime(startDate)) / oneDay);
+      if(diffDays < 0){
+        return { off:false, type:"", label:"" };
+      }
+      const blockNumber = Math.floor(diffDays / (group.cycleDays || 14));
+      const blockIndex = ((blockNumber % 2) + 2) % 2;
+      const block = (group.blocks || [])[blockIndex];
+      const day = date.getDay();
+      if(block && (block.offDays || []).includes(day)){
+        return {
+          off:true,
+          type:block.type || (blockIndex === 0 ? "a" : "b"),
+          label:groupDisplayName(group) + " off"
+        };
+      }
+      return { off:false, type:"", label:"" };
+    }
+
+    function setAfafButtonLabel(){
+      const btn = document.getElementById("afafBtn");
+      if(!btn) return;
+      const group = shiftGroupsV2[selectedShiftGroupIdV2];
+      const name = groupDisplayName(group);
+      btn.textContent = afafScheduleEnabled
+        ? (currentLang === "ar" ? "إلغاء أوف " + name : "Disable " + name + " off")
+        : (currentLang === "ar" ? "تفعيل أوف " + name : "Enable " + name + " off");
+    }
+
+    function showEventPage(btn){
+      const calendarPanel = document.getElementById("calendarPanel");
+      const dashboardPanel = document.getElementById("dashboardPanel");
+      const eventPage = document.getElementById("eventPage");
+      const groupPage = document.getElementById("groupPage");
+      if(calendarPanel) calendarPanel.style.display = "none";
+      if(dashboardPanel) dashboardPanel.style.display = "none";
+      if(groupPage){ groupPage.style.display = "none"; groupPage.classList.remove("active"); }
+      if(eventPage){
+        eventPage.removeAttribute("hidden");
+        eventPage.hidden = false;
+        eventPage.style.display = "block";
+        eventPage.classList.add("active");
+      }
+      clearNavActive();
+      if(btn) btn.classList.add("active");
+      renderEventsList();
+      if(eventPage) eventPage.scrollIntoView({behavior:"smooth", block:"start"});
+      const eventName = document.getElementById("eventName");
+      if(eventName) setTimeout(function(){ eventName.focus(); }, 250);
+    }
+
+    function showGroupPage(btn){
+      const calendarPanel = document.getElementById("calendarPanel");
+      const dashboardPanel = document.getElementById("dashboardPanel");
+      const eventPage = document.getElementById("eventPage");
+      const groupPage = document.getElementById("groupPage");
+      if(calendarPanel) calendarPanel.style.display = "none";
+      if(dashboardPanel) dashboardPanel.style.display = "none";
+      if(eventPage){ eventPage.style.display = "none"; eventPage.classList.remove("active"); }
+      if(groupPage){
+        groupPage.removeAttribute("hidden");
+        groupPage.hidden = false;
+        groupPage.style.display = "block";
+        groupPage.classList.add("active");
+      }
+      clearNavActive();
+      if(btn) btn.classList.add("active");
+      buildDayChecks();
+      populateShiftGroupSelect();
+      fillShiftGroupForm(selectedShiftGroupIdV2);
+      renderGroupsList();
+      if(groupPage) groupPage.scrollIntoView({behavior:"smooth", block:"start"});
+    }
+
+    function showHomePage(targetId, btn){
+      const calendarPanel = document.getElementById("calendarPanel");
+      const dashboardPanel = document.getElementById("dashboardPanel");
+      const eventPage = document.getElementById("eventPage");
+      const groupPage = document.getElementById("groupPage");
+      if(calendarPanel) calendarPanel.style.display = "";
+      if(dashboardPanel) dashboardPanel.style.display = "grid";
+      if(eventPage){ eventPage.classList.remove("active"); eventPage.style.display = "none"; }
+      if(groupPage){ groupPage.classList.remove("active"); groupPage.style.display = "none"; }
+      clearNavActive();
+      if(btn) btn.classList.add("active");
+      const target = document.getElementById(targetId || "calendarPanel");
+      if(target) target.scrollIntoView({behavior:"smooth", block:"start"});
+    }
+
+    function buildDayChecks(){
+      const namesAr = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+      const namesEn = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      ["A","B"].forEach(function(block){
+        const wrap = document.getElementById("groupBlock" + block);
+        if(!wrap || wrap.dataset.ready === currentLang) return;
+        wrap.innerHTML = "";
+        for(let i=0;i<7;i++){
+          const label = document.createElement("label");
+          label.className = "day-check";
+          label.innerHTML = '<input type="checkbox" value="' + i + '"> <span>' + (currentLang === "ar" ? namesAr[i] : namesEn[i]) + '</span>';
+          wrap.appendChild(label);
+        }
+        wrap.dataset.ready = currentLang;
+      });
+    }
+
+    function setCheckedDays(containerId, days){
+      const wrap = document.getElementById(containerId);
+      if(!wrap) return;
+      Array.from(wrap.querySelectorAll('input[type="checkbox"]')).forEach(function(input){
+        input.checked = (days || []).includes(Number(input.value));
+      });
+    }
+
+    function getCheckedDays(containerId){
+      const wrap = document.getElementById(containerId);
+      if(!wrap) return [];
+      return Array.from(wrap.querySelectorAll('input[type="checkbox"]:checked')).map(function(input){ return Number(input.value); });
+    }
+
+    function fillShiftGroupForm(id){
+      buildDayChecks();
+      const group = shiftGroupsV2[id] || shiftGroupsV2[selectedShiftGroupIdV2];
+      if(!group) return;
+      document.getElementById("groupIdInput").value = id || selectedShiftGroupIdV2;
+      document.getElementById("groupArInput").value = group.arName || "";
+      document.getElementById("groupEnInput").value = group.enName || "";
+      document.getElementById("groupStartInput").value = group.startDate || "2026-05-14";
+      document.getElementById("groupRamadanInput").value = (group.excludeHijriMonths || []).includes(9) ? "exclude" : "include";
+      setCheckedDays("groupBlockA", (group.blocks && group.blocks[0] ? group.blocks[0].offDays : []));
+      setCheckedDays("groupBlockB", (group.blocks && group.blocks[1] ? group.blocks[1].offDays : []));
+    }
+
+    function sanitizeGroupId(value){
+      return String(value || "").trim().replace(/[^a-zA-Z0-9_-]/g, "");
+    }
+
+    function saveShiftGroupFromForm(){
+      const id = sanitizeGroupId(document.getElementById("groupIdInput").value);
+      const arName = document.getElementById("groupArInput").value.trim();
+      const enName = document.getElementById("groupEnInput").value.trim();
+      const startDate = document.getElementById("groupStartInput").value || "2026-05-14";
+      const offA = getCheckedDays("groupBlockA");
+      const offB = getCheckedDays("groupBlockB");
+      const ramadan = document.getElementById("groupRamadanInput").value;
+      if(!id || !arName || !enName || !offA.length || !offB.length){
+        alert(currentLang === "ar" ? "اكتب كود واسم القروب وحدد أيام الأوف في الدورتين" : "Enter group ID, names, and off days for both blocks.");
+        return;
+      }
+      shiftGroupsV2[id] = {
+        arName: arName,
+        enName: enName,
+        startDate: startDate,
+        cycleDays: 14,
+        blocks: [
+          { type:"a", offDays:offA, ar:"أوف أول أسبوعين", en:"First block off" },
+          { type:"b", offDays:offB, ar:"أوف ثاني أسبوعين", en:"Second block off" }
+        ],
+        excludeHijriMonths: ramadan === "exclude" ? [9] : []
+      };
+      selectedShiftGroupIdV2 = id;
+      saveShiftGroupsV2();
+      populateShiftGroupSelect();
+      renderGroupsList();
+      setAfafButtonLabel();
+      renderCalendar();
+      alert(currentLang === "ar" ? "تم حفظ القروب" : "Group saved.");
+    }
+
+    function deleteShiftGroup(id){
+      const keys = Object.keys(shiftGroupsV2);
+      if(keys.length <= 1){
+        alert(currentLang === "ar" ? "لا يمكن حذف آخر قروب" : "You cannot delete the last group.");
+        return;
+      }
+      if(!confirm(currentLang === "ar" ? "حذف هذا القروب؟" : "Delete this group?")) return;
+      delete shiftGroupsV2[id];
+      selectedShiftGroupIdV2 = Object.keys(shiftGroupsV2)[0];
+      saveShiftGroupsV2();
+      populateShiftGroupSelect();
+      fillShiftGroupForm(selectedShiftGroupIdV2);
+      renderGroupsList();
+      renderCalendar();
+    }
+
+    function editShiftGroup(id){
+      selectedShiftGroupIdV2 = id;
+      saveShiftGroupsV2();
+      populateShiftGroupSelect();
+      fillShiftGroupForm(id);
+      renderGroupsList();
+      renderCalendar();
+    }
+
+    function renderGroupsList(){
+      const list = document.getElementById("groupsList");
+      if(!list) return;
+      list.innerHTML = "";
+      Object.keys(shiftGroupsV2).forEach(function(id){
+        const g = shiftGroupsV2[id];
+        const item = document.createElement("div");
+        item.className = "group-chip";
+        item.innerHTML =
+          '<div><strong>' + g.enName + ' / ' + g.arName + '</strong><br>' +
+          (currentLang === "ar" ? "أول أسبوعين: " : "First block: ") + formatOffDays(g.blocks[0].offDays) + '<br>' +
+          (currentLang === "ar" ? "ثاني أسبوعين: " : "Second block: ") + formatOffDays(g.blocks[1].offDays) + '<br>' +
+          (currentLang === "ar" ? "بداية الدورة: " : "Start date: ") + g.startDate + '</div>' +
+          '<div><button type="button" class="btn" onclick="editShiftGroup(\'' + id + '\')">' + (currentLang === "ar" ? "تعديل" : "Edit") + '</button> ' +
+          '<button type="button" class="btn" onclick="deleteShiftGroup(\'' + id + '\')">' + (currentLang === "ar" ? "حذف" : "Delete") + '</button></div>';
+        list.appendChild(item);
+      });
+    }
+
+    function renderLegend(){
+      const legend = document.getElementById("legend");
+      if(!legend) return;
+      legend.innerHTML = "";
+      Object.keys(colorMap).forEach(function(color){
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        item.innerHTML = '<span class="color ev-' + color + '"></span><span>' + (currentLang === "ar" ? colorMap[color].ar : colorMap[color].en) + '</span>';
+        legend.appendChild(item);
+      });
+      const group = shiftGroupsV2[selectedShiftGroupIdV2];
+      if(group){
+        const blockA = document.createElement("div");
+        blockA.className = "legend-item";
+        blockA.innerHTML = '<span class="color afaf-off-a"></span><span>' + groupDisplayName(group) + ': ' + formatOffDays(group.blocks[0].offDays) + '</span>';
+        legend.appendChild(blockA);
+        const blockB = document.createElement("div");
+        blockB.className = "legend-item";
+        blockB.innerHTML = '<span class="color afaf-off-b"></span><span>' + groupDisplayName(group) + ': ' + formatOffDays(group.blocks[1].offDays) + '</span>';
+        legend.appendChild(blockB);
+      }
+      const ramadanNote = document.createElement("div");
+      ramadanNote.className = "legend-item";
+      ramadanNote.innerHTML = '<span class="color" style="background:#fff;border:2px solid #2d185f"></span><span>' + (currentLang === "ar" ? "رمضان: حسب إعدادات القروب" : "Ramadan: based on group settings") + '</span>';
+      legend.appendChild(ramadanNote);
+    }
+
+    function initCustomGroupUI(){
+      buildDayChecks();
+      populateShiftGroupSelect();
+      fillShiftGroupForm(selectedShiftGroupIdV2);
+      renderGroupsList();
+      setAfafButtonLabel();
+    }
+
+
+    function getEffectiveCompMode(event){
+      if(isEidEvent(event)){
+        return "none";
+      }
+      return event.compMode || "none";
+    }
+
+
+    /* ===== Final robust page switch overrides ===== */
+    function setPageVisibility(pageName, btn){
+      const calendarPanel = document.getElementById("calendarPanel");
+      const dashboardPanel = document.getElementById("dashboardPanel");
+      const eventPage = document.getElementById("eventPage");
+      const groupPage = document.getElementById("groupPage");
+      if(calendarPanel) calendarPanel.style.display = pageName === "home" ? "" : "none";
+      if(dashboardPanel) dashboardPanel.style.display = pageName === "home" ? "grid" : "none";
+      if(eventPage){
+        const show = pageName === "events";
+        eventPage.hidden = !show;
+        eventPage.style.display = show ? "block" : "none";
+        eventPage.classList.toggle("active", show);
+      }
+      if(groupPage){
+        const show = pageName === "groups";
+        groupPage.hidden = !show;
+        groupPage.style.display = show ? "block" : "none";
+        groupPage.classList.toggle("active", show);
+      }
+      clearNavActive();
+      if(btn) btn.classList.add("active");
+    }
+
+    function showEventPage(btn){
+      setPageVisibility("events", btn || document.querySelector('.side-nav .nav-item[onclick*=\"showEventPage\"]'));
+      renderEventsList();
+      const eventPage = document.getElementById("eventPage");
+      if(eventPage) eventPage.scrollIntoView({behavior:"smooth", block:"start"});
+      const eventName = document.getElementById("eventName");
+      if(eventName) setTimeout(function(){ eventName.focus(); }, 150);
+    }
+
+    function showGroupPage(btn){
+      setPageVisibility("groups", btn || document.querySelector('.side-nav .nav-item[onclick*=\"showGroupPage\"]'));
+      buildDayChecks();
+      populateShiftGroupSelect();
+      fillShiftGroupForm(selectedShiftGroupIdV2);
+      renderGroupsList();
+      const groupPage = document.getElementById("groupPage");
+      if(groupPage) groupPage.scrollIntoView({behavior:"smooth", block:"start"});
+    }
+
+    function showHomePage(targetId, btn){
+      setPageVisibility("home", btn || document.querySelector('.side-nav .nav-item[onclick*=\"showHomePage\"]'));
+      const target = document.getElementById(targetId || "calendarPanel");
+      if(target) target.scrollIntoView({behavior:"smooth", block:"start"});
+    }
+
+
+
+    /* ===== Official Eid duration fix =====
+       Official Eid days stay 4 calendar days. Group off days are hidden during Eid. */
+    function normalizeOfficialEidEvents(){
+      customEvents.forEach(function(event){
+        const name = [event.ar, event.en, event.name].filter(Boolean).join(" ").toLowerCase();
+        const isOfficial = event.officialEid ||
+          name === "عيد الفطر eid al-fitr" ||
+          name === "عيد الأضحى eid al-adha" ||
+          name.indexOf("عيد الفطر 1448") !== -1 ||
+          (name.indexOf("eid al-fitr") !== -1 && name.indexOf("school") === -1) ||
+          (name.indexOf("eid al-adha") !== -1 && name.indexOf("school") === -1);
+        if(isOfficial){
+          event.duration = 4;
+          event.compMode = "after";
+          event.officialEid = true;
+          event.countOffDays = false;
+        }
+      });
+    }
+
+        document.addEventListener("DOMContentLoaded", function(){
+      normalizeOfficialEidEvents();
+      applyLanguage();
+      initCustomGroupUI();
+      renderCalendar();
+      setPageVisibility("home", document.querySelector('.side-nav .nav-item[onclick*=\"showHomePage\"]'));
+      if(location.hash === "#events") showEventPage();
+      if(location.hash === "#groups") showGroupPage();
     });
   </script>
 </body>
