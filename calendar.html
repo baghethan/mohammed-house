@@ -503,7 +503,7 @@
 
     .event-row{
       display:grid;
-      grid-template-columns:1fr 1fr 1.5fr 1fr auto;
+      grid-template-columns:.8fr .8fr 1.3fr .8fr 1.1fr 1fr auto;
       gap:8px;
       margin-top:8px;
     }
@@ -517,10 +517,42 @@
     }
 
     .event-chip{
+      display:flex;
+      align-items:flex-start;
+      gap:7px;
+      max-width:100%;
       background:rgba(255,255,255,.72);
       border:1px solid rgba(19,27,46,.13);
-      padding:6px 9px;
-      border-radius:999px;
+      padding:7px 9px;
+      border-radius:8px;
+      line-height:1.45;
+    }
+
+    .event-chip-content{
+      display:flex;
+      flex-direction:column;
+      gap:3px;
+      min-width:0;
+    }
+
+    .event-chip-title{
+      font-weight:700;
+    }
+
+    .event-chip-note{
+      color:#3f4b54;
+      font-size:11px;
+      max-width:420px;
+    }
+
+    .event-remove{
+      border:0;
+      background:transparent;
+      color:#a33;
+      cursor:pointer;
+      font-weight:bold;
+      line-height:1;
+      padding:3px;
     }
 
     .age-layout{
@@ -1001,7 +1033,7 @@
     }
 
     .event-row{
-      grid-template-columns:1fr 1fr 1.4fr 1fr auto;
+      grid-template-columns:.8fr .8fr 1.3fr .8fr 1.1fr 1fr auto;
     }
 
     .utility-rail{
@@ -1367,6 +1399,7 @@
             <input id="eventMonth" class="numeric" type="text" inputmode="numeric" placeholder="رقم الشهر الهجري">
             <input id="eventDay" class="numeric" type="text" inputmode="numeric" placeholder="اليوم">
             <input id="eventName" type="text" placeholder="اسم المناسبة">
+            <input id="eventDays" class="numeric" type="text" inputmode="numeric" placeholder="عدد أيام الإجازة">
             <select id="eventColor">
               <option value="pink">وردي</option>
               <option value="green">أخضر</option>
@@ -1375,6 +1408,11 @@
               <option value="cyan">سماوي</option>
               <option value="blue">أزرق</option>
               <option value="purple">بنفسجي</option>
+            </select>
+            <select id="eventCompMode">
+              <option value="none">بدون تعويض</option>
+              <option value="after">تعويض بعد الإجازة</option>
+              <option value="before">تعويض قبل الإجازة</option>
             </select>
             <button type="button" class="btn" onclick="addEvent()">إضافة</button>
           </div>
@@ -1457,6 +1495,17 @@
         action: "تنفيذ",
         calculate: "احسب الآن",
         eventTitle: "إضافة مناسبة ملونة على التقويم",
+        durationPlaceholder: "عدد أيام الإجازة",
+        compNone: "بدون تعويض",
+        compAfter: "تعويض بعد الإجازة",
+        compBefore: "تعويض قبل الإجازة",
+        leaveDuration: "مدة الإجازة",
+        leaveDaysWord: "أيام",
+        weekendOverlap: "داخل الويكند",
+        substituteAfter: "أيام بدل مقترحة بعد الإجازة",
+        substituteBefore: "أيام بدل مقترحة قبل الإجازة",
+        noWeekendOverlap: "لا يوجد تداخل مع الويكند حسب التاريخ الميلادي",
+        substituteAlertShort: "تنبيه بدل",
         latestTitle: "المواعيد الأحدث",
         sourceNote: "المواعيد المدرسية من تقويم وزارة التعليم 1447هـ، والمناسبات الهجرية قد تتغير حسب إعلان الرؤية.",
         afafOn: "عفاف: تفعيل الأوف",
@@ -1505,6 +1554,17 @@
         action: "Action",
         calculate: "Calculate",
         eventTitle: "Add a colored calendar event",
+        durationPlaceholder: "Leave days",
+        compNone: "No substitute",
+        compAfter: "Substitute after leave",
+        compBefore: "Substitute before leave",
+        leaveDuration: "Leave duration",
+        leaveDaysWord: "days",
+        weekendOverlap: "Weekend overlap",
+        substituteAfter: "Suggested substitute days after leave",
+        substituteBefore: "Suggested substitute days before leave",
+        noWeekendOverlap: "No weekend overlap by Gregorian date",
+        substituteAlertShort: "Substitute alert",
         latestTitle: "Latest dates",
         sourceNote: "School dates are from the Saudi Ministry of Education 1447 AH calendar; lunar occasions may change with official moon-sighting announcements.",
         afafOn: "Afaf: enable off days",
@@ -1834,12 +1894,19 @@
       if(eventDay) eventDay.placeholder = text("day");
       const eventName = document.getElementById("eventName");
       if(eventName) eventName.placeholder = currentLang === "ar" ? "اسم المناسبة" : "Event name";
+      const eventDays = document.getElementById("eventDays");
+      if(eventDays) eventDays.placeholder = text("durationPlaceholder");
       const eventColor = document.getElementById("eventColor");
       if(eventColor){
         const names = currentLang === "ar"
           ? ["وردي","أخضر","أصفر","برتقالي","سماوي","أزرق","بنفسجي"]
           : ["Pink","Green","Yellow","Orange","Cyan","Blue","Purple"];
         Array.from(eventColor.options).forEach(function(option, index){ option.textContent = names[index]; });
+      }
+      const eventCompMode = document.getElementById("eventCompMode");
+      if(eventCompMode){
+        const compNames = [text("compNone"), text("compAfter"), text("compBefore")];
+        Array.from(eventCompMode.options).forEach(function(option, index){ option.textContent = compNames[index]; });
       }
       const addBtn = document.querySelector(".event-editor .btn");
       if(addBtn) addBtn.textContent = text("add");
@@ -1913,6 +1980,152 @@
     function parseGregorianDate(value){
       const parts = String(value).split("/").map(Number);
       return new Date(parts[2], parts[1] - 1, parts[0]);
+    }
+
+    function toGregorianStorage(date){
+      return String(date.getDate()).padStart(2, "0") + "/" + String(date.getMonth() + 1).padStart(2, "0") + "/" + date.getFullYear();
+    }
+
+    function getEventDuration(event){
+      const duration = Number(event.duration || 1);
+      if(!Number.isFinite(duration) || duration < 1){
+        return 1;
+      }
+      return Math.min(Math.floor(duration), 30);
+    }
+
+    function addDays(date, days){
+      const copy = clearTime(date);
+      copy.setDate(copy.getDate() + days);
+      return copy;
+    }
+
+    function isWeekendDate(date){
+      const day = date.getDay();
+      return day === 5 || day === 6;
+    }
+
+    function getGregorianForHijriDate(hYear, hMonth, hDay){
+      const days = collectHijriYearDays(hYear)[hMonth - 1] || [];
+      const match = days.find(function(info){
+        return info.hDay === hDay && info.hMonth === hMonth && info.hYear === hYear;
+      });
+      return match ? clearTime(match.gDate) : clearTime(hijriToGregorianApprox(hYear, hMonth, hDay));
+    }
+
+    function getEventStartDate(event){
+      if(event.gregorian){
+        const parsed = parseGregorianDate(event.gregorian);
+        if(!isNaN(parsed.getTime())){
+          return clearTime(parsed);
+        }
+      }
+      if(event.year && event.month && event.day){
+        return getGregorianForHijriDate(event.year, event.month, event.day);
+      }
+      return null;
+    }
+
+    function formatDateWithWeekday(date){
+      return getWeekdayNames()[date.getDay()] + " " + formatGregorianDate(date);
+    }
+
+    function collectSubstituteDates(start, duration, weekendCount, mode){
+      const dates = [];
+      if(!weekendCount || (mode !== "after" && mode !== "before")){
+        return dates;
+      }
+
+      let cursor = addDays(start, mode === "after" ? duration : -1);
+      let attempts = 0;
+      while(dates.length < weekendCount && attempts < 20){
+        if(!isWeekendDate(cursor)){
+          dates.push(clearTime(cursor));
+        }
+        cursor = addDays(cursor, mode === "after" ? 1 : -1);
+        attempts += 1;
+      }
+
+      return mode === "before" ? dates.reverse() : dates;
+    }
+
+    function getHolidayInfo(event){
+      const duration = getEventDuration(event);
+      if(duration <= 1){
+        return null;
+      }
+
+      const start = getEventStartDate(event);
+      if(!start){
+        return {duration:duration, weekendDates:[], substituteDates:[], compMode:event.compMode || "none"};
+      }
+
+      const weekendDates = [];
+      for(let i=0; i<duration; i++){
+        const day = addDays(start, i);
+        if(isWeekendDate(day)){
+          weekendDates.push(day);
+        }
+      }
+
+      const compMode = event.compMode || "none";
+      return {
+        duration:duration,
+        weekendDates:weekendDates,
+        substituteDates:collectSubstituteDates(start, duration, weekendDates.length, compMode),
+        compMode:compMode
+      };
+    }
+
+    function getHolidayInfoNote(event){
+      const info = getHolidayInfo(event);
+      if(!info){
+        return "";
+      }
+
+      const separator = currentLang === "ar" ? "، " : ", ";
+      const parts = [text("leaveDuration") + ": " + displayNumber(info.duration) + " " + text("leaveDaysWord")];
+
+      if(info.weekendDates.length){
+        parts.push(text("weekendOverlap") + ": " + info.weekendDates.map(formatDateWithWeekday).join(separator));
+        if(info.substituteDates.length){
+          const label = info.compMode === "before" ? text("substituteBefore") : text("substituteAfter");
+          parts.push(label + ": " + info.substituteDates.map(formatDateWithWeekday).join(separator));
+        }
+      }else{
+        parts.push(text("noWeekendOverlap"));
+      }
+
+      return parts.join(" - ");
+    }
+
+    function hasSubstituteAlert(event){
+      const info = getHolidayInfo(event);
+      return !!(info && info.weekendDates.length && info.compMode !== "none");
+    }
+
+    function getCalendarEventLabel(event){
+      if(!event){
+        return "";
+      }
+      return getEventName(event) + (hasSubstituteAlert(event) ? " - " + text("substituteAlertShort") : "");
+    }
+
+    function findCalendarEvent(info){
+      return customEvents.find(function(event){
+        const duration = getEventDuration(event);
+        if(duration > 1){
+          const start = getEventStartDate(event);
+          if(start){
+            const current = clearTime(info.gDate);
+            const end = addDays(start, duration - 1);
+            if(current >= start && current <= end){
+              return true;
+            }
+          }
+        }
+        return event.month === info.hMonth && event.day === info.hDay && (!event.year || event.year === info.hYear);
+      });
     }
 
     function getCurrentHijriYear(){
@@ -2121,9 +2334,7 @@
             const cell = document.createElement("div");
             cell.className = "cell";
 
-            const ev = customEvents.find(function(e){
-              return e.month === info.hMonth && e.day === info.hDay && (!e.year || e.year === info.hYear);
-            });
+            const ev = findCalendarEvent(info);
 
             let afaf = {off:false, type:"", label:""};
             if(afafScheduleEnabled && info.hMonth !== 9){
@@ -2143,7 +2354,7 @@
               (afaf.off ? '<span class="afaf-label">' + afaf.label + '</span>' : '') +
               '<span class="hday">' + displayNumber(info.hDay) + '</span>' +
               '<span class="gday">' + gText + '</span>' +
-              (ev ? '<span class="event-name">' + getEventName(ev) + '</span>' : '');
+              (ev ? '<span class="event-name">' + getCalendarEventLabel(ev) + '</span>' : '');
 
             table.appendChild(cell);
           });
@@ -2243,9 +2454,7 @@
             const cell = document.createElement("div");
             cell.className = "cell";
 
-            const ev = customEvents.find(function(e){
-              return e.month === info.hMonth && e.day === info.hDay && (!e.year || e.year === info.hYear);
-            });
+            const ev = findCalendarEvent(info);
 
             let afaf = {off:false, type:"", label:""};
             if(afafScheduleEnabled && info.hMonth !== 9){
@@ -2264,7 +2473,7 @@
               (afaf.off ? '<span class="afaf-label">' + afaf.label + '</span>' : '') +
               '<span class="hday">' + displayNumber(info.gDay) + '</span>' +
               '<span class="gday">' + displayNumber(info.hDay) + " " + getHijriMonthName(info.hMonth - 1) + '</span>' +
-              (ev ? '<span class="event-name">' + getEventName(ev) + '</span>' : '');
+              (ev ? '<span class="event-name">' + getCalendarEventLabel(ev) + '</span>' : '');
 
             table.appendChild(cell);
           });
@@ -2353,9 +2562,14 @@
       list.innerHTML = "";
       customEvents.forEach(function(e, i){
         const chip = document.createElement("span");
+        const note = getHolidayInfoNote(e);
         chip.className = "event-chip";
-        chip.innerHTML = getHijriMonthName(e.month-1) + " " + displayNumber(e.day) + " - " + getEventName(e) +
-          ' <button type="button" onclick="removeEvent(' + i + ')" style="border:0;background:transparent;color:#a33;cursor:pointer;font-weight:bold">×</button>';
+        chip.innerHTML =
+          '<span class="event-chip-content">' +
+            '<span class="event-chip-title">' + getHijriMonthName(e.month-1) + " " + displayNumber(e.day) + " - " + getEventName(e) + '</span>' +
+            (note ? '<span class="event-chip-note">' + note + '</span>' : '') +
+          '</span>' +
+          ' <button class="event-remove" type="button" onclick="removeEvent(' + i + ')">×</button>';
         list.appendChild(chip);
       });
     }
@@ -2385,20 +2599,27 @@
       const day = Number(normalizeNumber(document.getElementById("eventDay").value));
       const name = document.getElementById("eventName").value.trim();
       const color = document.getElementById("eventColor").value;
+      const duration = Math.min(Number(normalizeNumber(document.getElementById("eventDays").value)) || 1, 30);
+      const compMode = document.getElementById("eventCompMode").value;
+      const maxDay = calendarMode === "gregorian" && month >= 1 && month <= 12
+        ? new Date(currentGregorianYear, month, 0).getDate()
+        : 30;
 
-      if(!month || !day || !name || month < 1 || month > 12 || day < 1 || day > 30){
+      if(!month || !day || !name || month < 1 || month > 12 || day < 1 || day > maxDay){
         alert(currentLang === "ar" ? "أدخل الشهر واليوم واسم المناسبة بشكل صحيح" : "Enter a valid month, day, and event name.");
         return;
       }
 
+      const eventOptions = {name:name, color:color, duration:duration, compMode:compMode};
       if(calendarMode === "gregorian"){
         const eventDate = new Date(currentGregorianYear, month - 1, day);
         const hp = getHijriParts(eventDate);
-        const gregorian = String(day).padStart(2, "0") + "/" + String(month).padStart(2, "0") + "/" + currentGregorianYear;
-        customEvents.push({year:hp.year, month:hp.month, day:hp.day, gregorian:gregorian, name:name, color:color});
+        const gregorian = toGregorianStorage(eventDate);
+        customEvents.push(Object.assign({year:hp.year, month:hp.month, day:hp.day, gregorian:gregorian}, eventOptions));
         selectedGregorianMonth = month;
       }else{
-        customEvents.push({year:currentHijriYear, month:month, day:day, name:name, color:color});
+        const startDate = getGregorianForHijriDate(currentHijriYear, month, day);
+        customEvents.push(Object.assign({year:currentHijriYear, month:month, day:day, gregorian:toGregorianStorage(startDate)}, eventOptions));
         selectedMonth = month;
       }
       renderCalendar();
@@ -2406,6 +2627,8 @@
       document.getElementById("eventMonth").value = "";
       document.getElementById("eventDay").value = "";
       document.getElementById("eventName").value = "";
+      document.getElementById("eventDays").value = "";
+      document.getElementById("eventCompMode").value = "none";
     }
 
     function removeEvent(index){
