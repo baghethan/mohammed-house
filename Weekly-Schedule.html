@@ -169,6 +169,13 @@ function formatLocalDate(date) {
     return `${y}-${m}-${d}`;
 }
 
+function startOfWeek(date) {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - d.getDay());
+    return d;
+}
+
 function formatDisplayDate(date) {
     return date.toLocaleDateString('en-GB');
 }
@@ -364,9 +371,10 @@ function pickRotationEmployee(pool, start, datesToCheck) {
 }
 
 function baseShift(emp, date, rotations) {
+    const nightShift = isNightShiftEmployee(emp);
     if (date.getDay() === 4) {
         if (rotations.thu?.id === emp.id) return 'Off';
-        return emp.fixed ? 'Night' : 'Morning';
+        return nightShift ? 'Night' : 'Morning';
     }
     if (date.getDay() === 5) {
         if (rotations.thu?.id === emp.id) return 'Off';
@@ -377,7 +385,7 @@ function baseShift(emp, date, rotations) {
         if (rotations.thu?.id === emp.id) return 'Work';
         return 'Off';
     }
-    return emp.fixed ? 'Night' : 'Morning';
+    return nightShift ? 'Night' : 'Morning';
 }
 
 function normalizeJobKey(value) {
@@ -488,7 +496,9 @@ async function renderTable() {
     window.updateLabels();
     const t = i18n[currentLang];
     const dateInput = $('datePicker').value; if(!dateInput) return;
-    const start = parseLocalDate(dateInput);
+    const start = startOfWeek(parseLocalDate(dateInput));
+    const normalizedStart = formatLocalDate(start);
+    if ($('datePicker').value !== normalizedStart) $('datePicker').value = normalizedStart;
     const dates = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(start);
         d.setDate(start.getDate() + i);
@@ -592,9 +602,9 @@ async function copyScheduleImage() {
     }
 }
 
-$('btnPrev').onclick = () => { const p = $('datePicker'); const d = new Date(p.value.replace(/-/g, '/')); d.setDate(d.getDate()-7); p.value = d.toISOString().split('T')[0]; renderTable(); };
-$('btnNext').onclick = () => { const p = $('datePicker'); const d = new Date(p.value.replace(/-/g, '/')); d.setDate(d.getDate()+7); p.value = d.toISOString().split('T')[0]; renderTable(); };
-$('btnToday').onclick = () => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); $('datePicker').value = d.toISOString().split('T')[0]; renderTable(); };
+$('btnPrev').onclick = () => { const p = $('datePicker'); const d = startOfWeek(parseLocalDate(p.value)); d.setDate(d.getDate()-7); p.value = formatLocalDate(d); renderTable(); };
+$('btnNext').onclick = () => { const p = $('datePicker'); const d = startOfWeek(parseLocalDate(p.value)); d.setDate(d.getDate()+7); p.value = formatLocalDate(d); renderTable(); };
+$('btnToday').onclick = () => { $('datePicker').value = formatLocalDate(startOfWeek(new Date())); renderTable(); };
 $('btnToggleLang').onclick = () => { currentLang = currentLang==='ar'?'en':'ar'; localStorage.setItem('lang', currentLang); renderTable(); };
 $('btnCopyImage').onclick = copyScheduleImage;
 $('datePicker').onchange = renderTable;
@@ -610,8 +620,7 @@ async function bindSnapshots() {
 }
 
 window.onload = () => {
-    const d = new Date(); d.setDate(d.getDate() - d.getDay());
-    $('datePicker').value = d.toISOString().split('T')[0];
+    $('datePicker').value = formatLocalDate(startOfWeek(new Date()));
     renderTable();
     bindSnapshots().catch(e => logFirebaseError('Weekly schedule startup failed', e));
 };
