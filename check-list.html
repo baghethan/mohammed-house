@@ -107,10 +107,12 @@
       checklists: [],
       checklistFields: [],
       technicians: [],
+      branches: [],
       userProfile: null,
       currentUser: null,
       canEdit: false,
       employeeLookupError: false,
+      branchLookupError: false,
       checklistUnsubs: []
     };
     const $ = (id) => document.getElementById(id);
@@ -275,6 +277,65 @@
         || !!visit.checklistId
         || status === 'completed'
         || status === 'done';
+    }
+
+    function normalizeBranchKey(value) {
+      return norm(value).replace(/\s+/g, '').replace(/[-_]+/g, '');
+    }
+
+    function getBranchLookupValues(branch) {
+      const values = [];
+      addValues(values, branch || {}, [
+        'id',
+        '_docId',
+        'branchId',
+        'branchCode',
+        'code',
+        'branchName',
+        'name',
+        'location',
+        'locationSite',
+        'site'
+      ]);
+      return values;
+    }
+
+    function findBranchForVisit(visit) {
+      const wanted = [];
+      addValues(wanted, visit || {}, ['branchId', 'branchDocId', 'branchCode', 'branchName', 'locationSite', 'location']);
+      const wantedKeys = new Set(wanted.map(normalizeBranchKey).filter(Boolean));
+      return state.branches.find(branch =>
+        getBranchLookupValues(branch).map(normalizeBranchKey).some(value => wantedKeys.has(value))
+      ) || {};
+    }
+
+    function getFirstValue(...values) {
+      return values.find(value => value !== undefined && value !== null && String(value).trim() !== '') || '';
+    }
+
+    function applyVisitFields(visit) {
+      const branch = findBranchForVisit(visit);
+      const branchId = getFirstValue(visit.branchId, branch.id, branch.branchId, branch.branchCode, branch.code);
+      const locationSite = getFirstValue(
+        visit.locationSite,
+        visit.branchName,
+        visit.location,
+        branch.locationSite,
+        branch.branchName,
+        branch.location,
+        branch.name,
+        branchId
+      );
+      $('cl_brand').value = getFirstValue(visit.brand, branch.brand, branch.brandName);
+      $('cl_brandKey').value = getFirstValue(visit.brandKey, branch.brandKey, visit.brand, branch.brand);
+      $('cl_branch_id').value = branchId;
+      $('cl_location').value = locationSite;
+      $('cl_city').value = getFirstValue(visit.city, branch.city, branch.cityName, branch.locationCity);
+      $('cl_region').value = getFirstValue(visit.region, branch.region, branch.regionName, branch.area);
+      $('cl_visit_date').value = visit.date || visit.visitDate || '';
+      const d = new Date(visit.date || visit.visitDate || '');
+      if (!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
+      else $('cl_month').value = '';
     }
 
     function setTechnicianNotice(message, type) {
@@ -561,7 +622,12 @@
       $('cl_visit_ref').disabled = !state.canEdit && filtered.length === 0;
       $('saveChecklistBtn').disabled = !state.canEdit && filtered.length === 0;
       $('cl_visit_ref').innerHTML = filtered.length
-        ? '<option value="">اختر الزيارة</option>' + filtered.map(v => `<option value="${esc(v.id)}" ${String(visitId)===String(v.id)?'selected':''}>${esc(v.date || '')} - ${esc(v.branchName || v.branchId || '')} - ${esc(v.brand || '')}</option>`).join('')
+        ? '<option value="">اختر الزيارة</option>' + filtered.map(v => {
+            const branch = findBranchForVisit(v);
+            const branchLabel = getFirstValue(v.branchName, v.locationSite, v.location, branch.branchName, branch.location, v.branchId);
+            const brandLabel = getFirstValue(v.brand, branch.brand);
+            return `<option value="${esc(v.id)}" ${String(visitId)===String(v.id)?'selected':''}>${esc(v.date || '')} - ${esc(branchLabel)} - ${esc(brandLabel)}</option>`;
+          }).join('')
         : '<option value="">لا توجد زيارات جديدة مرتبطة بك</option>';
 
       if (!state.canEdit && filtered.length === 1 && !visitId) {
@@ -595,8 +661,7 @@
             if (identity.matchedTechId) loadVisitsForTech(identity.matchedTechId);
             return;
           }
-          $('cl_brand').value=v.brand||''; $('cl_brandKey').value=v.brandKey||''; $('cl_branch_id').value=v.branchId||''; $('cl_location').value=v.branchName||v.branchId||''; $('cl_city').value=v.city||''; $('cl_region').value=v.region||''; $('cl_visit_date').value=v.date||'';
-          const d = new Date(v.date); if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
+          applyVisitFields(v);
         }
       });
     }
@@ -683,6 +748,19 @@
         console.warn('employees technician lookup failed; using app_users profile fallback', err);
         renderTechnicianSelector();
         listenChecklists();
+      });
+      db.collection('branches').onSnapshot(snap => {
+        state.branchLookupError = false;
+        state.branches = snap.docs.map(d => {
+          const data = d.data() || {};
+          return { ...data, id: data.id || d.id, _docId: d.id };
+        });
+        const identity = getCurrentTechnicianIdentity();
+        if ($('cl_visit_ref').value) fillSelectedVisit();
+        else if (identity.matchedTechId) loadVisitsForTech(identity.matchedTechId);
+      }, err => {
+        state.branchLookupError = true;
+        console.warn('branches lookup failed; city and region may be blank', err);
       });
       db.collection('checklist_fields').onSnapshot(snap => {
         state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0));
