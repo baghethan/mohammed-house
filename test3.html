@@ -10,6 +10,9 @@
             --primary: #0d4b73;
             --dark: #0d2149;
             --accent: #4ade80;
+            --role-color: #0284c7;
+            --role-soft: #e0f2fe;
+            --role-text: #075985;
             --shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
         }
 
@@ -30,7 +33,26 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-bottom: 4px solid var(--role-color);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        body.role-technician {
+            --role-color: #0284c7;
+            --role-soft: #e0f2fe;
+            --role-text: #075985;
+        }
+
+        body.role-supervisor {
+            --role-color: #7c3aed;
+            --role-soft: #ede9fe;
+            --role-text: #4c1d95;
+        }
+
+        body.role-admin {
+            --role-color: #dc2626;
+            --role-soft: #fee2e2;
+            --role-text: #991b1b;
         }
 
         .tab-bar {
@@ -58,8 +80,8 @@
         }
 
         .tab-btn.active {
-            color: var(--primary);
-            border-bottom-color: var(--primary);
+            color: var(--role-color);
+            border-bottom-color: var(--role-color);
             background: #f8fafc;
         }
 
@@ -88,15 +110,27 @@
             border: none;
         }
 
-        .admin-badge {
-            background: var(--accent);
-            color: var(--dark);
-            padding: 2px 8px;
-            border-radius: 4px;
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--role-soft);
+            color: var(--role-text);
+            padding: 4px 9px;
+            border-radius: 999px;
             font-size: 10px;
             font-weight: 900;
             margin-left: 8px;
             vertical-align: middle;
+            letter-spacing: .4px;
+        }
+
+        .role-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--role-color);
+            box-shadow: 0 0 0 2px rgba(255,255,255,.85);
         }
     </style>
 </head>
@@ -194,9 +228,10 @@
                 uid: user.uid,
                 email: user.email
             };
-            const role = (userData.role || "technician").toLowerCase();
-            const adminLabel = role === 'admin' ? '<span class="admin-badge">ADMIN</span>' : '';
-            document.getElementById('uDisplay').innerHTML = `User: <b>${userData.name || user.email || 'User'}</b> ${adminLabel}`;
+            const role = getPortalRole(userData, user);
+            applyRoleTheme(role);
+            const roleMeta = getRoleMeta(role);
+            document.getElementById('uDisplay').innerHTML = `User: <b>${escapeHtml(userData.name || user.email || 'User')}</b> <span class="role-badge" title="${roleMeta.title}"><span class="role-dot"></span>${roleMeta.label}</span>`;
 
             if (hasFullPortalAccess(user, userData)) {
                 allowedSubTabsByMain = getAllSubTabs();
@@ -220,6 +255,37 @@
         function hasFullPortalAccess(user, userData) {
             const ownerEmails = ['baghethanmh@almajdouie.com'];
             return userData.superAdmin === true || ownerEmails.includes(String(user.email || '').toLowerCase());
+        }
+
+        function getPortalRole(userData, user) {
+            const role = String(userData.role || 'technician').trim().toLowerCase();
+            if (hasFullPortalAccess(user, userData) || role === 'admin') return 'admin';
+            if (role === 'supervisor') return 'supervisor';
+            return 'technician';
+        }
+
+        function getRoleMeta(role) {
+            const roles = {
+                admin: { label: 'ADMIN', title: 'Admin access', className: 'role-admin' },
+                supervisor: { label: 'SUPERVISOR', title: 'Supervisor access', className: 'role-supervisor' },
+                technician: { label: 'TECHNICIAN', title: 'Technician access', className: 'role-technician' }
+            };
+            return roles[role] || roles.technician;
+        }
+
+        function applyRoleTheme(role) {
+            document.body.classList.remove('role-admin', 'role-supervisor', 'role-technician');
+            document.body.classList.add(getRoleMeta(role).className);
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? '' : value).replace(/[&<>"']/g, char => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[char]);
         }
 
         function toPermissionSet(value, aliases = {}) {
