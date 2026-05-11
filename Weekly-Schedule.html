@@ -12,6 +12,7 @@
       --morning-bg: #7f9ee5; --morning-t: #ffffff;
       --night-bg: #7551D3; --night-t: #ffffff;
       --vacation-bg: #ffe4e6; --vacation-t: #9f1239;
+      --sick-bg: #dbeafe; --sick-t: #1e40af;
       --holiday-bg: #fff7ed; --holiday-t: #9a3412;
       --absent-bg: #fee2e2; --absent-t: #991b1b;
       --oncall-t: #075985;
@@ -43,6 +44,7 @@
     .Morning { background-color: var(--morning-bg); color: var(--morning-t); }
     .Night { background-color: var(--night-bg); color: var(--night-t); }
     .Vacation { background-color: var(--vacation-bg); color: var(--vacation-t); }
+    .Sick { background-color: var(--sick-bg); color: var(--sick-t); }
     .Holiday { background-color: var(--holiday-bg); color: var(--holiday-t); }
     .Absent { background-color: var(--absent-bg); color: var(--absent-t); }
     .Work { background-color: var(--work-bg); color: var(--work-t); }
@@ -133,8 +135,8 @@ import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js
 import { doc, collection, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { title:'جدول المناوبات الأسبوعي', morning:'صباحي', night:'ليلي', vacation:'إجازة', holiday:'Holiday', absent:'غائب', oncall:'أون كول', work:'تغطية', off:'أوف', employee:'الموظف', allDay:'طوال اليوم', help:'حسب الحاجة', copyImage:'نسخ صورة', copied:'تم نسخ صورة الجدول.', downloaded:'تعذر النسخ المباشر، تم تنزيل الصورة بدلاً من ذلك.', copyFailed:'تعذر إنشاء صورة الجدول.', generated:'تم الإنشاء', range:(from,to)=>`من ${from} إلى ${to}`, days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'] },
-    en: { title:'Weekly Shift Schedule', morning:'Morning', night:'Night', vacation:'Vacation', holiday:'Holiday', absent:'Absent', oncall:'On Call', work:'Coverage', off:'Off', employee:'Employee', allDay:'Full Day', help:'As Needed', copyImage:'Copy Image', copied:'Schedule image copied.', downloaded:'Direct copy was blocked, so the image was downloaded instead.', copyFailed:'Could not create the schedule image.', generated:'Generated', range:(from,to)=>`From ${from} to ${to}`, days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] }
+    ar: { title:'جدول المناوبات الأسبوعي', morning:'صباحي', night:'ليلي', vacation:'إجازة', sick:'مريض', holiday:'Holiday', absent:'غائب', oncall:'أون كول', work:'تغطية', off:'أوف', employee:'الموظف', allDay:'طوال اليوم', help:'حسب الحاجة', copyImage:'نسخ صورة', copied:'تم نسخ صورة الجدول.', downloaded:'تعذر النسخ المباشر، تم تنزيل الصورة بدلاً من ذلك.', copyFailed:'تعذر إنشاء صورة الجدول.', generated:'تم الإنشاء', range:(from,to)=>`من ${from} إلى ${to}`, days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'] },
+    en: { title:'Weekly Shift Schedule', morning:'Morning', night:'Night', vacation:'Vacation', sick:'Sick', holiday:'Holiday', absent:'Absent', oncall:'On Call', work:'Coverage', off:'Off', employee:'Employee', allDay:'Full Day', help:'As Needed', copyImage:'Copy Image', copied:'Schedule image copied.', downloaded:'Direct copy was blocked, so the image was downloaded instead.', copyFailed:'Could not create the schedule image.', generated:'Generated', range:(from,to)=>`From ${from} to ${to}`, days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] }
 };
 
 let emps = [], employeeRecords = [], holidayDuties = [], overrides = {}, annualLeaves = [], vacationPlans = [], currentLang = localStorage.getItem('lang') || 'ar', selectedCell = null, selectedOption = null;
@@ -283,10 +285,30 @@ function isDateInRange(date, start, end) {
     return date >= d1 && date <= d2;
 }
 
+function normalizeLeaveType(value) {
+    const text = String(value || '').trim().toLowerCase();
+    if (['sick', 'sick leave', 'medical', 'مرضية', 'مريض', 'اجازة مرضية', 'إجازة مرضية'].includes(text)) return 'sick';
+    if (['absence', 'absent', 'غياب', 'غائب'].includes(text)) return 'absence';
+    return 'annual';
+}
+
+function shiftForLeaveRecord(record) {
+    const type = normalizeLeaveType(record.leaveType || record.type || record.leaveTypeLabel);
+    if (type === 'sick') return 'Sick';
+    if (type === 'absence') return 'Absent';
+    return 'Vacation';
+}
+
+function leaveShiftForEmployee(emp, date) {
+    const annual = annualLeaves.find(v => matchesEmployee(v, emp) && isDateInRange(date, v.start, v.end));
+    if (annual) return shiftForLeaveRecord(annual);
+
+    const approvedPlan = vacationPlans.find(p => String(p.status || 'pending') === 'approved' && matchesEmployee(p, emp) && isDateInRange(date, p.from, p.to));
+    return approvedPlan ? shiftForLeaveRecord(approvedPlan) : '';
+}
+
 function isVacationDay(emp, date) {
-    const annual = annualLeaves.some(v => matchesEmployee(v, emp) && isDateInRange(date, v.start, v.end));
-    const approvedPlan = vacationPlans.some(p => String(p.status || 'pending') === 'approved' && matchesEmployee(p, emp) && isDateInRange(date, p.from, p.to));
-    return annual || approvedPlan;
+    return !!leaveShiftForEmployee(emp, date);
 }
 
 function publicHolidayForDate(date) {
@@ -311,7 +333,7 @@ function manualShiftForEmployee(emp, dateString) {
 
 function isManualUnavailable(emp, date) {
     const shift = manualShiftForEmployee(emp, formatLocalDate(date));
-    return shift === 'Vacation' || shift === 'Absent';
+    return shift === 'Vacation' || shift === 'Sick' || shift === 'Absent';
 }
 
 function isUnavailable(emp, date) {
@@ -453,6 +475,7 @@ window.updateLabels = () => {
         <div class="pill Morning">☀️ ${t.morning} <span>07:30 - 17:00</span></div>
         <div class="pill Night">🌙 ${t.night} <span>13:00 - 22:00</span></div>
         <div class="pill Vacation">🌴 ${t.vacation} <span>${t.allDay}</span></div>
+        <div class="pill Sick">🏥 ${t.sick} <span>${t.allDay}</span></div>
         <div class="pill Holiday">🎊 ${t.holiday} <span>${t.allDay}</span></div>
         <div class="pill Absent">🚫 ${t.absent} <span>${t.allDay}</span></div>
         <div class="pill OnCall">📞 ${t.oncall} <span>${t.help}</span></div>
@@ -494,8 +517,9 @@ async function renderTable() {
             const manualShift = manualShiftForEmployee(emp, dStr);
             const publicHoliday = publicHolidayForDate(d);
             const isHolidayCoverage = publicHoliday && isAssignedHolidayEmployee(emp, publicHoliday);
-            let shift = manualShift || (isVacationDay(emp, d) ? 'Vacation' : publicHoliday ? (isHolidayCoverage ? 'Work' : 'Holiday') : baseShift(emp, d, rotations));
-            const icons = { Morning:'☀️', Night:'🌙', Vacation:'🌴', Holiday:'🎊', Absent:'🚫', OnCall:'📞', Work:'🏢', Off:'⌛' };
+            const leaveShift = leaveShiftForEmployee(emp, d);
+            let shift = manualShift || (leaveShift || (publicHoliday ? (isHolidayCoverage ? 'Work' : 'Holiday') : baseShift(emp, d, rotations)));
+            const icons = { Morning:'☀️', Night:'🌙', Vacation:'🌴', Sick:'🏥', Holiday:'🎊', Absent:'🚫', OnCall:'📞', Work:'🏢', Off:'⌛' };
             row += `<td><div class="schedule-badge ${shift}" onclick="window.openDialog('${safeJs(emp.id)}','${dStr}','${safeJs(emp.name)}','${shift}')">${icons[shift] || ''} ${t[shift.toLowerCase()] || shift}</div></td>`;
         });
         return `<tr>${row}</tr>`;
@@ -506,7 +530,7 @@ window.openDialog = (empId, date, name, current) => {
     selectedCell = { empId, date }; selectedOption = current;
     const t = i18n[currentLang];
     $('dialogTitle').innerHTML = `<div style="font-size:16px">${escapeHtml(name)}</div><div style="font-size:11px; opacity:0.6">${escapeHtml(date)}</div>`;
-    const opts = ['Morning', 'Night', 'OnCall', 'Work', 'Vacation', 'Holiday', 'Absent', 'Off'];
+    const opts = ['Morning', 'Night', 'OnCall', 'Work', 'Vacation', 'Sick', 'Holiday', 'Absent', 'Off'];
     $('shiftOptions').innerHTML = opts.map(o => `<div class="opt-btn ${selectedOption === o ? 'active' : ''}" onclick="window.selectOpt('${o}')">${t[o.toLowerCase()]}</div>`).join('');
     $('shiftOverlay').style.display = 'flex';
 };
