@@ -41,6 +41,12 @@
     <div class="card">
         <div class="form-box">
             <select id="aEmp" style="flex:2"><option value="">اختر الموظف...</option></select>
+            <select id="aType" style="flex:1">
+                <option value="">نوع الإجازة...</option>
+                <option value="annual">إجازة سنوية</option>
+                <option value="sick">مرضية</option>
+                <option value="absence">غياب</option>
+            </select>
             <input type="date" id="aStart" style="flex:1" />
             <input type="date" id="aEnd" style="flex:1" />
             <button class="btn2" onclick="window.addAnnualLeave()">🌴 تعيين إجازة</button>
@@ -54,6 +60,7 @@
                 <thead>
                     <tr>
                         <th id="thName" style="text-align:right; padding-right:25px">الموظف</th>
+                        <th id="thType">نوع الإجازة</th>
                         <th id="thFrom">تاريخ البداية</th>
                         <th id="thTo">تاريخ النهاية</th>
                         <th id="thAction">الإجراء</th>
@@ -71,8 +78,14 @@ import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js
 import { collection, doc, onSnapshot, addDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', assign:'تعيين إجازة' },
-    en: { title:'Annual Leave Management', subtitle:'Leave Planning & Documentation - Almajdouie Motors', list:'🌴 Annual Leave Records', name:'Employee', from:'From', to:'To', action:'Action', selectEmp:'Select Employee...', assign:'Assign Leave' }
+    ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', type:'نوع الإجازة', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', selectType:'نوع الإجازة...', assign:'تعيين إجازة' },
+    en: { title:'Annual Leave Management', subtitle:'Leave Planning & Documentation - Almajdouie Motors', list:'🌴 Annual Leave Records', name:'Employee', type:'Leave Type', from:'From', to:'To', action:'Action', selectEmp:'Select Employee...', selectType:'Leave Type...', assign:'Assign Leave' }
+};
+
+const leaveTypes = {
+    annual: { ar: 'إجازة سنوية', en: 'Annual Leave' },
+    sick: { ar: 'مرضية', en: 'Sick Leave' },
+    absence: { ar: 'غياب', en: 'Absence' }
 };
 
 let employees=[], vacationsList=[], currentLang=localStorage.getItem('lang')||'ar';
@@ -81,10 +94,11 @@ const $=id=>document.getElementById(id), tr=()=>i18n[currentLang];
 // --- 1. Logic ---
 window.addAnnualLeave = async () => {
     const empId = $('aEmp').value;
+    const leaveType = $('aType').value;
     const start = $('aStart').value;
     const end = $('aEnd').value;
 
-    if(!empId || !start || !end) {
+    if(!empId || !leaveType || !start || !end) {
         alert(currentLang==='ar'?'يرجى إكمال جميع الحقول':'Please complete all fields');
         return;
     }
@@ -99,7 +113,9 @@ window.addAnnualLeave = async () => {
         end,
         from: start,
         to: end,
-        type: 'Annual Leave',
+        type: leaveType,
+        leaveType,
+        leaveTypeLabel: leaveTypes[leaveType]?.en || leaveType,
         status: 'approved',
         createdAt: now,
         updatedAt: now,
@@ -111,6 +127,7 @@ window.addAnnualLeave = async () => {
     
     $('aStart').value = ''; 
     $('aEnd').value = '';
+    $('aType').value = '';
 };
 
 window.deleteVacation = async (id) => {
@@ -129,12 +146,19 @@ function renderUI() {
         employees.filter(e => e.active !== false).map(e => `<option value="${e.key}">${e.name}</option>`).join('');
     select.value = currentVal;
 
+    const typeSelect = $('aType');
+    const currentType = typeSelect.value;
+    typeSelect.innerHTML = `<option value="">${t.selectType}</option>` +
+        Object.entries(leaveTypes).map(([key, label]) => `<option value="${key}">${label[currentLang]}</option>`).join('');
+    typeSelect.value = currentType;
+
     // Table
     $('annualBody').innerHTML = vacationsList.map((v, index) => {
         const emp = employees.find(e => String(e.key) === String(v.empId) || String(e.id) === String(v.employeeDocId));
         return `
             <tr>
                 <td class="emp-name-cell">${emp ? emp.name : v.empId}</td>
+                <td>${getLeaveTypeLabel(v)}</td>
                 <td>${v.start || v.from || ''}</td>
                 <td>${v.end || v.to || ''}</td>
                 <td>
@@ -157,12 +181,27 @@ function normalizeEmployee(record) {
     };
 }
 
+function normalizeLeaveType(value) {
+    const text = String(value || '').trim().toLowerCase();
+    if (['annual', 'annual leave', 'vacation', 'إجازة سنوية', 'اجازة سنوية'].includes(text)) return 'annual';
+    if (['sick', 'sick leave', 'medical', 'مرضية', 'اجازة مرضية', 'إجازة مرضية'].includes(text)) return 'sick';
+    if (['absence', 'absent', 'غياب'].includes(text)) return 'absence';
+    return text || 'annual';
+}
+
+function getLeaveTypeLabel(record) {
+    const type = normalizeLeaveType(record.leaveType || record.type);
+    return leaveTypes[type]?.[currentLang] || record.leaveTypeLabel || record.type || '';
+}
+
 function normalizeVacation(record) {
+    const leaveType = normalizeLeaveType(record.leaveType || record.type);
     return {
         ...record,
         empId: record.empId || record.employeeId || record.technicianId || '',
         start: record.start || record.from || '',
-        end: record.end || record.to || ''
+        end: record.end || record.to || '',
+        leaveType
     };
 }
 
@@ -189,7 +228,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const t = tr();
     $('title').innerText = t.title; $('subtitle').innerText = t.subtitle; 
     $('listTitle').innerText = t.list; $('thName').innerText = t.name;
-    $('thFrom').innerText = t.from; $('thTo').innerText = t.to; $('thAction').innerText = t.action;
+    $('thType').innerText = t.type; $('thFrom').innerText = t.from; $('thTo').innerText = t.to; $('thAction').innerText = t.action;
     bindSnapshots().catch(e => logFirebaseError('Annual leave startup failed', e));
 });
 </script>
