@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Check-List Master | المجدوعي للسيارات v3.1.8</title>
+  <title>Check-List Master | المجدوعي للسيارات v3.1.9</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root { --primary: #0d4b73; --green: #2f9e66; --border: #d7e0ea; --bg: #edf3f8; --card: #ffffff; --radius: 16px; }
@@ -46,7 +46,7 @@
   <main class="container">
     <div id="mainLayout" class="grid-main">
       <section class="card">
-        <h3>نموذج الفحص v3.1.8 (Native Object Sync) <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <div id="technicianNotice" class="notice hidden"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -110,6 +110,7 @@
       userProfile: null,
       currentUser: null,
       canEdit: false,
+      employeeLookupError: false,
       checklistUnsubs: []
     };
     const $ = (id) => document.getElementById(id);
@@ -165,452 +166,35 @@
       return values;
     }
 
+    function buildProfileTechnicianFallback() {
+      const profile = state.userProfile || {};
+      const user = state.currentUser || {};
+      const id = profile.technicianId || profile.employeeId || profile.empId || profile.technicianCode || profile.code || user.uid || user.email || '';
+      if (!id) return null;
+      return {
+        id: String(id),
+        _docId: String(profile.employeeDocId || profile.technicianDocId || profile.technicianId || id),
+        empId: String(profile.empId || profile.employeeId || profile.technicianId || id),
+        empNum: String(profile.empNum || ''),
+        employeeId: String(profile.employeeId || profile.technicianId || id),
+        technicianId: String(profile.technicianId || profile.employeeId || id),
+        technicianCode: String(profile.technicianCode || profile.code || profile.technicianId || id),
+        code: String(profile.code || profile.technicianCode || ''),
+        authUid: String(profile.authUid || profile.uid || user.uid || ''),
+        uid: String(profile.uid || user.uid || ''),
+        email: String(profile.email || user.email || ''),
+        name: String(profile.name || profile.fullName || user.displayName || profile.email || user.email || id),
+        fullName: String(profile.fullName || profile.name || ''),
+        status: 'active',
+        isTechnician: true,
+        fromProfileFallback: true
+      };
+    }
+
     function getCurrentTechnicianIdentity() {
       const rawValues = getProfileValues();
       const keys = new Set(rawValues.map(norm).filter(Boolean));
       const matchedTech = state.technicians.find(t =>
         getTechnicianValues(t).map(norm).some(value => keys.has(value))
-      ) || null;
+      ) || buildProfileTechnicianFallback();
       getTechnicianValues(matchedTech).forEach(value => {
-        addValue(rawValues, value);
-        const key = norm(value);
-        if (key) keys.add(key);
-      });
-      return {
-        role: getRole(),
-        rawValues,
-        keys,
-        matchedTech,
-        matchedTechId: matchedTech ? (matchedTech.id || matchedTech._docId || '') : ''
-      };
-    }
-
-    function recordTechnicianValues(record) {
-      const values = [];
-      addValues(values, record || {}, [
-        'technicianEmpId',
-        'technicianDocId',
-        'technicianId',
-        'technicianUid',
-        'technicianAuthId',
-        'technicianEmail',
-        'technicianName'
-      ]);
-      return values;
-    }
-
-    function isRecordForCurrentTechnician(record) {
-      if (!isTechnicianMode()) return true;
-      const identity = getCurrentTechnicianIdentity();
-      return recordTechnicianValues(record).map(norm).some(key => identity.keys.has(key));
-    }
-
-    function isVisitCompleted(visit) {
-      const completedIds = new Set(state.checklists
-        .filter(isRecordForCurrentTechnician)
-        .map(c => c.visitDocId || c.linkedVisitId)
-        .filter(Boolean)
-        .map(String));
-      const status = norm(visit && visit.status);
-      return completedIds.has(String(visit && visit.id || ''))
-        || visit.checklistCompleted === true
-        || !!visit.checklistId
-        || status === 'completed'
-        || status === 'done';
-    }
-
-    function setTechnicianNotice(message, type) {
-      const box = $('technicianNotice');
-      if (!message) {
-        box.className = 'notice hidden';
-        box.textContent = '';
-        return;
-      }
-      box.className = `notice ${type || ''}`.trim();
-      box.textContent = message;
-    }
-
-    function fillTechnicianFields(t) {
-      $('cl_technician_email').value = t.email || (state.currentUser && state.currentUser.email) || '';
-      $('cl_technician_id').value = t.empId || t.empNum || t.employeeId || t.technicianId || t.technicianCode || t.id || '';
-    }
-
-    function applyTechnicianMode() {
-      if (!isTechnicianMode()) return false;
-      const identity = getCurrentTechnicianIdentity();
-      const tech = identity.matchedTech;
-      $('cl_technician').disabled = true;
-
-      if (!tech) {
-        $('cl_technician').innerHTML = '<option value="">لم يتم ربط حسابك بفني</option>';
-        $('cl_visit_ref').innerHTML = '<option value="">لا توجد زيارات متاحة</option>';
-        $('cl_visit_ref').disabled = true;
-        $('saveChecklistBtn').disabled = true;
-        setTechnicianNotice('حسابك غير مربوط بسجل فني. تواصل مع المسؤول لربط Technician ID أو البريد الإلكتروني.', 'warn');
-        return true;
-      }
-
-      $('cl_technician').innerHTML = `<option value="${esc(tech.id)}">${esc(tech.name || tech.id)}</option>`;
-      $('cl_technician').value = tech.id;
-      fillTechnicianFields(tech);
-      $('saveChecklistBtn').disabled = false;
-      setTechnicianNotice('وضع الفني: تظهر لك زياراتك غير المحفوظة فقط. بعد حفظ التقرير ستختفي الزيارة من القائمة.', 'ok');
-      loadVisitsForTech(tech.id);
-      return true;
-    }
-
-    function renderTechnicianSelector() {
-      if (applyTechnicianMode()) return;
-      $('cl_technician').disabled = false;
-      $('cl_technician').innerHTML = '<option value="">اختر الفني</option>' + state.technicians.map(t => `<option value="${esc(t.id)}">${esc(t.name || t.id)}</option>`).join('');
-    }
-
-    async function checkAuth() {
-      const auth = window.parent && window.parent.appAuth;
-      const db = window.parent && window.parent.appDb;
-      if (!auth || !db) {
-        alert('Please open Check-List from inside the main system page.');
-        return;
-      }
-      auth.onAuthStateChanged(async (user) => {
-        if (user) {
-          state.currentUser = user;
-          const parentProfile = window.parent && window.parent.currentUserData && window.parent.currentUserData.uid === user.uid
-            ? window.parent.currentUserData
-            : null;
-          let profile = parentProfile;
-          if (!profile) {
-            const doc = await db.collection('app_users').doc(user.uid).get();
-            if (doc.exists) profile = doc.data();
-            else if (user.email) {
-              const byEmail = await db.collection('app_users').where('email', '==', user.email).limit(1).get();
-              if (!byEmail.empty) profile = byEmail.docs[0].data();
-            }
-          }
-          if (profile) {
-            state.userProfile = { ...profile, uid: user.uid, email: profile.email || user.email };
-            const role = getRole();
-            state.canEdit = (role === 'admin' || role === 'supervisor');
-            applyPrivacyUI();
-          } else {
-            state.userProfile = { role: 'technician', uid: user.uid, email: user.email };
-            state.canEdit = false;
-            applyPrivacyUI();
-          }
-          boot();
-        }
-      });
-    }
-
-    function applyPrivacyUI() { 
-      const role = getRole();
-      $('roleBadge').textContent = state.canEdit ? role.toUpperCase() + ' VIEW' : 'TECHNICIAN VIEW';
-      document.body.classList.toggle('technician-mode', !state.canEdit);
-      if (!state.canEdit) { $('adminSidebar').classList.add('hidden'); $('mainLayout').classList.add('grid-full'); }
-    }
-
-    window.renderDynamicForm = function(answers = {}) {
-      const container = $('dynamicChecklistSections'); container.innerHTML = '';
-      const currentAnswers = Object.keys(answers).length ? answers : window.collectAnswers();
-      state.checklistFields.forEach(field => {
-        if (field.logic?.enabled && field.logic?.visibleWhen) { 
-          const rule = field.logic.visibleWhen; const src = resolveRef(rule.fieldId, rule.fieldLabel); 
-          if (String(src ? currentAnswers[src.id] : '').toLowerCase() !== String(rule.value).toLowerCase()) return; 
-        }
-        let html = `<div class="field"><label>${esc(field.labelAr || field.label)}</label>`;
-        const val = currentAnswers[field.id] || '';
-        if (field.repeat?.enabled) {
-          const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel); const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
-          for (let i = 0; i < count; i++) { html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i]||'')}" /></div>`; }
-        } else if (field.fieldType === 'choice' && (field.renderMode === 'checkboxes' || field.renderMode === 'radios')) {
-          html += `<div class="choices-grid">`; (field.options || []).forEach(opt => { const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onclick="event.stopPropagation(); window.renderDynamicForm(window.collectAnswers());"></div>`; }); html += `</div>`;
-        } else {
-          if (field.fieldType === 'choice') html += `<select class="dyn-input" data-id="${field.id}" onchange="window.renderDynamicForm(window.collectAnswers())"><option value="">اختر</option>${(field.options||[]).map(o=>`<option value="${esc(o.value)}" ${val==o.value?'selected':''}>${esc(o.label)}</option>`).join('')}</select>`;
-          else if (field.fieldType === 'number') html += `<input type="number" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="window.renderDynamicForm(window.collectAnswers())" />`;
-          else if (field.fieldType === 'boolean') html += `<select class="dyn-input" data-id="${field.id}" onchange="window.renderDynamicForm(window.collectAnswers())"><option value="">اختر</option><option value="yes" ${val==='yes'?'selected':''}>Yes</option><option value="no" ${val==='no'?'selected':''}>No</option></select>`;
-          else html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="window.renderDynamicForm(window.collectAnswers())" />`;
-        }
-        container.innerHTML += html + `</div>`;
-      });
-    };
-
-    window.collectAnswers = function() {
-      const ans = {}; document.querySelectorAll('.dyn-input').forEach(el => {
-        const id = el.dataset.id; if (el.type === 'checkbox') { if(!ans[id]) ans[id]=[]; if(el.checked) ans[id].push(el.value); } 
-        else if (el.type === 'radio') { if(el.checked) ans[id] = el.value; } 
-        else if (el.dataset.index !== undefined) { if(!ans[id]) ans[id]=[]; ans[id][el.dataset.index] = el.value; } else ans[id] = el.value;
-      }); return ans;
-    };
-
-    window.saveChecklist = async function() {
-      const db = window.parent.appDb; const answers = window.collectAnswers(); const techDropdown = $('cl_technician');
-      if (!techDropdown.value) return alert('اختر الفني أولاً.');
-      if (!$('cl_visit_ref').value) return alert('لا توجد زيارة متاحة للحفظ.');
-      if (isTechnicianMode()) {
-        const identity = getCurrentTechnicianIdentity();
-        if (!identity.matchedTechId || String(techDropdown.value) !== String(identity.matchedTechId)) {
-          return alert('هذه الصفحة مخصصة لزيارات الفني الحالي فقط.');
-        }
-        const selectedVisitSnap = await db.collection('siteVisits').doc($('cl_visit_ref').value).get();
-        const selectedVisit = selectedVisitSnap.exists ? { id: selectedVisitSnap.id, ...selectedVisitSnap.data() } : { id: $('cl_visit_ref').value };
-        if (!isRecordForCurrentTechnician(selectedVisit)) {
-          await loadVisitsForTech(identity.matchedTechId);
-          return alert('هذه الزيارة ليست مرتبطة بالفني الحالي.');
-        }
-        if (!$('editingChecklistId').value && isVisitCompleted(selectedVisit)) {
-          await loadVisitsForTech(identity.matchedTechId);
-          return alert('تم حفظ هذه الزيارة مسبقاً ولم تعد متاحة للفني.');
-        }
-      }
-      const selectedTech = state.technicians.find(t => String(t.id) === String(techDropdown.value) || String(t._docId) === String(techDropdown.value)) || {};
-      const payload = { 
-        technicianEmpId: selectedTech.empId || selectedTech.empNum || selectedTech.employeeId || techDropdown.value, technicianDocId: selectedTech._docId || techDropdown.value, technicianEmail: $('cl_technician_email').value, technicianAuthId: selectedTech.authUid || '', 
-        visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, dynamicAnswers: answers, updatedAt: new Date().toISOString()
-      };
-      try { 
-        const id = $('editingChecklistId').value; 
-        const readyData = nativeClean(id ? payload : { ...payload, createdAt: new Date().toISOString() });
-        let savedChecklistId = id;
-        if (id) await db.collection('branch_checklists').doc(id).update(readyData); 
-        else {
-          const ref = await db.collection('branch_checklists').add(readyData);
-          savedChecklistId = ref.id;
-        }
-        if (payload.visitDocId) {
-          await db.collection('siteVisits').doc(payload.visitDocId).set(nativeClean({
-            status: 'completed',
-            checklistCompleted: true,
-            checklistCompletedAt: new Date().toISOString(),
-            checklistId: savedChecklistId,
-            updatedAt: new Date().toISOString()
-          }), { merge: true });
-        }
-        alert("تم الحفظ بنجاح!"); location.reload(); 
-      } catch (e) { alert("خطأ: " + e.message); }
-    };
-
-    async function handleImport(e) {
-      const file = e.target.files[0]; if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-        const db = window.parent.appDb; const workbook = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
-        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-        let count = 0;
-        for (const row of rows) {
-          if (row.ID) {
-            const updates = { visitDate: row["تاريخ الزيارة"]||'', branchId: row["Branch ID"]||'', locationSite: row["Location/Site"]||'', branchManager: row["مدير الفرع"]||'', brand: row["Brand"]||'', technicianName: row["الفني"]||'', dynamicAnswers: {} };
-            state.checklistFields.forEach(f => { const col = f.labelAr || f.label; if (row[col] !== undefined) updates.dynamicAnswers[f.id] = row[col]; });
-            await db.collection('branch_checklists').doc(row.ID).update(nativeClean(updates)); count++;
-          }
-        }
-        alert(`تم تحديث ${count} سجل!`); location.reload();
-      };
-      reader.readAsArrayBuffer(file);
-    }
-
-    function exportToExcel() {
-      const data = state.checklists.map(r => {
-        const row = { "ID": r.id, "تاريخ الزيارة": r.visitDate, "الفني": r.technicianName, "Brand": r.brand, "Branch ID": r.branchId, "Location/Site": r.locationSite, "مدير الفرع": r.branchManager };
-        dynamicLabels.forEach(lbl => {
-          const f = state.checklistFields.find(x => (x.labelAr || x.label) === lbl);
-          const ans = f ? r.dynamicAnswers?.[f.id] : '';
-          row[lbl] = Array.isArray(ans) ? ans.join(', ') : ans;
-        });
-        return row;
-      });
-      const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Reports"); XLSX.writeFile(wb, "Full_Report_v3.1.8.xlsx");
-    }
-
-    function updateTableHeaders() {
-      const h = $('tableHeaderRow'); h.innerHTML = `<th>تاريخ الزيارة</th><th>الفني</th><th>Brand</th><th>Branch ID</th><th>Location/Site</th><th>مدير الفرع</th>`;
-      dynamicLabels.forEach(lbl => { h.innerHTML += `<th>${esc(lbl)}</th>`; });
-    }
-
-    function renderTable() {
-      const b = $('checklistTableBody'); b.innerHTML = '';
-      if (state.checklistFields.length === 0) return;
-      state.checklists.forEach(r => {
-        let html = `<td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.branchManager)}</td>`;
-        dynamicLabels.forEach(lbl => {
-          const f = state.checklistFields.find(x => (x.labelAr || x.label) === lbl);
-          const ans = f ? r.dynamicAnswers?.[f.id] : '';
-          html += `<td>${esc(Array.isArray(ans) ? ans.join(', ') : ans)}</td>`;
-        });
-        const tr = document.createElement('tr'); tr.className = 'clickable'; tr.onclick = () => window.openChecklistLocally(r.id); tr.innerHTML = html; b.appendChild(tr);
-      });
-    }
-
-    async function queryVisitsByIdentity(values) {
-      const db = window.parent.appDb;
-      const rows = new Map();
-      const fields = ['technicianEmpId', 'technicianDocId', 'technicianId', 'technicianUid', 'technicianEmail'];
-      const uniqueValues = values.map(v => String(v || '').trim()).filter(Boolean)
-        .filter((value, index, arr) => arr.findIndex(item => norm(item) === norm(value)) === index)
-        .slice(0, 20);
-
-      for (const field of fields) {
-        for (const value of uniqueValues) {
-          try {
-            const snap = await db.collection('siteVisits').where(field, '==', value).get();
-            snap.docs.forEach(d => rows.set(d.id, { id: d.id, ...d.data() }));
-          } catch (err) {
-            console.warn('siteVisits technician query failed', field, err);
-          }
-        }
-      }
-      return Array.from(rows.values());
-    }
-
-    async function loadVisitsForTech(techId, visitId = null) {
-      const tech = state.technicians.find(t => String(t.id) === String(techId) || String(t._docId) === String(techId));
-      const identity = getCurrentTechnicianIdentity();
-      const lookupValues = state.canEdit ? getTechnicianValues(tech) : identity.rawValues;
-      if (techId) addValue(lookupValues, techId);
-
-      let visits = await queryVisitsByIdentity(lookupValues);
-      if (!state.canEdit) visits = visits.filter(isRecordForCurrentTechnician);
-
-      let filtered = state.canEdit
-        ? visits
-        : visits.filter(v => !isVisitCompleted(v) || String(v.id) === String(visitId));
-
-      filtered = filtered
-        .filter(v => String(v.status || '').toLowerCase() !== 'cancelled')
-        .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
-
-      $('cl_visit_ref').disabled = !state.canEdit && filtered.length === 0;
-      $('saveChecklistBtn').disabled = !state.canEdit && filtered.length === 0;
-      $('cl_visit_ref').innerHTML = filtered.length
-        ? '<option value="">اختر الزيارة</option>' + filtered.map(v => `<option value="${esc(v.id)}" ${String(visitId)===String(v.id)?'selected':''}>${esc(v.date || '')} - ${esc(v.branchName || v.branchId || '')} - ${esc(v.brand || '')}</option>`).join('')
-        : '<option value="">لا توجد زيارات جديدة مرتبطة بك</option>';
-
-      if (!state.canEdit && filtered.length === 1 && !visitId) {
-        $('cl_visit_ref').value = filtered[0].id;
-        fillSelectedVisit();
-      } else if (!filtered.length) {
-        clearVisitFields();
-      }
-    }
-
-    function clearVisitFields() {
-      ['cl_city','cl_region','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_visit_date','cl_month'].forEach(id => {
-        if ($(id)) $(id).value = '';
-      });
-    }
-
-    function fillSelectedVisit() {
-      const visitId = $('cl_visit_ref').value;
-      if (!visitId) {
-        clearVisitFields();
-        return;
-      }
-      const db = window.parent.appDb;
-      db.collection('siteVisits').doc(visitId).get().then(doc => {
-        if(doc.exists){
-          const v = { id: doc.id, ...doc.data() };
-          if (isTechnicianMode() && (!isRecordForCurrentTechnician(v) || isVisitCompleted(v))) {
-            const identity = getCurrentTechnicianIdentity();
-            $('cl_visit_ref').value = '';
-            clearVisitFields();
-            if (identity.matchedTechId) loadVisitsForTech(identity.matchedTechId);
-            return;
-          }
-          $('cl_brand').value=v.brand||''; $('cl_brandKey').value=v.brandKey||''; $('cl_branch_id').value=v.branchId||''; $('cl_location').value=v.branchName||v.branchId||''; $('cl_city').value=v.city||''; $('cl_region').value=v.region||''; $('cl_visit_date').value=v.date||'';
-          const d = new Date(v.date); if(!isNaN(d)) $('cl_month').value = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][d.getMonth()];
-        }
-      });
-    }
-
-    window.openChecklistLocally = async (id) => {
-      const r = state.checklists.find(x => x.id === id); if(!r) return;
-      $('editingChecklistId').value = r.id; $('cl_technician').value = r.technicianDocId || '';
-      await loadVisitsForTech(r.technicianDocId, r.visitDocId);
-      const m = { technicianEmail:'cl_technician_email', technicianId:'cl_technician_id', city:'cl_city', region:'cl_region', brand:'cl_brand', brandKey:'cl_brandKey', branchId:'cl_branch_id', locationSite:'cl_location', visitDate:'cl_visit_date', month:'cl_month', branchManager:'cl_branch_manager', visitScheduled:'cl_visit_scheduled' };
-      Object.keys(m).forEach(k => { if($(m[k])) $(m[k]).value = r[k] || ''; });
-      window.renderDynamicForm(r.dynamicAnswers || {});
-    };
-
-    function stopChecklistListeners() {
-      state.checklistUnsubs.forEach(unsub => { try { unsub(); } catch (err) {} });
-      state.checklistUnsubs = [];
-    }
-
-    function mergeChecklistRows(rowMap, snap) {
-      snap.docs.forEach(d => {
-        const row = { id: d.id, ...d.data() };
-        if (state.canEdit || isRecordForCurrentTechnician(row)) rowMap.set(d.id, row);
-      });
-      state.checklists = Array.from(rowMap.values())
-        .sort((a, b) => String(b.createdAt || b.visitDate || '').localeCompare(String(a.createdAt || a.visitDate || '')));
-      if (state.canEdit) renderTable();
-      else {
-        const identity = getCurrentTechnicianIdentity();
-        if (identity.matchedTechId) loadVisitsForTech(identity.matchedTechId);
-      }
-    }
-
-    function listenChecklists() {
-      const db = window.parent.appDb;
-      stopChecklistListeners();
-
-      if (state.canEdit) {
-        const unsub = db.collection('branch_checklists').orderBy('createdAt','desc').onSnapshot(snap => {
-          state.checklists = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-          renderTable();
-        });
-        state.checklistUnsubs.push(unsub);
-        return;
-      }
-
-      const rowMap = new Map();
-      const identity = getCurrentTechnicianIdentity();
-      if (!identity.matchedTechId) {
-        state.checklists = [];
-        return;
-      }
-
-      const fields = ['technicianEmpId', 'technicianDocId', 'technicianAuthId', 'technicianEmail'];
-      const values = identity.rawValues
-        .map(v => String(v || '').trim())
-        .filter(Boolean)
-        .filter((value, index, arr) => arr.findIndex(item => norm(item) === norm(value)) === index)
-        .slice(0, 20);
-
-      fields.forEach(field => {
-        values.forEach(value => {
-          const unsub = db.collection('branch_checklists').where(field, '==', value).onSnapshot(
-            snap => mergeChecklistRows(rowMap, snap),
-            err => console.warn('branch_checklists technician listener failed', field, err)
-          );
-          state.checklistUnsubs.push(unsub);
-        });
-      });
-    }
-
-    async function boot() {
-      const db = window.parent.appDb;
-      db.collection('employees').onSnapshot(snap => {
-        state.technicians = snap.docs.map(d => { const data = d.data() || {}; const empId = data.empId || data.empNum || data.employeeId || data.technicianId || d.id; return { ...data, id: String(empId || d.id), _docId: d.id, empId: String(empId || ''), technicianId: data.technicianId || empId || '', technicianCode: data.technicianCode || data.code || empId || '', name: data.name || data.fullName || empId || d.id, status: data.status || (data.active === false ? 'inactive' : 'active') }; }).filter(t => t.status !== 'inactive' && (String(t.employeeType || t.type || '').toLowerCase() === 'technician' || String(t.jobTitle || t.title || t.position || '').toLowerCase().includes('technician') || String(t.jobTitle || '').includes('فني') || t.isTechnician === true));
-        renderTechnicianSelector();
-        listenChecklists();
-      });
-      db.collection('checklist_fields').onSnapshot(snap => {
-        state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0));
-        window.renderDynamicForm(); if(state.canEdit) { updateTableHeaders(); renderTable(); }
-      });
-      $('exportExcelBtn').onclick = exportToExcel;
-      $('importExcelInput').onchange = handleImport;
-      $('saveChecklistBtn').onclick = window.saveChecklist;
-
-      $('cl_technician').onchange = (e) => {
-        if (isTechnicianMode()) return;
-        const t = state.technicians.find(x => String(x.id) === String(e.target.value) || String(x._docId) === String(e.target.value));
-        if(t){ fillTechnicianFields(t); loadVisitsForTech(e.target.value); }
-      };
-      $('cl_visit_ref').onchange = fillSelectedVisit;
-    }
-    checkAuth();
-  })();
-  </script>
-</body>
-</html>
