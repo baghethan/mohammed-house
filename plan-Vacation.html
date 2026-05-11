@@ -330,6 +330,41 @@ function employeeMatchesCurrentUser(emp) {
   return empValues.some(value => candidates.includes(value));
 }
 
+function getCurrentUserKeys() {
+  const profile = currentProfile || {};
+  const fallbackEmployee = getFallbackCurrentEmployee();
+  return [
+    profile.uid,
+    currentUser?.uid,
+    profile.email,
+    currentUser?.email,
+    profile.technicianId,
+    profile.empNum,
+    profile.employeeId,
+    profile.name,
+    fallbackEmployee?.id,
+    fallbackEmployee?.empNum,
+    fallbackEmployee?.email,
+    fallbackEmployee?.name
+  ].map(norm).filter(Boolean);
+}
+
+function planMatchesCurrentUser(plan) {
+  if (!plan || canManagePlans) return true;
+  const keys = getCurrentUserKeys();
+  const planValues = [
+    plan.createdByUid,
+    plan.createdByEmail,
+    plan.empId,
+    plan.employeeId,
+    plan.employeeDocId,
+    plan.fireId,
+    plan.email,
+    plan.name
+  ].map(norm).filter(Boolean);
+  return planValues.some(value => keys.includes(value));
+}
+
 function getFallbackCurrentEmployee() {
   if (!currentUser) return null;
   const profile = currentProfile || {};
@@ -357,7 +392,7 @@ function getVisibleEmployees() {
 }
 
 function applyRoleUi() {
-  $('planListCard').classList.toggle('hidden', !canManagePlans);
+  $('planListCard').classList.remove('hidden');
   $('pEmp').disabled = !canManagePlans;
 }
 
@@ -388,7 +423,7 @@ function statusClass(status) {
 }
 
 function renderPlanList() {
-  const sortedPlans = [...planList].sort(byDate);
+  const sortedPlans = planList.filter(planMatchesCurrentUser).sort(byDate);
   $('planCount').textContent = `${sortedPlans.length} خطة`;
 
   if (!sortedPlans.length) {
@@ -398,10 +433,13 @@ function renderPlanList() {
 
   $('planningBody').innerHTML = sortedPlans.map(plan => {
     const status = String(plan.status || 'pending');
-    const decisionButtons = status === 'pending'
+    const decisionButtons = canManagePlans && status === 'pending'
       ? `<button class="btn2" type="button" onclick="window.setPlanStatus('${plan.id}', 'approved')">اعتماد</button>
          <button class="btn" type="button" onclick="window.setPlanStatus('${plan.id}', 'cancelled')">إلغاء</button>`
       : '';
+    const deleteButton = canManagePlans
+      ? `<button class="danger-btn" type="button" onclick="window.deletePlan('${plan.id}')">حذف</button>`
+      : '<span class="count-pill">للعرض فقط</span>';
 
     return `
       <tr>
@@ -412,7 +450,7 @@ function renderPlanList() {
         <td>
           <div class="actions">
             ${decisionButtons}
-            <button class="danger-btn" type="button" onclick="window.deletePlan('${plan.id}')">حذف</button>
+            ${deleteButton}
           </div>
         </td>
       </tr>
@@ -493,16 +531,16 @@ async function bindSnapshots() {
   applyRoleUi();
   renderEmployees();
 
-  if (!canManagePlans) return;
-
-  onSnapshot(collection(db, 'employees'), snap => {
-    employeeRecords = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-    refreshEmployeeSources();
-  }, error => {
-    logFirebaseError('Vacation plan employees collection listener failed', error);
-    employeeRecords = [];
-    refreshEmployeeSources();
-  });
+  if (canManagePlans) {
+    onSnapshot(collection(db, 'employees'), snap => {
+      employeeRecords = snap.docs.map(item => ({ id: item.id, ...item.data() }));
+      refreshEmployeeSources();
+    }, error => {
+      logFirebaseError('Vacation plan employees collection listener failed', error);
+      employeeRecords = [];
+      refreshEmployeeSources();
+    });
+  }
 
   onSnapshot(collection(db, 'vacations'), snap => {
     planList = snap.docs.map(item => ({ id: item.id, ...item.data() }));
@@ -516,7 +554,7 @@ $('btnAddPlan').addEventListener('click', () => {
 
 $('refreshBtn').addEventListener('click', () => {
   renderEmployees();
-  if (canManagePlans) renderPlanList();
+  renderPlanList();
 });
 
 window.addEventListener('DOMContentLoaded', () => {
