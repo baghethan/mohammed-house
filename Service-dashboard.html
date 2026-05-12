@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IT Service Desk — Performance Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <style>
   :root {
     --primary: #1E2761;
@@ -292,6 +293,119 @@
   .total-Chery { color: var(--c-Chery); }
   .total-MMCAutolead { color: var(--c-MMCAutolead); }
   .total-Other { color: var(--c-Other); }
+
+  /* ====== CLICKABLE / DRILL-DOWN ====== */
+  .clickable { cursor: pointer; transition: all .15s; }
+  .clickable:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(30,39,97,0.10); }
+  .cat-row.clickable:hover { background: #F4F6FB; transform: none; box-shadow: none; }
+  .cat-row.clickable { padding: 4px 8px; margin: -4px -8px; border-radius: 4px; }
+  .brand-card.clickable .body:hover .name { color: var(--info); }
+  .breakdown .clickable-inc, .breakdown .clickable-sr {
+    cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: background .15s;
+  }
+  .breakdown .clickable-inc:hover { background: #FEE2E2; }
+  .breakdown .clickable-sr:hover { background: #DBEAFE; }
+
+  /* Modal overlay */
+  .modal-overlay {
+    position: fixed; top:0; left:0; right:0; bottom:0;
+    background: rgba(15,30,63,0.55); backdrop-filter: blur(2px);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1000;
+    animation: fadeIn .2s ease;
+  }
+  .modal-overlay.show { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .modal {
+    background: white; border-radius: 12px;
+    width: 92%; max-width: 1400px; height: 88vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  .modal-header {
+    background: var(--primary); color: white;
+    padding: 16px 24px; display: flex; align-items: center; gap: 16px;
+    position: relative;
+  }
+  .modal-header::after {
+    content:''; position:absolute; bottom:0; left:0; right:0; height:3px; background: var(--secondary);
+  }
+  .modal-header h2 { font-size: 18px; font-weight: 700; flex: 1; }
+  .modal-header .count-pill {
+    background: rgba(255,255,255,0.18); padding: 4px 12px; border-radius: 20px;
+    font-size: 13px; font-weight: 600;
+  }
+  .modal-header .close-btn {
+    background: rgba(255,255,255,0.15); border: none; color: white;
+    width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+    font-size: 22px; line-height: 1;
+    transition: background .15s;
+  }
+  .modal-header .close-btn:hover { background: rgba(255,255,255,0.3); }
+
+  .modal-toolbar {
+    padding: 12px 24px; background: #FAFBFD;
+    border-bottom: 1px solid var(--card-border);
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .modal-toolbar input[type="search"] {
+    flex: 1; min-width: 220px;
+    border: 1px solid var(--card-border); border-radius: 6px;
+    padding: 8px 12px; font-size: 13px; outline: none;
+  }
+  .modal-toolbar input[type="search"]:focus { border-color: var(--info); }
+  .modal-toolbar .pill {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 14px; padding: 4px 10px; font-size: 11px; color: var(--text-mid);
+  }
+  .modal-toolbar button {
+    background: white; color: var(--primary); border: 1px solid var(--card-border);
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;
+  }
+  .modal-toolbar button:hover { background: var(--bg); }
+
+  .modal-body { flex: 1; overflow: auto; padding: 0; }
+  .modal-body table {
+    width: 100%; border-collapse: collapse; font-size: 12px;
+  }
+  .modal-body thead {
+    position: sticky; top: 0; background: #F4F6FB; z-index: 1;
+  }
+  .modal-body th {
+    padding: 10px 14px; text-align: left; font-weight: 700;
+    color: var(--text-mid); font-size: 11px; letter-spacing: 1px;
+    border-bottom: 2px solid var(--card-border); cursor: pointer;
+    user-select: none;
+  }
+  .modal-body th:hover { background: #E9EDF5; }
+  .modal-body th .sort-ind { color: var(--info); margin-left: 4px; }
+  .modal-body td {
+    padding: 9px 14px; border-bottom: 1px solid #F0F2F7;
+    color: var(--text-dark); vertical-align: top;
+  }
+  .modal-body tr:hover td { background: #FAFBFD; }
+  .modal-body .req-id {
+    font-family: 'Consolas', monospace; font-weight: 700; color: var(--primary);
+  }
+  .modal-body .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  }
+  .b-Closed, .b-Fulfilled { background: #D1FAE5; color: #065F46; }
+  .b-OnHold { background: #FEF3C7; color: #92400E; }
+  .b-Open { background: #FEE2E2; color: #991B1B; }
+  .b-Resolved { background: #DBEAFE; color: #1E40AF; }
+  .b-Canceled { background: #E5E7EB; color: #374151; }
+  .b-Default { background: #E5E9F2; color: var(--text-mid); }
+
+  .empty-msg {
+    text-align: center; padding: 60px 20px; color: var(--text-light);
+    font-style: italic;
+  }
 </style>
 </head>
 <body>
@@ -327,6 +441,7 @@
 <div class="dashboard" id="dashboard">
   <div class="top-bar">
     <button onclick="resetUI()">← Upload Another File</button>
+    <button onclick="downloadPPTX()" style="background:#10B981">⬇ Download PowerPoint</button>
     <button class="secondary" onclick="window.print()">🖨 Print / Save as PDF</button>
     <div class="file-info" id="fileInfo"></div>
   </div>
@@ -372,6 +487,23 @@
   </div>
 </div>
 
+<!-- ============ DRILL-DOWN MODAL ============ -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Requests</h2>
+      <div class="count-pill" id="modalCount">0 items</div>
+      <button class="close-btn" onclick="closeModal()" title="Close (Esc)">×</button>
+    </div>
+    <div class="modal-toolbar">
+      <input type="search" id="modalSearch" placeholder="Search by Request ID, Subject, Department...">
+      <span class="pill" id="modalFilterPill"></span>
+      <button onclick="exportModalCSV()">Export CSV</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // CONFIGURATION
@@ -398,6 +530,11 @@ const CAT_COLORS = ['#1E2761','#3B82F6','#0891B2','#10B981','#F59E0B','#EF4444',
 // ============================================================
 // PROCESSING
 // ============================================================
+let RAW_ROWS = [];          // all rows from the Excel file
+let CURRENT_DATA = null;    // analyzed dataset
+let CURRENT_FILTER = [];    // currently displayed filtered rows in modal
+let CURRENT_SORT = { col: null, asc: true };
+
 function getBrand(dept) {
   if (dept == null) return 'Other';
   const d = String(dept).trim();
@@ -496,6 +633,7 @@ function renderDashboard(data, fileName) {
     const key = monthMatch[1].toLowerCase().slice(0,3);
     if (monthMap[key]) monthLabel = monthMap[key] + ' ' + monthMatch[2];
   }
+  CURRENT_MONTH_LABEL = monthLabel;
 
   document.getElementById('headerTitle').textContent = `${monthLabel} — Performance Dashboard`;
   document.getElementById('headerSubtitle').textContent =
@@ -530,12 +668,12 @@ function renderDashboard(data, fileName) {
   document.getElementById('srTotalLbl').textContent = `· ${data.srTotal.toLocaleString()} requests`;
 
   const incCards = [
-    { lbl: 'Closed', count: data.incStatus.Closed, css: 'sc-success' },
-    { lbl: 'On Hold', count: data.incStatus['On Hold'], css: 'sc-warning' },
-    { lbl: 'Open', count: data.incStatus.Open, css: 'sc-danger' },
+    { lbl: 'Closed',  count: data.incStatus.Closed,        css: 'sc-success', key: 'incClosed' },
+    { lbl: 'On Hold', count: data.incStatus['On Hold'],    css: 'sc-warning', key: 'incOnHold' },
+    { lbl: 'Open',    count: data.incStatus.Open,          css: 'sc-danger',  key: 'incOpen' },
   ];
   document.getElementById('incCards').innerHTML = incCards.map(c => `
-    <div class="status-card ${c.css}">
+    <div class="status-card ${c.css} clickable" data-drill="${c.key}">
       <div class="lbl">${c.lbl.toUpperCase()}</div>
       <div class="num">${c.count.toLocaleString()}</div>
       <div class="pct">${pct(c.count, data.incTotal)}</div>
@@ -543,12 +681,12 @@ function renderDashboard(data, fileName) {
   `).join('');
 
   const srCards = [
-    { lbl: 'Fulfilled', count: data.srStatus.Fulfilled, css: 'sc-success' },
-    { lbl: 'On Hold', count: data.srStatus['On Hold'], css: 'sc-warning' },
-    { lbl: 'Open', count: data.srStatus.Open, css: 'sc-danger' },
+    { lbl: 'Fulfilled', count: data.srStatus.Fulfilled,    css: 'sc-success', key: 'srFulfilled' },
+    { lbl: 'On Hold',   count: data.srStatus['On Hold'],   css: 'sc-warning', key: 'srOnHold' },
+    { lbl: 'Open',      count: data.srStatus.Open,         css: 'sc-danger',  key: 'srOpen' },
   ];
   document.getElementById('srCards').innerHTML = srCards.map(c => `
-    <div class="status-card ${c.css}">
+    <div class="status-card ${c.css} clickable" data-drill="${c.key}">
       <div class="lbl">${c.lbl.toUpperCase()}</div>
       <div class="num">${c.count.toLocaleString()}</div>
       <div class="pct">${pct(c.count, data.srTotal)}</div>
@@ -559,7 +697,7 @@ function renderDashboard(data, fileName) {
   document.getElementById('brandGrid').innerHTML = data.brands.map(b => {
     const ck = brandClassKey(b.name);
     return `
-      <div class="brand-card">
+      <div class="brand-card clickable" data-drill="brand:${b.name}">
         <div class="stripe stripe-${ck}"></div>
         <div class="body">
           <div class="name">${b.name}</div>
@@ -568,8 +706,12 @@ function renderDashboard(data, fileName) {
             <div class="pct">${b.pct.toFixed(1)}%</div>
           </div>
           <div class="breakdown">
-            <div><span class="l">INC</span>&nbsp;&nbsp;<span class="inc-val">${b.inc}</span></div>
-            <div><span class="l">SR</span>&nbsp;&nbsp;<span class="sr-val">${b.sr}</span></div>
+            <div class="clickable-inc" data-drill="brandinc:${b.name}" onclick="event.stopPropagation();">
+              <span class="l">INC</span>&nbsp;&nbsp;<span class="inc-val">${b.inc}</span>
+            </div>
+            <div class="clickable-sr" data-drill="brandsr:${b.name}" onclick="event.stopPropagation();">
+              <span class="l">SR</span>&nbsp;&nbsp;<span class="sr-val">${b.sr}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -583,7 +725,7 @@ function renderDashboard(data, fileName) {
     const color = CAT_COLORS[i % CAT_COLORS.length];
     const w = (c.count / maxCount) * 100;
     return `
-      <div class="cat-row">
+      <div class="cat-row clickable" data-drill="cat:${escapeAttr(c.name)}">
         <div class="name">${c.name}</div>
         <div class="bar-wrap"><div class="bar" style="width:${w}%; background:${color}"></div></div>
         <div class="count">${c.count.toLocaleString()}</div>
@@ -591,6 +733,560 @@ function renderDashboard(data, fileName) {
       </div>
     `;
   }).join('');
+
+  // Wire up click handlers (delegation)
+  document.querySelectorAll('[data-drill]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const spec = el.getAttribute('data-drill');
+      handleDrill(spec);
+    });
+  });
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+// ============================================================
+// DRILL-DOWN: filter rows by spec and show modal
+// ============================================================
+function handleDrill(spec) {
+  const [kind, ...rest] = spec.split(':');
+  const value = rest.join(':');
+  let title = '';
+  let filterFn = null;
+
+  if (kind === 'cat') {
+    title = `Category — ${value}`;
+    filterFn = (r) => {
+      const cat = (r['Category.Name'] == null || String(r['Category.Name']).trim() === '') ? 'Unspecified' : String(r['Category.Name']).trim();
+      return cat === value;
+    };
+  } else if (kind === 'brand') {
+    title = `Brand Group — ${value}`;
+    filterFn = (r) => getBrand(r['Department.Name']) === value;
+  } else if (kind === 'brandinc') {
+    title = `${value} — INC requests`;
+    filterFn = (r) => getBrand(r['Department.Name']) === value && String(r['Request ID']||'').split('-')[0] === 'INC';
+  } else if (kind === 'brandsr') {
+    title = `${value} — SR requests`;
+    filterFn = (r) => getBrand(r['Department.Name']) === value && String(r['Request ID']||'').split('-')[0] === 'SR';
+  } else if (kind === 'incClosed') {
+    title = 'INC — Closed (Closed + Canceled + Resolved + Fulfilled)';
+    filterFn = (r) => String(r['Request ID']||'').split('-')[0] === 'INC' && INC_DONE.has(String(r['Status.Name']||'').trim());
+  } else if (kind === 'incOnHold') {
+    title = 'INC — On Hold';
+    filterFn = (r) => String(r['Request ID']||'').split('-')[0] === 'INC' && String(r['Status.Name']||'').trim() === 'On Hold';
+  } else if (kind === 'incOpen') {
+    title = 'INC — Open';
+    filterFn = (r) => String(r['Request ID']||'').split('-')[0] === 'INC' && String(r['Status.Name']||'').trim() === 'Open';
+  } else if (kind === 'srFulfilled') {
+    title = 'SR — Fulfilled (Fulfilled + Closed + Resolved + Canceled)';
+    filterFn = (r) => String(r['Request ID']||'').split('-')[0] === 'SR' && SR_DONE.has(String(r['Status.Name']||'').trim());
+  } else if (kind === 'srOnHold') {
+    title = 'SR — On Hold';
+    filterFn = (r) => String(r['Request ID']||'').split('-')[0] === 'SR' && String(r['Status.Name']||'').trim() === 'On Hold';
+  } else if (kind === 'srOpen') {
+    title = 'SR — Open';
+    filterFn = (r) => String(r['Request ID']||'').split('-')[0] === 'SR' && String(r['Status.Name']||'').trim() === 'Open';
+  } else {
+    return;
+  }
+
+  const filtered = RAW_ROWS.filter(filterFn);
+  openModal(title, filtered, spec);
+}
+
+function openModal(title, rows, filterSpec) {
+  CURRENT_FILTER = rows;
+  CURRENT_SORT = { col: null, asc: true };
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalCount').textContent = `${rows.length.toLocaleString()} items`;
+  document.getElementById('modalFilterPill').textContent = filterSpec;
+  document.getElementById('modalSearch').value = '';
+  renderModalTable(rows);
+  document.getElementById('modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('modalSearch').focus(), 100);
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function statusBadge(status) {
+  if (!status) return `<span class="badge b-Default">—</span>`;
+  const s = String(status).trim();
+  const cls = s.replace(/\s+/g, '');
+  const known = ['Closed','Fulfilled','OnHold','Open','Resolved','Canceled'];
+  return `<span class="badge b-${known.includes(cls) ? cls : 'Default'}">${s}</span>`;
+}
+
+function renderModalTable(rows) {
+  const body = document.getElementById('modalBody');
+  if (!rows.length) {
+    body.innerHTML = '<div class="empty-msg">No requests in this group.</div>';
+    return;
+  }
+  const cols = [
+    { key: 'Request ID', label: 'Request ID', class: 'req-id' },
+    { key: 'Subject', label: 'Subject' },
+    { key: 'Status.Name', label: 'Status', render: (v) => statusBadge(v) },
+    { key: 'Department.Name', label: 'Department' },
+    { key: 'Category.Name', label: 'Category' },
+    { key: 'Requester.Name', label: 'Requester' },
+    { key: 'Technician.Name', label: 'Technician' },
+    { key: 'Priority.Name', label: 'Priority' },
+  ];
+
+  const html = `
+    <table>
+      <thead>
+        <tr>${cols.map((c,i) => `<th data-sortcol="${i}">${c.label}<span class="sort-ind" id="sortInd${i}"></span></th>`).join('')}</tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr>${cols.map(c => {
+            const v = r[c.key];
+            const txt = (v == null || v === '') ? '<span style="color:#9AA3B5">—</span>' : String(v);
+            const rendered = c.render ? c.render(v) : txt;
+            return `<td class="${c.class||''}">${rendered}</td>`;
+          }).join('')}</tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  body.innerHTML = html;
+
+  // Sort handlers
+  document.querySelectorAll('.modal-body th').forEach(th => {
+    th.addEventListener('click', () => {
+      const idx = parseInt(th.getAttribute('data-sortcol'));
+      sortModal(idx, cols);
+    });
+  });
+}
+
+function sortModal(colIdx, cols) {
+  if (CURRENT_SORT.col === colIdx) {
+    CURRENT_SORT.asc = !CURRENT_SORT.asc;
+  } else {
+    CURRENT_SORT = { col: colIdx, asc: true };
+  }
+  const key = cols[colIdx].key;
+  const sorted = [...CURRENT_FILTER].sort((a, b) => {
+    const va = String(a[key] == null ? '' : a[key]);
+    const vb = String(b[key] == null ? '' : b[key]);
+    // try numeric
+    const na = parseFloat(va), nb = parseFloat(vb);
+    let cmp;
+    if (!isNaN(na) && !isNaN(nb) && va.trim() !== '' && vb.trim() !== '') {
+      cmp = na - nb;
+    } else {
+      cmp = va.localeCompare(vb);
+    }
+    return CURRENT_SORT.asc ? cmp : -cmp;
+  });
+  CURRENT_FILTER = sorted;
+  renderModalTable(sorted);
+  // restore indicator
+  document.querySelectorAll('.sort-ind').forEach(s => s.textContent = '');
+  const ind = document.getElementById('sortInd' + colIdx);
+  if (ind) ind.textContent = CURRENT_SORT.asc ? '▲' : '▼';
+}
+
+// Search in modal
+document.getElementById('modalSearch').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  if (!q) {
+    renderModalTable(CURRENT_FILTER);
+    return;
+  }
+  const filtered = CURRENT_FILTER.filter(r => {
+    return Object.values(r).some(v => v != null && String(v).toLowerCase().includes(q));
+  });
+  // We need to redisplay without overwriting CURRENT_FILTER
+  const body = document.getElementById('modalBody');
+  if (!filtered.length) {
+    body.innerHTML = '<div class="empty-msg">No matches.</div>';
+    return;
+  }
+  // Reuse the rendering function on a temp variable
+  const tmp = CURRENT_FILTER;
+  CURRENT_FILTER = filtered;
+  renderModalTable(filtered);
+  CURRENT_FILTER = tmp;
+  document.getElementById('modalCount').textContent =
+    `${filtered.length.toLocaleString()} of ${tmp.length.toLocaleString()} items`;
+});
+
+// Reset count when search empty
+document.getElementById('modalSearch').addEventListener('blur', () => {
+  if (!document.getElementById('modalSearch').value) {
+    document.getElementById('modalCount').textContent = `${CURRENT_FILTER.length.toLocaleString()} items`;
+  }
+});
+
+function exportModalCSV() {
+  if (!CURRENT_FILTER.length) return;
+  const cols = ['Request ID','Subject','Status.Name','Department.Name','Category.Name','Requester.Name','Technician.Name','Priority.Name','Created Date','Resolved Time'];
+  const esc = v => {
+    if (v == null) return '';
+    const s = String(v).replace(/"/g, '""');
+    return /[",\n]/.test(s) ? `"${s}"` : s;
+  };
+  const lines = [cols.join(',')];
+  for (const r of CURRENT_FILTER) lines.push(cols.map(c => esc(r[c])).join(','));
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'requests.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Close modal on Esc / overlay click
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target.id === 'modal') closeModal();
+});
+
+// ============================================================
+// POWERPOINT EXPORT
+// ============================================================
+let CURRENT_MONTH_LABEL = '';
+
+function downloadPPTX() {
+  if (!CURRENT_DATA) return;
+  const data = CURRENT_DATA;
+  const monthName = CURRENT_MONTH_LABEL || 'Report';
+
+  const PPT_C = {
+    primary: "1E2761", secondary: "CADCFC",
+    cardBg: "FFFFFF", cardBorder: "E5E9F2",
+    textDark: "1A1F36", textMid: "5A6378", textLight: "9AA3B5",
+    white: "FFFFFF",
+    success: "10B981", info: "3B82F6", warning: "F59E0B", danger: "EF4444",
+    Changan: "DC2626", Stellantis: "0891B2", Hyundai: "1E40AF",
+    Shared: "6366F1", "MMC IT": "8B5CF6", Chery: "F59E0B",
+    "MMC Autolead": "10B981", Other: "94A3B8",
+    catColors: ["1E2761","3B82F6","0891B2","10B981","F59E0B","EF4444","6366F1","DC2626","8B5CF6","EC4899","14B8A6"],
+  };
+  const SLIDE_W = 13.3, SLIDE_H = 7.5;
+
+  const pres = new PptxGenJS();
+  pres.layout = "LAYOUT_WIDE";
+  pres.title = "IT Service Desk Performance Report";
+
+  function addCard(slide, x, y, w, h) {
+    slide.addShape(pres.shapes.RECTANGLE, {
+      x, y, w, h,
+      fill: { color: PPT_C.cardBg },
+      line: { color: PPT_C.cardBorder, width: 0.75 },
+    });
+  }
+  function addHeader(slide, title, subtitle) {
+    slide.addShape(pres.shapes.RECTANGLE, {
+      x:0, y:0, w:SLIDE_W, h:0.75,
+      fill:{color:PPT_C.primary}, line:{color:PPT_C.primary, width:0},
+    });
+    slide.addShape(pres.shapes.RECTANGLE, {
+      x:0, y:0.75, w:SLIDE_W, h:0.04,
+      fill:{color:PPT_C.secondary}, line:{color:PPT_C.secondary, width:0},
+    });
+    slide.addText(title, {
+      x:0.4, y:0.05, w:9, h:0.4,
+      fontFace:"Calibri", fontSize:20, bold:true,
+      color:PPT_C.white, align:"left", valign:"middle", margin:0,
+    });
+    slide.addText(subtitle, {
+      x:0.4, y:0.43, w:9.5, h:0.3,
+      fontFace:"Calibri", fontSize:10,
+      color:PPT_C.secondary, align:"left", valign:"middle", margin:0,
+    });
+    slide.addText("Almajdouie  ·  IT Service Desk Report", {
+      x:SLIDE_W-5.0, y:0.22, w:4.5, h:0.35,
+      fontFace:"Calibri", fontSize:10, italic:true,
+      color:PPT_C.secondary, align:"right", valign:"middle", margin:0,
+    });
+  }
+  function addStatusCard(slide, x, y, w, h, count, label, percent, color) {
+    slide.addShape(pres.shapes.RECTANGLE, {
+      x, y, w, h,
+      fill:{color:PPT_C.cardBg}, line:{color:PPT_C.cardBorder, width:0.75},
+    });
+    slide.addShape(pres.shapes.RECTANGLE, {
+      x, y, w:0.07, h,
+      fill:{color}, line:{color, width:0},
+    });
+    slide.addText(label.toUpperCase(), {
+      x:x+0.13, y:y+0.04, w:w-0.18, h:0.2,
+      fontFace:"Calibri", fontSize:8, bold:true,
+      color:PPT_C.textMid, align:"left", valign:"top", margin:0, charSpacing:1,
+    });
+    slide.addText(String(count), {
+      x:x+0.13, y:y+0.22, w:w-0.18, h:h-0.45,
+      fontFace:"Calibri", fontSize:18, bold:true,
+      color, align:"left", valign:"middle", margin:0,
+    });
+    slide.addText(percent, {
+      x:x+0.13, y:y+h-0.27, w:w-0.18, h:0.22,
+      fontFace:"Calibri", fontSize:10, bold:true,
+      color:PPT_C.textMid, align:"right", valign:"middle", margin:0,
+    });
+  }
+  function addBrandCardCompact(slide, x, y, w, h, brand, color, total, totalPct, incCount, srCount) {
+    addCard(slide, x, y, w, h);
+    slide.addShape(pres.shapes.RECTANGLE, {
+      x, y, w, h:0.08,
+      fill:{color}, line:{color, width:0},
+    });
+    slide.addText(brand, {
+      x:x+0.12, y:y+0.10, w:w-0.2, h:0.26,
+      fontFace:"Georgia", fontSize:12, bold:true,
+      color:PPT_C.textDark, align:"left", valign:"middle", margin:0,
+    });
+    slide.addText(String(total.toLocaleString()), {
+      x:x+0.12, y:y+0.36, w:(w-0.2)*0.55, h:0.32,
+      fontFace:"Calibri", fontSize:18, bold:true,
+      color, align:"left", valign:"middle", margin:0,
+    });
+    slide.addText(totalPct, {
+      x:x+0.12+(w-0.2)*0.55, y:y+0.38, w:(w-0.2)*0.45, h:0.28,
+      fontFace:"Calibri", fontSize:11, bold:true,
+      color:PPT_C.textMid, align:"right", valign:"middle", margin:0,
+    });
+    slide.addText("INC", {
+      x:x+0.12, y:y+0.7, w:(w-0.2)*0.16, h:0.2,
+      fontFace:"Calibri", fontSize:7.5, bold:true,
+      color:PPT_C.textLight, align:"left", valign:"middle", margin:0, charSpacing:1,
+    });
+    slide.addText(String(incCount), {
+      x:x+0.12+(w-0.2)*0.16, y:y+0.7, w:(w-0.2)*0.34, h:0.2,
+      fontFace:"Calibri", fontSize:11, bold:true,
+      color:PPT_C.danger, align:"left", valign:"middle", margin:0,
+    });
+    slide.addText("SR", {
+      x:x+0.12+(w-0.2)*0.55, y:y+0.7, w:(w-0.2)*0.13, h:0.2,
+      fontFace:"Calibri", fontSize:7.5, bold:true,
+      color:PPT_C.textLight, align:"left", valign:"middle", margin:0, charSpacing:1,
+    });
+    slide.addText(String(srCount), {
+      x:x+0.12+(w-0.2)*0.68, y:y+0.7, w:(w-0.2)*0.30, h:0.2,
+      fontFace:"Calibri", fontSize:11, bold:true,
+      color:PPT_C.info, align:"right", valign:"middle", margin:0,
+    });
+  }
+  function addCategoryRow(slide, x, y, w, h, label, count, pctVal, maxCount, color) {
+    slide.addText(label, {
+      x, y, w:w*0.42, h,
+      fontFace:"Calibri", fontSize:9, bold:true,
+      color:PPT_C.textDark, align:"left", valign:"middle", margin:0,
+    });
+    const barX = x + w*0.43;
+    const barW = w*0.30;
+    slide.addShape(pres.shapes.RECTANGLE, {
+      x:barX, y:y+h*0.32, w:barW, h:h*0.36,
+      fill:{color:"EEF2F7"}, line:{color:"EEF2F7", width:0},
+    });
+    const fillW = Math.max(0.05, barW * (count/maxCount));
+    slide.addShape(pres.shapes.RECTANGLE, {
+      x:barX, y:y+h*0.32, w:fillW, h:h*0.36,
+      fill:{color}, line:{color, width:0},
+    });
+    slide.addText(String(count.toLocaleString()), {
+      x:x+w*0.75, y, w:w*0.12, h,
+      fontFace:"Calibri", fontSize:9.5, bold:true,
+      color:PPT_C.textDark, align:"right", valign:"middle", margin:0,
+    });
+    slide.addText(pctVal.toFixed(1)+"%", {
+      x:x+w*0.87, y, w:w*0.13, h,
+      fontFace:"Calibri", fontSize:8.5, bold:true,
+      color:PPT_C.textMid, align:"right", valign:"middle", margin:0,
+    });
+  }
+
+  // === BUILD THE SLIDE ===
+  const slide = pres.addSlide();
+  slide.background = { color: "F7F8FC" };
+
+  addHeader(slide, `${monthName} — Performance Dashboard`,
+    `Total: ${data.total.toLocaleString()} requests  ·  INC ${data.incTotal.toLocaleString()} (${pct(data.incTotal, data.total)})  ·  SR ${data.srTotal.toLocaleString()} (${pct(data.srTotal, data.total)})`);
+
+  // KPI Row
+  const kpiY = 0.85, kpiH = 0.72;
+  const kpiW = (SLIDE_W - 0.8 - 2*0.15) / 3;
+
+  addCard(slide, 0.4, kpiY, kpiW, kpiH);
+  slide.addText(data.total.toLocaleString(), {
+    x:0.4, y:kpiY+0.02, w:kpiW, h:0.44,
+    fontFace:"Calibri", fontSize:24, bold:true,
+    color:PPT_C.primary, align:"center", valign:"middle", margin:0,
+  });
+  slide.addText("TOTAL REQUESTS", {
+    x:0.4, y:kpiY+0.46, w:kpiW, h:0.22,
+    fontFace:"Calibri", fontSize:9, bold:true,
+    color:PPT_C.textMid, align:"center", valign:"middle", margin:0, charSpacing:1,
+  });
+
+  const incX = 0.4 + kpiW + 0.15;
+  addCard(slide, incX, kpiY, kpiW, kpiH);
+  slide.addText(data.incTotal.toLocaleString(), {
+    x:incX, y:kpiY+0.02, w:kpiW*0.55, h:0.44,
+    fontFace:"Calibri", fontSize:22, bold:true,
+    color:PPT_C.danger, align:"center", valign:"middle", margin:0,
+  });
+  slide.addText(pct(data.incTotal, data.total), {
+    x:incX+kpiW*0.55, y:kpiY+0.05, w:kpiW*0.42, h:0.4,
+    fontFace:"Calibri", fontSize:12, bold:true,
+    color:PPT_C.textMid, align:"center", valign:"middle", margin:0,
+  });
+  slide.addText("INCIDENTS (INC)", {
+    x:incX, y:kpiY+0.46, w:kpiW, h:0.22,
+    fontFace:"Calibri", fontSize:9, bold:true,
+    color:PPT_C.textMid, align:"center", valign:"middle", margin:0, charSpacing:1,
+  });
+
+  const srX = incX + kpiW + 0.15;
+  addCard(slide, srX, kpiY, kpiW, kpiH);
+  slide.addText(data.srTotal.toLocaleString(), {
+    x:srX, y:kpiY+0.02, w:kpiW*0.55, h:0.44,
+    fontFace:"Calibri", fontSize:22, bold:true,
+    color:PPT_C.info, align:"center", valign:"middle", margin:0,
+  });
+  slide.addText(pct(data.srTotal, data.total), {
+    x:srX+kpiW*0.55, y:kpiY+0.05, w:kpiW*0.42, h:0.4,
+    fontFace:"Calibri", fontSize:12, bold:true,
+    color:PPT_C.textMid, align:"center", valign:"middle", margin:0,
+  });
+  slide.addText("SERVICE REQUESTS (SR)", {
+    x:srX, y:kpiY+0.46, w:kpiW, h:0.22,
+    fontFace:"Calibri", fontSize:9, bold:true,
+    color:PPT_C.textMid, align:"center", valign:"middle", margin:0, charSpacing:1,
+  });
+
+  // Status row
+  const stY = 1.65, stHdrH = 0.25, stCardH = 0.75;
+  const halfW = (SLIDE_W - 1.0) / 2;
+  const cardGap = 0.05;
+  const statusCardW = (halfW - 2*cardGap) / 3;
+
+  // INC header
+  slide.addShape(pres.shapes.RECTANGLE, {
+    x:0.4, y:stY, w:halfW, h:stHdrH,
+    fill:{color:PPT_C.danger}, line:{color:PPT_C.danger, width:0},
+  });
+  slide.addText(`INC STATUS  ·  ${data.incTotal.toLocaleString()} requests`, {
+    x:0.55, y:stY, w:halfW-0.3, h:stHdrH,
+    fontFace:"Calibri", fontSize:10, bold:true,
+    color:PPT_C.white, align:"left", valign:"middle", margin:0,
+  });
+  const incArr = [
+    { lbl:"Closed", c:data.incStatus.Closed, col:PPT_C.success },
+    { lbl:"On Hold", c:data.incStatus["On Hold"], col:PPT_C.warning },
+    { lbl:"Open", c:data.incStatus.Open, col:PPT_C.danger },
+  ];
+  incArr.forEach((s, i) => {
+    const cx = 0.4 + i*(statusCardW + cardGap);
+    addStatusCard(slide, cx, stY+stHdrH+0.06, statusCardW, stCardH,
+      s.c, s.lbl, pct(s.c, data.incTotal), s.col);
+  });
+  slide.addText("Closed = Closed + Canceled + Resolved + Fulfilled", {
+    x:0.4, y:stY+stHdrH+stCardH+0.08, w:halfW, h:0.18,
+    fontFace:"Calibri", fontSize:7.5, italic:true,
+    color:PPT_C.textLight, align:"left", valign:"middle", margin:0,
+  });
+
+  // SR header
+  const srColX = 0.4 + halfW + 0.2;
+  slide.addShape(pres.shapes.RECTANGLE, {
+    x:srColX, y:stY, w:halfW, h:stHdrH,
+    fill:{color:PPT_C.info}, line:{color:PPT_C.info, width:0},
+  });
+  slide.addText(`SR STATUS  ·  ${data.srTotal.toLocaleString()} requests`, {
+    x:srColX+0.15, y:stY, w:halfW-0.3, h:stHdrH,
+    fontFace:"Calibri", fontSize:10, bold:true,
+    color:PPT_C.white, align:"left", valign:"middle", margin:0,
+  });
+  const srArr = [
+    { lbl:"Fulfilled", c:data.srStatus.Fulfilled, col:PPT_C.success },
+    { lbl:"On Hold", c:data.srStatus["On Hold"], col:PPT_C.warning },
+    { lbl:"Open", c:data.srStatus.Open, col:PPT_C.danger },
+  ];
+  srArr.forEach((s, i) => {
+    const cx = srColX + i*(statusCardW + cardGap);
+    addStatusCard(slide, cx, stY+stHdrH+0.06, statusCardW, stCardH,
+      s.c, s.lbl, pct(s.c, data.srTotal), s.col);
+  });
+  slide.addText("Fulfilled = Fulfilled + Closed + Resolved + Canceled", {
+    x:srColX, y:stY+stHdrH+stCardH+0.08, w:halfW, h:0.18,
+    fontFace:"Calibri", fontSize:7.5, italic:true,
+    color:PPT_C.textLight, align:"left", valign:"middle", margin:0,
+  });
+
+  // Brand groups
+  const brTitleY = 2.95;
+  slide.addText("BRAND GROUPS", {
+    x:0.4, y:brTitleY, w:8, h:0.22,
+    fontFace:"Calibri", fontSize:10, bold:true,
+    color:PPT_C.textMid, align:"left", valign:"middle", margin:0, charSpacing:2,
+  });
+  const brandRowH = 0.95;
+  const brandColW = (SLIDE_W - 0.8 - 3*0.12) / 4;
+  const brandRow1Y = brTitleY + 0.28;
+  const brandRow2Y = brandRow1Y + brandRowH + 0.08;
+
+  data.brands.forEach((b, i) => {
+    const row = Math.floor(i/4), col = i%4;
+    const bx = 0.4 + col*(brandColW + 0.12);
+    const by = (row===0) ? brandRow1Y : brandRow2Y;
+    const color = PPT_C[b.name] || PPT_C.Other;
+    addBrandCardCompact(slide, bx, by, brandColW, brandRowH, b.name, color,
+      b.total, b.pct.toFixed(1)+"%", b.inc, b.sr);
+  });
+
+  // Categories
+  const catY = brandRow2Y + brandRowH + 0.15;
+  const catH = SLIDE_H - catY - 0.3;
+  addCard(slide, 0.4, catY, SLIDE_W-0.8, catH);
+  slide.addText("CATEGORIES", {
+    x:0.55, y:catY+0.05, w:6, h:0.25,
+    fontFace:"Calibri", fontSize:10, bold:true,
+    color:PPT_C.textMid, align:"left", valign:"middle", margin:0, charSpacing:2,
+  });
+  slide.addText(`${data.categories.length} categories  ·  total ${data.total.toLocaleString()}`, {
+    x:SLIDE_W-4.5, y:catY+0.05, w:4, h:0.25,
+    fontFace:"Calibri", fontSize:9, italic:true,
+    color:PPT_C.textLight, align:"right", valign:"middle", margin:0,
+  });
+
+  const nCols = 3;
+  const perCol = Math.ceil(data.categories.length / nCols);
+  const colWidth = (SLIDE_W - 0.8 - 0.4) / nCols;
+  const catRowH = (catH - 0.4) / perCol;
+  const maxCount = Math.max(...data.categories.map(c => c.count));
+
+  data.categories.forEach((c, i) => {
+    const colIdx = Math.floor(i/perCol);
+    const rowIdx = i%perCol;
+    const cx = 0.55 + colIdx*colWidth;
+    const cy = catY + 0.35 + rowIdx*catRowH;
+    const color = PPT_C.catColors[i % PPT_C.catColors.length];
+    addCategoryRow(slide, cx, cy, colWidth-0.15, catRowH, c.name, c.count, c.pct, maxCount, color);
+  });
+
+  // Footer
+  slide.addText(`${monthName}  ·  IT Service Desk  ·  Confidential`, {
+    x:0, y:SLIDE_H-0.25, w:SLIDE_W, h:0.22,
+    fontFace:"Calibri", fontSize:9,
+    color:PPT_C.textLight, align:"center", valign:"middle",
+  });
+
+  const safeName = monthName.replace(/[^\w\d-]/g, '_');
+  pres.writeFile({ fileName: `Service_Desk_${safeName}.pptx` });
 }
 
 function resetUI() {
@@ -623,7 +1319,9 @@ function handleFile(file) {
         showError('The first worksheet is empty.');
         return;
       }
+      RAW_ROWS = rows;
       const data = analyze(rows);
+      CURRENT_DATA = data;
       renderDashboard(data, file.name);
     } catch (err) {
       console.error(err);
