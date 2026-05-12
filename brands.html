@@ -37,6 +37,11 @@
     .field label{font-size:14px;font-weight:700}
     .field input,.field textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font:inherit;background:#fbfcfe}
     .field textarea{min-height:96px;resize:vertical}
+    .choice-row{display:flex;gap:8px;flex-wrap:wrap}
+    .choice-row label{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:999px;padding:9px 12px;background:#fbfcfe;font-size:13px;font-weight:800;cursor:pointer}
+    .choice-row input{width:auto}
+    .department-tags{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
+    .department-tag{display:inline-flex;align-items:center;border:1px solid #cfe0ef;background:#f1f7fc;color:#15496b;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:800}
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;overflow:hidden}
     .card h3{margin:-16px -16px 14px;padding:12px 16px;background:var(--primary);color:#fff;font-size:15px}
     .brand-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;max-height:72vh;overflow:auto}
@@ -111,6 +116,15 @@
             </div>
           </div>
 
+          <div class="field" style="margin-top:14px">
+            <label id="departmentsLabel">الأقسام التابعة للبراند</label>
+            <div class="choice-row">
+              <label><input type="checkbox" class="brand-dept" value="sales" data-ar="المبيعات" data-en="Sales"> <span id="deptSalesLabel">المبيعات</span></label>
+              <label><input type="checkbox" class="brand-dept" value="service" data-ar="الخدمات" data-en="Service"> <span id="deptServiceLabel">الخدمات</span></label>
+            </div>
+            <input id="brandDepartmentsOther" placeholder="أقسام إضافية مفصولة بفاصلة">
+          </div>
+
           <div class="preview-box" style="margin-top:14px">
             <div style="font-weight:700;margin-bottom:8px" id="logoPreviewLabel">معاينة الشعار</div>
             <img id="logoPreview" alt="Brand Logo Preview" class="hidden">
@@ -162,6 +176,10 @@
       brandNameEn:'اسم البراند بالإنجليزي',
       uploadLogo:'رفع صورة الشعار',
       notes:'ملاحظات',
+      departments:'الأقسام التابعة للبراند',
+      sales:'المبيعات',
+      service:'الخدمات',
+      extraDepartmentsPlaceholder:'أقسام إضافية مفصولة بفاصلة',
       logoPreview:'معاينة الشعار',
       saveBrand:'حفظ البراند',
       clearForm:'تنظيف النموذج',
@@ -191,6 +209,10 @@
       brandNameEn:'English Brand Name',
       uploadLogo:'Upload Logo',
       notes:'Notes',
+      departments:'Brand Departments',
+      sales:'Sales',
+      service:'Service',
+      extraDepartmentsPlaceholder:'Extra departments, comma-separated',
       logoPreview:'Logo Preview',
       saveBrand:'Save Brand',
       clearForm:'Clear Form',
@@ -236,6 +258,10 @@
     $('brandNameEnLabel').textContent = t('brandNameEn');
     $('uploadLogoLabel').textContent = t('uploadLogo');
     $('notesLabel').textContent = t('notes');
+    $('departmentsLabel').textContent = t('departments');
+    $('deptSalesLabel').textContent = t('sales');
+    $('deptServiceLabel').textContent = t('service');
+    $('brandDepartmentsOther').placeholder = t('extraDepartmentsPlaceholder');
     $('logoPreviewLabel').textContent = t('logoPreview');
     $('saveBrandBtn').textContent = t('saveBrand');
     $('clearBrandFormBtn').textContent = t('clearForm');
@@ -296,7 +322,8 @@
 
   function clearBrandForm(){
     $('editingBrandId').value = '';
-    ['brandNameAr','brandNameEn','brandKey','brandLogoUrl','brandNotes'].forEach(function(id){ $(id).value = ''; });
+    ['brandNameAr','brandNameEn','brandKey','brandLogoUrl','brandNotes','brandDepartmentsOther'].forEach(function(id){ $(id).value = ''; });
+    document.querySelectorAll('.brand-dept').forEach(function(input){ input.checked = false; });
     $('brandLogoFile').value = '';
     setPreview('');
     $('deleteBrandBtn').classList.add('hidden');
@@ -304,11 +331,69 @@
     setAlert('');
   }
 
+  function normalizeDepartmentKey(value){
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^\w\u0600-\u06FF]+/g, '_').replace(/^_+|_+$/g, '');
+  }
+
+  function standardDepartmentLabels(key){
+    if (key === 'sales') return { ar:'المبيعات', en:'Sales' };
+    if (key === 'service') return { ar:'الخدمات', en:'Service' };
+    return null;
+  }
+
+  function collectDepartments(){
+    var rows = [];
+    document.querySelectorAll('.brand-dept').forEach(function(input){
+      if (!input.checked) return;
+      rows.push({
+        key: input.value,
+        labelAr: input.getAttribute('data-ar') || input.value,
+        labelEn: input.getAttribute('data-en') || input.value
+      });
+    });
+    String($('brandDepartmentsOther').value || '').split(/[,\n،]+/).map(function(v){ return v.trim(); }).filter(Boolean).forEach(function(label){
+      var key = normalizeDepartmentKey(label);
+      if (!key || rows.some(function(item){ return item.key === key; })) return;
+      rows.push({ key:key, labelAr:label, labelEn:label });
+    });
+    return rows;
+  }
+
+  function normalizeBrandDepartments(brand){
+    var source = Array.isArray(brand && brand.departments) ? brand.departments : [];
+    var rows = [];
+    source.forEach(function(item){
+      if (typeof item === 'string') {
+        var labels = standardDepartmentLabels(item) || {};
+        rows.push({ key: normalizeDepartmentKey(item), labelAr: labels.ar || item, labelEn: labels.en || item });
+      } else if (item) {
+        var key = normalizeDepartmentKey(item.key || item.value || item.labelEn || item.labelAr || item.name);
+        if (key) rows.push({ key:key, labelAr:item.labelAr || item.ar || item.nameAr || item.label || item.name || key, labelEn:item.labelEn || item.en || item.nameEn || item.label || item.name || key });
+      }
+    });
+    if (!rows.length && Array.isArray(brand && brand.departmentKeys)) {
+      brand.departmentKeys.forEach(function(key){
+        var labels = standardDepartmentLabels(key) || {};
+        rows.push({ key: normalizeDepartmentKey(key), labelAr: labels.ar || key, labelEn: labels.en || key });
+      });
+    }
+    return rows;
+  }
+
+  function setDepartmentsForEdit(brand){
+    var rows = normalizeBrandDepartments(brand);
+    var standard = new Set(rows.map(function(item){ return item.key; }));
+    document.querySelectorAll('.brand-dept').forEach(function(input){ input.checked = standard.has(input.value); });
+    var custom = rows.filter(function(item){ return ['sales','service'].indexOf(item.key) === -1; })
+      .map(function(item){ return item.labelAr || item.labelEn || item.key; });
+    $('brandDepartmentsOther').value = custom.join(', ');
+  }
+
   function renderBrands(){
     var q = ($('brandSearch').value || '').trim().toLowerCase();
     var rows = state.brands.filter(function(b){
       if (!q) return true;
-      return [b.nameAr,b.nameEn,b.key,b.brand,b.brandKey,b.notes].some(function(v){
+      return [b.nameAr,b.nameEn,b.key,b.brand,b.brandKey,b.notes].concat(normalizeBrandDepartments(b).map(function(dep){ return dep.labelAr + ' ' + dep.labelEn; })).some(function(v){
         return String(v || '').toLowerCase().indexOf(q) > -1;
       });
     });
@@ -321,6 +406,10 @@
 
     grid.innerHTML = rows.map(function(b){
       var logo = b.logoData || b.logoUrl || '';
+      var departments = normalizeBrandDepartments(b);
+      var departmentHtml = departments.length
+        ? '<div class="department-tags">' + departments.map(function(dep){ return '<span class="department-tag">' + esc(state.currentLang === 'ar' ? (dep.labelAr || dep.labelEn || dep.key) : (dep.labelEn || dep.labelAr || dep.key)) + '</span>'; }).join('') + '</div>'
+        : '<div class="department-tags"><span class="department-tag">' + esc(t('departments')) + ': -</span></div>';
       var logoHtml = logo
         ? '<img src="' + esc(logo) + '" alt="' + esc(b.nameEn || b.brand || b.key || 'brand') + '" onerror="this.style.display=\'none\'">'
         : '<div class="note">' + esc(t('noLogo')) + '</div>';
@@ -329,6 +418,7 @@
         + logoHtml
         + '<div class="brand-name">' + esc(b.nameAr || b.brand || '-') + ' <span class="rtl-en">/ ' + esc(b.nameEn || b.brand || '-') + '</span></div>'
         + '<div class="brand-key">Key: ' + esc(b.key || b.brandKey || '-') + '</div>'
+        + departmentHtml
         + '<div class="mini-actions">'
         + '<button class="btn small" data-edit-brand="' + esc(b.id) + '">' + esc(t('edit')) + '</button>'
         + '<button class="btn small danger" data-delete-brand="' + esc(b.id) + '">' + esc(t('delete')) + '</button>'
@@ -353,6 +443,7 @@
     $('brandKey').value = b.key || b.brandKey || '';
     $('brandLogoUrl').value = b.logoUrl || '';
     $('brandNotes').value = b.notes || '';
+    setDepartmentsForEdit(b);
     setPreview(b.logoData || b.logoUrl || '');
     $('deleteBrandBtn').classList.remove('hidden');
     setMessage(t('brandMessage'));
@@ -380,6 +471,12 @@
     return parentObject;
   }
 
+  function buildParentArray(items){
+    var arr = window.parent && window.parent.Array ? new window.parent.Array() : [];
+    items.forEach(function(item){ arr.push(item); });
+    return arr;
+  }
+
   async function saveBrand(){
     try {
       var db = window.parent.appDb;
@@ -391,6 +488,7 @@
 
       // مهم: payload لازم يُبنى من parent window حتى لا يرفضه Firestore كـ custom Object داخل iframe
       var payload = buildParentPlainObject();
+      var departments = collectDepartments();
       payload.id = id;
       payload.key = key;
       payload.brandKey = key;
@@ -399,6 +497,14 @@
       payload.nameEn = $('brandNameEn').value.trim();
       payload.logoUrl = $('brandLogoUrl').value.trim();
       payload.logoData = state.previewData || $('brandLogoUrl').value.trim();
+      payload.departments = buildParentArray(departments.map(function(dep){
+        var row = buildParentPlainObject();
+        row.key = dep.key;
+        row.labelAr = dep.labelAr;
+        row.labelEn = dep.labelEn;
+        return row;
+      }));
+      payload.departmentKeys = buildParentArray(departments.map(function(dep){ return dep.key; }));
       payload.notes = $('brandNotes').value.trim();
       payload.updatedAt = fv.serverTimestamp();
       if (!editingId) {

@@ -55,14 +55,16 @@
 
         .field { display: flex; flex-direction: column; gap: 5px; }
         .field label { font-size: 13px; font-weight: 600; color: var(--secondary); }
-        .field input {
+        .field input, .field select {
             padding: 10px;
             border: 1px solid var(--border);
             border-radius: 8px;
             outline: none;
             transition: 0.3s;
+            background: white;
+            font: inherit;
         }
-        .field input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(13, 75, 115, 0.1); }
+        .field input:focus, .field select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(13, 75, 115, 0.1); }
 
         /* الأزرار */
         .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -119,7 +121,8 @@
             <div class="grid">
                 <div class="field"><label>كود الفرع (ID)</label><input id="bId"></div>
                 <div class="field"><label>اسم الفرع</label><input id="bName"></div>
-                <div class="field"><label>العلامة التجارية</label><input id="bBrand"></div>
+                <div class="field"><label>العلامة التجارية</label><select id="bBrand"></select></div>
+                <div class="field"><label>القسم</label><select id="bDepartment"></select></div>
                 <div class="field"><label>المنطقة</label><input id="bRegion"></div>
                 <div class="field"><label>المدينة</label><input id="bCity"></div>
                 <div class="field"><label>الموقع</label><input id="bLoc"></div>
@@ -144,12 +147,13 @@
                             <th>كود الفرع</th>
                             <th>اسم الفرع</th>
                             <th>الماركة</th>
+                            <th>القسم</th>
                             <th>المنطقة/المدينة</th>
                             <th>إجراءات</th>
                         </tr>
                     </thead>
                     <tbody id="branchesBody">
-                        <tr><td colspan="5" style="text-align: center;">جاري تحميل البيانات...</td></tr>
+                        <tr><td colspan="6" style="text-align: center;">جاري تحميل البيانات...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -158,58 +162,239 @@
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script type="module">
-        // الارتباط بالصفحة الرئيسية (Master Page)
         const db = window.parent.appDb;
+        const state = { branches: [], brands: [] };
+        const $ = id => document.getElementById(id);
+        const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 
-        // وظيفة جلب البيانات وعرضها في الجدول
-        async function loadBranches() {
-            db.collection('branches').orderBy('branchName').onSnapshot(snap => {
-                const tbody = document.getElementById('branchesBody');
-                tbody.innerHTML = '';
-                snap.forEach(doc => {
-                    const b = doc.data();
-                    tbody.innerHTML += `
-                        <tr>
-                            <td>${doc.id}</td>
-                            <td><b>${b.branchName}</b></td>
-                            <td>${b.brand}</td>
-                            <td>${b.region} - ${b.city}</td>
-                            <td>
-                                <button onclick="deleteBranch('${doc.id}')" style="color:red; border:none; background:none; cursor:pointer;">حذف</button>
-                            </td>
-                        </tr>
-                    `;
+        function buildParentPlainObject() {
+            return window.parent && window.parent.Object ? new window.parent.Object() : {};
+        }
+
+        function normalizeDepartmentKey(value) {
+            return String(value || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^\w\u0600-\u06FF]+/g, '_').replace(/^_+|_+$/g, '');
+        }
+
+        function standardDepartmentLabels(key) {
+            if (key === 'sales') return { ar: 'المبيعات', en: 'Sales' };
+            if (key === 'service') return { ar: 'الخدمات', en: 'Service' };
+            return null;
+        }
+
+        function normalizeBrandDepartments(brand) {
+            const source = Array.isArray(brand && brand.departments) ? brand.departments : [];
+            const rows = [];
+            source.forEach(item => {
+                if (typeof item === 'string') {
+                    const labels = standardDepartmentLabels(item) || {};
+                    rows.push({ key: normalizeDepartmentKey(item), labelAr: labels.ar || item, labelEn: labels.en || item });
+                } else if (item) {
+                    const key = normalizeDepartmentKey(item.key || item.value || item.labelEn || item.labelAr || item.name);
+                    if (key) rows.push({ key, labelAr: item.labelAr || item.ar || item.nameAr || item.label || item.name || key, labelEn: item.labelEn || item.en || item.nameEn || item.label || item.name || key });
+                }
+            });
+            if (!rows.length && Array.isArray(brand && brand.departmentKeys)) {
+                brand.departmentKeys.forEach(key => {
+                    const labels = standardDepartmentLabels(key) || {};
+                    rows.push({ key: normalizeDepartmentKey(key), labelAr: labels.ar || key, labelEn: labels.en || key });
                 });
+            }
+            return rows;
+        }
+
+        function getBrandDisplay(brand) {
+            return brand.nameAr || brand.nameEn || brand.brand || brand.key || brand.brandKey || '';
+        }
+
+        function findSelectedBrand() {
+            const value = $('bBrand').value || '';
+            return state.brands.find(brand => String(brand.key || brand.brandKey || brand.brand || getBrandDisplay(brand)) === String(value)) || null;
+        }
+
+        function setSelectOptions(id, rows, placeholder) {
+            const el = $(id);
+            const current = el.value;
+            el.innerHTML = `<option value="">${esc(placeholder)}</option>` + rows.join('');
+            if (current && Array.from(el.options).some(option => option.value === current)) el.value = current;
+        }
+
+        function populateBrandOptions() {
+            const rows = state.brands.map(brand => {
+                const key = brand.key || brand.brandKey || brand.brand || getBrandDisplay(brand);
+                return `<option value="${esc(key)}">${esc(getBrandDisplay(brand))}</option>`;
+            });
+            setSelectOptions('bBrand', rows, 'اختر البراند');
+            populateDepartmentOptions();
+        }
+
+        function populateDepartmentOptions() {
+            const brand = findSelectedBrand();
+            const departments = normalizeBrandDepartments(brand);
+            const rows = departments.map(dep => `<option value="${esc(dep.key)}" data-label="${esc(dep.labelAr || dep.labelEn || dep.key)}">${esc(dep.labelAr || dep.labelEn || dep.key)}</option>`);
+            setSelectOptions('bDepartment', rows, departments.length ? 'اختر القسم' : 'لا توجد أقسام للبراند');
+        }
+
+        function getDepartmentLabelByKey(key, brand) {
+            const row = normalizeBrandDepartments(brand).find(dep => dep.key === key);
+            return row ? (row.labelAr || row.labelEn || row.key) : (standardDepartmentLabels(key)?.ar || key || '');
+        }
+
+        function renderBranches() {
+            const q = String($('searchInput').value || '').trim().toLowerCase();
+            const rows = state.branches.filter(b => {
+                if (!q) return true;
+                return [b.id, b.branchName, b.brand, b.department, b.departmentName, b.region, b.city, b.location].some(v => String(v || '').toLowerCase().includes(q));
+            });
+            $('branchesBody').innerHTML = rows.length ? rows.map(b => `
+                <tr>
+                    <td>${esc(b.id)}</td>
+                    <td><b>${esc(b.branchName)}</b></td>
+                    <td>${esc(b.brand)}</td>
+                    <td>${esc(b.department || b.departmentName || b.functionName || b.function || '')}</td>
+                    <td>${esc(b.region)} - ${esc(b.city)}</td>
+                    <td>
+                        <button onclick="editBranch('${esc(b.id)}')" style="color:#0d4b73; border:none; background:none; cursor:pointer;">تعديل</button>
+                        <button onclick="deleteBranch('${esc(b.id)}')" style="color:red; border:none; background:none; cursor:pointer;">حذف</button>
+                    </td>
+                </tr>
+            `).join('') : '<tr><td colspan="6" style="text-align:center;">لا توجد فروع مطابقة</td></tr>';
+        }
+
+        function loadBrands() {
+            db.collection('brand_assets').orderBy('nameAr').onSnapshot(snap => {
+                state.brands = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                populateBrandOptions();
             });
         }
 
-        // حفظ فرع يدوي
+        function loadBranches() {
+            db.collection('branches').orderBy('branchName').onSnapshot(snap => {
+                state.branches = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderBranches();
+            });
+        }
+
+        window.filterTable = renderBranches;
+
+        window.editBranch = id => {
+            const b = state.branches.find(row => String(row.id) === String(id));
+            if (!b) return;
+            $('bId').value = b.id || '';
+            $('bName').value = b.branchName || '';
+            $('bBrand').value = b.brandKey || b.brand || '';
+            if (!Array.from($('bBrand').options).some(option => option.value === $('bBrand').value)) {
+                const option = document.createElement('option');
+                option.value = b.brand || '';
+                option.textContent = b.brand || '';
+                $('bBrand').appendChild(option);
+                $('bBrand').value = b.brand || '';
+            }
+            populateDepartmentOptions();
+            $('bDepartment').value = b.departmentKey || normalizeDepartmentKey(b.department || b.departmentName || b.functionName || b.function);
+            if ($('bDepartment').value && !Array.from($('bDepartment').options).some(option => option.value === $('bDepartment').value)) {
+                const option = document.createElement('option');
+                option.value = $('bDepartment').value;
+                option.textContent = b.department || b.departmentName || b.functionName || b.function || $('bDepartment').value;
+                $('bDepartment').appendChild(option);
+                $('bDepartment').value = option.value;
+            }
+            $('bRegion').value = b.region || '';
+            $('bCity').value = b.city || '';
+            $('bLoc').value = b.location || '';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
         window.saveBranch = async () => {
-            const id = document.getElementById('bId').value;
-            if(!id) return alert("يرجى إدخال كود الفرع");
-            
-            await db.collection('branches').doc(id).set({
-                branchName: document.getElementById('bName').value,
-                brand: document.getElementById('bBrand').value,
-                region: document.getElementById('bRegion').value,
-                city: document.getElementById('bCity').value,
-                location: document.getElementById('bLoc').value,
-                updatedAt: new Date()
-            }, { merge: true });
-            alert("تم الحفظ بنجاح");
+            const id = $('bId').value.trim();
+            if (!id) return alert('يرجى إدخال كود الفرع');
+            const brand = findSelectedBrand();
+            const departmentKey = $('bDepartment').value || '';
+            const departmentLabel = getDepartmentLabelByKey(departmentKey, brand);
+
+            const payload = buildParentPlainObject();
+            payload.id = id;
+            payload.branchName = $('bName').value.trim();
+            payload.brand = brand ? (brand.nameEn || brand.brand || brand.nameAr || $('bBrand').value) : $('bBrand').value;
+            payload.brandName = brand ? getBrandDisplay(brand) : $('bBrand').value;
+            payload.brandKey = brand ? (brand.key || brand.brandKey || $('bBrand').value) : $('bBrand').value;
+            payload.department = departmentLabel;
+            payload.departmentName = departmentLabel;
+            payload.departmentKey = departmentKey;
+            payload.functionName = departmentLabel;
+            payload.function = departmentLabel;
+            payload.region = $('bRegion').value.trim();
+            payload.city = $('bCity').value.trim();
+            payload.location = $('bLoc').value.trim();
+            payload.updatedAt = new Date();
+            await db.collection('branches').doc(id).set(payload, { merge: true });
+            alert('تم الحفظ بنجاح');
             clearForm();
         };
 
         window.clearForm = () => {
-            ['bId','bName','bBrand','bRegion','bCity','bLoc'].forEach(id => document.getElementById(id).value = '');
+            ['bId','bName','bBrand','bDepartment','bRegion','bCity','bLoc'].forEach(id => $(id).value = '');
+            populateDepartmentOptions();
         };
 
-        window.deleteBranch = async (id) => {
-            if(confirm("هل أنت متأكد من حذف هذا الفرع؟")) {
-                await db.collection('branches').doc(id).delete();
-            }
+        window.deleteBranch = async id => {
+            if (confirm('هل أنت متأكد من حذف هذا الفرع؟')) await db.collection('branches').doc(id).delete();
         };
 
+        window.exportExcel = () => {
+            const rows = state.branches.map(b => ({
+                Branch_ID: b.id || '',
+                Branch_Name: b.branchName || '',
+                Brand: b.brand || '',
+                Brand_Key: b.brandKey || '',
+                Department: b.department || b.departmentName || b.functionName || b.function || '',
+                Department_Key: b.departmentKey || '',
+                Region: b.region || '',
+                City: b.city || '',
+                Location: b.location || ''
+            }));
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Branches');
+            XLSX.writeFile(wb, 'branches.xlsx');
+        };
+
+        window.importExcel = () => {
+            const file = $('excelFile').files[0];
+            if (!file) return alert('اختر ملف Excel أولاً');
+            const reader = new FileReader();
+            reader.onload = async event => {
+                const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                let count = 0;
+                for (const row of rows) {
+                    const id = String(row.Branch_ID || row.branchId || row.ID || '').trim();
+                    if (!id) continue;
+                    const department = String(row.Department || row.function || row.Function || '').trim();
+                    const payload = buildParentPlainObject();
+                    payload.id = id;
+                    payload.branchName = row.Branch_Name || row.branchName || '';
+                    payload.brand = row.Brand || row.brand || '';
+                    payload.brandKey = row.Brand_Key || row.brandKey || row.Brand || '';
+                    payload.department = department;
+                    payload.departmentName = department;
+                    payload.departmentKey = normalizeDepartmentKey(row.Department_Key || department);
+                    payload.functionName = department;
+                    payload.function = department;
+                    payload.region = row.Region || row.region || '';
+                    payload.city = row.City || row.city || '';
+                    payload.location = row.Location || row.location || '';
+                    payload.updatedAt = new Date();
+                    await db.collection('branches').doc(id).set(payload, { merge: true });
+                    count++;
+                }
+                alert(`تم استيراد ${count} فرع`);
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        $('bBrand').addEventListener('change', populateDepartmentOptions);
+        $('searchInput').addEventListener('input', renderBranches);
+        loadBrands();
         loadBranches();
     </script>
 </body>

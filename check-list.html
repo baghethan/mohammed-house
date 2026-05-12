@@ -62,6 +62,7 @@
           <div class="section-title">2- Basic Information</div>
           <div class="grid-fields">
             <div class="field"><label>Brand</label><input id="cl_brand" readonly /></div>
+            <div class="field"><label>Department</label><input id="cl_department" readonly /></div>
             <div class="field"><label>Brand Key</label><input id="cl_brandKey" /></div>
             <div class="field"><label>Branch ID</label><input id="cl_branch_id" readonly /></div>
             <div class="field"><label>Location/Site</label><input id="cl_location" readonly /></div>
@@ -313,6 +314,10 @@
       return values.find(value => value !== undefined && value !== null && String(value).trim() !== '') || '';
     }
 
+    function getBranchDepartment(branch) {
+      return getFirstValue(branch && branch.department, branch && branch.departmentName, branch && branch.functionName, branch && branch.function);
+    }
+
     function applyVisitFields(visit) {
       const branch = findBranchForVisit(visit);
       const branchId = getFirstValue(visit.branchId, branch.id, branch.branchId, branch.branchCode, branch.code);
@@ -327,6 +332,7 @@
         branchId
       );
       $('cl_brand').value = getFirstValue(visit.brand, branch.brand, branch.brandName);
+      $('cl_department').value = getFirstValue(visit.department, getBranchDepartment(branch));
       $('cl_brandKey').value = getFirstValue(visit.brandKey, branch.brandKey, visit.brand, branch.brand);
       $('cl_branch_id').value = branchId;
       $('cl_location').value = locationSite;
@@ -495,7 +501,7 @@
       const selectedTech = state.technicians.find(t => String(t.id) === String(techDropdown.value) || String(t._docId) === String(techDropdown.value)) || (isTechnicianMode() ? getCurrentTechnicianIdentity().matchedTech : null) || {};
       const payload = { 
         technicianEmpId: selectedTech.empId || selectedTech.empNum || selectedTech.employeeId || techDropdown.value, technicianDocId: selectedTech._docId || techDropdown.value, technicianEmail: $('cl_technician_email').value, technicianAuthId: selectedTech.authUid || '', 
-        visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, dynamicAnswers: answers, updatedAt: new Date().toISOString()
+        visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, department: $('cl_department').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, dynamicAnswers: answers, updatedAt: new Date().toISOString()
       };
       try { 
         const id = $('editingChecklistId').value; 
@@ -528,7 +534,7 @@
         let count = 0;
         for (const row of rows) {
           if (row.ID) {
-            const updates = { visitDate: row["تاريخ الزيارة"]||'', branchId: row["Branch ID"]||'', locationSite: row["Location/Site"]||'', branchManager: row["مدير الفرع"]||'', brand: row["Brand"]||'', technicianName: row["الفني"]||'', dynamicAnswers: {} };
+            const updates = { visitDate: row["تاريخ الزيارة"]||'', branchId: row["Branch ID"]||'', locationSite: row["Location/Site"]||'', branchManager: row["مدير الفرع"]||'', brand: row["Brand"]||'', department: row["Department"]||'', technicianName: row["الفني"]||'', dynamicAnswers: {} };
             state.checklistFields.forEach(f => { const col = f.labelAr || f.label; if (row[col] !== undefined) updates.dynamicAnswers[f.id] = row[col]; });
             await db.collection('branch_checklists').doc(row.ID).update(nativeClean(updates)); count++;
           }
@@ -540,7 +546,7 @@
 
     function exportToExcel() {
       const data = state.checklists.map(r => {
-        const row = { "ID": r.id, "تاريخ الزيارة": r.visitDate, "الفني": r.technicianName, "Brand": r.brand, "Branch ID": r.branchId, "Location/Site": r.locationSite, "مدير الفرع": r.branchManager };
+        const row = { "ID": r.id, "تاريخ الزيارة": r.visitDate, "الفني": r.technicianName, "Brand": r.brand, "Department": r.department, "Branch ID": r.branchId, "Location/Site": r.locationSite, "مدير الفرع": r.branchManager };
         dynamicLabels.forEach(lbl => {
           const f = state.checklistFields.find(x => (x.labelAr || x.label) === lbl);
           const ans = f ? r.dynamicAnswers?.[f.id] : '';
@@ -552,7 +558,7 @@
     }
 
     function updateTableHeaders() {
-      const h = $('tableHeaderRow'); h.innerHTML = `<th>تاريخ الزيارة</th><th>الفني</th><th>Brand</th><th>Branch ID</th><th>Location/Site</th><th>مدير الفرع</th>`;
+      const h = $('tableHeaderRow'); h.innerHTML = `<th>تاريخ الزيارة</th><th>الفني</th><th>Brand</th><th>Department</th><th>Branch ID</th><th>Location/Site</th><th>مدير الفرع</th>`;
       dynamicLabels.forEach(lbl => { h.innerHTML += `<th>${esc(lbl)}</th>`; });
     }
 
@@ -560,7 +566,7 @@
       const b = $('checklistTableBody'); b.innerHTML = '';
       if (state.checklistFields.length === 0) return;
       state.checklists.forEach(r => {
-        let html = `<td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.branchId)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.branchManager)}</td>`;
+        let html = `<td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.department)}</td><td>${esc(r.branchId)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.branchManager)}</td>`;
         dynamicLabels.forEach(lbl => {
           const f = state.checklistFields.find(x => (x.labelAr || x.label) === lbl);
           const ans = f ? r.dynamicAnswers?.[f.id] : '';
@@ -626,7 +632,8 @@
             const branch = findBranchForVisit(v);
             const branchLabel = getFirstValue(v.branchName, v.locationSite, v.location, branch.branchName, branch.location, v.branchId);
             const brandLabel = getFirstValue(v.brand, branch.brand);
-            return `<option value="${esc(v.id)}" ${String(visitId)===String(v.id)?'selected':''}>${esc(v.date || '')} - ${esc(branchLabel)} - ${esc(brandLabel)}</option>`;
+            const departmentLabel = getFirstValue(v.department, getBranchDepartment(branch));
+            return `<option value="${esc(v.id)}" ${String(visitId)===String(v.id)?'selected':''}>${esc(v.date || '')} - ${esc(branchLabel)} - ${esc(brandLabel)}${departmentLabel ? ' - ' + esc(departmentLabel) : ''}</option>`;
           }).join('')
         : '<option value="">لا توجد زيارات جديدة مرتبطة بك</option>';
 
@@ -639,7 +646,7 @@
     }
 
     function clearVisitFields() {
-      ['cl_city','cl_region','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_visit_date','cl_month'].forEach(id => {
+      ['cl_city','cl_region','cl_brand','cl_department','cl_brandKey','cl_branch_id','cl_location','cl_visit_date','cl_month'].forEach(id => {
         if ($(id)) $(id).value = '';
       });
     }
@@ -670,7 +677,7 @@
       const r = state.checklists.find(x => x.id === id); if(!r) return;
       $('editingChecklistId').value = r.id; $('cl_technician').value = r.technicianDocId || '';
       await loadVisitsForTech(r.technicianDocId, r.visitDocId);
-      const m = { technicianEmail:'cl_technician_email', technicianId:'cl_technician_id', city:'cl_city', region:'cl_region', brand:'cl_brand', brandKey:'cl_brandKey', branchId:'cl_branch_id', locationSite:'cl_location', visitDate:'cl_visit_date', month:'cl_month', branchManager:'cl_branch_manager', visitScheduled:'cl_visit_scheduled' };
+      const m = { technicianEmail:'cl_technician_email', technicianId:'cl_technician_id', city:'cl_city', region:'cl_region', brand:'cl_brand', department:'cl_department', brandKey:'cl_brandKey', branchId:'cl_branch_id', locationSite:'cl_location', visitDate:'cl_visit_date', month:'cl_month', branchManager:'cl_branch_manager', visitScheduled:'cl_visit_scheduled' };
       Object.keys(m).forEach(k => { if($(m[k])) $(m[k]).value = r[k] || ''; });
       window.renderDynamicForm(r.dynamicAnswers || {});
     };
