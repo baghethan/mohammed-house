@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IT Service Desk — Performance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --primary: #1E2761;
+    --secondary: #CADCFC;
+    --bg: #F7F8FC;
+    --card-bg: #FFFFFF;
+    --card-border: #E5E9F2;
+    --text-dark: #1A1F36;
+    --text-mid: #5A6378;
+    --text-light: #9AA3B5;
+    --success: #10B981;
+    --info: #3B82F6;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --c-Changan: #DC2626;
+    --c-Stellantis: #0891B2;
+    --c-Hyundai: #1E40AF;
+    --c-Shared: #6366F1;
+    --c-MMCIT: #8B5CF6;
+    --c-Chery: #F59E0B;
+    --c-MMCAutolead: #10B981;
+    --c-Other: #94A3B8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'Calibri', Tahoma, sans-serif;
+    background: var(--bg);
+    color: var(--text-dark);
+    min-height: 100vh;
+    padding: 16px;
+  }
+
+  /* ====== UPLOAD SCREEN ====== */
+  .upload-screen {
+    max-width: 720px;
+    margin: 80px auto;
+    background: white;
+    border-radius: 12px;
+    padding: 56px 40px;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(30,39,97,0.08);
+  }
+  .upload-screen h1 {
+    font-size: 28px;
+    color: var(--primary);
+    margin-bottom: 8px;
+  }
+  .upload-screen p {
+    color: var(--text-mid);
+    margin-bottom: 28px;
+    line-height: 1.5;
+  }
+  .upload-box {
+    border: 2px dashed var(--card-border);
+    border-radius: 10px;
+    padding: 48px 24px;
+    cursor: pointer;
+    transition: all .2s;
+    background: #FAFBFD;
+  }
+  .upload-box:hover, .upload-box.drag {
+    border-color: var(--info);
+    background: #EFF6FF;
+  }
+  .upload-box svg { width: 56px; height: 56px; color: var(--info); margin-bottom: 12px; }
+  .upload-box .label { font-weight: 600; font-size: 16px; margin-bottom: 6px; }
+  .upload-box .hint { color: var(--text-light); font-size: 13px; }
+  .upload-box input { display: none; }
+
+  .specs {
+    margin-top: 32px;
+    text-align: left;
+    font-size: 12px;
+    color: var(--text-mid);
+    background: #FAFBFD;
+    padding: 16px 20px;
+    border-radius: 8px;
+    border-left: 3px solid var(--info);
+  }
+  .specs strong { color: var(--text-dark); }
+  .specs ul { list-style: none; margin-top: 6px; }
+  .specs li { padding: 2px 0; }
+
+  .error-box {
+    margin-top: 16px;
+    background: #FEE2E2;
+    color: #991B1B;
+    padding: 12px 16px;
+    border-radius: 8px;
+    text-align: left;
+    font-size: 13px;
+    display: none;
+  }
+  .error-box.show { display: block; }
+
+  /* ====== DASHBOARD ====== */
+  .dashboard { display: none; max-width: 1900px; margin: 0 auto; }
+  .dashboard.show { display: block; }
+
+  .top-bar {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .top-bar button {
+    background: var(--primary); color: white; border: none;
+    padding: 8px 16px; border-radius: 6px; cursor: pointer;
+    font-size: 13px; font-weight: 500;
+  }
+  .top-bar button:hover { background: #2A3878; }
+  .top-bar button.secondary { background: white; color: var(--primary); border: 1px solid var(--card-border); }
+  .top-bar .file-info { color: var(--text-mid); font-size: 13px; flex: 1; }
+
+  .header {
+    background: var(--primary); color: white;
+    padding: 14px 24px; border-radius: 10px 10px 0 0;
+    position: relative;
+  }
+  .header::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+    height: 3px; background: var(--secondary);
+  }
+  .header h1 { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+  .header .subtitle { font-size: 12px; color: var(--secondary); }
+  .header .corner {
+    position: absolute; top: 50%; right: 24px; transform: translateY(-50%);
+    color: var(--secondary); font-size: 12px; font-style: italic;
+  }
+
+  .canvas {
+    background: var(--bg);
+    padding: 16px;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 6px 24px rgba(30,39,97,0.06);
+  }
+
+  /* KPI row */
+  .kpi-row {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 12px;
+    margin-bottom: 14px;
+  }
+  .kpi-card {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 8px; padding: 12px 16px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .kpi-card .row { display: flex; gap: 12px; align-items: baseline; }
+  .kpi-card .num { font-size: 32px; font-weight: 700; }
+  .kpi-card .pct { font-size: 16px; font-weight: 700; color: var(--text-mid); }
+  .kpi-card .lbl {
+    font-size: 11px; font-weight: 600; letter-spacing: 1px;
+    color: var(--text-mid); margin-top: 4px;
+  }
+  .kpi-card.total .num { color: var(--primary); }
+  .kpi-card.inc .num { color: var(--danger); }
+  .kpi-card.sr .num { color: var(--info); }
+
+  /* Status section */
+  .status-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    margin-bottom: 14px;
+  }
+  .status-block .status-header {
+    color: white; padding: 6px 12px; border-radius: 6px 6px 0 0;
+    font-size: 12px; font-weight: 700;
+  }
+  .status-block.inc .status-header { background: var(--danger); }
+  .status-block.sr .status-header { background: var(--info); }
+  .status-cards {
+    display: grid; grid-template-columns: repeat(3,1fr); gap: 6px;
+    margin-top: 6px;
+  }
+  .status-card {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    padding: 8px 10px; border-radius: 6px; position: relative;
+    border-left: 4px solid;
+  }
+  .status-card .lbl {
+    font-size: 9px; font-weight: 700; letter-spacing: 1px;
+    color: var(--text-mid); margin-bottom: 4px;
+  }
+  .status-card .num { font-size: 22px; font-weight: 700; }
+  .status-card .pct {
+    font-size: 11px; font-weight: 700; color: var(--text-mid);
+    text-align: right; margin-top: 2px;
+  }
+  .status-block .note {
+    font-size: 10px; font-style: italic; color: var(--text-light);
+    margin-top: 6px;
+  }
+  .sc-success { border-color: var(--success); }
+  .sc-success .num { color: var(--success); }
+  .sc-warning { border-color: var(--warning); }
+  .sc-warning .num { color: var(--warning); }
+  .sc-danger { border-color: var(--danger); }
+  .sc-danger .num { color: var(--danger); }
+  .sc-info { border-color: var(--info); }
+  .sc-info .num { color: var(--info); }
+
+  /* Brand section */
+  .section-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    color: var(--text-mid); margin-bottom: 8px;
+  }
+  .brand-grid {
+    display: grid; grid-template-columns: repeat(4,1fr); gap: 10px;
+    margin-bottom: 14px;
+  }
+  .brand-card {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 6px; overflow: hidden; padding: 0;
+  }
+  .brand-card .stripe { height: 6px; }
+  .brand-card .body { padding: 8px 12px; }
+  .brand-card .name {
+    font-family: Georgia, serif; font-size: 14px; font-weight: 700;
+    color: var(--text-dark); margin-bottom: 6px;
+  }
+  .brand-card .total-row {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .brand-card .total { font-size: 22px; font-weight: 700; }
+  .brand-card .pct { font-size: 13px; font-weight: 700; color: var(--text-mid); }
+  .brand-card .breakdown {
+    display: flex; justify-content: space-between;
+    font-size: 11px; padding-top: 4px; border-top: 1px solid var(--card-border);
+  }
+  .brand-card .breakdown span.l { font-size: 9px; font-weight: 700; color: var(--text-light); letter-spacing: 1px; }
+  .brand-card .breakdown .inc-val { color: var(--danger); font-weight: 700; }
+  .brand-card .breakdown .sr-val { color: var(--info); font-weight: 700; }
+
+  /* Categories */
+  .cat-section {
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 6px; padding: 14px 18px;
+  }
+  .cat-section-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 10px;
+  }
+  .cat-section-head .title {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--text-mid);
+  }
+  .cat-section-head .meta {
+    font-size: 11px; font-style: italic; color: var(--text-light);
+  }
+  .cat-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 24px;
+  }
+  .cat-row { display: grid; grid-template-columns: 1.6fr 1.6fr auto auto; gap: 8px; align-items: center; }
+  .cat-row .name { font-size: 12px; font-weight: 600; color: var(--text-dark); }
+  .cat-row .bar-wrap {
+    height: 8px; background: #EEF2F7; border-radius: 4px; overflow: hidden;
+  }
+  .cat-row .bar { height: 100%; border-radius: 4px; }
+  .cat-row .count { font-size: 12px; font-weight: 700; color: var(--text-dark); text-align: right; min-width: 36px; }
+  .cat-row .pct { font-size: 11px; font-weight: 600; color: var(--text-mid); text-align: right; min-width: 42px; }
+
+  .footer {
+    text-align: center; color: var(--text-light); font-size: 10px;
+    margin-top: 12px; padding-bottom: 8px;
+  }
+
+  /* Print */
+  @media print {
+    body { padding: 0; background: white; }
+    .top-bar { display: none; }
+    .canvas { box-shadow: none; }
+  }
+
+  /* Stripes by brand */
+  .stripe-Changan { background: var(--c-Changan); }
+  .stripe-Stellantis { background: var(--c-Stellantis); }
+  .stripe-Hyundai { background: var(--c-Hyundai); }
+  .stripe-Shared { background: var(--c-Shared); }
+  .stripe-MMCIT { background: var(--c-MMCIT); }
+  .stripe-Chery { background: var(--c-Chery); }
+  .stripe-MMCAutolead { background: var(--c-MMCAutolead); }
+  .stripe-Other { background: var(--c-Other); }
+  .total-Changan { color: var(--c-Changan); }
+  .total-Stellantis { color: var(--c-Stellantis); }
+  .total-Hyundai { color: var(--c-Hyundai); }
+  .total-Shared { color: var(--c-Shared); }
+  .total-MMCIT { color: var(--c-MMCIT); }
+  .total-Chery { color: var(--c-Chery); }
+  .total-MMCAutolead { color: var(--c-MMCAutolead); }
+  .total-Other { color: var(--c-Other); }
+</style>
+</head>
+<body>
+
+<!-- ============ UPLOAD SCREEN ============ -->
+<div class="upload-screen" id="uploadScreen">
+  <h1>IT Service Desk Dashboard</h1>
+  <p>Upload your monthly Excel report (.xlsx) to generate the Performance Dashboard with the same logic as the PowerPoint version.</p>
+
+  <label class="upload-box" id="dropZone">
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M9 13v-1h6v1M5 17H3a1 1 0 01-1-1V8a1 1 0 011-1h2m14 0h2a1 1 0 011 1v8a1 1 0 01-1 1h-2M12 12V3m0 0L8 7m4-4l4 4"/>
+    </svg>
+    <div class="label">Click to choose an Excel file</div>
+    <div class="hint">or drag and drop it here  ·  .xlsx / .xls</div>
+  </label>
+
+  <div class="specs">
+    <strong>Expected columns (case-sensitive):</strong>
+    <ul>
+      <li>• <code>Request ID</code> &nbsp;— used to detect INC / SR (prefix before the dash)</li>
+      <li>• <code>Status.Name</code> &nbsp;— Closed / Resolved / Fulfilled / Canceled / On Hold / Open</li>
+      <li>• <code>Department.Name</code> &nbsp;— used to assign brand group</li>
+      <li>• <code>Category.Name</code> &nbsp;— for the categories breakdown</li>
+    </ul>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+</div>
+
+<!-- ============ DASHBOARD ============ -->
+<div class="dashboard" id="dashboard">
+  <div class="top-bar">
+    <button onclick="resetUI()">← Upload Another File</button>
+    <button class="secondary" onclick="window.print()">🖨 Print / Save as PDF</button>
+    <div class="file-info" id="fileInfo"></div>
+  </div>
+
+  <div class="header">
+    <h1 id="headerTitle">Performance Dashboard</h1>
+    <div class="subtitle" id="headerSubtitle">Loading...</div>
+    <div class="corner">Almajdouie · IT Service Desk Report</div>
+  </div>
+
+  <div class="canvas">
+    <!-- KPI Row -->
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <!-- Status Row -->
+    <div class="status-row">
+      <div class="status-block inc">
+        <div class="status-header">INC STATUS <span id="incTotalLbl"></span></div>
+        <div class="status-cards" id="incCards"></div>
+        <div class="note">Closed = Closed + Canceled + Resolved + Fulfilled</div>
+      </div>
+      <div class="status-block sr">
+        <div class="status-header">SR STATUS <span id="srTotalLbl"></span></div>
+        <div class="status-cards" id="srCards"></div>
+        <div class="note">Fulfilled = Fulfilled + Closed + Resolved + Canceled</div>
+      </div>
+    </div>
+
+    <!-- Brand Groups -->
+    <div class="section-title">BRAND GROUPS</div>
+    <div class="brand-grid" id="brandGrid"></div>
+
+    <!-- Categories -->
+    <div class="cat-section">
+      <div class="cat-section-head">
+        <div class="title">CATEGORIES</div>
+        <div class="meta" id="catMeta"></div>
+      </div>
+      <div class="cat-grid" id="catGrid"></div>
+    </div>
+
+    <div class="footer" id="reportFooter"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIGURATION
+// ============================================================
+const BRAND_GROUPS = {
+  'Changan':       ['MCA', 'MCS', 'MCA Parts', 'MCA Service', 'MCM', 'MCH'],
+  'Stellantis':    ['PSAA', 'PSAS', 'PSAM'],
+  'Hyundai':       ['MHSV', 'MHP', 'MHS', 'MHO', 'MHY', 'MHM', 'MHC', 'MTS'],
+  'Shared':        ['MMC CE', 'MMC FINANCE', 'MMC HR', 'MMC BP&S', 'MMC Project',
+                    'MMC Academy', 'MMC After Sales', 'MMC GRC', 'MMC Legel', 'MMC Procurement'],
+  'MMC IT':        ['MMC IT', 'MMC IT-MMC IT'],
+  'Chery':         ['MMC CV CHERY Services', 'MMC CV CHERY Sales', 'MMC CV CHERY'],
+  'MMC Autolead':  ['MMC Autolead'],
+};
+const BRAND_ORDER = ['Changan','Stellantis','Hyundai','Shared','MMC IT','Chery','MMC Autolead','Other'];
+
+// INC completion statuses (merge into "Closed")
+const INC_DONE = new Set(['Closed', 'Canceled', 'Resolved', 'Fulfilled']);
+// SR completion statuses (merge into "Fulfilled")
+const SR_DONE  = new Set(['Fulfilled', 'Closed', 'Resolved', 'Canceled']);
+
+const CAT_COLORS = ['#1E2761','#3B82F6','#0891B2','#10B981','#F59E0B','#EF4444','#6366F1','#DC2626','#8B5CF6','#EC4899','#14B8A6'];
+
+// ============================================================
+// PROCESSING
+// ============================================================
+function getBrand(dept) {
+  if (dept == null) return 'Other';
+  const d = String(dept).trim();
+  if (d === '') return 'Other';
+  for (const [group, members] of Object.entries(BRAND_GROUPS)) {
+    if (members.includes(d)) return group;
+  }
+  return 'Other';
+}
+
+function pct(part, whole) {
+  if (!whole) return '0.0%';
+  return ((part / whole) * 100).toFixed(1) + '%';
+}
+
+function analyze(rows) {
+  const required = ['Request ID', 'Status.Name', 'Department.Name', 'Category.Name'];
+  const sample = rows[0] || {};
+  for (const c of required) {
+    if (!(c in sample)) {
+      throw new Error(`Missing required column "${c}". Found columns: ${Object.keys(sample).join(', ')}`);
+    }
+  }
+
+  const total = rows.length;
+  let incTotal = 0, srTotal = 0;
+  const incStatus = { Closed: 0, 'On Hold': 0, Open: 0 };
+  const srStatus  = { Fulfilled: 0, 'On Hold': 0, Open: 0 };
+  const catCount  = {};
+  const brandCount = {};
+  const brandIncSr = {};
+  for (const b of BRAND_ORDER) {
+    brandCount[b] = 0;
+    brandIncSr[b] = { inc: 0, sr: 0 };
+  }
+
+  for (const r of rows) {
+    const rid = String(r['Request ID'] || '').trim();
+    const type = rid.split('-')[0];
+    const status = String(r['Status.Name'] || '').trim();
+    const dept = r['Department.Name'];
+    const cat = (r['Category.Name'] == null || String(r['Category.Name']).trim() === '') ? 'Unspecified' : String(r['Category.Name']).trim();
+
+    catCount[cat] = (catCount[cat] || 0) + 1;
+    const brand = getBrand(dept);
+    brandCount[brand] = (brandCount[brand] || 0) + 1;
+
+    if (type === 'INC') {
+      incTotal++;
+      brandIncSr[brand].inc++;
+      if (INC_DONE.has(status)) incStatus.Closed++;
+      else if (status === 'On Hold') incStatus['On Hold']++;
+      else if (status === 'Open') incStatus.Open++;
+      else { /* unknown status - count under Closed as completed-ish fallback */ }
+    } else if (type === 'SR') {
+      srTotal++;
+      brandIncSr[brand].sr++;
+      if (SR_DONE.has(status)) srStatus.Fulfilled++;
+      else if (status === 'On Hold') srStatus['On Hold']++;
+      else if (status === 'Open') srStatus.Open++;
+      else { /* unknown */ }
+    }
+  }
+
+  const categories = Object.entries(catCount)
+    .sort((a,b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count, pct: (count/total*100) }));
+
+  const brands = BRAND_ORDER.map(name => ({
+    name,
+    total: brandCount[name],
+    pct: total ? (brandCount[name]/total*100) : 0,
+    inc: brandIncSr[name].inc,
+    sr: brandIncSr[name].sr,
+  }));
+
+  return { total, incTotal, srTotal, incStatus, srStatus, categories, brands };
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function brandClassKey(name) { return name.replace(/\s+/g, ''); }
+
+function renderDashboard(data, fileName) {
+  document.getElementById('uploadScreen').classList.remove('show');
+  document.getElementById('uploadScreen').style.display = 'none';
+  document.getElementById('dashboard').classList.add('show');
+
+  // Try to extract month name from filename (e.g. Apr_2026.xlsx → April 2026)
+  const monthMatch = fileName.match(/([A-Za-z]+)[\s_-]*(\d{4})/);
+  let monthLabel = fileName.replace(/\.[^.]+$/, '');
+  if (monthMatch) {
+    const monthMap = {jan:'January',feb:'February',mar:'March',apr:'April',may:'May',jun:'June',
+                      jul:'July',aug:'August',sep:'September',oct:'October',nov:'November',dec:'December'};
+    const key = monthMatch[1].toLowerCase().slice(0,3);
+    if (monthMap[key]) monthLabel = monthMap[key] + ' ' + monthMatch[2];
+  }
+
+  document.getElementById('headerTitle').textContent = `${monthLabel} — Performance Dashboard`;
+  document.getElementById('headerSubtitle').textContent =
+    `Total: ${data.total.toLocaleString()} requests  ·  INC ${data.incTotal.toLocaleString()} (${pct(data.incTotal, data.total)})  ·  SR ${data.srTotal.toLocaleString()} (${pct(data.srTotal, data.total)})`;
+  document.getElementById('fileInfo').textContent = `Source: ${fileName}`;
+  document.getElementById('reportFooter').textContent = `${monthLabel}  ·  IT Service Desk  ·  Confidential`;
+
+  // KPI cards
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi-card total">
+      <div class="row"><div class="num">${data.total.toLocaleString()}</div></div>
+      <div class="lbl">TOTAL REQUESTS</div>
+    </div>
+    <div class="kpi-card inc">
+      <div class="row">
+        <div class="num">${data.incTotal.toLocaleString()}</div>
+        <div class="pct">${pct(data.incTotal, data.total)}</div>
+      </div>
+      <div class="lbl">INCIDENTS (INC)</div>
+    </div>
+    <div class="kpi-card sr">
+      <div class="row">
+        <div class="num">${data.srTotal.toLocaleString()}</div>
+        <div class="pct">${pct(data.srTotal, data.total)}</div>
+      </div>
+      <div class="lbl">SERVICE REQUESTS (SR)</div>
+    </div>
+  `;
+
+  // INC status cards
+  document.getElementById('incTotalLbl').textContent = `· ${data.incTotal.toLocaleString()} requests`;
+  document.getElementById('srTotalLbl').textContent = `· ${data.srTotal.toLocaleString()} requests`;
+
+  const incCards = [
+    { lbl: 'Closed', count: data.incStatus.Closed, css: 'sc-success' },
+    { lbl: 'On Hold', count: data.incStatus['On Hold'], css: 'sc-warning' },
+    { lbl: 'Open', count: data.incStatus.Open, css: 'sc-danger' },
+  ];
+  document.getElementById('incCards').innerHTML = incCards.map(c => `
+    <div class="status-card ${c.css}">
+      <div class="lbl">${c.lbl.toUpperCase()}</div>
+      <div class="num">${c.count.toLocaleString()}</div>
+      <div class="pct">${pct(c.count, data.incTotal)}</div>
+    </div>
+  `).join('');
+
+  const srCards = [
+    { lbl: 'Fulfilled', count: data.srStatus.Fulfilled, css: 'sc-success' },
+    { lbl: 'On Hold', count: data.srStatus['On Hold'], css: 'sc-warning' },
+    { lbl: 'Open', count: data.srStatus.Open, css: 'sc-danger' },
+  ];
+  document.getElementById('srCards').innerHTML = srCards.map(c => `
+    <div class="status-card ${c.css}">
+      <div class="lbl">${c.lbl.toUpperCase()}</div>
+      <div class="num">${c.count.toLocaleString()}</div>
+      <div class="pct">${pct(c.count, data.srTotal)}</div>
+    </div>
+  `).join('');
+
+  // Brand grid
+  document.getElementById('brandGrid').innerHTML = data.brands.map(b => {
+    const ck = brandClassKey(b.name);
+    return `
+      <div class="brand-card">
+        <div class="stripe stripe-${ck}"></div>
+        <div class="body">
+          <div class="name">${b.name}</div>
+          <div class="total-row">
+            <div class="total total-${ck}">${b.total.toLocaleString()}</div>
+            <div class="pct">${b.pct.toFixed(1)}%</div>
+          </div>
+          <div class="breakdown">
+            <div><span class="l">INC</span>&nbsp;&nbsp;<span class="inc-val">${b.inc}</span></div>
+            <div><span class="l">SR</span>&nbsp;&nbsp;<span class="sr-val">${b.sr}</span></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Categories
+  document.getElementById('catMeta').textContent = `${data.categories.length} categories  ·  total ${data.total.toLocaleString()}`;
+  const maxCount = Math.max(...data.categories.map(c => c.count), 1);
+  document.getElementById('catGrid').innerHTML = data.categories.map((c, i) => {
+    const color = CAT_COLORS[i % CAT_COLORS.length];
+    const w = (c.count / maxCount) * 100;
+    return `
+      <div class="cat-row">
+        <div class="name">${c.name}</div>
+        <div class="bar-wrap"><div class="bar" style="width:${w}%; background:${color}"></div></div>
+        <div class="count">${c.count.toLocaleString()}</div>
+        <div class="pct">${c.pct.toFixed(1)}%</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function resetUI() {
+  document.getElementById('dashboard').classList.remove('show');
+  document.getElementById('uploadScreen').style.display = '';
+  document.getElementById('errorBox').classList.remove('show');
+  document.getElementById('fileInput').value = '';
+}
+
+function showError(msg) {
+  const box = document.getElementById('errorBox');
+  box.textContent = msg;
+  box.classList.add('show');
+}
+
+// ============================================================
+// FILE HANDLING
+// ============================================================
+function handleFile(file) {
+  document.getElementById('errorBox').classList.remove('show');
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      // Use first sheet
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+      if (rows.length === 0) {
+        showError('The first worksheet is empty.');
+        return;
+      }
+      const data = analyze(rows);
+      renderDashboard(data, file.name);
+    } catch (err) {
+      console.error(err);
+      showError('Error reading file: ' + err.message);
+    }
+  };
+  reader.onerror = function() {
+    showError('Could not read the file.');
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+const dz = document.getElementById('dropZone');
+['dragover','dragenter'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
+dz.addEventListener('drop', e => {
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+</script>
+</body>
+</html>
