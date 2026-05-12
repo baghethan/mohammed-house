@@ -89,6 +89,44 @@
   .specs ul { list-style: none; margin-top: 6px; }
   .specs li { padding: 2px 0; }
 
+  .firestore-panel {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+    text-align: left;
+  }
+  .firestore-panel label {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-mid);
+    letter-spacing: .6px;
+    text-transform: uppercase;
+  }
+  .firestore-panel select {
+    width: 100%;
+    min-height: 36px;
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    color: var(--text-dark);
+    background: #fff;
+  }
+  .firestore-panel button,
+  .top-bar .firestore-action {
+    background: #fff;
+    color: var(--primary);
+    border: 1px solid var(--card-border);
+  }
+  .firestore-status {
+    grid-column: 1 / -1;
+    min-height: 18px;
+    font-size: 12px;
+    color: var(--text-mid);
+  }
+
   .error-box {
     margin-top: 16px;
     background: #FEE2E2;
@@ -116,6 +154,15 @@
   }
   .top-bar button:hover { background: #2A3878; }
   .top-bar button.secondary { background: white; color: var(--primary); border: 1px solid var(--card-border); }
+  .top-bar select {
+    min-height: 34px;
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    color: var(--text-dark);
+    background: #fff;
+    font-size: 13px;
+  }
   .top-bar .file-info { color: var(--text-mid); font-size: 13px; flex: 1; }
 
   .header {
@@ -434,6 +481,15 @@
     </ul>
   </div>
 
+  <div class="firestore-panel">
+    <label for="savedReportsSelectUpload">Saved Firestore reports</label>
+    <select id="savedReportsSelectUpload">
+      <option value="">Sign in to load saved reports</option>
+    </select>
+    <button type="button" onclick="loadSelectedFirestoreReport('upload')">Load</button>
+    <div class="firestore-status" id="firestoreStatusUpload"></div>
+  </div>
+
   <div class="error-box" id="errorBox"></div>
 </div>
 
@@ -443,7 +499,13 @@
     <button onclick="resetUI()">← Upload Another File</button>
     <button onclick="downloadPPTX()" style="background:#10B981">⬇ Download PowerPoint</button>
     <button class="secondary" onclick="window.print()">🖨 Print / Save as PDF</button>
+    <button class="firestore-action" onclick="saveCurrentFirestoreReport()">Save to Firestore</button>
+    <select id="savedReportsSelectDashboard" aria-label="Saved Firestore reports">
+      <option value="">Saved reports</option>
+    </select>
+    <button class="firestore-action" onclick="loadSelectedFirestoreReport('dashboard')">Load Saved</button>
     <div class="file-info" id="fileInfo"></div>
+    <div class="firestore-status" id="firestoreStatusDashboard"></div>
   </div>
 
   <div class="header">
@@ -534,6 +596,17 @@ let RAW_ROWS = [];          // all rows from the Excel file
 let CURRENT_DATA = null;    // analyzed dataset
 let CURRENT_FILTER = [];    // currently displayed filtered rows in modal
 let CURRENT_SORT = { col: null, asc: true };
+let CURRENT_MONTH_LABEL = '';
+let CURRENT_FILE_NAME = '';
+
+function syncDashboardState() {
+  window.serviceDashboardState = {
+    rawRows: RAW_ROWS,
+    currentData: CURRENT_DATA,
+    currentMonthLabel: CURRENT_MONTH_LABEL,
+    sourceFileName: CURRENT_FILE_NAME,
+  };
+}
 
 function getBrand(dept) {
   if (dept == null) return 'Other';
@@ -619,21 +692,23 @@ function analyze(rows) {
 // ============================================================
 function brandClassKey(name) { return name.replace(/\s+/g, ''); }
 
-function renderDashboard(data, fileName) {
+function renderDashboard(data, fileName, forcedMonthLabel) {
   document.getElementById('uploadScreen').classList.remove('show');
   document.getElementById('uploadScreen').style.display = 'none';
   document.getElementById('dashboard').classList.add('show');
 
   // Try to extract month name from filename (e.g. Apr_2026.xlsx → April 2026)
   const monthMatch = fileName.match(/([A-Za-z]+)[\s_-]*(\d{4})/);
-  let monthLabel = fileName.replace(/\.[^.]+$/, '');
+  let monthLabel = forcedMonthLabel || fileName.replace(/\.[^.]+$/, '');
   if (monthMatch) {
     const monthMap = {jan:'January',feb:'February',mar:'March',apr:'April',may:'May',jun:'June',
                       jul:'July',aug:'August',sep:'September',oct:'October',nov:'November',dec:'December'};
     const key = monthMatch[1].toLowerCase().slice(0,3);
-    if (monthMap[key]) monthLabel = monthMap[key] + ' ' + monthMatch[2];
+    if (!forcedMonthLabel && monthMap[key]) monthLabel = monthMap[key] + ' ' + monthMatch[2];
   }
   CURRENT_MONTH_LABEL = monthLabel;
+  CURRENT_FILE_NAME = fileName;
+  syncDashboardState();
 
   document.getElementById('headerTitle').textContent = `${monthLabel} — Performance Dashboard`;
   document.getElementById('headerSubtitle').textContent =
@@ -957,7 +1032,6 @@ document.getElementById('modal').addEventListener('click', e => {
 // ============================================================
 // POWERPOINT EXPORT
 // ============================================================
-let CURRENT_MONTH_LABEL = '';
 
 function downloadPPTX() {
   if (!CURRENT_DATA) return;
@@ -1294,6 +1368,13 @@ function resetUI() {
   document.getElementById('uploadScreen').style.display = '';
   document.getElementById('errorBox').classList.remove('show');
   document.getElementById('fileInput').value = '';
+  RAW_ROWS = [];
+  CURRENT_DATA = null;
+  CURRENT_FILTER = [];
+  CURRENT_SORT = { col: null, asc: true };
+  CURRENT_MONTH_LABEL = '';
+  CURRENT_FILE_NAME = '';
+  syncDashboardState();
 }
 
 function showError(msg) {
@@ -1344,6 +1425,180 @@ const dz = document.getElementById('dropZone');
 dz.addEventListener('drop', e => {
   if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
 });
+
+window.loadServiceDashboardSnapshot = function(snapshot) {
+  RAW_ROWS = snapshot.rows || [];
+  CURRENT_DATA = snapshot.data || analyze(RAW_ROWS);
+  CURRENT_FILTER = [];
+  CURRENT_SORT = { col: null, asc: true };
+  renderDashboard(
+    CURRENT_DATA,
+    snapshot.sourceFileName || `${snapshot.monthLabel || 'Saved_Report'}.xlsx`,
+    snapshot.monthLabel || ''
+  );
+};
+
+syncDashboardState();
+</script>
+
+<script type="module">
+import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+const REPORTS_COLLECTION = 'service_reports';
+const ROW_CHUNK_SIZE = 250;
+let savedReports = [];
+
+function setFirestoreStatus(message, isError = false) {
+  ['firestoreStatusUpload', 'firestoreStatusDashboard'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = message || '';
+    el.style.color = isError ? '#991B1B' : '';
+  });
+}
+
+function reportIdFromLabel(label) {
+  const safe = String(label || 'report')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return safe || `report-${Date.now()}`;
+}
+
+function chunkRows(rows) {
+  const chunks = [];
+  for (let i = 0; i < rows.length; i += ROW_CHUNK_SIZE) {
+    chunks.push(rows.slice(i, i + ROW_CHUNK_SIZE));
+  }
+  return chunks;
+}
+
+function setSelectOptions() {
+  const options = savedReports.length
+    ? '<option value="">Select saved report</option>' + savedReports.map(report => {
+        const label = `${report.monthLabel || report.id} (${Number(report.rowCount || 0).toLocaleString()} rows)`;
+        return `<option value="${report.id}">${label}</option>`;
+      }).join('')
+    : '<option value="">No saved reports yet</option>';
+
+  ['savedReportsSelectUpload', 'savedReportsSelectDashboard'].forEach(id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = options;
+    if (current) select.value = current;
+  });
+}
+
+async function deleteExistingRows(reportId) {
+  const rowsSnap = await getDocs(collection(db, REPORTS_COLLECTION, reportId, 'rows'));
+  await Promise.all(rowsSnap.docs.map(rowDoc => deleteDoc(rowDoc.ref)));
+}
+
+window.saveCurrentFirestoreReport = async function() {
+  const snapshot = window.serviceDashboardState || {};
+  if (!snapshot.currentData || !snapshot.rawRows || !snapshot.rawRows.length) {
+    setFirestoreStatus('Upload an Excel report before saving.', true);
+    return;
+  }
+
+  try {
+    setFirestoreStatus('Saving report to Firestore...');
+    await waitForSignedInUser();
+
+    const reportId = reportIdFromLabel(snapshot.currentMonthLabel || snapshot.sourceFileName);
+    const reportRef = doc(db, REPORTS_COLLECTION, reportId);
+    const rowChunks = chunkRows(snapshot.rawRows);
+
+    await setDoc(reportRef, {
+      monthLabel: snapshot.currentMonthLabel || '',
+      sourceFileName: snapshot.sourceFileName || '',
+      rowCount: snapshot.rawRows.length,
+      chunkCount: rowChunks.length,
+      data: snapshot.currentData,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    await deleteExistingRows(reportId);
+
+    for (let i = 0; i < rowChunks.length; i++) {
+      await setDoc(doc(db, REPORTS_COLLECTION, reportId, 'rows', String(i).padStart(4, '0')), {
+        index: i,
+        rows: rowChunks[i]
+      });
+    }
+
+    setFirestoreStatus(`Saved "${snapshot.currentMonthLabel || reportId}" to Firestore.`);
+  } catch (err) {
+    logFirebaseError('Service dashboard Firestore save failed', err);
+    setFirestoreStatus(err?.message || String(err), true);
+  }
+};
+
+window.loadSelectedFirestoreReport = async function(source) {
+  const selectId = source === 'dashboard' ? 'savedReportsSelectDashboard' : 'savedReportsSelectUpload';
+  const reportId = document.getElementById(selectId)?.value;
+  if (!reportId) {
+    setFirestoreStatus('Select a saved report first.', true);
+    return;
+  }
+
+  try {
+    setFirestoreStatus('Loading saved report...');
+    await waitForSignedInUser();
+
+    const reportSnap = await getDoc(doc(db, REPORTS_COLLECTION, reportId));
+    if (!reportSnap.exists()) throw new Error('Saved report was not found.');
+    const report = { id: reportSnap.id, ...reportSnap.data() };
+
+    const rowsSnap = await getDocs(query(collection(db, REPORTS_COLLECTION, reportId, 'rows'), orderBy('index')));
+    const rows = rowsSnap.docs.flatMap(chunk => chunk.data().rows || []);
+
+    window.loadServiceDashboardSnapshot({
+      rows,
+      data: report.data,
+      monthLabel: report.monthLabel || report.id,
+      sourceFileName: report.sourceFileName || `${report.id}.xlsx`
+    });
+
+    setFirestoreStatus(`Loaded "${report.monthLabel || report.id}" from Firestore.`);
+  } catch (err) {
+    logFirebaseError('Service dashboard Firestore load failed', err);
+    setFirestoreStatus(err?.message || String(err), true);
+  }
+};
+
+async function listenForSavedReports() {
+  try {
+    await waitForSignedInUser();
+    const reportsQuery = query(collection(db, REPORTS_COLLECTION), orderBy('updatedAt', 'desc'));
+    onSnapshot(reportsQuery, snap => {
+      savedReports = snap.docs.map(item => ({ id: item.id, ...item.data() }));
+      setSelectOptions();
+      setFirestoreStatus(savedReports.length ? 'Firestore reports ready.' : 'No Firestore reports saved yet.');
+    }, err => {
+      logFirebaseError('Service dashboard Firestore listener failed', err);
+      setFirestoreStatus(err?.message || String(err), true);
+    });
+  } catch (err) {
+    setFirestoreStatus('Sign in required to use Firestore saved reports.', true);
+  }
+}
+
+listenForSavedReports();
 </script>
 </body>
 </html>
