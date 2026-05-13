@@ -172,7 +172,9 @@
     background: #fff;
   }
   .mapping-form button,
-  .mapping-list button {
+  .mapping-list button,
+  .mapping-actions button,
+  .mapping-file-button {
     border: 1px solid var(--card-border);
     border-radius: 6px;
     background: #fff;
@@ -180,7 +182,18 @@
     padding: 7px 10px;
     font-weight: 700;
     cursor: pointer;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
+  .mapping-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .mapping-file-button input { display: none; }
   .mapping-list {
     display: grid;
     gap: 8px;
@@ -602,6 +615,13 @@
         <input type="text" id="departmentNameInput" placeholder="Department name">
         <button type="button" onclick="addCompanyDepartment()">Add</button>
       </div>
+      <div class="mapping-actions">
+        <button type="button" onclick="downloadCompanyDepartmentExcel()">Download Excel</button>
+        <label class="mapping-file-button">
+          Upload Excel
+          <input type="file" id="companyDepartmentExcelInput" accept=".xlsx,.xls">
+        </label>
+      </div>
       <div class="mapping-list" id="companyDepartmentList"></div>
       <div class="unknown-depts" id="unknownDepartmentPanel"></div>
     </div>
@@ -612,6 +632,13 @@
         <input type="text" id="subjectMatchInput" placeholder="Subject contains, e.g. CAMP-HYND-MMP">
         <input type="text" id="subjectCompanyInput" placeholder="Company name, e.g. Hyundai">
         <button type="button" onclick="addSubjectCompanyRule()">Add</button>
+      </div>
+      <div class="mapping-actions">
+        <button type="button" onclick="downloadSubjectCompanyExcel()">Download Excel</button>
+        <label class="mapping-file-button">
+          Upload Excel
+          <input type="file" id="subjectCompanyExcelInput" accept=".xlsx,.xls">
+        </label>
       </div>
       <div class="mapping-list" id="subjectRuleList"></div>
     </div>
@@ -985,6 +1012,103 @@ window.fillDepartment = function(department) {
   const input = document.getElementById('departmentNameInput');
   if (input) input.value = department;
 };
+
+function downloadExcelRows(rows, sheetName, fileName) {
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, fileName);
+}
+
+function normalizeExcelHeader(value) {
+  return String(value || '').toLowerCase().replace(/[\s._-]+/g, '');
+}
+
+function excelValue(row, acceptedHeaders) {
+  const accepted = acceptedHeaders.map(normalizeExcelHeader);
+  for (const [key, value] of Object.entries(row)) {
+    if (accepted.includes(normalizeExcelHeader(key))) {
+      return String(value == null ? '' : value).trim();
+    }
+  }
+  return '';
+}
+
+function readExcelRows(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = event => {
+      try {
+        const wb = XLSX.read(event.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        resolve(XLSX.utils.sheet_to_json(ws, { defval: '' }));
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(new Error('Could not read the Excel file.'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+window.downloadCompanyDepartmentExcel = function() {
+  const rows = [];
+  Object.keys(BRAND_GROUPS).sort((a,b) => a.localeCompare(b)).forEach(company => {
+    const departments = BRAND_GROUPS[company] || [];
+    if (!departments.length) rows.push({ Company: company, Department: '' });
+    departments.forEach(department => rows.push({ Company: company, Department: department }));
+  });
+  downloadExcelRows(rows.length ? rows : [{ Company: '', Department: '' }], 'Companies', 'service_companies_departments.xlsx');
+};
+
+window.downloadSubjectCompanyExcel = function() {
+  const rows = SUBJECT_COMPANY_RULES.map(rule => ({
+    'Subject Contains': rule.match,
+    Company: rule.company
+  }));
+  downloadExcelRows(rows.length ? rows : [{ 'Subject Contains': 'CAMP-HYND-MMP', Company: 'Hyundai' }], 'Subject Rules', 'service_subject_company_rules.xlsx');
+};
+
+async function importCompanyDepartmentExcel(file) {
+  const rows = await readExcelRows(file);
+  let count = 0;
+  rows.forEach(row => {
+    const company = excelValue(row, ['Company', 'Companies', 'Company Name', 'الشركة', 'شركة']);
+    const department = excelValue(row, ['Department', 'Department.Name', 'Department Name', 'الإدارة', 'ادارة', 'إدارة']);
+    if (!company) return;
+    if (!BRAND_GROUPS[company]) BRAND_GROUPS[company] = [];
+    if (department && !BRAND_GROUPS[company].some(item => item.toLowerCase() === department.toLowerCase())) {
+      BRAND_GROUPS[company].push(department);
+    }
+    count++;
+  });
+  if (!count) {
+    showError('No company rows found. Use columns: Company, Department.');
+    return;
+  }
+  saveServiceConfig();
+}
+
+async function importSubjectCompanyExcel(file) {
+  const rows = await readExcelRows(file);
+  let count = 0;
+  rows.forEach(row => {
+    const match = excelValue(row, ['Subject Contains', 'Subject', 'Match', 'Contains', 'النص', 'الموضوع']);
+    const company = excelValue(row, ['Company', 'Companies', 'Company Name', 'الشركة', 'شركة']);
+    if (!match || !company) return;
+    const resolvedCompany = resolveCompanyName(company);
+    if (!BRAND_GROUPS[resolvedCompany]) BRAND_GROUPS[resolvedCompany] = [];
+    const existing = SUBJECT_COMPANY_RULES.find(rule => rule.match.toLowerCase() === match.toLowerCase());
+    if (existing) existing.company = resolvedCompany;
+    else SUBJECT_COMPANY_RULES.push({ match, company: resolvedCompany });
+    count++;
+  });
+  if (!count) {
+    showError('No subject rules found. Use columns: Subject Contains, Company.');
+    return;
+  }
+  saveServiceConfig();
+}
 
 window.addSubjectCompanyRule = function() {
   const match = document.getElementById('subjectMatchInput')?.value.trim();
@@ -1838,6 +1962,30 @@ document.querySelectorAll('[data-settings-tab]').forEach(button => {
     document.getElementById('companiesSettingsPanel').classList.toggle('active', tab === 'companies');
     document.getElementById('subjectSettingsPanel').classList.toggle('active', tab === 'subject');
   });
+});
+
+document.getElementById('companyDepartmentExcelInput').addEventListener('change', async e => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    await importCompanyDepartmentExcel(file);
+  } catch (err) {
+    showError('Error importing companies Excel: ' + err.message);
+  } finally {
+    e.target.value = '';
+  }
+});
+
+document.getElementById('subjectCompanyExcelInput').addEventListener('change', async e => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    await importSubjectCompanyExcel(file);
+  } catch (err) {
+    showError('Error importing subject rules Excel: ' + err.message);
+  } finally {
+    e.target.value = '';
+  }
 });
 
 window.loadServiceDashboardSnapshot = function(snapshot) {
