@@ -126,6 +126,105 @@
     font-size: 12px;
     color: var(--text-mid);
   }
+  .mapping-settings {
+    margin-top: 18px;
+    text-align: left;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+  }
+  .mapping-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--card-border);
+    background: #FAFBFD;
+  }
+  .mapping-tab {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--text-mid);
+    padding: 12px 10px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .mapping-tab.active {
+    color: var(--primary);
+    background: #fff;
+    box-shadow: inset 0 -3px 0 var(--primary);
+  }
+  .mapping-panel { display: none; padding: 14px; }
+  .mapping-panel.active { display: block; }
+  .mapping-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .mapping-form input,
+  .mapping-form select {
+    min-height: 36px;
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    color: var(--text-dark);
+    background: #fff;
+  }
+  .mapping-form button,
+  .mapping-list button {
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--primary);
+    padding: 7px 10px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .mapping-list {
+    display: grid;
+    gap: 8px;
+    max-height: 260px;
+    overflow: auto;
+  }
+  .mapping-row {
+    display: grid;
+    grid-template-columns: 150px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 10px;
+    border: 1px solid #F0F2F7;
+    border-radius: 6px;
+    background: #FAFBFD;
+    font-size: 12px;
+  }
+  .mapping-row strong { color: var(--primary); }
+  .mapping-row .muted { color: var(--text-mid); }
+  .mapping-hint {
+    font-size: 12px;
+    color: var(--text-mid);
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  .unknown-depts {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--card-border);
+  }
+  .unknown-depts .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .unknown-depts button {
+    border: 1px solid #F59E0B;
+    background: #FFFBEB;
+    color: #92400E;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+  }
 
   .error-box {
     margin-top: 16px;
@@ -476,7 +575,7 @@
     <ul>
       <li>• <code>Request ID</code> &nbsp;— used to detect INC / SR (prefix before the dash)</li>
       <li>• <code>Status.Name</code> &nbsp;— Closed / Resolved / Fulfilled / Canceled / On Hold / Open</li>
-      <li>• <code>Department.Name</code> &nbsp;— used to assign brand group</li>
+      <li>• <code>Department.Name</code> &nbsp;— used to assign brand group; optional when Subject rules are configured</li>
       <li>• <code>Category.Name</code> &nbsp;— for the categories breakdown</li>
     </ul>
   </div>
@@ -488,6 +587,34 @@
     </select>
     <button type="button" onclick="loadSelectedFirestoreReport('upload')">Load</button>
     <div class="firestore-status" id="firestoreStatusUpload"></div>
+  </div>
+
+  <div class="mapping-settings">
+    <div class="mapping-tabs">
+      <button type="button" class="mapping-tab active" data-settings-tab="companies">Companies & departments</button>
+      <button type="button" class="mapping-tab" data-settings-tab="subject">Subject rules</button>
+    </div>
+
+    <div class="mapping-panel active" id="companiesSettingsPanel">
+      <div class="mapping-hint">Add a new company or attach a new department to an existing company. Unknown departments will fall under Other until you map them here.</div>
+      <div class="mapping-form">
+        <input type="text" id="companyNameInput" placeholder="Company name">
+        <input type="text" id="departmentNameInput" placeholder="Department name">
+        <button type="button" onclick="addCompanyDepartment()">Add</button>
+      </div>
+      <div class="mapping-list" id="companyDepartmentList"></div>
+      <div class="unknown-depts" id="unknownDepartmentPanel"></div>
+    </div>
+
+    <div class="mapping-panel" id="subjectSettingsPanel">
+      <div class="mapping-hint">If Subject contains a text like Arsal-dmm-1, map it to the department name you want to use. If no rule matches, the dashboard also tries to detect values shaped like Name-city-number automatically.</div>
+      <div class="mapping-form">
+        <input type="text" id="subjectMatchInput" placeholder="Subject contains, e.g. Arsal-dmm-1">
+        <input type="text" id="subjectDepartmentInput" placeholder="Department name">
+        <button type="button" onclick="addSubjectDepartmentRule()">Add</button>
+      </div>
+      <div class="mapping-list" id="subjectRuleList"></div>
+    </div>
   </div>
 
   <div class="error-box" id="errorBox"></div>
@@ -570,7 +697,7 @@
 // ============================================================
 // CONFIGURATION
 // ============================================================
-const BRAND_GROUPS = {
+const DEFAULT_BRAND_GROUPS = {
   'Changan':       ['MCA', 'MCS', 'MCA Parts', 'MCA Service', 'MCM', 'MCH'],
   'Stellantis':    ['PSAA', 'PSAS', 'PSAM'],
   'Hyundai':       ['MHSV', 'MHP', 'MHS', 'MHO', 'MHY', 'MHM', 'MHC', 'MTS'],
@@ -580,7 +707,8 @@ const BRAND_GROUPS = {
   'Chery':         ['MMC CV CHERY Services', 'MMC CV CHERY Sales', 'MMC CV CHERY'],
   'MMC Autolead':  ['MMC Autolead'],
 };
-const BRAND_ORDER = ['Changan','Stellantis','Hyundai','Shared','MMC IT','Chery','MMC Autolead','Other'];
+const DEFAULT_SUBJECT_RULES = [];
+const DEFAULT_BRAND_ORDER = ['Changan','Stellantis','Hyundai','Shared','MMC IT','Chery','MMC Autolead'];
 
 // INC completion statuses (merge into "Closed")
 const INC_DONE = new Set(['Closed', 'Canceled', 'Resolved', 'Fulfilled']);
@@ -598,6 +726,9 @@ let CURRENT_FILTER = [];    // currently displayed filtered rows in modal
 let CURRENT_SORT = { col: null, asc: true };
 let CURRENT_MONTH_LABEL = '';
 let CURRENT_FILE_NAME = '';
+let BRAND_GROUPS = loadServiceConfig().brandGroups;
+let SUBJECT_DEPARTMENT_RULES = loadServiceConfig().subjectRules;
+let BRAND_ORDER = buildBrandOrder();
 
 function syncDashboardState() {
   window.serviceDashboardState = {
@@ -607,6 +738,236 @@ function syncDashboardState() {
     sourceFileName: CURRENT_FILE_NAME,
   };
 }
+
+function cloneConfig(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeBrandGroups(groups) {
+  const source = groups && typeof groups === 'object' ? groups : DEFAULT_BRAND_GROUPS;
+  const normalized = {};
+  Object.entries(source).forEach(([company, departments]) => {
+    const companyName = String(company || '').trim();
+    if (!companyName || companyName === 'Other') return;
+    const list = Array.isArray(departments) ? departments : [];
+    normalized[companyName] = [...new Set(list.map(item => String(item || '').trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  });
+  return Object.keys(normalized).length ? normalized : cloneConfig(DEFAULT_BRAND_GROUPS);
+}
+
+function normalizeSubjectRules(rules) {
+  if (!Array.isArray(rules)) return cloneConfig(DEFAULT_SUBJECT_RULES);
+  return rules
+    .map(rule => ({
+      match: String(rule?.match || '').trim(),
+      department: String(rule?.department || '').trim()
+    }))
+    .filter(rule => rule.match && rule.department);
+}
+
+function loadServiceConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('serviceDashboardConfig') || '{}');
+    return {
+      brandGroups: normalizeBrandGroups(saved.brandGroups),
+      subjectRules: normalizeSubjectRules(saved.subjectRules)
+    };
+  } catch (err) {
+    return {
+      brandGroups: cloneConfig(DEFAULT_BRAND_GROUPS),
+      subjectRules: cloneConfig(DEFAULT_SUBJECT_RULES)
+    };
+  }
+}
+
+function buildBrandOrder() {
+  const defaultNames = DEFAULT_BRAND_ORDER.filter(name => BRAND_GROUPS[name]);
+  const extraNames = Object.keys(BRAND_GROUPS)
+    .filter(name => !DEFAULT_BRAND_ORDER.includes(name))
+    .sort((a,b) => a.localeCompare(b));
+  return [...defaultNames, ...extraNames, 'Other'];
+}
+
+function getServiceConfig() {
+  return {
+    brandGroups: normalizeBrandGroups(BRAND_GROUPS),
+    subjectRules: normalizeSubjectRules(SUBJECT_DEPARTMENT_RULES)
+  };
+}
+
+function saveServiceConfig() {
+  const config = getServiceConfig();
+  BRAND_GROUPS = config.brandGroups;
+  SUBJECT_DEPARTMENT_RULES = config.subjectRules;
+  BRAND_ORDER = buildBrandOrder();
+  localStorage.setItem('serviceDashboardConfig', JSON.stringify(config));
+  renderSettingsPanels();
+  if (RAW_ROWS.length) {
+    CURRENT_DATA = analyze(RAW_ROWS);
+    renderDashboard(CURRENT_DATA, CURRENT_FILE_NAME || 'Saved_Report.xlsx', CURRENT_MONTH_LABEL);
+  }
+  if (typeof window.persistServiceDashboardConfig === 'function') {
+    window.persistServiceDashboardConfig(config);
+  }
+}
+
+window.applyServiceDashboardConfig = function(config) {
+  BRAND_GROUPS = normalizeBrandGroups(config?.brandGroups);
+  SUBJECT_DEPARTMENT_RULES = normalizeSubjectRules(config?.subjectRules);
+  BRAND_ORDER = buildBrandOrder();
+  localStorage.setItem('serviceDashboardConfig', JSON.stringify(getServiceConfig()));
+  renderSettingsPanels();
+  if (RAW_ROWS.length) {
+    CURRENT_DATA = analyze(RAW_ROWS);
+    renderDashboard(CURRENT_DATA, CURRENT_FILE_NAME || 'Saved_Report.xlsx', CURRENT_MONTH_LABEL);
+  }
+};
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function jsArg(value) {
+  return JSON.stringify(String(value == null ? '' : value)).replace(/</g, '\\u003c');
+}
+
+function getSubjectDepartment(row) {
+  const subject = String(row?.Subject || '').trim();
+  if (!subject) return '';
+  const subjectLower = subject.toLowerCase();
+
+  for (const rule of SUBJECT_DEPARTMENT_RULES) {
+    const match = String(rule.match || '').trim();
+    if (match && subjectLower.includes(match.toLowerCase())) {
+      return String(rule.department || match).trim();
+    }
+  }
+
+  const automatic = subject.match(/\b[A-Za-z]+-[A-Za-z]+-\d+\b/);
+  return automatic ? automatic[0] : '';
+}
+
+function getEffectiveDepartment(row) {
+  const fromSubject = getSubjectDepartment(row);
+  if (fromSubject) return fromSubject;
+  return String(row?.['Department.Name'] || '').trim();
+}
+
+function getUnknownDepartments() {
+  if (!RAW_ROWS.length) return [];
+  const mapped = new Set(Object.values(BRAND_GROUPS).flat().map(item => item.toLowerCase()));
+  const unknown = new Set();
+  RAW_ROWS.forEach(row => {
+    const dept = getEffectiveDepartment(row);
+    if (dept && !mapped.has(dept.toLowerCase())) unknown.add(dept);
+  });
+  return [...unknown].sort((a,b) => a.localeCompare(b));
+}
+
+function renderSettingsPanels() {
+  const companyList = document.getElementById('companyDepartmentList');
+  if (companyList) {
+    companyList.innerHTML = Object.keys(BRAND_GROUPS).sort((a,b) => a.localeCompare(b)).map(company => {
+      const departments = BRAND_GROUPS[company] || [];
+      const deptText = departments.length ? departments.join(', ') : 'No departments yet';
+      return `
+        <div class="mapping-row">
+          <strong>${escapeHtml(company)}</strong>
+          <span class="muted">${escapeHtml(deptText)}</span>
+          <button type="button" onclick="removeCompany(${jsArg(company)})">Remove</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  const ruleList = document.getElementById('subjectRuleList');
+  if (ruleList) {
+    ruleList.innerHTML = SUBJECT_DEPARTMENT_RULES.length
+      ? SUBJECT_DEPARTMENT_RULES.map((rule, index) => `
+          <div class="mapping-row">
+            <strong>${escapeHtml(rule.match)}</strong>
+            <span class="muted">${escapeHtml(rule.department)}</span>
+            <button type="button" onclick="removeSubjectRule(${index})">Remove</button>
+          </div>
+        `).join('')
+      : '<div class="mapping-row"><strong>No rules</strong><span class="muted">Example: Arsal-dmm-1 -> Arsal-dmm-1</span><span></span></div>';
+  }
+
+  const unknownPanel = document.getElementById('unknownDepartmentPanel');
+  if (unknownPanel) {
+    const unknown = getUnknownDepartments();
+    unknownPanel.innerHTML = unknown.length
+      ? `<div class="mapping-hint">Unknown departments from the current file:</div><div class="chips">${unknown.map(dept => `<button type="button" onclick="fillDepartment(${jsArg(dept)})">${escapeHtml(dept)}</button>`).join('')}</div>`
+      : '';
+  }
+  refreshCompanySelect();
+}
+
+function refreshCompanySelect() {
+  const companyInput = document.getElementById('companyNameInput');
+  if (!companyInput) return;
+  companyInput.setAttribute('list', 'companyNameOptions');
+  let datalist = document.getElementById('companyNameOptions');
+  if (!datalist) {
+    datalist = document.createElement('datalist');
+    datalist.id = 'companyNameOptions';
+    document.body.appendChild(datalist);
+  }
+  datalist.innerHTML = Object.keys(BRAND_GROUPS).sort((a,b) => a.localeCompare(b))
+    .map(company => `<option value="${escapeAttr(company)}"></option>`)
+    .join('');
+}
+
+window.addCompanyDepartment = function() {
+  const company = document.getElementById('companyNameInput')?.value.trim();
+  const department = document.getElementById('departmentNameInput')?.value.trim();
+  if (!company || !department) {
+    showError('Enter both company name and department name.');
+    return;
+  }
+  if (!BRAND_GROUPS[company]) BRAND_GROUPS[company] = [];
+  if (!BRAND_GROUPS[company].some(item => item.toLowerCase() === department.toLowerCase())) {
+    BRAND_GROUPS[company].push(department);
+  }
+  document.getElementById('departmentNameInput').value = '';
+  saveServiceConfig();
+};
+
+window.removeCompany = function(company) {
+  if (!BRAND_GROUPS[company]) return;
+  if (!confirm(`Remove ${company} and its department mappings?`)) return;
+  delete BRAND_GROUPS[company];
+  saveServiceConfig();
+};
+
+window.fillDepartment = function(department) {
+  const input = document.getElementById('departmentNameInput');
+  if (input) input.value = department;
+};
+
+window.addSubjectDepartmentRule = function() {
+  const match = document.getElementById('subjectMatchInput')?.value.trim();
+  const department = document.getElementById('subjectDepartmentInput')?.value.trim() || match;
+  if (!match || !department) {
+    showError('Enter the Subject text and department name.');
+    return;
+  }
+  const existing = SUBJECT_DEPARTMENT_RULES.find(rule => rule.match.toLowerCase() === match.toLowerCase());
+  if (existing) existing.department = department;
+  else SUBJECT_DEPARTMENT_RULES.push({ match, department });
+  document.getElementById('subjectMatchInput').value = '';
+  document.getElementById('subjectDepartmentInput').value = '';
+  saveServiceConfig();
+};
+
+window.removeSubjectRule = function(index) {
+  SUBJECT_DEPARTMENT_RULES.splice(index, 1);
+  saveServiceConfig();
+};
 
 function getBrand(dept) {
   if (dept == null) return 'Other';
@@ -624,7 +985,7 @@ function pct(part, whole) {
 }
 
 function analyze(rows) {
-  const required = ['Request ID', 'Status.Name', 'Department.Name', 'Category.Name'];
+  const required = ['Request ID', 'Status.Name', 'Category.Name'];
   const sample = rows[0] || {};
   for (const c of required) {
     if (!(c in sample)) {
@@ -648,7 +1009,7 @@ function analyze(rows) {
     const rid = String(r['Request ID'] || '').trim();
     const type = rid.split('-')[0];
     const status = String(r['Status.Name'] || '').trim();
-    const dept = r['Department.Name'];
+    const dept = getEffectiveDepartment(r);
     const cat = (r['Category.Name'] == null || String(r['Category.Name']).trim() === '') ? 'Unspecified' : String(r['Category.Name']).trim();
 
     catCount[cat] = (catCount[cat] || 0) + 1;
@@ -820,7 +1181,7 @@ function renderDashboard(data, fileName, forcedMonthLabel) {
 }
 
 function escapeAttr(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;');
 }
 
 // ============================================================
@@ -840,13 +1201,13 @@ function handleDrill(spec) {
     };
   } else if (kind === 'brand') {
     title = `Brand Group — ${value}`;
-    filterFn = (r) => getBrand(r['Department.Name']) === value;
+    filterFn = (r) => getBrand(getEffectiveDepartment(r)) === value;
   } else if (kind === 'brandinc') {
     title = `${value} — INC requests`;
-    filterFn = (r) => getBrand(r['Department.Name']) === value && String(r['Request ID']||'').split('-')[0] === 'INC';
+    filterFn = (r) => getBrand(getEffectiveDepartment(r)) === value && String(r['Request ID']||'').split('-')[0] === 'INC';
   } else if (kind === 'brandsr') {
     title = `${value} — SR requests`;
-    filterFn = (r) => getBrand(r['Department.Name']) === value && String(r['Request ID']||'').split('-')[0] === 'SR';
+    filterFn = (r) => getBrand(getEffectiveDepartment(r)) === value && String(r['Request ID']||'').split('-')[0] === 'SR';
   } else if (kind === 'incClosed') {
     title = 'INC — Closed (Closed + Canceled + Resolved + Fulfilled)';
     filterFn = (r) => String(r['Request ID']||'').split('-')[0] === 'INC' && INC_DONE.has(String(r['Status.Name']||'').trim());
@@ -909,7 +1270,7 @@ function renderModalTable(rows) {
     { key: 'Request ID', label: 'Request ID', class: 'req-id' },
     { key: 'Subject', label: 'Subject' },
     { key: 'Status.Name', label: 'Status', render: (v) => statusBadge(v) },
-    { key: 'Department.Name', label: 'Department' },
+    { key: 'Department.Name', label: 'Department', value: (r) => getEffectiveDepartment(r) },
     { key: 'Category.Name', label: 'Category' },
     { key: 'Requester.Name', label: 'Requester' },
     { key: 'Technician.Name', label: 'Technician' },
@@ -924,7 +1285,7 @@ function renderModalTable(rows) {
       <tbody>
         ${rows.map(r => `
           <tr>${cols.map(c => {
-            const v = r[c.key];
+            const v = c.value ? c.value(r) : r[c.key];
             const txt = (v == null || v === '') ? '<span style="color:#9AA3B5">—</span>' : String(v);
             const rendered = c.render ? c.render(v) : txt;
             return `<td class="${c.class||''}">${rendered}</td>`;
@@ -950,10 +1311,13 @@ function sortModal(colIdx, cols) {
   } else {
     CURRENT_SORT = { col: colIdx, asc: true };
   }
-  const key = cols[colIdx].key;
+  const col = cols[colIdx];
+  const key = col.key;
   const sorted = [...CURRENT_FILTER].sort((a, b) => {
-    const va = String(a[key] == null ? '' : a[key]);
-    const vb = String(b[key] == null ? '' : b[key]);
+    const rawA = col.value ? col.value(a) : a[key];
+    const rawB = col.value ? col.value(b) : b[key];
+    const va = String(rawA == null ? '' : rawA);
+    const vb = String(rawB == null ? '' : rawB);
     // try numeric
     const na = parseFloat(va), nb = parseFloat(vb);
     let cmp;
@@ -1006,14 +1370,16 @@ document.getElementById('modalSearch').addEventListener('blur', () => {
 
 function exportModalCSV() {
   if (!CURRENT_FILTER.length) return;
-  const cols = ['Request ID','Subject','Status.Name','Department.Name','Category.Name','Requester.Name','Technician.Name','Priority.Name','Created Date','Resolved Time'];
+  const cols = ['Request ID','Subject','Mapped Department','Department.Name','Category.Name','Requester.Name','Technician.Name','Priority.Name','Created Date','Resolved Time'];
   const esc = v => {
     if (v == null) return '';
     const s = String(v).replace(/"/g, '""');
     return /[",\n]/.test(s) ? `"${s}"` : s;
   };
   const lines = [cols.join(',')];
-  for (const r of CURRENT_FILTER) lines.push(cols.map(c => esc(r[c])).join(','));
+  for (const r of CURRENT_FILTER) {
+    lines.push(cols.map(c => esc(c === 'Mapped Department' ? getEffectiveDepartment(r) : r[c])).join(','));
+  }
   const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1426,6 +1792,15 @@ dz.addEventListener('drop', e => {
   if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
 });
 
+document.querySelectorAll('[data-settings-tab]').forEach(button => {
+  button.addEventListener('click', () => {
+    const tab = button.getAttribute('data-settings-tab');
+    document.querySelectorAll('[data-settings-tab]').forEach(item => item.classList.toggle('active', item === button));
+    document.getElementById('companiesSettingsPanel').classList.toggle('active', tab === 'companies');
+    document.getElementById('subjectSettingsPanel').classList.toggle('active', tab === 'subject');
+  });
+});
+
 window.loadServiceDashboardSnapshot = function(snapshot) {
   RAW_ROWS = snapshot.rows || [];
   CURRENT_DATA = snapshot.data || analyze(RAW_ROWS);
@@ -1438,6 +1813,7 @@ window.loadServiceDashboardSnapshot = function(snapshot) {
   );
 };
 
+renderSettingsPanels();
 syncDashboardState();
 </script>
 
@@ -1457,8 +1833,11 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const REPORTS_COLLECTION = 'service_reports';
+const CONFIG_COLLECTION = 'service_dashboard_config';
+const CONFIG_DOC_ID = 'default';
 const ROW_CHUNK_SIZE = 100;
 let savedReports = [];
+let configSaveTimer = null;
 
 function setFirestoreStatus(message, isError = false) {
   ['firestoreStatusUpload', 'firestoreStatusDashboard'].forEach(id => {
@@ -1598,7 +1977,37 @@ async function listenForSavedReports() {
   }
 }
 
+window.persistServiceDashboardConfig = function(config) {
+  clearTimeout(configSaveTimer);
+  configSaveTimer = setTimeout(async () => {
+    try {
+      await waitForSignedInUser();
+      await setDoc(doc(db, CONFIG_COLLECTION, CONFIG_DOC_ID), {
+        brandGroups: config.brandGroups || {},
+        subjectRules: config.subjectRules || [],
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      setFirestoreStatus('Settings saved to Firestore.');
+    } catch (err) {
+      setFirestoreStatus('Settings saved locally. Sign in to sync Firestore.', true);
+    }
+  }, 400);
+};
+
+async function loadFirestoreConfig() {
+  try {
+    await waitForSignedInUser();
+    const snap = await getDoc(doc(db, CONFIG_COLLECTION, CONFIG_DOC_ID));
+    if (!snap.exists()) return;
+    window.applyServiceDashboardConfig(snap.data());
+    setFirestoreStatus('Firestore settings loaded.');
+  } catch (err) {
+    setFirestoreStatus('Using local settings. Sign in to load Firestore settings.', true);
+  }
+}
+
 listenForSavedReports();
+loadFirestoreConfig();
 </script>
 </body>
 </html>
