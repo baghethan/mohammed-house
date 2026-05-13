@@ -575,7 +575,7 @@
     <ul>
       <li>• <code>Request ID</code> &nbsp;— used to detect INC / SR (prefix before the dash)</li>
       <li>• <code>Status.Name</code> &nbsp;— Closed / Resolved / Fulfilled / Canceled / On Hold / Open</li>
-      <li>• <code>Department.Name</code> &nbsp;— used to assign brand group; optional when Subject rules are configured</li>
+      <li>• <code>Department.Name</code> &nbsp;— used to assign brand group; Subject rules can override the company</li>
       <li>• <code>Category.Name</code> &nbsp;— for the categories breakdown</li>
     </ul>
   </div>
@@ -607,11 +607,11 @@
     </div>
 
     <div class="mapping-panel" id="subjectSettingsPanel">
-      <div class="mapping-hint">If Subject contains a text like Arsal-dmm-1, map it to the department name you want to use. If no rule matches, the dashboard also tries to detect values shaped like Name-city-number automatically.</div>
+      <div class="mapping-hint">If Subject contains a text like CAMP-HYND-MMP, map it directly to the company, for example Hyundai. Subject company rules are checked before Department.Name mappings.</div>
       <div class="mapping-form">
-        <input type="text" id="subjectMatchInput" placeholder="Subject contains, e.g. Arsal-dmm-1">
-        <input type="text" id="subjectDepartmentInput" placeholder="Department name">
-        <button type="button" onclick="addSubjectDepartmentRule()">Add</button>
+        <input type="text" id="subjectMatchInput" placeholder="Subject contains, e.g. CAMP-HYND-MMP">
+        <input type="text" id="subjectCompanyInput" placeholder="Company name, e.g. Hyundai">
+        <button type="button" onclick="addSubjectCompanyRule()">Add</button>
       </div>
       <div class="mapping-list" id="subjectRuleList"></div>
     </div>
@@ -727,7 +727,7 @@ let CURRENT_SORT = { col: null, asc: true };
 let CURRENT_MONTH_LABEL = '';
 let CURRENT_FILE_NAME = '';
 let BRAND_GROUPS = loadServiceConfig().brandGroups;
-let SUBJECT_DEPARTMENT_RULES = loadServiceConfig().subjectRules;
+let SUBJECT_COMPANY_RULES = loadServiceConfig().subjectRules;
 let BRAND_ORDER = buildBrandOrder();
 
 function syncDashboardState() {
@@ -760,9 +760,9 @@ function normalizeSubjectRules(rules) {
   return rules
     .map(rule => ({
       match: String(rule?.match || '').trim(),
-      department: String(rule?.department || '').trim()
+      company: String(rule?.company || rule?.department || '').trim()
     }))
-    .filter(rule => rule.match && rule.department);
+    .filter(rule => rule.match && rule.company);
 }
 
 function loadServiceConfig() {
@@ -789,16 +789,22 @@ function buildBrandOrder() {
 }
 
 function getServiceConfig() {
+  const brandGroups = normalizeBrandGroups(BRAND_GROUPS);
+  const subjectRules = normalizeSubjectRules(SUBJECT_COMPANY_RULES).map(rule => {
+    const company = Object.keys(brandGroups).find(name => name.toLowerCase() === rule.company.toLowerCase()) || rule.company;
+    if (!brandGroups[company]) brandGroups[company] = [];
+    return { ...rule, company };
+  });
   return {
-    brandGroups: normalizeBrandGroups(BRAND_GROUPS),
-    subjectRules: normalizeSubjectRules(SUBJECT_DEPARTMENT_RULES)
+    brandGroups,
+    subjectRules
   };
 }
 
 function saveServiceConfig() {
   const config = getServiceConfig();
   BRAND_GROUPS = config.brandGroups;
-  SUBJECT_DEPARTMENT_RULES = config.subjectRules;
+  SUBJECT_COMPANY_RULES = config.subjectRules;
   BRAND_ORDER = buildBrandOrder();
   localStorage.setItem('serviceDashboardConfig', JSON.stringify(config));
   renderSettingsPanels();
@@ -813,7 +819,7 @@ function saveServiceConfig() {
 
 window.applyServiceDashboardConfig = function(config) {
   BRAND_GROUPS = normalizeBrandGroups(config?.brandGroups);
-  SUBJECT_DEPARTMENT_RULES = normalizeSubjectRules(config?.subjectRules);
+  SUBJECT_COMPANY_RULES = normalizeSubjectRules(config?.subjectRules);
   BRAND_ORDER = buildBrandOrder();
   localStorage.setItem('serviceDashboardConfig', JSON.stringify(getServiceConfig()));
   renderSettingsPanels();
@@ -835,26 +841,55 @@ function jsArg(value) {
   return JSON.stringify(String(value == null ? '' : value)).replace(/</g, '\\u003c');
 }
 
-function getSubjectDepartment(row) {
+function resolveCompanyName(company) {
+  const value = String(company || '').trim();
+  if (!value) return '';
+  return Object.keys(BRAND_GROUPS).find(name => name.toLowerCase() === value.toLowerCase()) || value;
+}
+
+function getSubjectCompany(row) {
   const subject = String(row?.Subject || '').trim();
   if (!subject) return '';
   const subjectLower = subject.toLowerCase();
 
-  for (const rule of SUBJECT_DEPARTMENT_RULES) {
+  for (const rule of SUBJECT_COMPANY_RULES) {
     const match = String(rule.match || '').trim();
     if (match && subjectLower.includes(match.toLowerCase())) {
-      return String(rule.department || match).trim();
+      return resolveCompanyName(rule.company);
     }
   }
 
-  const automatic = subject.match(/\b[A-Za-z]+-[A-Za-z]+-\d+\b/);
-  return automatic ? automatic[0] : '';
+  const aliases = {
+    Hyundai: ['hynd', 'hyundai'],
+    Changan: ['changan'],
+    Stellantis: ['stellantis', 'psaa', 'psas', 'psam'],
+    Chery: ['chery'],
+    Shared: ['shared'],
+    'MMC IT': ['mmcit', 'mmc-it', 'mmc it'],
+    'MMC Autolead': ['autolead']
+  };
+
+  for (const company of Object.keys(BRAND_GROUPS)) {
+    const compact = company.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    if (compact && subjectLower.replace(/[^a-z0-9]+/g, '').includes(compact)) return company;
+    const companyAliases = aliases[company] || [];
+    if (companyAliases.some(alias => subjectLower.includes(alias.toLowerCase()))) return company;
+  }
+
+  return '';
 }
 
 function getEffectiveDepartment(row) {
-  const fromSubject = getSubjectDepartment(row);
-  if (fromSubject) return fromSubject;
   return String(row?.['Department.Name'] || '').trim();
+}
+
+function getBrandForRow(row) {
+  const subjectCompany = getSubjectCompany(row);
+  if (subjectCompany) {
+    const resolved = resolveCompanyName(subjectCompany);
+    return BRAND_ORDER.includes(resolved) ? resolved : 'Other';
+  }
+  return getBrand(getEffectiveDepartment(row));
 }
 
 function getUnknownDepartments() {
@@ -886,15 +921,15 @@ function renderSettingsPanels() {
 
   const ruleList = document.getElementById('subjectRuleList');
   if (ruleList) {
-    ruleList.innerHTML = SUBJECT_DEPARTMENT_RULES.length
-      ? SUBJECT_DEPARTMENT_RULES.map((rule, index) => `
+    ruleList.innerHTML = SUBJECT_COMPANY_RULES.length
+      ? SUBJECT_COMPANY_RULES.map((rule, index) => `
           <div class="mapping-row">
             <strong>${escapeHtml(rule.match)}</strong>
-            <span class="muted">${escapeHtml(rule.department)}</span>
+            <span class="muted">${escapeHtml(rule.company)}</span>
             <button type="button" onclick="removeSubjectRule(${index})">Remove</button>
           </div>
         `).join('')
-      : '<div class="mapping-row"><strong>No rules</strong><span class="muted">Example: Arsal-dmm-1 -> Arsal-dmm-1</span><span></span></div>';
+      : '<div class="mapping-row"><strong>No rules</strong><span class="muted">Example: CAMP-HYND-MMP -> Hyundai</span><span></span></div>';
   }
 
   const unknownPanel = document.getElementById('unknownDepartmentPanel');
@@ -920,6 +955,8 @@ function refreshCompanySelect() {
   datalist.innerHTML = Object.keys(BRAND_GROUPS).sort((a,b) => a.localeCompare(b))
     .map(company => `<option value="${escapeAttr(company)}"></option>`)
     .join('');
+  const subjectCompanyInput = document.getElementById('subjectCompanyInput');
+  if (subjectCompanyInput) subjectCompanyInput.setAttribute('list', 'companyNameOptions');
 }
 
 window.addCompanyDepartment = function() {
@@ -949,23 +986,25 @@ window.fillDepartment = function(department) {
   if (input) input.value = department;
 };
 
-window.addSubjectDepartmentRule = function() {
+window.addSubjectCompanyRule = function() {
   const match = document.getElementById('subjectMatchInput')?.value.trim();
-  const department = document.getElementById('subjectDepartmentInput')?.value.trim() || match;
-  if (!match || !department) {
-    showError('Enter the Subject text and department name.');
+  const company = document.getElementById('subjectCompanyInput')?.value.trim();
+  if (!match || !company) {
+    showError('Enter the Subject text and company name.');
     return;
   }
-  const existing = SUBJECT_DEPARTMENT_RULES.find(rule => rule.match.toLowerCase() === match.toLowerCase());
-  if (existing) existing.department = department;
-  else SUBJECT_DEPARTMENT_RULES.push({ match, department });
+  const resolvedCompany = resolveCompanyName(company);
+  if (!BRAND_GROUPS[resolvedCompany]) BRAND_GROUPS[resolvedCompany] = [];
+  const existing = SUBJECT_COMPANY_RULES.find(rule => rule.match.toLowerCase() === match.toLowerCase());
+  if (existing) existing.company = resolvedCompany;
+  else SUBJECT_COMPANY_RULES.push({ match, company: resolvedCompany });
   document.getElementById('subjectMatchInput').value = '';
-  document.getElementById('subjectDepartmentInput').value = '';
+  document.getElementById('subjectCompanyInput').value = '';
   saveServiceConfig();
 };
 
 window.removeSubjectRule = function(index) {
-  SUBJECT_DEPARTMENT_RULES.splice(index, 1);
+  SUBJECT_COMPANY_RULES.splice(index, 1);
   saveServiceConfig();
 };
 
@@ -1009,11 +1048,10 @@ function analyze(rows) {
     const rid = String(r['Request ID'] || '').trim();
     const type = rid.split('-')[0];
     const status = String(r['Status.Name'] || '').trim();
-    const dept = getEffectiveDepartment(r);
     const cat = (r['Category.Name'] == null || String(r['Category.Name']).trim() === '') ? 'Unspecified' : String(r['Category.Name']).trim();
 
     catCount[cat] = (catCount[cat] || 0) + 1;
-    const brand = getBrand(dept);
+    const brand = getBrandForRow(r);
     brandCount[brand] = (brandCount[brand] || 0) + 1;
 
     if (type === 'INC') {
@@ -1201,13 +1239,13 @@ function handleDrill(spec) {
     };
   } else if (kind === 'brand') {
     title = `Brand Group — ${value}`;
-    filterFn = (r) => getBrand(getEffectiveDepartment(r)) === value;
+    filterFn = (r) => getBrandForRow(r) === value;
   } else if (kind === 'brandinc') {
     title = `${value} — INC requests`;
-    filterFn = (r) => getBrand(getEffectiveDepartment(r)) === value && String(r['Request ID']||'').split('-')[0] === 'INC';
+    filterFn = (r) => getBrandForRow(r) === value && String(r['Request ID']||'').split('-')[0] === 'INC';
   } else if (kind === 'brandsr') {
     title = `${value} — SR requests`;
-    filterFn = (r) => getBrand(getEffectiveDepartment(r)) === value && String(r['Request ID']||'').split('-')[0] === 'SR';
+    filterFn = (r) => getBrandForRow(r) === value && String(r['Request ID']||'').split('-')[0] === 'SR';
   } else if (kind === 'incClosed') {
     title = 'INC — Closed (Closed + Canceled + Resolved + Fulfilled)';
     filterFn = (r) => String(r['Request ID']||'').split('-')[0] === 'INC' && INC_DONE.has(String(r['Status.Name']||'').trim());
@@ -1270,6 +1308,7 @@ function renderModalTable(rows) {
     { key: 'Request ID', label: 'Request ID', class: 'req-id' },
     { key: 'Subject', label: 'Subject' },
     { key: 'Status.Name', label: 'Status', render: (v) => statusBadge(v) },
+    { key: 'Company', label: 'Company', value: (r) => getBrandForRow(r) },
     { key: 'Department.Name', label: 'Department', value: (r) => getEffectiveDepartment(r) },
     { key: 'Category.Name', label: 'Category' },
     { key: 'Requester.Name', label: 'Requester' },
@@ -1370,7 +1409,7 @@ document.getElementById('modalSearch').addEventListener('blur', () => {
 
 function exportModalCSV() {
   if (!CURRENT_FILTER.length) return;
-  const cols = ['Request ID','Subject','Mapped Department','Department.Name','Category.Name','Requester.Name','Technician.Name','Priority.Name','Created Date','Resolved Time'];
+  const cols = ['Request ID','Subject','Mapped Company','Department.Name','Category.Name','Requester.Name','Technician.Name','Priority.Name','Created Date','Resolved Time'];
   const esc = v => {
     if (v == null) return '';
     const s = String(v).replace(/"/g, '""');
@@ -1378,7 +1417,7 @@ function exportModalCSV() {
   };
   const lines = [cols.join(',')];
   for (const r of CURRENT_FILTER) {
-    lines.push(cols.map(c => esc(c === 'Mapped Department' ? getEffectiveDepartment(r) : r[c])).join(','));
+    lines.push(cols.map(c => esc(c === 'Mapped Company' ? getBrandForRow(r) : r[c])).join(','));
   }
   const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
