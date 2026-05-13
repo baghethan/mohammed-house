@@ -8,7 +8,7 @@
 <meta http-equiv="Expires" content="0">
 <title>IT Service Desk — Performance Dashboard</title>
 <script>
-window.SERVICE_DASHBOARD_VERSION = '2026-05-13-0925';
+window.SERVICE_DASHBOARD_VERSION = '2026-05-13-1005';
 (function verifyLatestDashboardVersion() {
   const currentVersion = window.SERVICE_DASHBOARD_VERSION;
   const timeoutMs = 2500;
@@ -613,6 +613,56 @@ window.SERVICE_DASHBOARD_VERSION = '2026-05-13-0925';
     display: inline-block; padding: 2px 8px; border-radius: 10px;
     font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
   }
+  .ppt-unit-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    padding: 16px;
+  }
+  .ppt-unit-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #FAFBFD;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-dark);
+  }
+  .ppt-unit-option input {
+    width: 16px;
+    height: 16px;
+  }
+  .ppt-unit-option span:last-child {
+    color: var(--text-mid);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .ppt-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--card-border);
+    background: #FAFBFD;
+  }
+  .ppt-modal-actions button {
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 700;
+    cursor: pointer;
+    background: white;
+    color: var(--primary);
+  }
+  .ppt-modal-actions button.primary {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
   .b-Closed, .b-Fulfilled { background: #D1FAE5; color: #065F46; }
   .b-OnHold { background: #FEF3C7; color: #92400E; }
   .b-Open { background: #FEE2E2; color: #991B1B; }
@@ -710,7 +760,7 @@ window.SERVICE_DASHBOARD_VERSION = '2026-05-13-0925';
 <div class="dashboard" id="dashboard">
   <div class="top-bar">
     <button onclick="resetUI()">← Upload Another File</button>
-    <button onclick="downloadPPTX()" style="background:#10B981">⬇ Download PowerPoint</button>
+    <button onclick="openPPTXUnitPicker()" style="background:#10B981">⬇ Download PowerPoint</button>
     <button class="secondary" onclick="window.print()">🖨 Print / Save as PDF</button>
     <button class="firestore-action" onclick="saveCurrentFirestoreReport()">Save to Firestore</button>
     <select id="savedReportsSelectDashboard" aria-label="Saved Firestore reports">
@@ -776,6 +826,25 @@ window.SERVICE_DASHBOARD_VERSION = '2026-05-13-0925';
       <button onclick="exportModalCSV()">Export CSV</button>
     </div>
     <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ============ POWERPOINT UNIT PICKER ============ -->
+<div class="modal-overlay" id="pptUnitModal">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header">
+      <h2>Choose PowerPoint units</h2>
+      <div class="count-pill" id="pptUnitCount">0 selected</div>
+      <button class="close-btn" onclick="closePPTXUnitPicker()" title="Close">×</button>
+    </div>
+    <div class="mapping-hint" style="padding:14px 16px 0">Select one or more companies/units to include in the PowerPoint. The report will be recalculated for the selected units only.</div>
+    <div class="ppt-unit-list" id="pptUnitList"></div>
+    <div class="ppt-modal-actions">
+      <button type="button" onclick="setPPTXUnitSelection(true)">Select all</button>
+      <button type="button" onclick="setPPTXUnitSelection(false)">Clear</button>
+      <button type="button" onclick="closePPTXUnitPicker()">Cancel</button>
+      <button type="button" class="primary" onclick="downloadSelectedPPTX()">Download</button>
+    </div>
   </div>
 </div>
 
@@ -1609,22 +1678,99 @@ function exportModalCSV() {
   URL.revokeObjectURL(url);
 }
 
+function getAvailablePPTXUnits() {
+  const counts = {};
+  RAW_ROWS.forEach(row => {
+    const brand = getBrandForRow(row);
+    counts[brand] = (counts[brand] || 0) + 1;
+  });
+  return BRAND_ORDER
+    .map(name => ({ name, count: counts[name] || 0 }))
+    .filter(unit => unit.count > 0);
+}
+
+function updatePPTXUnitCount() {
+  const checked = document.querySelectorAll('.ppt-unit-checkbox:checked').length;
+  const total = document.querySelectorAll('.ppt-unit-checkbox').length;
+  const countEl = document.getElementById('pptUnitCount');
+  if (countEl) countEl.textContent = `${checked} of ${total} selected`;
+}
+
+window.openPPTXUnitPicker = function() {
+  if (!CURRENT_DATA || !RAW_ROWS.length) {
+    showError('Upload or load a report before downloading PowerPoint.');
+    return;
+  }
+
+  const units = getAvailablePPTXUnits();
+  if (!units.length) {
+    showError('No companies found in the current report.');
+    return;
+  }
+
+  document.getElementById('pptUnitList').innerHTML = units.map(unit => `
+    <label class="ppt-unit-option">
+      <span><input type="checkbox" class="ppt-unit-checkbox" value="${escapeAttr(unit.name)}" checked onchange="updatePPTXUnitCount()"> ${escapeHtml(unit.name)}</span>
+      <span>${unit.count.toLocaleString()} requests</span>
+    </label>
+  `).join('');
+  updatePPTXUnitCount();
+  document.getElementById('pptUnitModal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+};
+
+window.closePPTXUnitPicker = function() {
+  document.getElementById('pptUnitModal').classList.remove('show');
+  document.body.style.overflow = '';
+};
+
+window.setPPTXUnitSelection = function(checked) {
+  document.querySelectorAll('.ppt-unit-checkbox').forEach(input => {
+    input.checked = checked;
+  });
+  updatePPTXUnitCount();
+};
+
+window.downloadSelectedPPTX = function() {
+  const selectedUnits = Array.from(document.querySelectorAll('.ppt-unit-checkbox:checked')).map(input => input.value);
+  if (!selectedUnits.length) {
+    showError('Choose at least one company/unit for the PowerPoint.');
+    return;
+  }
+  closePPTXUnitPicker();
+  downloadPPTX(selectedUnits);
+};
+
 // Close modal on Esc / overlay click
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape') {
+    closeModal();
+    closePPTXUnitPicker();
+  }
 });
 document.getElementById('modal').addEventListener('click', e => {
   if (e.target.id === 'modal') closeModal();
+});
+document.getElementById('pptUnitModal').addEventListener('click', e => {
+  if (e.target.id === 'pptUnitModal') closePPTXUnitPicker();
 });
 
 // ============================================================
 // POWERPOINT EXPORT
 // ============================================================
 
-function downloadPPTX() {
+function downloadPPTX(selectedUnits) {
   if (!CURRENT_DATA) return;
-  const data = CURRENT_DATA;
+  const allUnits = getAvailablePPTXUnits().map(unit => unit.name);
+  const unitFilter = Array.isArray(selectedUnits) && selectedUnits.length ? selectedUnits : allUnits;
+  const selectedRows = RAW_ROWS.filter(row => unitFilter.includes(getBrandForRow(row)));
+  const data = selectedRows.length ? analyze(selectedRows) : CURRENT_DATA;
+  if (selectedRows.length) {
+    data.brands = data.brands.filter(brand => unitFilter.includes(brand.name));
+  }
   const monthName = CURRENT_MONTH_LABEL || 'Report';
+  const isAllUnits = allUnits.length === unitFilter.length && allUnits.every(unit => unitFilter.includes(unit));
+  const unitLabel = isAllUnits ? 'All Units' : unitFilter.join(', ');
 
   const PPT_C = {
     primary: "1E2761", secondary: "CADCFC",
@@ -1776,7 +1922,7 @@ function downloadPPTX() {
   slide.background = { color: "F7F8FC" };
 
   addHeader(slide, `${monthName} — Performance Dashboard`,
-    `Total: ${data.total.toLocaleString()} requests  ·  INC ${data.incTotal.toLocaleString()} (${pct(data.incTotal, data.total)})  ·  SR ${data.srTotal.toLocaleString()} (${pct(data.srTotal, data.total)})`);
+    `${unitLabel}  ·  Total: ${data.total.toLocaleString()} requests  ·  INC ${data.incTotal.toLocaleString()} (${pct(data.incTotal, data.total)})  ·  SR ${data.srTotal.toLocaleString()} (${pct(data.srTotal, data.total)})`);
 
   // KPI Row
   const kpiY = 0.85, kpiH = 0.72;
@@ -1948,7 +2094,8 @@ function downloadPPTX() {
   });
 
   const safeName = monthName.replace(/[^\w\d-]/g, '_');
-  pres.writeFile({ fileName: `Service_Desk_${safeName}.pptx` });
+  const safeUnits = (isAllUnits ? 'All_Units' : unitFilter.join('_')).replace(/[^\w\d-]/g, '_');
+  pres.writeFile({ fileName: `Service_Desk_${safeName}_${safeUnits}.pptx` });
 }
 
 function resetUI() {
