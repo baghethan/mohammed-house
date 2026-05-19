@@ -322,6 +322,27 @@ function publicHolidayForDate(date) {
     return holidayDuties.find(holiday => isDateInRange(date, holiday.start, holiday.end)) || null;
 }
 
+function normalizeHolidayDutyType(value, hasEmployee = false) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (['oncall', 'on_call', 'on-call', 'call', 'اون كول', 'أون كول'].includes(raw)) return 'OnCall';
+    if (['holiday', 'none', 'no_duty', 'no-duty', 'off', 'بدون دوام', 'عطلة'].includes(raw)) return 'Holiday';
+    if (['work', 'coverage', 'cover', 'تغطية'].includes(raw)) return 'Work';
+    return hasEmployee ? 'Work' : 'Holiday';
+}
+
+function holidayDutyType(holiday) {
+    return normalizeHolidayDutyType(holiday?.dutyType || holiday?.coverageType || holiday?.type || holiday?.shift || holiday?.mode, !!holiday?.empId);
+}
+
+function holidayShiftForEmployee(emp, date) {
+    const duty = holidayDuties.find(holiday => isDateInRange(date, holiday.start, holiday.end) && matchesEmployee(holiday, emp));
+    if (!duty) return '';
+    const dutyType = holidayDutyType(duty);
+    if (dutyType === 'OnCall') return 'OnCall';
+    if (dutyType === 'Work') return 'Work';
+    return 'Holiday';
+}
+
 function isAssignedHolidayEmployee(emp, holiday) {
     return !!holiday && matchesEmployee(holiday, emp);
 }
@@ -345,7 +366,7 @@ function isManualUnavailable(emp, date) {
 
 function isUnavailable(emp, date) {
     const holiday = publicHolidayForDate(date);
-    return emp.active === false || isVacationDay(emp, date) || (holiday && isAssignedHolidayEmployee(emp, holiday)) || isManualUnavailable(emp, date);
+    return emp.active === false || isVacationDay(emp, date) || (holiday && !!holidayShiftForEmployee(emp, date)) || isManualUnavailable(emp, date);
 }
 
 function weekIndex(start) {
@@ -526,9 +547,9 @@ async function renderTable() {
             const dStr = formatLocalDate(d);
             const manualShift = manualShiftForEmployee(emp, dStr);
             const publicHoliday = publicHolidayForDate(d);
-            const isHolidayCoverage = publicHoliday && isAssignedHolidayEmployee(emp, publicHoliday);
+            const holidayShift = publicHoliday ? holidayShiftForEmployee(emp, d) : '';
             const leaveShift = leaveShiftForEmployee(emp, d);
-            let shift = manualShift || (leaveShift || (publicHoliday ? (isHolidayCoverage ? 'Work' : 'Holiday') : baseShift(emp, d, rotations)));
+            let shift = manualShift || (leaveShift || (publicHoliday ? (holidayShift || 'Holiday') : baseShift(emp, d, rotations)));
             const icons = { Morning:'☀️', Night:'🌙', Vacation:'', Sick:'🏥', Holiday:'🎊', Absent:'🚫', OnCall:'📞', Work:'🏢', Off:'⌛' };
             const icon = icons[shift] || '';
             const label = t[shift.toLowerCase()] || shift;
