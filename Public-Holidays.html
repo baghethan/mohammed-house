@@ -30,6 +30,7 @@
     .btn2{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff}
     .danger{background:linear-gradient(135deg,var(--danger2),var(--danger));color:#fff}
     .btn:hover,.btn2:hover,.danger:hover{transform:translateY(-1px)}
+    .form-actions,.row-actions{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
     .message{display:none;border-radius:14px;padding:12px 14px;font-size:13px;font-weight:800;margin:0 0 14px}
     .message.ok{display:block;background:#ecfdf5;color:#166534}
     .message.warn{display:block;background:#fff7ed;color:#9a3412}
@@ -93,7 +94,10 @@
           <label for="holidayEmployee" id="lblEmployee">Assigned Employee</label>
           <select id="holidayEmployee"><option value="">Loading employees...</option></select>
         </div>
-        <button class="btn2" id="btnAddHoliday" type="button">+ Add</button>
+        <div class="form-actions">
+          <button class="btn2" id="btnAddHoliday" type="button">+ Add</button>
+          <button class="btn" id="btnCancelEdit" type="button" style="display:none">Cancel</button>
+        </div>
       </div>
     </section>
 
@@ -128,6 +132,7 @@
     let currentLang = normalizeLang(localStorage.getItem(LANG_KEY) || 'ar');
     let employees = [];
     let holidayDuties = [];
+    let editingIndex = null;
 
     const i18n = {
       ar: {
@@ -145,6 +150,8 @@
         dutyHoliday: 'بدون دوام',
         employee: 'الموظف المكلف',
         add: '+ إضافة',
+        update: 'حفظ التعديل',
+        cancel: 'إلغاء',
         placeholder: 'مثال: عيد الفطر',
         selectEmployee: 'اختر الموظف',
         loadingEmployees: 'جاري تحميل الموظفين...',
@@ -157,10 +164,12 @@
         empty: 'لا توجد عطل رسمية.',
         loading: 'جاري تحميل البيانات...',
         delete: 'حذف',
+        edit: 'تعديل',
         confirmDelete: 'هل تريد حذف هذه العطلة؟',
         required: 'يرجى تعبئة اسم العطلة والتاريخ. الموظف مطلوب عند اختيار تغطية أو أون كول.',
         dateError: 'تاريخ البداية لا يمكن أن يكون بعد تاريخ النهاية.',
         saved: 'تم حفظ العطلة الرسمية بنجاح.',
+        updated: 'تم تحديث العطلة الرسمية بنجاح.',
         deleted: 'تم حذف العطلة.',
         refreshed: 'تم تحديث العرض.',
         loadError: 'تعذر تحميل البيانات. تأكد من الصلاحيات.',
@@ -181,6 +190,8 @@
         dutyHoliday: 'No Duty',
         employee: 'Assigned Employee',
         add: '+ Add',
+        update: 'Save Changes',
+        cancel: 'Cancel',
         placeholder: 'Example: Eid Holiday',
         selectEmployee: 'Select employee',
         loadingEmployees: 'Loading employees...',
@@ -193,10 +204,12 @@
         empty: 'No public holidays registered.',
         loading: 'Loading data...',
         delete: 'Delete',
+        edit: 'Edit',
         confirmDelete: 'Delete this holiday?',
         required: 'Please fill in holiday name and dates. Employee is required for coverage or on-call duty.',
         dateError: 'Start date cannot be after end date.',
         saved: 'Public holiday saved successfully.',
+        updated: 'Public holiday updated successfully.',
         deleted: 'Holiday deleted.',
         refreshed: 'View refreshed.',
         loadError: 'Unable to load data. Check permissions.',
@@ -235,6 +248,12 @@
 
     function setText(id, key) {
       $(id).textContent = t(key);
+    }
+
+    function updateFormMode() {
+      $('btnAddHoliday').textContent = editingIndex === null ? t('add') : t('update');
+      $('btnCancelEdit').textContent = t('cancel');
+      $('btnCancelEdit').style.display = editingIndex === null ? 'none' : 'inline-flex';
     }
 
     function employeeName(empId) {
@@ -316,7 +335,12 @@
           <td>${escapeHtml(holiday.empId ? employeeName(holiday.empId) : '-')}</td>
           <td>${escapeHtml(holiday.start || '')}</td>
           <td>${escapeHtml(holiday.end || '')}</td>
-          <td><button class="danger" type="button" data-index="${index}">${t('delete')}</button></td>
+          <td>
+            <div class="row-actions">
+              <button class="btn" type="button" data-action="edit" data-index="${index}">${t('edit')}</button>
+              <button class="danger" type="button" data-action="delete" data-index="${index}">${t('delete')}</button>
+            </div>
+          </td>
         </tr>
       `).join('');
     }
@@ -336,7 +360,7 @@
       setText('lblEnd', 'end');
       setText('lblDutyType', 'dutyType');
       setText('lblEmployee', 'employee');
-      setText('btnAddHoliday', 'add');
+      updateFormMode();
       setText('thHoliday', 'thHoliday');
       setText('thDuty', 'thDuty');
       setText('thEmployee', 'employee');
@@ -356,7 +380,32 @@
       renderHolidays();
     }
 
-    async function addHoliday() {
+    function resetHolidayForm() {
+      editingIndex = null;
+      $('holidayName').value = '';
+      $('holidayStart').value = '';
+      $('holidayEnd').value = '';
+      $('holidayDutyType').value = 'Work';
+      $('holidayEmployee').value = '';
+      updateEmployeeDutyState();
+      updateFormMode();
+    }
+
+    function startEditHoliday(index) {
+      const holiday = holidayDuties[index];
+      if (!holiday) return;
+      editingIndex = index;
+      $('holidayName').value = holiday.name || '';
+      $('holidayStart').value = holiday.start || '';
+      $('holidayEnd').value = holiday.end || '';
+      $('holidayDutyType').value = holidayDutyType(holiday);
+      updateEmployeeDutyState();
+      if (holiday.empId) $('holidayEmployee').value = holiday.empId;
+      updateFormMode();
+      $('holidayName').focus();
+    }
+
+    async function saveHolidayForm() {
       const name = $('holidayName').value.trim();
       const start = $('holidayStart').value;
       const end = $('holidayEnd').value;
@@ -374,14 +423,26 @@
       }
 
       try {
-        await saveHolidays([...holidayDuties, { empId, name, start, end, dutyType, createdAt: new Date().toISOString() }]);
-        $('holidayName').value = '';
-        $('holidayStart').value = '';
-        $('holidayEnd').value = '';
-        $('holidayDutyType').value = 'Work';
-        $('holidayEmployee').value = '';
-        updateEmployeeDutyState();
-        showMessage(t('saved'), 'ok');
+        if (editingIndex === null) {
+          await saveHolidays([...holidayDuties, { empId, name, start, end, dutyType, createdAt: new Date().toISOString() }]);
+          resetHolidayForm();
+          showMessage(t('saved'), 'ok');
+          return;
+        }
+
+        const next = [...holidayDuties];
+        next[editingIndex] = {
+          ...next[editingIndex],
+          empId,
+          name,
+          start,
+          end,
+          dutyType,
+          updatedAt: new Date().toISOString()
+        };
+        await saveHolidays(next);
+        resetHolidayForm();
+        showMessage(t('updated'), 'ok');
       } catch (error) {
         logFirebaseError('Public holidays save failed', error);
         showMessage(t('saveError'), 'warn');
@@ -392,6 +453,8 @@
       if (!confirm(t('confirmDelete'))) return;
       try {
         await saveHolidays(holidayDuties.filter((_, itemIndex) => itemIndex !== index));
+        if (editingIndex === index) resetHolidayForm();
+        else if (editingIndex !== null && index < editingIndex) editingIndex -= 1;
         showMessage(t('deleted'), 'ok');
       } catch (error) {
         logFirebaseError('Public holidays delete failed', error);
@@ -443,12 +506,18 @@
       showMessage(t('refreshed'), 'ok');
     });
 
-    $('btnAddHoliday').addEventListener('click', () => addHoliday());
+    $('btnAddHoliday').addEventListener('click', () => saveHolidayForm());
+    $('btnCancelEdit').addEventListener('click', resetHolidayForm);
     $('holidayDutyType').addEventListener('change', updateEmployeeDutyState);
     $('holidayBody').addEventListener('click', event => {
       const button = event.target.closest('[data-index]');
       if (!button) return;
-      deleteHoliday(Number(button.dataset.index));
+      const index = Number(button.dataset.index);
+      if (button.dataset.action === 'edit') {
+        startEditHoliday(index);
+        return;
+      }
+      deleteHoliday(index);
     });
 
     applyLanguage();
