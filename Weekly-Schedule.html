@@ -135,8 +135,8 @@ import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js
 import { doc, collection, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { title:'جدول المناوبات الأسبوعي', morning:'صباحي', night:'ليلي', vacation:'إجازة', sick:'مريض', holiday:'Holiday', absent:'غائب', oncall:'أون كول', work:'تغطية', off:'أوف', employee:'الموظف', allDay:'طوال اليوم', help:'حسب الحاجة', copyImage:'نسخ صورة', copied:'تم نسخ صورة الجدول.', downloaded:'تعذر النسخ المباشر، تم تنزيل الصورة بدلاً من ذلك.', copyFailed:'تعذر إنشاء صورة الجدول.', generated:'تم الإنشاء', range:(from,to)=>`من ${from} إلى ${to}`, days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'] },
-    en: { title:'Weekly Shift Schedule', morning:'Morning', night:'Night', vacation:'Vacation', sick:'Sick', holiday:'Holiday', absent:'Absent', oncall:'On Call', work:'Coverage', off:'Off', employee:'Employee', allDay:'Full Day', help:'As Needed', copyImage:'Copy Image', copied:'Schedule image copied.', downloaded:'Direct copy was blocked, so the image was downloaded instead.', copyFailed:'Could not create the schedule image.', generated:'Generated', range:(from,to)=>`From ${from} to ${to}`, days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] }
+    ar: { title:'جدول المناوبات الأسبوعي', morning:'صباحي', night:'ليلي', vacation:'إجازة', sick:'مريض', holiday:'بدون دوام', absent:'غائب', oncall:'أون كول', work:'تغطية', off:'أوف', employee:'الموظف', allDay:'طوال اليوم', help:'حسب الحاجة', copyImage:'نسخ صورة', copied:'تم نسخ صورة الجدول.', downloaded:'تعذر النسخ المباشر، تم تنزيل الصورة بدلاً من ذلك.', copyFailed:'تعذر إنشاء صورة الجدول.', generated:'تم الإنشاء', range:(from,to)=>`من ${from} إلى ${to}`, days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'] },
+    en: { title:'Weekly Shift Schedule', morning:'Morning', night:'Night', vacation:'Vacation', sick:'Sick', holiday:'No Duty', absent:'Absent', oncall:'On Call', work:'Coverage', off:'Off', employee:'Employee', allDay:'Full Day', help:'As Needed', copyImage:'Copy Image', copied:'Schedule image copied.', downloaded:'Direct copy was blocked, so the image was downloaded instead.', copyFailed:'Could not create the schedule image.', generated:'Generated', range:(from,to)=>`From ${from} to ${to}`, days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] }
 };
 
 let emps = [], employeeRecords = [], holidayDuties = [], overrides = {}, annualLeaves = [], vacationPlans = [], currentLang = localStorage.getItem('lang') || 'ar', selectedCell = null, selectedOption = null;
@@ -292,6 +292,24 @@ function isDateInRange(date, start, end) {
     return date >= d1 && date <= d2;
 }
 
+function addDays(date, days) {
+    const next = new Date(date);
+    next.setHours(0, 0, 0, 0);
+    next.setDate(next.getDate() + days);
+    return next;
+}
+
+function holidayDateRange(holiday) {
+    const start = parseLocalDate(holiday?.start);
+    const end = parseLocalDate(holiday?.end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return null;
+    return { start, end };
+}
+
+function dateRangesOverlap(startA, endA, startB, endB) {
+    return startA <= endB && endA >= startB;
+}
+
 function normalizeLeaveType(value) {
     const text = String(value || '').trim().toLowerCase();
     if (['sick', 'sick leave', 'medical', 'مرضية', 'مريض', 'اجازة مرضية', 'إجازة مرضية'].includes(text)) return 'sick';
@@ -332,6 +350,28 @@ function normalizeHolidayDutyType(value, hasEmployee = false) {
 
 function holidayDutyType(holiday) {
     return normalizeHolidayDutyType(holiday?.dutyType || holiday?.coverageType || holiday?.type || holiday?.shift || holiday?.mode, !!holiday?.empId);
+}
+
+function isNoDutyHoliday(holiday) {
+    return holidayDutyType(holiday) === 'Holiday';
+}
+
+function scheduleEndForWeek(weekStart) {
+    const weekEnd = addDays(weekStart, 6);
+    return holidayDuties.reduce((displayEnd, holiday) => {
+        if (!isNoDutyHoliday(holiday)) return displayEnd;
+        const range = holidayDateRange(holiday);
+        if (!range || !dateRangesOverlap(weekStart, weekEnd, range.start, range.end)) return displayEnd;
+        return range.end > displayEnd ? range.end : displayEnd;
+    }, weekEnd);
+}
+
+function datesBetween(start, end) {
+    const dates = [];
+    for (let cursor = new Date(start); cursor <= end; cursor = addDays(cursor, 1)) {
+        dates.push(new Date(cursor));
+    }
+    return dates;
 }
 
 function holidayShiftForEmployee(emp, date) {
@@ -520,12 +560,8 @@ async function renderTable() {
     const start = startOfWeek(parseLocalDate(dateInput));
     const normalizedStart = formatLocalDate(start);
     if ($('datePicker').value !== normalizedStart) $('datePicker').value = normalizedStart;
-    const dates = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(start);
-        d.setDate(start.getDate() + i);
-        return d;
-    });
-    $('weekRangeText').textContent = t.range(formatDisplayDate(dates[0]), formatDisplayDate(dates[6]));
+    const dates = datesBetween(start, scheduleEndForWeek(start));
+    $('weekRangeText').textContent = t.range(formatDisplayDate(dates[0]), formatDisplayDate(dates[dates.length - 1]));
     const thuDate = findDateByDay(dates, 4);
     const friDate = findDateByDay(dates, 5);
     const satDate = findDateByDay(dates, 6);
