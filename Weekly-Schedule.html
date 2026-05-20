@@ -140,6 +140,16 @@ const i18n = {
 };
 
 let emps = [], employeeRecords = [], holidayDuties = [], overrides = {}, annualLeaves = [], vacationPlans = [], currentLang = localStorage.getItem('lang') || 'ar', selectedCell = null, selectedOption = null;
+let shiftSettings = {
+    morningStart: '07:30',
+    morningEnd: '17:00',
+    nightStart: '13:00',
+    nightEnd: '22:00',
+    onCallStart: '',
+    onCallEnd: '',
+    workStart: '10:00',
+    workEnd: '19:00'
+};
 const $ = id => document.getElementById(id);
 
 function escapeHtml(value) {
@@ -178,6 +188,12 @@ function startOfWeek(date) {
 
 function formatDisplayDate(date) {
     return date.toLocaleDateString('en-GB');
+}
+
+function shiftTimeLabel(startKey, endKey, fallback) {
+    const start = String(shiftSettings[startKey] || '').trim();
+    const end = String(shiftSettings[endKey] || '').trim();
+    return start && end ? `${start} - ${end}` : fallback;
 }
 
 function normalizeRotation(emp) {
@@ -536,19 +552,23 @@ function sortWeeklyEmployees(list) {
 
 window.updateLabels = () => {
     const t = i18n[currentLang];
+    const morningTime = escapeHtml(shiftTimeLabel('morningStart', 'morningEnd', '07:30 - 17:00'));
+    const nightTime = escapeHtml(shiftTimeLabel('nightStart', 'nightEnd', '13:00 - 22:00'));
+    const onCallTime = escapeHtml(shiftTimeLabel('onCallStart', 'onCallEnd', t.help));
+    const coverageTime = escapeHtml(shiftTimeLabel('workStart', 'workEnd', '10:00 - 19:00'));
     $('mainHtml').dir = currentLang === 'ar' ? 'rtl' : 'ltr';
     $('captureTitle').textContent = t.title;
     $('btnCopyImage').textContent = t.copyImage;
     $('captureGeneratedText').textContent = `${t.generated}: ${new Date().toLocaleDateString('en-GB')}`;
     $('legendArea').innerHTML = `
-        <div class="pill Morning">☀️ ${t.morning} <span>07:30 - 17:00</span></div>
-        <div class="pill Night">🌙 ${t.night} <span>13:00 - 22:00</span></div>
+        <div class="pill Morning">☀️ ${t.morning} <span>${morningTime}</span></div>
+        <div class="pill Night">🌙 ${t.night} <span>${nightTime}</span></div>
         <div class="pill Vacation">${t.vacation} <span>${t.allDay}</span></div>
         <div class="pill Sick">🏥 ${t.sick} <span>${t.allDay}</span></div>
         <div class="pill Holiday">🎊 ${t.holiday} <span>${t.allDay}</span></div>
         <div class="pill Absent">🚫 ${t.absent} <span>${t.allDay}</span></div>
-        <div class="pill OnCall">📞 ${t.oncall} <span>${t.help}</span></div>
-        <div class="pill Work">🏢 ${t.work} <span>10:00 - 19:00</span></div>
+        <div class="pill OnCall">📞 ${t.oncall} <span>${onCallTime}</span></div>
+        <div class="pill Work">🏢 ${t.work} <span>${coverageTime}</span></div>
         <div class="pill Off">⌛ ${t.off} <span>${t.allDay}</span></div>
     `;
 };
@@ -676,6 +696,7 @@ async function bindSnapshots() {
     onSnapshot(doc(db, 'schedule', 'manual_overrides'), s => { overrides = s.data() || {}; renderTable(); }, e => logFirebaseError('Weekly schedule overrides listener failed', e));
     onSnapshot(doc(db, 'schedule', 'jadwal_annual_leave'), s => { annualLeaves = s.exists() ? (s.data().vacations || []) : []; renderTable(); }, e => logFirebaseError('Weekly schedule annual leave listener failed', e));
     onSnapshot(collection(db, 'vacations'), s => { vacationPlans = s.docs.map(item => ({ id: item.id, ...item.data() })); renderTable(); }, e => logFirebaseError('Weekly schedule vacation plans listener failed', e));
+    onSnapshot(doc(db, 'schedule', 'shift_settings'), s => { shiftSettings = s.exists() ? ({ ...shiftSettings, ...s.data() }) : shiftSettings; renderTable(); }, e => logFirebaseError('Weekly schedule shift settings listener failed', e));
 }
 
 window.onload = () => {
