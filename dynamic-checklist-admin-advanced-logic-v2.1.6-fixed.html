@@ -347,6 +347,15 @@
             <input id="builderSection" value="Software & Systems Assessment">
           </div>
           <div class="field">
+            <label for="builderVisitType">Visit Type / نوع الزيارة</label>
+            <select id="builderVisitType">
+              <option value="all">All / الكل</option>
+              <option value="normal">Normal Visit / زيارة عادية</option>
+              <option value="troubleshooting">Troubleshooting Visit / زيارة تروبلشوتينق</option>
+              <option value="networkDown">Network Down Branch Visit / زيارة فرع مقطوع شبكة</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="builderRequired">إجباري؟</label>
             <select id="builderRequired">
               <option value="false">لا</option>
@@ -511,6 +520,21 @@
         return field.labelAr || field.label || field.id || '';
       }
 
+      const VISIT_TYPE_LABELS = {
+        all: 'All / الكل',
+        normal: 'Normal Visit / زيارة عادية',
+        troubleshooting: 'Troubleshooting Visit / زيارة تروبلشوتينق',
+        networkDown: 'Network Down Branch Visit / زيارة فرع مقطوع شبكة'
+      };
+
+      function normalizeVisitType(value) {
+        return ['all', 'normal', 'troubleshooting', 'networkDown'].includes(value) ? value : 'all';
+      }
+
+      function visitTypeLabel(value) {
+        return VISIT_TYPE_LABELS[normalizeVisitType(value)] || VISIT_TYPE_LABELS.all;
+      }
+
       function preserveSelectValue(selectId, html) {
         const select = $(selectId);
         const oldValue = select.value;
@@ -607,6 +631,7 @@
           options: fieldType === 'choice' ? collectOptions() : [],
           order: Number($('builderOrder').value) || 0,
           section: $('builderSection').value.trim(),
+          visitType: normalizeVisitType($('builderVisitType').value),
           required: $('builderRequired').value === 'true',
           active: $('builderActive').value === 'true',
           logic: {
@@ -665,7 +690,7 @@
           <div class="item-card">
             <div class="item-info">
               <strong>${esc(fieldLabel(field))}</strong><br>
-              <span>القسم: ${esc(field.section || '-')} | الترتيب: ${esc(field.order ?? '-')} | ${field.active !== false ? 'نشط' : 'معطل'} | ${esc(field.fieldType || 'text')}</span>
+              <span>القسم: ${esc(field.section || '-')} | الترتيب: ${esc(field.order ?? '-')} | نوع الزيارة: ${esc(visitTypeLabel(field.visitType))} | ${field.active !== false ? 'نشط' : 'معطل'} | ${esc(field.fieldType || 'text')}</span>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
               <button class="btn small" data-edit="${esc(field.id)}">تعديل</button>
@@ -728,6 +753,7 @@
         $('builderOptionCount').value = Array.isArray(field.options) ? field.options.length : 0;
         $('builderOrder').value = field.order ?? 1;
         $('builderSection').value = field.section || 'Software & Systems Assessment';
+        $('builderVisitType').value = normalizeVisitType(field.visitType);
         $('builderRequired').value = String(field.required === true);
         $('builderActive').value = String(field.active !== false);
         $('logicEnabled').value = String(field.logic?.enabled === true);
@@ -762,6 +788,7 @@
         $('builderOptionCount').value = '0';
         $('builderOrder').value = String((allFields.length || 0) + 1);
         $('builderSection').value = 'Software & Systems Assessment';
+        $('builderVisitType').value = 'all';
         $('builderRequired').value = 'false';
         $('builderActive').value = 'true';
         $('logicEnabled').value = 'false';
@@ -783,6 +810,7 @@
 
         const base = {
           section: 'Software & Systems Assessment',
+          visitType: 'all',
           required: false,
           active: true,
           logic: { enabled: false, visibleWhen: { fieldId: '', fieldLabel: '', operator: 'equals', value: 'yes' } },

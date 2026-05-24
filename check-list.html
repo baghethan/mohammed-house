@@ -72,6 +72,9 @@
             <div class="field"><label>Month</label><input id="cl_month" readonly /></div>
           </div>
           <div class="section-title">3- Dynamic Check-List</div>
+          <div class="grid-fields">
+            <div class="field"><label>Visit Type / نوع الزيارة *</label><select id="cl_visit_type"><option value="">Select Visit Type / اختر نوع الزيارة</option><option value="normal">Normal Visit / زيارة عادية</option><option value="troubleshooting">Troubleshooting Visit / زيارة تروبلشوتينق</option><option value="networkDown">Network Down Branch Visit / زيارة فرع مقطوع شبكة</option></select></div>
+          </div>
           <div id="dynamicChecklistSections"></div>
           <button class="btn-save" id="saveChecklistBtn">حفظ وإرسال التقرير ✅</button>
           <button class="btn-save" id="newFormBtn" style="background:var(--primary); display:none; margin-top:10px;" onclick="location.reload()">إنشاء تقرير جديد ➕</button>
@@ -104,6 +107,12 @@
     };
 
     const esc = (v) => String(v == null || v === 'undefined' ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+    const VISIT_TYPES = ['normal', 'troubleshooting', 'networkDown'];
+    function normalizeFieldVisitType(value) { return ['all', ...VISIT_TYPES].includes(value) ? value : 'all'; }
+    function isFieldForVisitType(field, selectedVisitType) {
+      const fieldVisitType = normalizeFieldVisitType(field && field.visitType);
+      return !!selectedVisitType && (fieldVisitType === 'all' || fieldVisitType === selectedVisitType);
+    }
     var state = {
       checklists: [],
       checklistFields: [],
@@ -447,8 +456,13 @@
 
     window.renderDynamicForm = function(answers = {}) {
       const container = $('dynamicChecklistSections'); container.innerHTML = '';
+      const selectedVisitType = $('cl_visit_type').value;
+      if (!selectedVisitType) {
+        container.innerHTML = '<div class="notice warn" style="margin-top:12px;">Select Visit Type / اختر نوع الزيارة لعرض البنود.</div>';
+        return;
+      }
       const currentAnswers = Object.keys(answers).length ? answers : window.collectAnswers();
-      state.checklistFields.forEach(field => {
+      state.checklistFields.filter(field => isFieldForVisitType(field, selectedVisitType)).forEach(field => {
         if (field.logic?.enabled && field.logic?.visibleWhen) { 
           const rule = field.logic.visibleWhen; const src = resolveRef(rule.fieldId, rule.fieldLabel); 
           if (String(src ? currentAnswers[src.id] : '').toLowerCase() !== String(rule.value).toLowerCase()) return; 
@@ -468,6 +482,7 @@
         }
         container.innerHTML += html + `</div>`;
       });
+      if (!container.innerHTML.trim()) container.innerHTML = '<div class="notice" style="margin-top:12px;">لا توجد بنود مرتبطة بنوع الزيارة المختار.</div>';
     };
 
     window.collectAnswers = function() {
@@ -482,6 +497,7 @@
       const db = window.parent.appDb; const answers = window.collectAnswers(); const techDropdown = $('cl_technician');
       if (!techDropdown.value) return alert('اختر الفني أولاً.');
       if (!$('cl_visit_ref').value) return alert('لا توجد زيارة متاحة للحفظ.');
+      if (!$('cl_visit_type').value) return alert('اختر نوع الزيارة أولاً.');
       if (isTechnicianMode()) {
         const identity = getCurrentTechnicianIdentity();
         if (!identity.matchedTechId || String(techDropdown.value) !== String(identity.matchedTechId)) {
@@ -501,7 +517,7 @@
       const selectedTech = state.technicians.find(t => String(t.id) === String(techDropdown.value) || String(t._docId) === String(techDropdown.value)) || (isTechnicianMode() ? getCurrentTechnicianIdentity().matchedTech : null) || {};
       const payload = { 
         technicianEmpId: selectedTech.empId || selectedTech.empNum || selectedTech.employeeId || techDropdown.value, technicianDocId: selectedTech._docId || techDropdown.value, technicianEmail: $('cl_technician_email').value, technicianAuthId: selectedTech.authUid || '', 
-        visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, department: $('cl_department').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, dynamicAnswers: answers, updatedAt: new Date().toISOString()
+        visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, department: $('cl_department').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, visitType: $('cl_visit_type').value, dynamicAnswers: answers, updatedAt: new Date().toISOString()
       };
       try { 
         const id = $('editingChecklistId').value; 
@@ -534,7 +550,7 @@
         let count = 0;
         for (const row of rows) {
           if (row.ID) {
-            const updates = { visitDate: row["تاريخ الزيارة"]||'', branchId: row["Branch ID"]||'', locationSite: row["Location/Site"]||'', branchManager: row["مدير الفرع"]||'', brand: row["Brand"]||'', department: row["Department"]||'', technicianName: row["الفني"]||'', dynamicAnswers: {} };
+            const updates = { visitDate: row["تاريخ الزيارة"]||'', branchId: row["Branch ID"]||'', locationSite: row["Location/Site"]||'', branchManager: row["مدير الفرع"]||'', brand: row["Brand"]||'', department: row["Department"]||'', technicianName: row["الفني"]||'', visitType: row["Visit Type"]||'', dynamicAnswers: {} };
             state.checklistFields.forEach(f => { const col = f.labelAr || f.label; if (row[col] !== undefined) updates.dynamicAnswers[f.id] = row[col]; });
             await db.collection('branch_checklists').doc(row.ID).update(nativeClean(updates)); count++;
           }
@@ -677,7 +693,7 @@
       const r = state.checklists.find(x => x.id === id); if(!r) return;
       $('editingChecklistId').value = r.id; $('cl_technician').value = r.technicianDocId || '';
       await loadVisitsForTech(r.technicianDocId, r.visitDocId);
-      const m = { technicianEmail:'cl_technician_email', technicianId:'cl_technician_id', city:'cl_city', region:'cl_region', brand:'cl_brand', department:'cl_department', brandKey:'cl_brandKey', branchId:'cl_branch_id', locationSite:'cl_location', visitDate:'cl_visit_date', month:'cl_month', branchManager:'cl_branch_manager', visitScheduled:'cl_visit_scheduled' };
+      const m = { technicianEmail:'cl_technician_email', technicianId:'cl_technician_id', city:'cl_city', region:'cl_region', brand:'cl_brand', department:'cl_department', brandKey:'cl_brandKey', branchId:'cl_branch_id', locationSite:'cl_location', visitDate:'cl_visit_date', month:'cl_month', branchManager:'cl_branch_manager', visitScheduled:'cl_visit_scheduled', visitType:'cl_visit_type' };
       Object.keys(m).forEach(k => { if($(m[k])) $(m[k]).value = r[k] || ''; });
       window.renderDynamicForm(r.dynamicAnswers || {});
     };
@@ -776,6 +792,7 @@
       $('exportExcelBtn').onclick = exportToExcel;
       $('importExcelInput').onchange = handleImport;
       $('saveChecklistBtn').onclick = window.saveChecklist;
+      $('cl_visit_type').onchange = () => window.renderDynamicForm(window.collectAnswers());
 
       $('cl_technician').onchange = (e) => {
         if (isTechnicianMode()) return;
