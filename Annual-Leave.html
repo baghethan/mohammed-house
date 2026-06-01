@@ -11,11 +11,13 @@
     .shell{width:100%;max-width:1100px}
     .glass{width:100%;background:var(--surface);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.45);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;padding:30px}
     .card{background:var(--surface2);border:1px solid rgba(15,23,42,.08);border-radius:18px;padding:20px;box-shadow:0 10px 24px rgba(0,0,0,.05);margin-bottom:20px}
-    .btn,.btn2,.danger-btn{border:none;border-radius:12px;padding:10px 18px;font-weight:800;cursor:pointer;transition:.2s;font-size:13px}
+    .btn,.btn2,.danger-btn,.edit-btn{border:none;border-radius:12px;padding:10px 18px;font-weight:800;cursor:pointer;transition:.2s;font-size:13px}
     .btn{background:#fff;color:var(--primary);border:1px solid #e2e8f0}
     .btn2{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff}
     .danger-btn{background:var(--danger);color:#fff; padding: 8px 12px;}
+    .edit-btn{background:#eef6ff;color:var(--primary);border:1px solid #cfe3ff;padding:8px 12px}
     .form-box{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+    .form-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     input,select{padding:12px 15px;border-radius:12px;border:1px solid #d8dee8;background:#fff;min-height:45px;font-size:14px}
     .filter-box{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap}
     .search-input{min-width:260px;flex:1}
@@ -53,7 +55,10 @@
             </select>
             <input type="date" id="aStart" style="flex:1" />
             <input type="date" id="aEnd" style="flex:1" />
-            <button class="btn2" onclick="window.addAnnualLeave()">🌴 تعيين إجازة</button>
+            <div class="form-actions">
+                <button id="saveLeaveBtn" class="btn2" onclick="window.addAnnualLeave()">🌴 تعيين إجازة</button>
+                <button id="cancelEditBtn" class="btn" type="button" onclick="window.cancelLeaveEdit()" style="display:none">إلغاء</button>
+            </div>
         </div>
     </div>
 
@@ -83,11 +88,11 @@
 
 <script type="module">
 import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
-import { collection, doc, onSnapshot, addDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { collection, doc, onSnapshot, addDoc, deleteDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', type:'نوع الإجازة', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', selectType:'نوع الإجازة...', assign:'تعيين إجازة', searchEmp:'ابحث باسم أو رقم الموظف...', requestCount:'عدد الطلبات', allRequests:'كل الطلبات', noRecords:'لا توجد طلبات مطابقة' },
-    en: { title:'Annual Leave Management', subtitle:'Leave Planning & Documentation - Almajdouie Motors', list:'🌴 Annual Leave Records', name:'Employee', type:'Leave Type', from:'From', to:'To', action:'Action', selectEmp:'Select Employee...', selectType:'Leave Type...', assign:'Assign Leave', searchEmp:'Search by employee name or number...', requestCount:'Requests', allRequests:'All requests', noRecords:'No matching requests' }
+    ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', type:'نوع الإجازة', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', selectType:'نوع الإجازة...', assign:'تعيين إجازة', saveEdit:'حفظ التعديل', cancel:'إلغاء', edit:'تعديل', del:'حذف', searchEmp:'ابحث باسم أو رقم الموظف...', requestCount:'عدد الطلبات', allRequests:'كل الطلبات', noRecords:'لا توجد طلبات مطابقة', dateError:'تاريخ البداية لا يمكن أن يكون بعد تاريخ النهاية', recordMissing:'لم يتم العثور على الطلب' },
+    en: { title:'Annual Leave Management', subtitle:'Leave Planning & Documentation - Almajdouie Motors', list:'🌴 Annual Leave Records', name:'Employee', type:'Leave Type', from:'From', to:'To', action:'Action', selectEmp:'Select Employee...', selectType:'Leave Type...', assign:'Assign Leave', saveEdit:'Save Changes', cancel:'Cancel', edit:'Edit', del:'Delete', searchEmp:'Search by employee name or number...', requestCount:'Requests', allRequests:'All requests', noRecords:'No matching requests', dateError:'Start date cannot be after end date', recordMissing:'Leave request was not found' }
 };
 
 const leaveTypes = {
@@ -96,7 +101,7 @@ const leaveTypes = {
     absence: { ar: 'غياب', en: 'Absence' }
 };
 
-let employees=[], vacationsList=[], currentLang=localStorage.getItem('lang')||'ar';
+let employees=[], vacationsList=[], currentLang=localStorage.getItem('lang')||'ar', editingVacationId='';
 const $=id=>document.getElementById(id), tr=()=>i18n[currentLang];
 
 // --- 1. Logic ---
@@ -110,10 +115,14 @@ window.addAnnualLeave = async () => {
         alert(currentLang==='ar'?'يرجى إكمال جميع الحقول':'Please complete all fields');
         return;
     }
+    if(new Date(start) > new Date(end)) {
+        alert(tr().dateError);
+        return;
+    }
 
     const emp = employees.find(e => String(e.key) === String(empId));
     const now = new Date().toISOString();
-    const newVacation = {
+    const vacationPayload = {
         empId,
         employeeDocId: emp?.id || empId,
         employeeName: emp?.name || '',
@@ -131,12 +140,41 @@ window.addAnnualLeave = async () => {
     };
     
     await waitForSignedInUser();
-    await addDoc(collection(db, 'vacations'), newVacation);
+    if(editingVacationId) {
+        const existing = vacationsList.find(v => String(v.id) === String(editingVacationId));
+        if(!existing) {
+            alert(tr().recordMissing);
+            return;
+        }
+        await updateDoc(doc(db, 'vacations', editingVacationId), {
+            ...vacationPayload,
+            createdAt: existing.createdAt || vacationPayload.createdAt,
+            updatedAt: now
+        });
+    } else {
+        await addDoc(collection(db, 'vacations'), vacationPayload);
+    }
     
-    $('aStart').value = ''; 
-    $('aEnd').value = '';
-    $('aType').value = '';
+    resetLeaveForm();
 };
+
+window.editVacation = (id) => {
+    const record = vacationsList.find(v => String(v.id) === String(id));
+    if(!record) {
+        alert(tr().recordMissing);
+        return;
+    }
+    const emp = findVacationEmployee(record);
+    editingVacationId = id;
+    $('aEmp').value = emp?.key || record.empId || record.employeeId || record.employeeDocId || '';
+    $('aType').value = normalizeLeaveType(record.leaveType || record.type);
+    $('aStart').value = record.start || record.from || '';
+    $('aEnd').value = record.end || record.to || '';
+    renderEditState();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.cancelLeaveEdit = () => resetLeaveForm();
 
 window.deleteVacation = async (id) => {
     if(!confirm(currentLang==='ar'?'هل تريد حذف هذه الإجازة؟':'Are you sure you want to delete this leave?')) return;
@@ -168,6 +206,7 @@ function renderUI() {
     const selectedEmployee = employees.find(e => String(e.key) === String(select.value));
     const selectedCount = selectedEmployee ? countEmployeeVacations(selectedEmployee) : filteredVacations.length;
     $('requestCount').innerText = `${selectedEmployee ? selectedEmployee.name : t.allRequests}: ${t.requestCount} ${selectedCount}`;
+    renderEditState();
 
     // Table
     $('annualBody').innerHTML = filteredVacations.length ? filteredVacations.map((v) => {
@@ -179,7 +218,8 @@ function renderUI() {
                 <td>${v.start || v.from || ''}</td>
                 <td>${v.end || v.to || ''}</td>
                 <td>
-                    <button class="danger-btn" onclick="window.deleteVacation('${v.id}')">X</button>
+                    <button class="edit-btn" onclick="window.editVacation('${v.id}')">${t.edit}</button>
+                    <button class="danger-btn" onclick="window.deleteVacation('${v.id}')">${t.del}</button>
                 </td>
             </tr>
         `;
@@ -249,6 +289,21 @@ function vacationMatchesSearch(record, searchTerm) {
 
 function countEmployeeVacations(emp) {
     return vacationsList.filter(v => vacationMatchesEmployee(v, emp)).length;
+}
+
+function renderEditState() {
+    const t = tr();
+    $('saveLeaveBtn').innerText = editingVacationId ? t.saveEdit : `🌴 ${t.assign}`;
+    $('cancelEditBtn').innerText = t.cancel;
+    $('cancelEditBtn').style.display = editingVacationId ? 'inline-block' : 'none';
+}
+
+function resetLeaveForm() {
+    editingVacationId = '';
+    $('aStart').value = '';
+    $('aEnd').value = '';
+    $('aType').value = '';
+    renderEditState();
 }
 
 function normalizeVacation(record) {
