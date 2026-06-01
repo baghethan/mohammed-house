@@ -17,6 +17,10 @@
     .danger-btn{background:var(--danger);color:#fff; padding: 8px 12px;}
     .form-box{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
     input,select{padding:12px 15px;border-radius:12px;border:1px solid #d8dee8;background:#fff;min-height:45px;font-size:14px}
+    .filter-box{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap}
+    .search-input{min-width:260px;flex:1}
+    .request-pill{background:#eef6ff;color:var(--primary);border:1px solid #cfe3ff;border-radius:12px;padding:11px 14px;font-size:13px;font-weight:900;white-space:nowrap}
+    .empty-row{color:var(--muted);font-weight:800}
     
     table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #eee}
     thead th{background:#f8fafc;color:var(--primary);font-weight:900;padding:15px;text-align:center;border-bottom:2px solid #eef2f7}
@@ -55,6 +59,10 @@
 
     <div class="card">
         <h3 id="listTitle" style="margin-top:0; color:var(--primary); margin-bottom:20px">🌴 سجل الإجازات السنوية</h3>
+        <div class="filter-box">
+            <input id="empSearch" class="search-input" type="search" placeholder="ابحث باسم أو رقم الموظف..." />
+            <div id="requestCount" class="request-pill">عدد الطلبات: 0</div>
+        </div>
         <div style="overflow-x:auto">
             <table>
                 <thead>
@@ -78,8 +86,8 @@ import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js
 import { collection, doc, onSnapshot, addDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', type:'نوع الإجازة', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', selectType:'نوع الإجازة...', assign:'تعيين إجازة' },
-    en: { title:'Annual Leave Management', subtitle:'Leave Planning & Documentation - Almajdouie Motors', list:'🌴 Annual Leave Records', name:'Employee', type:'Leave Type', from:'From', to:'To', action:'Action', selectEmp:'Select Employee...', selectType:'Leave Type...', assign:'Assign Leave' }
+    ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', type:'نوع الإجازة', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', selectType:'نوع الإجازة...', assign:'تعيين إجازة', searchEmp:'ابحث باسم أو رقم الموظف...', requestCount:'عدد الطلبات', allRequests:'كل الطلبات', noRecords:'لا توجد طلبات مطابقة' },
+    en: { title:'Annual Leave Management', subtitle:'Leave Planning & Documentation - Almajdouie Motors', list:'🌴 Annual Leave Records', name:'Employee', type:'Leave Type', from:'From', to:'To', action:'Action', selectEmp:'Select Employee...', selectType:'Leave Type...', assign:'Assign Leave', searchEmp:'Search by employee name or number...', requestCount:'Requests', allRequests:'All requests', noRecords:'No matching requests' }
 };
 
 const leaveTypes = {
@@ -152,12 +160,21 @@ function renderUI() {
         Object.entries(leaveTypes).map(([key, label]) => `<option value="${key}">${label[currentLang]}</option>`).join('');
     typeSelect.value = currentType;
 
+    const searchBox = $('empSearch');
+    const searchTerm = String(searchBox?.value || '').trim().toLowerCase();
+    const filteredVacations = searchTerm
+        ? vacationsList.filter(v => vacationMatchesSearch(v, searchTerm))
+        : vacationsList;
+    const selectedEmployee = employees.find(e => String(e.key) === String(select.value));
+    const selectedCount = selectedEmployee ? countEmployeeVacations(selectedEmployee) : filteredVacations.length;
+    $('requestCount').innerText = `${selectedEmployee ? selectedEmployee.name : t.allRequests}: ${t.requestCount} ${selectedCount}`;
+
     // Table
-    $('annualBody').innerHTML = vacationsList.map((v, index) => {
-        const emp = employees.find(e => String(e.key) === String(v.empId) || String(e.id) === String(v.employeeDocId));
+    $('annualBody').innerHTML = filteredVacations.length ? filteredVacations.map((v) => {
+        const emp = findVacationEmployee(v);
         return `
             <tr>
-                <td class="emp-name-cell">${emp ? emp.name : v.empId}</td>
+                <td class="emp-name-cell">${emp ? emp.name : getVacationEmployeeLabel(v)}</td>
                 <td>${getLeaveTypeLabel(v)}</td>
                 <td>${v.start || v.from || ''}</td>
                 <td>${v.end || v.to || ''}</td>
@@ -166,7 +183,7 @@ function renderUI() {
                 </td>
             </tr>
         `;
-    }).join('');
+    }).join('') : `<tr><td colspan="5" class="empty-row">${t.noRecords}</td></tr>`;
 }
 
 // --- 3. Data Sync ---
@@ -194,11 +211,51 @@ function getLeaveTypeLabel(record) {
     return leaveTypes[type]?.[currentLang] || record.leaveTypeLabel || record.type || '';
 }
 
+function getEmployeeKeys(emp) {
+    return [emp?.key, emp?.id, emp?.empId, emp?.empNum, emp?.employeeId, emp?.technicianId, emp?.fireId]
+        .filter(v => v !== undefined && v !== null && String(v).trim() !== '')
+        .map(v => String(v));
+}
+
+function getVacationEmployeeKeys(record) {
+    return [record.empId, record.employeeId, record.employeeDocId, record.technicianId, record.fireId]
+        .filter(v => v !== undefined && v !== null && String(v).trim() !== '')
+        .map(v => String(v));
+}
+
+function vacationMatchesEmployee(record, emp) {
+    const employeeKeys = new Set(getEmployeeKeys(emp));
+    return getVacationEmployeeKeys(record).some(key => employeeKeys.has(key));
+}
+
+function findVacationEmployee(record) {
+    return employees.find(emp => vacationMatchesEmployee(record, emp));
+}
+
+function getVacationEmployeeLabel(record) {
+    return record.employeeName || record.name || record.empId || record.employeeId || record.employeeDocId || '';
+}
+
+function vacationMatchesSearch(record, searchTerm) {
+    const emp = findVacationEmployee(record);
+    const haystack = [
+        emp?.name,
+        ...getEmployeeKeys(emp),
+        getVacationEmployeeLabel(record),
+        ...getVacationEmployeeKeys(record)
+    ].join(' ').toLowerCase();
+    return haystack.includes(searchTerm);
+}
+
+function countEmployeeVacations(emp) {
+    return vacationsList.filter(v => vacationMatchesEmployee(v, emp)).length;
+}
+
 function normalizeVacation(record) {
     const leaveType = normalizeLeaveType(record.leaveType || record.type);
     return {
         ...record,
-        empId: record.empId || record.employeeId || record.technicianId || '',
+        empId: record.empId || record.employeeId || record.employeeDocId || record.technicianId || record.fireId || '',
         start: record.start || record.from || '',
         end: record.end || record.to || '',
         leaveType
@@ -229,6 +286,9 @@ window.addEventListener('DOMContentLoaded', () => {
     $('title').innerText = t.title; $('subtitle').innerText = t.subtitle; 
     $('listTitle').innerText = t.list; $('thName').innerText = t.name;
     $('thType').innerText = t.type; $('thFrom').innerText = t.from; $('thTo').innerText = t.to; $('thAction').innerText = t.action;
+    $('empSearch').placeholder = t.searchEmp;
+    $('empSearch').addEventListener('input', renderUI);
+    $('aEmp').addEventListener('change', renderUI);
     bindSnapshots().catch(e => logFirebaseError('Annual leave startup failed', e));
 });
 </script>
