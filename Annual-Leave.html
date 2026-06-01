@@ -21,6 +21,8 @@
     input,select{padding:12px 15px;border-radius:12px;border:1px solid #d8dee8;background:#fff;min-height:45px;font-size:14px}
     .filter-box{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap}
     .search-input{min-width:260px;flex:1}
+    .date-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .date-filter label{font-size:12px;font-weight:900;color:var(--muted)}
     .request-pill{background:#eef6ff;color:var(--primary);border:1px solid #cfe3ff;border-radius:12px;padding:11px 14px;font-size:13px;font-weight:900;white-space:nowrap}
     .empty-row{color:var(--muted);font-weight:800}
     
@@ -66,7 +68,12 @@
         <h3 id="listTitle" style="margin-top:0; color:var(--primary); margin-bottom:20px">🌴 سجل الإجازات السنوية</h3>
         <div class="filter-box">
             <input id="empSearch" class="search-input" type="search" placeholder="ابحث باسم أو رقم الموظف..." />
-            <input id="dateSearch" type="date" />
+            <div class="date-filter">
+                <label id="filterFromLabel" for="dateFromSearch">من</label>
+                <input id="dateFromSearch" type="date" />
+                <label id="filterToLabel" for="dateToSearch">إلى</label>
+                <input id="dateToSearch" type="date" />
+            </div>
             <div id="requestCount" class="request-pill">عدد الطلبات: 0</div>
         </div>
         <div style="overflow-x:auto">
@@ -92,8 +99,8 @@ import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js
 import { collection, doc, onSnapshot, addDoc, deleteDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', type:'نوع الإجازة', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', selectType:'نوع الإجازة...', assign:'تعيين إجازة', saveEdit:'حفظ التعديل', cancel:'إلغاء', edit:'تعديل', del:'حذف', searchEmp:'ابحث باسم أو رقم الموظف...', requestCount:'عدد الطلبات', allRequests:'كل الطلبات', noRecords:'لا توجد طلبات مطابقة', dateError:'تاريخ البداية لا يمكن أن يكون بعد تاريخ النهاية', recordMissing:'لم يتم العثور على الطلب' },
-    en: { title:'Annual Leave Management', subtitle:'Leave Planning & Documentation - Almajdouie Motors', list:'🌴 Annual Leave Records', name:'Employee', type:'Leave Type', from:'From', to:'To', action:'Action', selectEmp:'Select Employee...', selectType:'Leave Type...', assign:'Assign Leave', saveEdit:'Save Changes', cancel:'Cancel', edit:'Edit', del:'Delete', searchEmp:'Search by employee name or number...', requestCount:'Requests', allRequests:'All requests', noRecords:'No matching requests', dateError:'Start date cannot be after end date', recordMissing:'Leave request was not found' }
+    ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', type:'نوع الإجازة', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', selectType:'نوع الإجازة...', assign:'تعيين إجازة', saveEdit:'حفظ التعديل', cancel:'إلغاء', edit:'تعديل', del:'حذف', searchEmp:'ابحث باسم أو رقم الموظف...', requestCount:'عدد الطلبات', allRequests:'كل الطلبات', noRecords:'لا توجد طلبات مطابقة', dateError:'تاريخ البداية لا يمكن أن يكون بعد تاريخ النهاية', recordMissing:'لم يتم العثور على الطلب', filterFrom:'من', filterTo:'إلى' },
+    en: { title:'Annual Leave Management', subtitle:'Leave Planning & Documentation - Almajdouie Motors', list:'🌴 Annual Leave Records', name:'Employee', type:'Leave Type', from:'From', to:'To', action:'Action', selectEmp:'Select Employee...', selectType:'Leave Type...', assign:'Assign Leave', saveEdit:'Save Changes', cancel:'Cancel', edit:'Edit', del:'Delete', searchEmp:'Search by employee name or number...', requestCount:'Requests', allRequests:'All requests', noRecords:'No matching requests', dateError:'Start date cannot be after end date', recordMissing:'Leave request was not found', filterFrom:'From', filterTo:'To' }
 };
 
 const leaveTypes = {
@@ -201,14 +208,15 @@ function renderUI() {
 
     const searchBox = $('empSearch');
     const searchTerm = String(searchBox?.value || '').trim().toLowerCase();
-    const selectedDate = $('dateSearch').value;
+    const selectedFrom = $('dateFromSearch').value;
+    const selectedTo = $('dateToSearch').value;
     const filteredVacations = vacationsList.filter(v => {
         const matchesName = !searchTerm || vacationMatchesSearch(v, searchTerm);
-        const matchesDate = !selectedDate || dateSearchMatchesRange(v.start || v.from || '', v.end || v.to || '', selectedDate);
+        const matchesDate = dateSearchMatchesSelectedRange(v.start || v.from || '', v.end || v.to || '', selectedFrom, selectedTo);
         return matchesName && matchesDate;
     });
     const selectedEmployee = employees.find(e => String(e.key) === String(select.value));
-    const hasSearchFilter = Boolean(searchTerm || selectedDate);
+    const hasSearchFilter = Boolean(searchTerm || selectedFrom || selectedTo);
     const selectedCount = selectedEmployee && !hasSearchFilter ? countEmployeeVacations(selectedEmployee) : filteredVacations.length;
     $('requestCount').innerText = `${selectedEmployee ? selectedEmployee.name : t.allRequests}: ${t.requestCount} ${selectedCount}`;
     renderEditState();
@@ -317,6 +325,20 @@ function dateSearchMatchesRange(startValue, endValue, searchTerm) {
     return searchDate >= startDate && searchDate <= endDate;
 }
 
+function dateSearchMatchesSelectedRange(startValue, endValue, selectedFrom, selectedTo) {
+    if(!selectedFrom && !selectedTo) return true;
+    const leaveStart = parseDateValue(startValue);
+    const leaveEnd = parseDateValue(endValue);
+    if(!leaveStart || !leaveEnd) return false;
+    const filterStart = parseDateValue(selectedFrom) || new Date(0);
+    const filterEnd = parseDateValue(selectedTo) || new Date(8640000000000000);
+    leaveStart.setHours(0, 0, 0, 0);
+    leaveEnd.setHours(0, 0, 0, 0);
+    filterStart.setHours(0, 0, 0, 0);
+    filterEnd.setHours(0, 0, 0, 0);
+    return leaveStart <= filterEnd && leaveEnd >= filterStart;
+}
+
 function renderEditState() {
     const t = tr();
     $('saveLeaveBtn').innerText = editingVacationId ? t.saveEdit : `🌴 ${t.assign}`;
@@ -367,9 +389,12 @@ window.addEventListener('DOMContentLoaded', () => {
     $('title').innerText = t.title; $('subtitle').innerText = t.subtitle; 
     $('listTitle').innerText = t.list; $('thName').innerText = t.name;
     $('thType').innerText = t.type; $('thFrom').innerText = t.from; $('thTo').innerText = t.to; $('thAction').innerText = t.action;
+    $('filterFromLabel').innerText = t.filterFrom;
+    $('filterToLabel').innerText = t.filterTo;
     $('empSearch').placeholder = t.searchEmp;
     $('empSearch').addEventListener('input', renderUI);
-    $('dateSearch').addEventListener('change', renderUI);
+    $('dateFromSearch').addEventListener('change', renderUI);
+    $('dateToSearch').addEventListener('change', renderUI);
     $('aEmp').addEventListener('change', renderUI);
     bindSnapshots().catch(e => logFirebaseError('Annual leave startup failed', e));
 });
