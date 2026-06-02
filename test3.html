@@ -195,6 +195,7 @@
                     { key: 'checklist', name: 'Checklist', file: 'check-list.html' },
                     { key: 'brands', name: 'Brands', file: 'brands.html' },
                     { key: 'branches', name: 'Branches', file: 'branches.html' },
+                    { key: 'technicians', name: 'Technicians', file: 'technicians.html' },
                     { key: 'visit', name: 'Visits', file: 'visits.html' },
                     { key: 'upgrade', name: 'Upgrade Windows', file: 'upgrade-windows.html' },
                     { key: 'checklist_admin', name: 'Checklist Admin', file: 'dynamic-checklist-admin-advanced-logic-v2.1.6-fixed.html' },
@@ -323,7 +324,10 @@
                 checklist_admin: 'checklist_admin',
                 'checklist-admin': 'checklist_admin',
                 reports_windows: 'reports',
-                'reports-windows': 'reports'
+                'reports-windows': 'reports',
+                technician: 'technicians',
+                current_technicians: 'technicians',
+                'current-technicians': 'technicians'
             };
             const legacyMap = {
                 diagnostics: 'diagnostics',
@@ -480,6 +484,122 @@
             const separator = file.includes('?') ? '&' : '?';
             document.getElementById('contentFrame').src = `${file}${separator}${params.toString()}`;
         }
+
+        document.getElementById('contentFrame').addEventListener('load', function () {
+            const frame = this;
+            const framePath = (frame.getAttribute('src') || '').split('?')[0].toLowerCase();
+            if (!framePath.endsWith('check-list.html')) return;
+
+            try {
+                const child = frame.contentWindow;
+                const doc = frame.contentDocument;
+                const container = doc.getElementById('dynamicChecklistSections');
+                const visitSelect = doc.getElementById('cl_visit_type');
+                if (!child || !doc || !container || !visitSelect) return;
+
+                const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, char => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                })[char]);
+                const validVisitTypes = ['all', 'normal', 'troubleshooting', 'networkDown'];
+                const normalizeVisitType = value => validVisitTypes.includes(value) ? value : 'all';
+                const normalizeVisitTypes = value => {
+                    const source = Array.isArray(value) ? value : (value ? [value] : []);
+                    const normalized = [...new Set(source.map(normalizeVisitType))];
+                    return normalized.length ? normalized : ['all'];
+                };
+                const getAnswers = () => {
+                    const answers = {};
+                    doc.querySelectorAll('.dyn-input').forEach(input => {
+                        const id = input.dataset.id;
+                        if (!id) return;
+                        if (input.type === 'checkbox') {
+                            if (!answers[id]) answers[id] = [];
+                            if (input.checked) answers[id].push(input.value);
+                        } else if (input.type === 'radio') {
+                            if (input.checked) answers[id] = input.value;
+                        } else if (input.dataset.index !== undefined) {
+                            if (!answers[id]) answers[id] = [];
+                            answers[id][input.dataset.index] = input.value;
+                        } else {
+                            answers[id] = input.value;
+                        }
+                    });
+                    return answers;
+                };
+                const resolveRef = (fields, id, label) => fields.find(field => field.id === id) || fields.find(field => field.label === label || field.labelAr === label) || null;
+
+                child.collectAnswers = getAnswers;
+                child.renderDynamicForm = function (answers = {}) {
+                    const fields = Array.isArray(child.__visitTypeChecklistFields) ? child.__visitTypeChecklistFields : [];
+                    const selectedVisitType = visitSelect.value;
+                    container.innerHTML = '';
+
+                    if (!selectedVisitType) {
+                        container.innerHTML = '<div class="notice warn" style="margin-top:12px;">Select Visit Type / اختر نوع الزيارة لعرض البنود.</div>';
+                        return;
+                    }
+
+                    const currentAnswers = Object.keys(answers || {}).length ? answers : getAnswers();
+                    fields
+                        .filter(field => field.active !== false)
+                        .filter(field => normalizeVisitTypes(Array.isArray(field.visitTypes) && field.visitTypes.length ? field.visitTypes : field.visitType).includes(selectedVisitType))
+                        .forEach(field => {
+                            if (field.logic?.enabled && field.logic?.visibleWhen) {
+                                const rule = field.logic.visibleWhen;
+                                const src = resolveRef(fields, rule.fieldId, rule.fieldLabel);
+                                if (String(src ? currentAnswers[src.id] : '').toLowerCase() !== String(rule.value).toLowerCase()) return;
+                            }
+
+                            let html = `<div class="field"><label>${esc(field.labelAr || field.label || '')}</label>`;
+                            const val = currentAnswers[field.id] || '';
+
+                            if (field.repeat?.enabled) {
+                                const countSrc = resolveRef(fields, field.repeat.countFromFieldId, field.repeat.countFromFieldLabel);
+                                const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
+                                for (let i = 0; i < count; i++) {
+                                    html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${esc(field.id)}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i] || '')}" /></div>`;
+                                }
+                            } else if (field.fieldType === 'choice' && (field.renderMode === 'checkboxes' || field.renderMode === 'radios')) {
+                                const type = field.renderMode === 'checkboxes' ? 'checkbox' : 'radio';
+                                html += '<div class="choices-grid">';
+                                (field.options || []).forEach(option => {
+                                    const checked = Array.isArray(val) ? val.includes(option.value) : val === option.value;
+                                    html += `<div class="pill-box ${checked ? 'selected' : ''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(option.label)}</span><input type="${type}" name="g_${esc(field.id)}" class="dyn-input" data-id="${esc(field.id)}" value="${esc(option.value)}" ${checked ? 'checked' : ''} onclick="event.stopPropagation(); window.renderDynamicForm(window.collectAnswers());"></div>`;
+                                });
+                                html += '</div>';
+                            } else if (field.fieldType === 'choice') {
+                                html += `<select class="dyn-input" data-id="${esc(field.id)}" onchange="window.renderDynamicForm(window.collectAnswers())"><option value="">اختر</option>${(field.options || []).map(option => `<option value="${esc(option.value)}" ${val == option.value ? 'selected' : ''}>${esc(option.label)}</option>`).join('')}</select>`;
+                            } else if (field.fieldType === 'number') {
+                                html += `<input type="number" class="dyn-input" data-id="${esc(field.id)}" value="${esc(val)}" onchange="window.renderDynamicForm(window.collectAnswers())" />`;
+                            } else if (field.fieldType === 'boolean') {
+                                html += `<select class="dyn-input" data-id="${esc(field.id)}" onchange="window.renderDynamicForm(window.collectAnswers())"><option value="">اختر</option><option value="yes" ${val === 'yes' ? 'selected' : ''}>Yes</option><option value="no" ${val === 'no' ? 'selected' : ''}>No</option></select>`;
+                            } else {
+                                html += `<input type="text" class="dyn-input" data-id="${esc(field.id)}" value="${esc(val)}" onchange="window.renderDynamicForm(window.collectAnswers())" />`;
+                            }
+
+                            container.innerHTML += html + '</div>';
+                        });
+
+                    if (!container.innerHTML.trim()) {
+                        container.innerHTML = '<div class="notice" style="margin-top:12px;">لا توجد بنود مرتبطة بنوع الزيارة المختار.</div>';
+                    }
+                };
+
+                visitSelect.onchange = () => child.renderDynamicForm(child.collectAnswers());
+                appDb.collection('checklist_fields').onSnapshot(snapshot => {
+                    child.__visitTypeChecklistFields = snapshot.docs
+                        .map(item => ({ id: item.id, ...item.data() }))
+                        .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+                    child.renderDynamicForm(child.collectAnswers());
+                });
+            } catch (error) {
+                console.warn('Checklist visit type hotfix failed', error);
+            }
+        });
 
         async function handleLogout() {
             if (confirm("Are you sure?")) {
