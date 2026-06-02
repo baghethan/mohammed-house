@@ -232,6 +232,12 @@
     var title = normalizeMatchValue(row.jobTitle || row.title || row.position || row.role);
     return type === 'technician' || title.indexOf('technician') > -1 || title.indexOf('فني') > -1 || row.isTechnician === true;
   }
+  function hasTechnicianVisitScope(row){
+    if (!row) return false;
+    if (Array.isArray(row.allowedBranchIds) && row.allowedBranchIds.filter(Boolean).length) return true;
+    return [row.assignedBranchId, row.assignedBranchName, row.allowedRegion, row.region, row.city, row.brand, row.department]
+      .some(function(value){ return String(value || '').trim(); });
+  }
   function getDefaultPagesForRole(role){ return permissionRoleDefaults[role] ? permissionRoleDefaults[role].slice() : permissionRoleDefaults.user.slice(); }
   function getEffectivePagesForProfile(profile){ if (Array.isArray(profile && profile.pages) && profile.pages.length) return profile.pages; return getDefaultPagesForRole((profile && profile.role) || 'user'); }
   function isProfileActive(profile){ if (!profile) return false; if (profile.active === true) return true; if (String(profile.status || '').toLowerCase() === 'active') return true; if (profile.active === false) return false; if (String(profile.status || '').toLowerCase() === 'inactive') return false; return true; }
@@ -268,11 +274,15 @@
   function canDeleteVisitForCurrentUser(){ var role = (state.currentUserProfile && state.currentUserProfile.role) || 'user'; return ['admin','supervisor'].indexOf(role) > -1; }
 
   function renderTechnicianSelectors(){
-    var activeTechs = state.technicians.filter(function(t){ return (t.status || 'active') !== 'inactive'; }).sort(function(a,b){ return String(a.name || '').localeCompare(String(b.name || '')); });
+    var current = $('visitTechnician').value || '';
+    var activeTechs = state.technicians
+      .filter(function(t){ return (t.status || 'active') !== 'inactive' && hasTechnicianVisitScope(t); })
+      .sort(function(a,b){ return String(a.name || '').localeCompare(String(b.name || '')); });
     var options = activeTechs.map(function(t){ var suffix = [t.region, t.city, t.brand, t.department].filter(Boolean).join(' / '); return '<option value="' + esc(t.id) + '">' + esc(t.name || t.id) + (suffix ? ' - ' + esc(suffix) : '') + '</option>'; });
     setOptions('visitTechnician', options, t('selectTechnician'));
     var identity = getCurrentTechnicianIdentity();
-    if (identity.role === 'technician' && identity.matchedTechId) $('visitTechnician').value = identity.matchedTechId;
+    if (identity.role === 'technician' && identity.matchedTechId && activeTechs.some(function(t){ return String(t.id) === String(identity.matchedTechId); })) $('visitTechnician').value = identity.matchedTechId;
+    else if (current && activeTechs.some(function(t){ return String(t.id) === String(current); })) $('visitTechnician').value = current;
   }
 
   function resolveTechnicianForVisitFilter(){
