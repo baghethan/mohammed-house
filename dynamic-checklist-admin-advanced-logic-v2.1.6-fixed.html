@@ -605,6 +605,22 @@
           .join('');
       }
 
+      function visitTypeCheckboxesHtml(fieldId, selectedValue) {
+        const selected = new Set(normalizeVisitTypes(selectedValue));
+        return Object.entries(VISIT_TYPE_LABELS)
+          .map(([value, label]) => `
+            <label class="preview-pill" style="cursor:pointer">
+              <input type="checkbox" data-visit-type-field="${esc(fieldId)}" value="${esc(value)}" ${selected.has(value) ? 'checked' : ''}>
+              <span>${esc(label)}</span>
+            </label>
+          `).join('');
+      }
+
+      function selectedVisitTypesFromCheckboxes(fieldId) {
+        const boxes = document.querySelectorAll(`[data-visit-type-field="${CSS.escape(fieldId)}"]:checked`);
+        return normalizeVisitTypes(Array.from(boxes).map(box => box.value));
+      }
+
       function setAdminStatus(message = '', kind = 'info') {
         const box = $('adminStatus');
         if (!box) return;
@@ -800,7 +816,7 @@
               <span>القسم: ${esc(field.section || '-')} | الترتيب: ${esc(field.order ?? '-')} | نوع الزيارة: ${esc(visitTypeLabel(fieldVisitTypes(field)))} | ${field.active !== false ? 'نشط' : 'معطل'} | ${esc(field.fieldType || 'text')}</span>
               <div class="field" style="margin-top:8px">
                 <label>Visit Type / نوع الزيارة</label>
-                <select data-visit-type-field="${esc(field.id)}" multiple size="4">${visitTypeOptionsHtml(fieldVisitTypes(field))}</select>
+                <div class="preview-choice">${visitTypeCheckboxesHtml(field.id, fieldVisitTypes(field))}</div>
               </div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -900,10 +916,8 @@
       }
 
       async function saveFieldVisitType(id) {
-        const select = document.querySelector(`[data-visit-type-field="${CSS.escape(id)}"]`);
-        if (!select) return;
         try {
-          const visitTypes = selectedVisitTypesFromSelect(select);
+          const visitTypes = selectedVisitTypesFromCheckboxes(id);
           await db.collection('checklist_fields').doc(id).set(nativeClean({
             visitType: visitTypes[0],
             visitTypes,
