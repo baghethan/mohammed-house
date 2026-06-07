@@ -348,12 +348,13 @@
           </div>
           <div class="field">
             <label for="builderVisitType">Visit Type / نوع الزيارة</label>
-            <select id="builderVisitType">
+            <select id="builderVisitType" multiple size="4">
               <option value="all">All / الكل</option>
               <option value="normal">Normal Visit / زيارة عادية</option>
-              <option value="troubleshooting">Troubleshooting Visit / زيارة تروبلشوتينق</option>
-              <option value="networkDown">Network Down Branch Visit / زيارة فرع مقطوع شبكة</option>
+              <option value="troubleshooting">Hardware / هاردوير</option>
+              <option value="networkDown">Networks / شبكات</option>
             </select>
+            <small style="color:var(--muted)">يمكن اختيار أكثر من نوع. عند تعديل بند موجود، التغيير يُحفظ تلقائيًا.</small>
           </div>
           <div class="field">
             <label for="builderRequired">إجباري؟</label>
@@ -373,6 +374,10 @@
 
         <div id="optionsSection" class="hidden">
           <div class="section-title">الخيارات</div>
+          <div class="actions" style="justify-content:flex-start; margin:0 0 12px">
+            <button class="btn small" id="addOptionBtn" type="button">إضافة خيار</button>
+            <button class="btn small danger" id="removeOptionBtn" type="button">حذف آخر خيار</button>
+          </div>
           <div class="options-grid" id="optionsGrid"></div>
         </div>
 
@@ -454,6 +459,43 @@
       <section class="card">
         <h3 class="card-title"><span>البنود المضافة</span><span class="tag" id="fieldsCount">0</span></h3>
         <div class="card-body">
+          <div class="empty-note" id="adminStatus" style="margin-bottom:12px">جاري تحميل البنود...</div>
+          <div class="field" style="margin-bottom:12px">
+            <label for="adminVisitTypeFilter">فلترة حسب نوع الزيارة</label>
+            <select id="adminVisitTypeFilter">
+              <option value="allItems">كل البنود</option>
+              <option value="all">All فقط / البنود العامة فقط</option>
+              <option value="normal">Normal Visit + All / زيارة عادية + الكل</option>
+              <option value="troubleshooting">Hardware + All / هاردوير + الكل</option>
+              <option value="networkDown">Networks + All / شبكات + الكل</option>
+            </select>
+          </div>
+          <div class="actions" style="justify-content:flex-start; margin:0 0 12px">
+            <button class="btn small" id="fillMissingVisitTypesBtn" type="button">تحديث البنود القديمة إلى All</button>
+          </div>
+          <div class="grid-4" style="margin-bottom:12px">
+            <div class="field">
+              <label for="bulkVisitType">تغيير نوع الزيارة بالجملة</label>
+              <select id="bulkVisitType">
+                <option value="all">All / الكل</option>
+                <option value="normal">Normal Visit / زيارة عادية</option>
+                <option value="troubleshooting">Hardware / هاردوير</option>
+                <option value="networkDown">Networks / شبكات</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="bulkVisitTypeScope">النطاق</label>
+              <select id="bulkVisitTypeScope">
+                <option value="visible">البنود الظاهرة في القائمة الحالية</option>
+                <option value="missing">البنود القديمة بدون نوع زيارة</option>
+                <option value="all">كل البنود</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn green" id="bulkVisitTypeBtn" type="button">تطبيق على البنود</button>
+            </div>
+          </div>
           <div id="adminList" class="item-list"></div>
         </div>
       </section>
@@ -523,16 +565,73 @@
       const VISIT_TYPE_LABELS = {
         all: 'All / الكل',
         normal: 'Normal Visit / زيارة عادية',
-        troubleshooting: 'Troubleshooting Visit / زيارة تروبلشوتينق',
-        networkDown: 'Network Down Branch Visit / زيارة فرع مقطوع شبكة'
+        troubleshooting: 'Hardware / هاردوير',
+        networkDown: 'Networks / شبكات'
       };
 
       function normalizeVisitType(value) {
         return ['all', 'normal', 'troubleshooting', 'networkDown'].includes(value) ? value : 'all';
       }
 
+      function normalizeVisitTypes(value) {
+        const source = Array.isArray(value) ? value : (value ? [value] : []);
+        const normalized = [...new Set(source.map(normalizeVisitType))];
+        return normalized.length ? normalized : ['all'];
+      }
+
+      function fieldVisitTypes(field) {
+        return normalizeVisitTypes(Array.isArray(field?.visitTypes) && field.visitTypes.length ? field.visitTypes : field?.visitType);
+      }
+
+      function selectedVisitTypesFromSelect(select) {
+        return normalizeVisitTypes(Array.from(select.selectedOptions).map(option => option.value));
+      }
+
+      function setVisitTypeSelectValues(select, values) {
+        const selected = new Set(normalizeVisitTypes(values));
+        Array.from(select.options).forEach(option => {
+          option.selected = selected.has(option.value);
+        });
+      }
+
       function visitTypeLabel(value) {
-        return VISIT_TYPE_LABELS[normalizeVisitType(value)] || VISIT_TYPE_LABELS.all;
+        return normalizeVisitTypes(value).map(type => VISIT_TYPE_LABELS[type] || VISIT_TYPE_LABELS.all).join(', ');
+      }
+
+      function visitTypeOptionsHtml(selectedValue) {
+        const selected = new Set(normalizeVisitTypes(selectedValue));
+        return Object.entries(VISIT_TYPE_LABELS)
+          .map(([value, label]) => `<option value="${esc(value)}" ${selected.has(value) ? 'selected' : ''}>${esc(label)}</option>`)
+          .join('');
+      }
+
+      function setAdminStatus(message = '', kind = 'info') {
+        const box = $('adminStatus');
+        if (!box) return;
+        box.textContent = message;
+        box.classList.toggle('hidden', !message);
+        box.style.borderColor = kind === 'error' ? '#efc2c2' : '';
+        box.style.color = kind === 'error' ? 'var(--danger)' : '';
+      }
+
+      function filteredFieldsForAdmin() {
+        const filter = $('adminVisitTypeFilter')?.value || 'allItems';
+        if (filter === 'allItems') return allFields;
+        if (filter === 'all') return allFields.filter(field => fieldVisitTypes(field).includes('all'));
+        return allFields.filter(field => {
+          const visitTypes = fieldVisitTypes(field);
+          return visitTypes.includes('all') || visitTypes.includes(filter);
+        });
+      }
+
+      function previewFields() {
+        const editingId = $('builderEditingId')?.value.trim();
+        const draftVisitTypes = selectedVisitTypesFromSelect($('builderVisitType'));
+        if (draftVisitTypes.includes('all')) return allFields;
+        return allFields.filter(field => {
+          const types = field.id === editingId ? draftVisitTypes : fieldVisitTypes(field);
+          return types.some(type => draftVisitTypes.includes(type));
+        });
       }
 
       function preserveSelectValue(selectId, html) {
@@ -577,7 +676,8 @@
               <div class="option-title">الخيار ${index + 1}</div>
               <small>اسم الخيار</small>
               <input data-option-label value="${esc(label)}" placeholder="Option ${index + 1}">
-              <input data-option-value type="hidden" value="${esc(value)}">
+              <small>القيمة الداخلية</small>
+              <input data-option-value value="${esc(value)}" placeholder="option_${index + 1}">
             </div>
           `;
         }).join('');
@@ -623,6 +723,7 @@
 
         if (!label) throw new Error('أدخل اسم البند أولاً.');
 
+        const visitTypes = selectedVisitTypesFromSelect($('builderVisitType'));
         const payload = {
           label,
           labelAr: label,
@@ -631,7 +732,8 @@
           options: fieldType === 'choice' ? collectOptions() : [],
           order: Number($('builderOrder').value) || 0,
           section: $('builderSection').value.trim(),
-          visitType: normalizeVisitType($('builderVisitType').value),
+          visitType: visitTypes[0],
+          visitTypes,
           required: $('builderRequired').value === 'true',
           active: $('builderActive').value === 'true',
           logic: {
@@ -680,20 +782,30 @@
       }
 
       function renderAdminList() {
-        $('fieldsCount').textContent = `${allFields.length} بند`;
+        const visibleFields = filteredFieldsForAdmin();
+        $('fieldsCount').textContent = `${visibleFields.length} / ${allFields.length} بند`;
         if (!allFields.length) {
           $('adminList').innerHTML = '<div class="empty-note">لا توجد بنود مضافة حتى الآن.</div>';
           return;
         }
+        if (!visibleFields.length) {
+          $('adminList').innerHTML = '<div class="empty-note">لا توجد بنود لنوع الزيارة المختار.</div>';
+          return;
+        }
 
-        $('adminList').innerHTML = allFields.map(field => `
+        $('adminList').innerHTML = visibleFields.map(field => `
           <div class="item-card">
             <div class="item-info">
               <strong>${esc(fieldLabel(field))}</strong><br>
-              <span>القسم: ${esc(field.section || '-')} | الترتيب: ${esc(field.order ?? '-')} | نوع الزيارة: ${esc(visitTypeLabel(field.visitType))} | ${field.active !== false ? 'نشط' : 'معطل'} | ${esc(field.fieldType || 'text')}</span>
+              <span>القسم: ${esc(field.section || '-')} | الترتيب: ${esc(field.order ?? '-')} | نوع الزيارة: ${esc(visitTypeLabel(fieldVisitTypes(field)))} | ${field.active !== false ? 'نشط' : 'معطل'} | ${esc(field.fieldType || 'text')}</span>
+              <div class="field" style="margin-top:8px">
+                <label>Visit Type / نوع الزيارة</label>
+                <select data-visit-type-field="${esc(field.id)}" multiple size="4">${visitTypeOptionsHtml(fieldVisitTypes(field))}</select>
+              </div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
               <button class="btn small" data-edit="${esc(field.id)}">تعديل</button>
+              <button class="btn small green" data-save-visit-type="${esc(field.id)}">حفظ نوع الزيارة</button>
               <button class="btn small danger" data-delete="${esc(field.id)}">حذف</button>
             </div>
           </div>
@@ -704,6 +816,9 @@
         });
         document.querySelectorAll('[data-delete]').forEach(button => {
           button.addEventListener('click', () => deleteField(button.dataset.delete));
+        });
+        document.querySelectorAll('[data-save-visit-type]').forEach(button => {
+          button.addEventListener('click', () => saveFieldVisitType(button.dataset.saveVisitType));
         });
       }
 
@@ -723,12 +838,17 @@
       }
 
       function renderPreview() {
+        const visibleFields = previewFields();
         if (!allFields.length) {
           $('previewArea').innerHTML = '<div class="empty-note">أضف بنداً لعرض المعاينة الحية.</div>';
           return;
         }
+        if (!visibleFields.length) {
+          $('previewArea').innerHTML = '<div class="empty-note">لا توجد بنود لنوع الزيارة المختار.</div>';
+          return;
+        }
 
-        $('previewArea').innerHTML = allFields.map(field => `
+        $('previewArea').innerHTML = visibleFields.map(field => `
           <div class="preview-field">
             <label>${esc(fieldLabel(field))} ${field.required ? '<span style="color:var(--danger)">*</span>' : ''}</label>
             ${renderPreviewInput(field)}
@@ -753,7 +873,7 @@
         $('builderOptionCount').value = Array.isArray(field.options) ? field.options.length : 0;
         $('builderOrder').value = field.order ?? 1;
         $('builderSection').value = field.section || 'Software & Systems Assessment';
-        $('builderVisitType').value = normalizeVisitType(field.visitType);
+        setVisitTypeSelectValues($('builderVisitType'), fieldVisitTypes(field));
         $('builderRequired').value = String(field.required === true);
         $('builderActive').value = String(field.active !== false);
         $('logicEnabled').value = String(field.logic?.enabled === true);
@@ -779,6 +899,95 @@
         await db.collection('checklist_fields').doc(id).delete();
       }
 
+      async function saveFieldVisitType(id) {
+        const select = document.querySelector(`[data-visit-type-field="${CSS.escape(id)}"]`);
+        if (!select) return;
+        try {
+          const visitTypes = selectedVisitTypesFromSelect(select);
+          await db.collection('checklist_fields').doc(id).set(nativeClean({
+            visitType: visitTypes[0],
+            visitTypes,
+            updatedAt: new Date().toISOString()
+          }), { merge: true });
+          setAdminStatus('تم حفظ نوع الزيارة للبند.', 'info');
+        } catch (error) {
+          setAdminStatus(error.message || String(error), 'error');
+        }
+      }
+
+      async function autoSaveEditingVisitType() {
+        const id = $('builderEditingId').value.trim();
+        if (!id) return;
+        try {
+          const visitTypes = selectedVisitTypesFromSelect($('builderVisitType'));
+          await db.collection('checklist_fields').doc(id).set(nativeClean({
+            visitType: visitTypes[0],
+            visitTypes,
+            updatedAt: new Date().toISOString()
+          }), { merge: true });
+          setAdminStatus(`تم حفظ نوع الزيارة: ${visitTypeLabel(visitTypes)}`);
+        } catch (error) {
+          setAdminStatus(error.message || String(error), 'error');
+        }
+      }
+
+      async function fillMissingVisitTypes() {
+        const missing = allFields.filter(field => !field.visitType && !Array.isArray(field.visitTypes));
+        if (!missing.length) {
+          setAdminStatus('كل البنود لديها نوع زيارة محفوظ بالفعل.');
+          return;
+        }
+        if (!confirm(`سيتم تحديث ${missing.length} بند قديم إلى All / الكل. هل تريد المتابعة؟`)) return;
+        try {
+          for (const field of missing) {
+            await db.collection('checklist_fields').doc(field.id).set(nativeClean({
+              visitType: 'all',
+              visitTypes: ['all'],
+              updatedAt: new Date().toISOString()
+            }), { merge: true });
+          }
+          setAdminStatus('تم تحديث البنود القديمة إلى All / الكل.');
+        } catch (error) {
+          setAdminStatus(error.message || String(error), 'error');
+        }
+      }
+
+      async function bulkUpdateVisitTypes() {
+        const visitType = normalizeVisitType($('bulkVisitType').value);
+        const scope = $('bulkVisitTypeScope').value;
+        const targets = scope === 'all'
+          ? allFields
+          : scope === 'missing'
+            ? allFields.filter(field => !field.visitType && !Array.isArray(field.visitTypes))
+            : filteredFieldsForAdmin();
+
+        if (!targets.length) {
+          setAdminStatus('لا توجد بنود مطابقة للتحديث.');
+          return;
+        }
+
+        const scopeLabel = scope === 'all'
+          ? 'كل البنود'
+          : scope === 'missing'
+            ? 'البنود القديمة بدون نوع زيارة'
+            : 'البنود الظاهرة في القائمة الحالية';
+
+        if (!confirm(`سيتم تحديث ${targets.length} بند إلى ${visitTypeLabel(visitType)} ضمن: ${scopeLabel}. هل تريد المتابعة؟`)) return;
+
+        try {
+          for (const field of targets) {
+            await db.collection('checklist_fields').doc(field.id).set(nativeClean({
+              visitType,
+              visitTypes: [visitType],
+              updatedAt: new Date().toISOString()
+            }), { merge: true });
+          }
+          setAdminStatus(`تم تحديث ${targets.length} بند إلى ${visitTypeLabel(visitType)}.`);
+        } catch (error) {
+          setAdminStatus(error.message || String(error), 'error');
+        }
+      }
+
       function resetForm() {
         $('builderEditingId').value = '';
         $('modeBadge').textContent = 'إضافة بند جديد';
@@ -788,7 +997,7 @@
         $('builderOptionCount').value = '0';
         $('builderOrder').value = String((allFields.length || 0) + 1);
         $('builderSection').value = 'Software & Systems Assessment';
-        $('builderVisitType').value = 'all';
+        setVisitTypeSelectValues($('builderVisitType'), ['all']);
         $('builderRequired').value = 'false';
         $('builderActive').value = 'true';
         $('logicEnabled').value = 'false';
@@ -914,13 +1123,34 @@
 
       function loadData() {
         if (unsubscribeFields) unsubscribeFields();
-        unsubscribeFields = db.collection('checklist_fields').orderBy('order').onSnapshot(snapshot => {
+        setAdminStatus('جاري تحميل البنود...');
+        const handleSnapshot = snapshot => {
           allFields = snapshot.docs.map(documentSnapshot => ({ id: documentSnapshot.id, ...documentSnapshot.data() }));
+          allFields.sort((a, b) => {
+            const sa = String(a.section || '');
+            const sb = String(b.section || '');
+            if (sa !== sb) return sa.localeCompare(sb);
+            return (Number(a.order) || 0) - (Number(b.order) || 0);
+          });
           populateDropdowns();
           renderAdminList();
           renderPreview();
+          setAdminStatus(allFields.length ? '' : 'لا توجد بنود في checklist_fields حالياً. يمكنك إضافة بند جديد من النموذج أعلاه.');
           if (!$('builderEditingId').value) $('builderOrder').value = String((allFields.length || 0) + 1);
-        });
+        };
+        const handleError = error => {
+          console.warn('checklist_fields ordered listener failed', error);
+          setAdminStatus(`تعذر تحميل البنود بالترتيب: ${error.message || error}. سأحاول التحميل بدون ترتيب...`, 'error');
+          try {
+            if (unsubscribeFields) unsubscribeFields();
+            unsubscribeFields = db.collection('checklist_fields').onSnapshot(handleSnapshot, fallbackError => {
+              setAdminStatus(`تعذر تحميل البنود: ${fallbackError.message || fallbackError}`, 'error');
+            });
+          } catch (fallbackError) {
+            setAdminStatus(`تعذر تحميل البنود: ${fallbackError.message || fallbackError}`, 'error');
+          }
+        };
+        unsubscribeFields = db.collection('checklist_fields').orderBy('order').onSnapshot(handleSnapshot, handleError);
       }
 
       function bindEvents() {
@@ -929,6 +1159,21 @@
           renderOptionInputs();
         });
         $('builderOptionCount').addEventListener('input', () => renderOptionInputs());
+        $('addOptionBtn').addEventListener('click', () => {
+          $('builderOptionCount').value = String(Math.min(20, (Number($('builderOptionCount').value) || 0) + 1));
+          renderOptionInputs();
+        });
+        $('removeOptionBtn').addEventListener('click', () => {
+          $('builderOptionCount').value = String(Math.max(1, (Number($('builderOptionCount').value) || 1) - 1));
+          renderOptionInputs();
+        });
+        $('adminVisitTypeFilter').addEventListener('change', () => { renderAdminList(); renderPreview(); });
+        $('fillMissingVisitTypesBtn').addEventListener('click', fillMissingVisitTypes);
+        $('bulkVisitTypeBtn').addEventListener('click', bulkUpdateVisitTypes);
+        $('builderVisitType').addEventListener('change', () => {
+          autoSaveEditingVisitType();
+          renderPreview();
+        });
         $('optionsGrid').addEventListener('input', event => {
           if (event.target.matches('[data-option-label]')) {
             const valueInput = event.target.closest('.option-card').querySelector('[data-option-value]');
