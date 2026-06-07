@@ -214,6 +214,10 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
 
           <div class="section-title">Dynamic Check‑List</div>
           <div class="note">هذا النموذج يقرأ البنود مباشرة من <span class="rtl-en">checklist_fields</span>. أي بند يتم حذفه من <strong>Dynamic Check‑List (Admin)</strong> سيختفي هنا مباشرة، وأي بند جديد سيظهر تلقائيًا بدون تعديل يدوي في الكود.</div>
+          <div class="grid-4" style="margin-top:14px">
+            <div class="field"><label>Visit Type / نوع الزيارة</label><select id="cl_visit_type"><option value="">Select Visit Type / اختر نوع الزيارة</option><option value="normal">Normal Visit / زيارة عادية</option><option value="troubleshooting">Hardware / هاردوير</option><option value="networkDown">Networks / شبكات</option></select></div>
+            <div class="field"><label>All Items / البنود العامة</label><select id="cl_include_all_items"><option value="false">لا تعرض All</option><option value="true">اعرض All مع نوع الزيارة</option></select></div>
+          </div>
           <div id="dynamicChecklistSections" class="dynamic-checklist-wrap" style="margin-top:14px"></div>
           <div class="note" id="dynamicChecklistHint" style="margin-top:10px">يمكنك الآن بناء سيناريوهات مثل: <span class="rtl-en">سؤال رئيسي → شرط → عدد → تكرار حقول</span> وربط اختياري مع <span class="rtl-en">windows_upgrades</span>.</div>
 
@@ -363,7 +367,7 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
       <div class="grid-2">
         <div class="card">
           <h3 data-i18n="visitFormTitle">إدخال / تعديل زيارة</h3>
-          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني. وإذا كان الفرع من نوع <span class="rtl-en">Stellantis (Peugeot + Citroën)</span> فسيتم تسجيل الزيارة على نفس الفرع ولكن تُحتسب للبراندين <span class="rtl-en">Peugeot</span> و<span class="rtl-en">Citroën</span>. كذلك تم تفعيل منطق <span class="rtl-en">Shared Branch</span> لبراندي <span class="rtl-en">Changan</span> و<span class="rtl-en">Deepal</span> بحيث إذا سُجلت الزيارة على أحدهما تُحتسب للآخر داخل لوحة التحكم. كما تم دعم تهجئات مختلفة لاسم <span class="rtl-en">Peugeot</span> مثل <span class="rtl-en">Peugedt / Peugot</span> حتى تظهر الأعداد بشكل صحيح في لوحة التحكم.</div>
+          <div class="note">عند اختيار الفني سيتم فلترة قائمة الفروع حسب <span class="rtl-en">Region / City / Brand / Branch Name</span> المحددة في بطاقة الفني، وسيتم تسجيل الزيارة واحتسابها على براند الفرع المختار فقط. ما زال دعم تهجئات مختلفة لاسم <span class="rtl-en">Peugeot</span> مثل <span class="rtl-en">Peugedt / Peugot</span> مفعّلًا حتى تظهر الأعداد بشكل صحيح في لوحة التحكم.</div>
           <input type="hidden" id="editingVisitId">
           <div class="grid-3">
             <div class="field"><label data-i18n="branch">الفرع</label><select id="visitBranch"></select></div>
@@ -611,7 +615,7 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
 
     const APP_VERSION = 'v2.1.6';
     const SHARED_BRAND_GROUPS = [
-      { id:'changan_deepal', brands:['changan','deepal'] }
+
     ];
 
     let unsub = { branches:null, technicians:null, visits:null, checklists:null, checklistFields:null, brands:null, users:null, windowsUpgrades:null };
@@ -666,6 +670,18 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
     function setOptions(id, rows, placeholder=''){ const el=$(id); const cur=el.value; el.innerHTML = `<option value="">${placeholder}</option>` + rows.join(''); if(cur && Array.from(el.options).some(o=>o.value===cur)) el.value = cur; }
     function unique(arr){ return [...new Set(arr.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b))); }
     function esc(v){ return String(v ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+    const CHECKLIST_VISIT_TYPES = ['normal', 'troubleshooting', 'networkDown'];
+    function normalizeChecklistFieldVisitType(value){ return ['all', ...CHECKLIST_VISIT_TYPES].includes(value) ? value : 'all'; }
+    function normalizeChecklistFieldVisitTypes(value){
+      const source = Array.isArray(value) ? value : (value ? [value] : []);
+      const normalized = [...new Set(source.map(normalizeChecklistFieldVisitType))];
+      return normalized.length ? normalized : ['all'];
+    }
+    function isChecklistFieldForVisitType(field, selectedVisitType){
+      const fieldVisitTypes = normalizeChecklistFieldVisitTypes(Array.isArray(field?.visitTypes) && field.visitTypes.length ? field.visitTypes : field?.visitType);
+      const includeAll = $('cl_include_all_items')?.value === 'true';
+      return !!selectedVisitType && (fieldVisitTypes.includes(selectedVisitType) || (includeAll && fieldVisitTypes.includes('all')));
+    }
     function monthName(dateValue){ if(!dateValue) return ''; const d=new Date(dateValue); return ['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()] || ''; }
 
     function clearAllListeners(){ Object.keys(unsub).forEach(k=>{ if(unsub[k]) unsub[k](); unsub[k]=null; }); }
@@ -907,7 +923,12 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
     function renderDynamicChecklistForm(values = {}){
       const container = $('dynamicChecklistSections');
       if(!container) return;
-      const fields = (state.checklistFields || []).filter(f => f.active !== false).sort((a,b)=>{ const sa=String(a.section||''); const sb=String(b.section||''); if(sa!==sb) return sa.localeCompare(sb); return Number(a.order||0)-Number(b.order||0); });
+      const selectedVisitType = $('cl_visit_type')?.value || '';
+      if(!selectedVisitType){
+        container.innerHTML = `<div class="note">${state.currentLang==='ar' ? 'اختر نوع الزيارة لعرض البنود.' : 'Select Visit Type to show checklist items.'}</div>`;
+        return;
+      }
+      const fields = (state.checklistFields || []).filter(f => f.active !== false && isChecklistFieldForVisitType(f, selectedVisitType)).sort((a,b)=>{ const sa=String(a.section||''); const sb=String(b.section||''); if(sa!==sb) return sa.localeCompare(sb); return Number(a.order||0)-Number(b.order||0); });
       const currentAnswers = Object.keys(values || {}).length ? collectDynamicChecklistAnswers(values) : collectDynamicChecklistAnswers();
       container.innerHTML = '';
       const grouped = {};
@@ -942,7 +963,7 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
         container.appendChild(block);
       });
       if(!Object.keys(grouped).length){
-        container.innerHTML = `<div class="note">${state.currentLang==='ar' ? 'لا توجد بنود ديناميكية حتى الآن. أضفها من تبويب Dynamic Check‑List (Admin).' : 'No dynamic fields yet. Add them from Dynamic Check‑List (Admin).'}</div>`;
+        container.innerHTML = `<div class="note">${state.currentLang==='ar' ? 'لا توجد بنود مرتبطة بنوع الزيارة المختار.' : 'No items are linked to the selected visit type.'}</div>`;
       }
       bindDynamicChecklistReactivity();
     }
@@ -1386,9 +1407,9 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
       const hasCitroen = combinedTokens.includes('citroen');
       return hasStellantis || (hasPeugeot && hasCitroen);
     }
-    function getVisitBrandsForBranch(branch){ return isStellantisCompoundBranch(branch) ? ['Peugeot','Citroën'] : [getCanonicalBrandDisplay(branch?.brand || '')]; }
+    function getVisitBrandsForBranch(branch){ return [getCanonicalBrandDisplay(branch?.brand || '')]; }
     function getVisitBrandKey(value){ return canonicalBrandToken(value); }
-    function getVisitBrandDisplay(branch){ return isStellantisCompoundBranch(branch) ? 'Stellantis (Peugeot + Citroën)' : getCanonicalBrandDisplay(branch?.brand || ''); }
+    function getVisitBrandDisplay(branch){ return getCanonicalBrandDisplay(branch?.brand || ''); }
     function isLegacyStellantisVisit(visit){
       if(!visit) return false;
       const combined = [visit.brand, visit.brandKey, visit.branchName, visit.branchId, visit.compoundSource].map(canonicalBrandToken).join(' ');
@@ -1399,8 +1420,6 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
       const visitBrandKey = canonicalBrandToken(visit?.brandKey);
       const relatedTargets = getSharedBrandTokens(brandName, brandKey);
       if((visitBrand && relatedTargets.has(visitBrand)) || (visitBrandKey && relatedTargets.has(visitBrandKey))) return true;
-      const primaryTarget = canonicalBrandToken(brandKey || brandName);
-      if(isLegacyStellantisVisit(visit) && ['peugeot','citroen'].includes(primaryTarget)) return true;
       return false;
     }
     function fillVisitFromBranch(){ const b = state.branches.find(x=>x.id === $('visitBranch').value); if(!b) return; $('visitBrand').value=getVisitBrandDisplay(b); $('visitBranchId').value=b.id||''; $('visitLocation').value=b.location||b.city||b.branchName||''; }
@@ -1411,7 +1430,8 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
     function clearChecklistForm(){
       $('editingChecklistId').value='';
       ['cl_technician_id','cl_technician_email','cl_brand','cl_brandKey','cl_branch_id','cl_location','cl_branch_manager','cl_visit_date','cl_month','cl_users_count'].forEach(id=>{ if($(id)) $(id).value=''; });
-      ['cl_technician','cl_visit_ref','cl_visit_scheduled','cl_calendar_booked'].forEach(id=>{ if($(id)) $(id).value=''; });
+      ['cl_technician','cl_visit_ref','cl_visit_scheduled','cl_calendar_booked','cl_visit_type'].forEach(id=>{ if($(id)) $(id).value=''; });
+      if($('cl_include_all_items')) $('cl_include_all_items').value='false';
       renderDynamicChecklistForm({});
       $('saveChecklistBtn').disabled = false;
       $('deleteChecklistBtn').classList.add('hidden'); setMessage('checklistMessage', state.currentLang==='ar'?'جاهز للحفظ.':'Ready to save.'); setAlert('checklistError'); populateVisitsForTechnician();
@@ -1440,13 +1460,15 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
         const branchId = $('cl_branch_id').value.trim() || linkedVisit?.branchId || '';
         const branchMeta = resolveBranchMeta(branchId);
         const dynamicAnswers = collectDynamicChecklistAnswers();
+        const visitType = $('cl_visit_type')?.value || '';
+        if(!visitType) throw new Error(state.currentLang==='ar'?'اختر نوع الزيارة أولاً.':'Choose Visit Type first.');
         const payload = {
           technicianId: techDoc?.authUid || techDoc?.id || '', technicianDocId: techDoc?.id || '', technicianName: techDoc?.name || '', technicianEmail: techDoc?.email || '', linkedVisitId: linkedVisit?.id || '', linkedVisitDate: linkedVisit?.date || '', plannedVisitDate: linkedVisit?.date || '', requestedPlanDate: linkedVisit?.date || '', technicianVisitDate: $('cl_visit_date').value,
           checklistSavedDate: new Date().toISOString().slice(0,10), checklistSavedAt: Timestamp.now(), brand: $('cl_brand').value.trim(), brandKey: $('cl_brandKey').value.trim() || makeBrandKey(), branchId,
           city: branchMeta.city, region: branchMeta.region, functionName: branchMeta.functionName, function: branchMeta.functionName, location: branchMeta.location, locationSite: $('cl_location').value.trim() || branchMeta.location || branchMeta.branchName || '', visitScheduledWithBranchManager: $('cl_visit_scheduled').value,
-          branchManager: $('cl_branch_manager').value.trim(), visitDate: $('cl_visit_date').value, month: $('cl_month').value.trim() || monthName($('cl_visit_date').value), calendarBooked: $('cl_calendar_booked').value, numberOfUsers: $('cl_users_count').value ? Number($('cl_users_count').value) : null,
+          branchManager: $('cl_branch_manager').value.trim(), visitDate: $('cl_visit_date').value, month: $('cl_month').value.trim() || monthName($('cl_visit_date').value), calendarBooked: $('cl_calendar_booked').value, numberOfUsers: $('cl_users_count').value ? Number($('cl_users_count').value) : null, visitType, includeAllChecklistItems: $('cl_include_all_items')?.value === 'true',
           dynamicAnswers,
-          dynamicFieldsSnapshot: (state.checklistFields || []).filter(f => f.active !== false).map(f => ({ id:f.id, label:f.label, fieldType:f.fieldType, renderMode:f.renderMode || '', options:f.options || [], section:f.section || 'General', order:f.order ?? 1, logic:f.logic || {}, repeat:f.repeat || {}, integration:f.integration || {} })),
+          dynamicFieldsSnapshot: (state.checklistFields || []).filter(f => f.active !== false && isChecklistFieldForVisitType(f, visitType)).map(f => ({ id:f.id, label:f.label, fieldType:f.fieldType, renderMode:f.renderMode || '', options:f.options || [], section:f.section || 'General', order:f.order ?? 1, visitType:normalizeChecklistFieldVisitType(f.visitType), visitTypes:normalizeChecklistFieldVisitTypes(Array.isArray(f.visitTypes) && f.visitTypes.length ? f.visitTypes : f.visitType), logic:f.logic || {}, repeat:f.repeat || {}, integration:f.integration || {} })),
           q28_serviceReportSummary: getDynamicSummaryAnswer(dynamicAnswers),
           updatedAt: Timestamp.now()
         };
@@ -1467,7 +1489,7 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
     async function deleteChecklistById(id){ try{ if(!id) return; if(!canDeleteChecklistForCurrentUser()){ throw new Error(state.currentLang==='ar' ? 'غير مسموح لك بحذف هذا السجل.' : 'You are not allowed to delete this record.'); } if(!confirm(state.currentLang==='ar'?'هل تريد حذف السجل؟':'Delete this record?')) return; await deleteDoc(doc(db,'branch_checklists',id)); clearChecklistForm(); } catch(err){ setAlert('checklistError', err.message || String(err)); } }
     window.openChecklistForEdit = function(id){
       const x = state.checklists.find(r=>r.id===id); if(!x) return; if(!isChecklistVisibleForCurrentUser(x)){ alert(state.currentLang==='ar' ? 'ليس لديك صلاحية لعرض هذا السجل.' : 'You do not have permission to view this record.'); return; }
-      $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||x.location||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.technicianVisitDate || x.visitDate || ''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; renderDynamicChecklistForm(x.dynamicAnswers || {}); if(canDeleteChecklistForCurrentUser()) $('deleteChecklistBtn').classList.remove('hidden'); else $('deleteChecklistBtn').classList.add('hidden'); activateTab('checklist'); };
+      $('editingChecklistId').value=x.id; $('cl_technician').value=x.technicianDocId || x.technicianId || ''; populateVisitsForTechnician(); $('cl_technician_id').value=x.technicianId||''; $('cl_technician_email').value=x.technicianEmail||''; $('cl_visit_ref').value=x.linkedVisitId||''; $('cl_brand').value=x.brand||''; $('cl_brandKey').value=x.brandKey||''; $('cl_branch_id').value=x.branchId||''; $('cl_location').value=x.locationSite||x.location||''; $('cl_visit_scheduled').value=x.visitScheduledWithBranchManager||''; $('cl_branch_manager').value=x.branchManager||''; $('cl_visit_date').value=x.technicianVisitDate || x.visitDate || ''; $('cl_month').value=x.month||''; if($('cl_calendar_booked')) $('cl_calendar_booked').value=x.calendarBooked||''; $('cl_users_count').value=x.numberOfUsers ?? ''; if($('cl_visit_type')) $('cl_visit_type').value=x.visitType||''; if($('cl_include_all_items')) $('cl_include_all_items').value=String(x.includeAllChecklistItems===true); renderDynamicChecklistForm(x.dynamicAnswers || {}); if(canDeleteChecklistForCurrentUser()) $('deleteChecklistBtn').classList.remove('hidden'); else $('deleteChecklistBtn').classList.add('hidden'); activateTab('checklist'); };
 
     function loadSelectedTechnician(){
       const id = $('technicianSelector')?.value || '';
@@ -1542,7 +1564,7 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
             await addDoc(collection(db,'siteVisits'), { ...basePayload, visitGroupId:'', compoundSource:'', brand: brandName, brandKey: getVisitBrandKey(brandName), createdAt: Timestamp.now() });
           }
         }
-        setMessage('visitMessage', brandsToSave.length > 1 ? (state.currentLang==='ar'?'تم حفظ الزيارة لنفس الفرع واحتسابها على Peugeot و Citroën.':'Visit saved for the same branch and counted for Peugeot and Citroën.') : (state.currentLang==='ar'?'تم حفظ الزيارة بنجاح.':'Visit saved successfully.'));
+        setMessage('visitMessage', state.currentLang==='ar'?'تم حفظ الزيارة بنجاح.':'Visit saved successfully.');
         setAlert('visitError'); clearVisitForm();
       } catch(err){ setAlert('visitError', err.message || String(err)); }
     }
@@ -1646,6 +1668,8 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
       $('brandSearch').addEventListener('input', renderBrands);
       $('cl_technician').addEventListener('change', populateVisitsForTechnician);
       $('cl_visit_ref').addEventListener('change', ()=> fillChecklistFromVisit(state.visits.find(v=>v.id === $('cl_visit_ref').value)));
+      $('cl_visit_type').addEventListener('change', ()=> renderDynamicChecklistForm(collectDynamicChecklistAnswers()));
+      $('cl_include_all_items').addEventListener('change', ()=> renderDynamicChecklistForm(collectDynamicChecklistAnswers()));
       $('cl_branch_id').addEventListener('blur', autoFillFromBranchId);
       $('cl_visit_date').addEventListener('change', updateMonthFromVisitDate);
       $('saveChecklistBtn').addEventListener('click', saveChecklist);
@@ -1730,3 +1754,4 @@ body.upgrade-only .standalone-note { margin-bottom:16px; }
   </script>
 </body>
 </html>
+
