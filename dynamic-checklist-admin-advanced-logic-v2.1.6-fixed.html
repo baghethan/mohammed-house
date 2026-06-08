@@ -394,11 +394,11 @@
             </div>
             <div class="field">
               <label for="logicOperator">المشغّل</label>
-              <select id="logicOperator"><option value="equals">يساوي</option><option value="notEquals">لا يساوي</option><option value="contains">يحتوي</option><option value="notContains">لا يحتوي</option><option value="startsWith">يبدأ بـ</option><option value="endsWith">ينتهي بـ</option><option value="isNotEmpty">معبأ</option><option value="isEmpty">فارغ</option></select>
+              <select id="logicOperator"><option value="equals">يساوي</option><option value="equalsAny">يساوي أي من / OR</option><option value="notEquals">لا يساوي</option><option value="notEqualsAny">لا يساوي أي من</option><option value="contains">يحتوي</option><option value="notContains">لا يحتوي</option><option value="startsWith">يبدأ بـ</option><option value="endsWith">ينتهي بـ</option><option value="isNotEmpty">معبأ</option><option value="isEmpty">فارغ</option></select>
             </div>
             <div class="field">
               <label for="logicValue">القيمة</label>
-              <input id="logicValue" value="yes">
+              <textarea id="logicValue" placeholder="مثال: Indoor Only, Indoor & Outdoor">yes</textarea><small style="color:var(--muted)">لأكثر من قيمة اكتبها بفاصلة أو كل قيمة في سطر.</small>
             </div>
           </div>
         </div>
@@ -449,6 +449,7 @@
 
         <div class="actions">
           <button class="btn warning" id="seedBtn">إنشاء بنود Upgrade Windows تلقائياً</button>
+          <button class="btn warning" id="seedAccessPointBtn">إنشاء بنود Access Point تلقائياً</button>
           <button class="btn" id="resetBtn">تنظيف</button>
           <button class="btn green" id="saveFieldBtn">حفظ البند</button>
         </div>
@@ -1135,6 +1136,153 @@
         alert('تم إنشاء بنود Upgrade Windows.');
       }
 
+      async function seedAccessPointCoverage() {
+        if (!confirm('إنشاء أو تحديث بنود Access Point Coverage؟')) return;
+
+        const base = {
+          section: 'Network Infrastructure Assessment',
+          visitType: 'all',
+          visitTypes: ['all'],
+          required: true,
+          active: true,
+          logic: { enabled: false, visibleWhen: { fieldId: '', fieldLabel: '', operator: 'equals', value: '' } },
+          repeat: { enabled: false, countFromFieldId: '', countFromFieldLabel: '', labelTemplate: '', saveAsArray: true },
+          integration: null,
+          updatedAt: new Date().toISOString()
+        };
+
+        const coverageId = 'access_point_coverage_area';
+        const indoorCompletedId = 'indoor_coverage_completed';
+        const outdoorCompletedId = 'outdoor_coverage_completed';
+        const additionalRequiredId = 'additional_access_points_required';
+        const additionalCountId = 'number_of_additional_access_points';
+        const installLocationsId = 'access_point_installation_locations';
+        const photoNotesId = 'installation_photos_notes_links';
+
+        const apRequiredLogic = {
+          enabled: true,
+          visibleWhen: {
+            fieldId: additionalRequiredId,
+            fieldLabel: 'Additional Access Points Required?',
+            operator: 'equals',
+            value: 'yes'
+          }
+        };
+
+        const rows = [
+          {
+            id: coverageId,
+            data: {
+              ...base,
+              label: 'Access Point Coverage Area',
+              labelAr: 'Access Point Coverage Area',
+              fieldType: 'choice',
+              renderMode: 'radios',
+              order: 24,
+              options: [
+                { label: 'Indoor Only / داخل فقط', value: 'indoor_only' },
+                { label: 'Outdoor Only / خارج فقط', value: 'outdoor_only' },
+                { label: 'Indoor & Outdoor / داخل وخارج', value: 'indoor_outdoor' },
+                { label: 'Not Required / غير مطلوب', value: 'not_required' }
+              ]
+            }
+          },
+          {
+            id: indoorCompletedId,
+            data: {
+              ...base,
+              label: 'Indoor Coverage Completed?',
+              labelAr: 'Indoor Coverage Completed?',
+              fieldType: 'boolean',
+              renderMode: '',
+              order: 25,
+              logic: {
+                enabled: true,
+                visibleWhen: {
+                  fieldId: coverageId,
+                  fieldLabel: 'Access Point Coverage Area',
+                  operator: 'equalsAny',
+                  value: 'indoor_only, indoor_outdoor'
+                }
+              }
+            }
+          },
+          {
+            id: outdoorCompletedId,
+            data: {
+              ...base,
+              label: 'Outdoor Coverage Completed?',
+              labelAr: 'Outdoor Coverage Completed?',
+              fieldType: 'boolean',
+              renderMode: '',
+              order: 26,
+              logic: {
+                enabled: true,
+                visibleWhen: {
+                  fieldId: coverageId,
+                  fieldLabel: 'Access Point Coverage Area',
+                  operator: 'equalsAny',
+                  value: 'outdoor_only, indoor_outdoor'
+                }
+              }
+            }
+          },
+          {
+            id: additionalRequiredId,
+            data: {
+              ...base,
+              label: 'Additional Access Points Required?',
+              labelAr: 'Additional Access Points Required?',
+              fieldType: 'boolean',
+              renderMode: '',
+              order: 27
+            }
+          },
+          {
+            id: additionalCountId,
+            data: {
+              ...base,
+              label: 'Number of Additional Access Points',
+              labelAr: 'Number of Additional Access Points',
+              fieldType: 'number',
+              renderMode: '',
+              order: 28,
+              logic: apRequiredLogic
+            }
+          },
+          {
+            id: installLocationsId,
+            data: {
+              ...base,
+              label: 'Access Point Installation Locations',
+              labelAr: 'Access Point Installation Locations',
+              fieldType: 'textarea',
+              renderMode: '',
+              order: 29,
+              logic: apRequiredLogic
+            }
+          },
+          {
+            id: photoNotesId,
+            data: {
+              ...base,
+              label: 'Installation Photos Notes / Links',
+              labelAr: 'Installation Photos Notes / Links',
+              fieldType: 'textarea',
+              renderMode: '',
+              order: 30,
+              required: false
+            }
+          }
+        ];
+
+        for (const row of rows) {
+          await db.collection('checklist_fields').doc(row.id).set(nativeClean(row.data), { merge: true });
+        }
+
+        alert('تم إنشاء بنود Access Point Coverage.');
+      }
+
       function loadData() {
         if (unsubscribeFields) unsubscribeFields();
         setAdminStatus('جاري تحميل البنود...');
@@ -1197,6 +1345,7 @@
         $('saveFieldBtn').addEventListener('click', saveField);
         $('resetBtn').addEventListener('click', resetForm);
         $('seedBtn').addEventListener('click', seedUpgradeWindows);
+        $('seedAccessPointBtn').addEventListener('click', seedAccessPointCoverage);
         $('loginBtn').addEventListener('click', async () => {
           try {
             await auth.setPersistence(firebaseRef.auth.Auth.Persistence.LOCAL);
