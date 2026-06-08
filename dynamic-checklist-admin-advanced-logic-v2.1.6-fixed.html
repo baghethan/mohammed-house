@@ -394,11 +394,20 @@
             </div>
             <div class="field">
               <label for="logicOperator">المشغّل</label>
-              <select id="logicOperator"><option value="equals">يساوي</option><option value="equalsAny">يساوي أي من / OR</option><option value="notEquals">لا يساوي</option><option value="notEqualsAny">لا يساوي أي من</option><option value="contains">يحتوي</option><option value="notContains">لا يحتوي</option><option value="startsWith">يبدأ بـ</option><option value="endsWith">ينتهي بـ</option><option value="isNotEmpty">معبأ</option><option value="isEmpty">فارغ</option></select>
+              <select id="logicOperator"><option value="equals">يساوي</option><option value="equalsAny">OR</option></select>
             </div>
-            <div class="field">
+            <div class="field" id="logicSingleValueField">
               <label for="logicValue">القيمة</label>
-              <textarea id="logicValue" placeholder="مثال: Indoor Only, Indoor & Outdoor">yes</textarea><small style="color:var(--muted)">لأكثر من قيمة اكتبها بفاصلة أو كل قيمة في سطر.</small>
+              <input id="logicValue" placeholder="مثال: indoor_only" value="yes">
+            </div>
+            <div id="logicOrValuesField" class="field hidden" style="grid-column:1 / -1">
+              <label for="logicOrCount">قيم OR</label>
+              <div class="actions" style="justify-content:flex-start; margin:0 0 12px">
+                <input id="logicOrCount" type="number" min="1" max="20" value="2" style="max-width:130px">
+                <button class="btn small" id="addLogicOrValueBtn" type="button">إضافة قيمة</button>
+                <button class="btn small danger" id="removeLogicOrValueBtn" type="button">حذف آخر قيمة</button>
+              </div>
+              <div class="options-grid" id="logicOrValuesGrid"></div>
             </div>
           </div>
         </div>
@@ -677,51 +686,10 @@
         const actualKey = canonicalVisibilityValue(actual);
         const expectedKeys = expectedValues.map(canonicalVisibilityValue);
         const operator = String(rule?.operator || 'equals').trim().toLowerCase();
-        let match = false;
-
-        switch (operator) {
-          case 'equalsany':
-          case 'equals_any':
-          case 'or':
-            match = expectedValues.includes(actual) || expectedKeys.includes(actualKey);
-            break;
-          case 'equals':
-            match = actual === expected || canonicalVisibilityValue(expected) === actualKey;
-            break;
-          case 'notequalsany':
-          case 'not_equals_any':
-            match = !(expectedValues.includes(actual) || expectedKeys.includes(actualKey));
-            break;
-          case 'notequals':
-          case 'not_equals':
-            match = !(actual === expected || canonicalVisibilityValue(expected) === actualKey);
-            break;
-          case 'contains':
-            match = expectedValues.length ? expectedValues.some(item => actual.includes(item)) : actual.includes(expected);
-            break;
-          case 'notcontains':
-          case 'not_contains':
-            match = expectedValues.length ? expectedValues.every(item => !actual.includes(item)) : !actual.includes(expected);
-            break;
-          case 'startswith':
-          case 'starts_with':
-            match = expectedValues.length ? expectedValues.some(item => actual.startsWith(item)) : actual.startsWith(expected);
-            break;
-          case 'endswith':
-          case 'ends_with':
-            match = expectedValues.length ? expectedValues.some(item => actual.endsWith(item)) : actual.endsWith(expected);
-            break;
-          case 'isempty':
-          case 'is_empty':
-            match = !actual;
-            break;
-          case 'isnotempty':
-          case 'is_not_empty':
-            match = !!actual;
-            break;
-          default:
-            match = actual === expected || canonicalVisibilityValue(expected) === actualKey;
-        }
+        const isOr = operator === 'equalsany' || operator === 'equals_any' || operator === 'or';
+        const match = isOr
+          ? expectedValues.includes(actual) || expectedKeys.includes(actualKey)
+          : actual === expected || canonicalVisibilityValue(expected) === actualKey;
 
         console.log('[Checklist OR Debug]', {
           operator,
@@ -824,6 +792,54 @@
           .map(option => ({ label: option.label, value: option.value || slug(option.label) }));
       }
 
+      function splitLogicValues(value) {
+        return String(value || '')
+          .split(/[\n,،|]+/)
+          .map(item => item.trim())
+          .filter(Boolean);
+      }
+
+      function collectLogicOrValues() {
+        return Array.from(document.querySelectorAll('[data-logic-or-value]'))
+          .map(input => input.value.trim())
+          .filter(Boolean);
+      }
+
+      function setLogicOrValues(values) {
+        const list = Array.isArray(values) && values.length ? values : [''];
+        $('logicOrCount').value = String(Math.max(1, Math.min(20, list.length)));
+        renderLogicOrValueInputs(list);
+      }
+
+      function renderLogicOrValueInputs(existingValues = null) {
+        const current = existingValues || collectLogicOrValues();
+        const count = Math.max(1, Math.min(20, Number($('logicOrCount').value) || 1));
+        $('logicOrValuesGrid').innerHTML = Array.from({ length: count }).map((_, index) => `
+          <div class="option-card">
+            <div class="option-title">القيمة ${index + 1}</div>
+            <small>القيمة الداخلية</small>
+            <input data-logic-or-value value="${esc(current[index] || '')}" placeholder="indoor_only">
+          </div>
+        `).join('');
+      }
+
+      function isLogicOrOperator() {
+        return $('logicOperator').value === 'equalsAny';
+      }
+
+      function collectLogicValue() {
+        return isLogicOrOperator()
+          ? collectLogicOrValues().join('\n')
+          : $('logicValue').value.trim();
+      }
+
+      function updateLogicValueUI(value = null) {
+        const isOr = isLogicOrOperator();
+        $('logicSingleValueField').classList.toggle('hidden', isOr);
+        $('logicOrValuesField').classList.toggle('hidden', !isOr);
+        if (isOr) setLogicOrValues(splitLogicValues(value ?? $('logicValue').value));
+      }
+
       function updateChoiceUI() {
         const isChoice = $('builderFieldType').value === 'choice';
         $('renderModeField').classList.toggle('hidden', !isChoice);
@@ -865,7 +881,7 @@
               fieldId: $('logicFieldRef').value,
               fieldLabel: logicField ? fieldLabel(logicField) : '',
               operator: $('logicOperator').value,
-              value: $('logicValue').value.trim()
+              value: collectLogicValue()
             }
           },
           repeat: {
@@ -1029,6 +1045,7 @@
         $('logicFieldRef').value = field.logic?.visibleWhen?.fieldId || '';
         $('logicOperator').value = field.logic?.visibleWhen?.operator || 'equals';
         $('logicValue').value = field.logic?.visibleWhen?.value || 'yes';
+        updateLogicValueUI(field.logic?.visibleWhen?.value || 'yes');
         $('repeatEnabled').value = String(field.repeat?.enabled === true);
         $('repeatCountRef').value = field.repeat?.countFromFieldId || '';
         $('repeatLabelTemplate').value = field.repeat?.labelTemplate || 'رقم الموظف للجهاز {index}';
@@ -1193,6 +1210,7 @@
         $('logicFieldRef').value = '';
         $('logicOperator').value = 'equals';
         $('logicValue').value = 'yes';
+        updateLogicValueUI('yes');
         $('repeatEnabled').value = 'false';
         $('repeatCountRef').value = '';
         $('repeatLabelTemplate').value = 'رقم الموظف للجهاز {index}';
@@ -1377,7 +1395,7 @@
                   fieldId: coverageId,
                   fieldLabel: 'Access Point Coverage Area',
                   operator: 'equalsAny',
-                  value: 'indoor_only, indoor_outdoor, Indoor Only, Indoor Only / داخل فقط, Indoor & Outdoor, Indoor & Outdoor / داخل وخارج'
+                  value: 'indoor_only\nindoor_outdoor'
                 }
               }
             }
@@ -1397,7 +1415,7 @@
                   fieldId: coverageId,
                   fieldLabel: 'Access Point Coverage Area',
                   operator: 'equalsAny',
-                  value: 'outdoor_only, indoor_outdoor, Outdoor Only, Outdoor Only / خارج فقط, Indoor & Outdoor, Indoor & Outdoor / داخل وخارج'
+                  value: 'outdoor_only\nindoor_outdoor'
                 }
               }
             }
@@ -1495,6 +1513,16 @@
           updateChoiceUI();
           renderOptionInputs();
         });
+        $('logicOperator').addEventListener('change', () => updateLogicValueUI());
+        $('logicOrCount').addEventListener('input', () => renderLogicOrValueInputs());
+        $('addLogicOrValueBtn').addEventListener('click', () => {
+          $('logicOrCount').value = String(Math.min(20, (Number($('logicOrCount').value) || 1) + 1));
+          renderLogicOrValueInputs();
+        });
+        $('removeLogicOrValueBtn').addEventListener('click', () => {
+          $('logicOrCount').value = String(Math.max(1, (Number($('logicOrCount').value) || 1) - 1));
+          renderLogicOrValueInputs();
+        });
         $('builderOptionCount').addEventListener('input', () => renderOptionInputs());
         $('addOptionBtn').addEventListener('click', () => {
           $('builderOptionCount').value = String(Math.min(20, (Number($('builderOptionCount').value) || 0) + 1));
@@ -1533,6 +1561,7 @@
 
       bindEvents();
       updateChoiceUI();
+      updateLogicValueUI();
 
       auth.onAuthStateChanged(user => {
         if (user) {
