@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.3 - ACCESS POINT ORDER FIX -->
+<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.4 - ACCESS POINT UI FIX -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
@@ -140,7 +140,7 @@
             <img src="LOGO-almajdouie.png" height="35" alt="MMC">
             <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">Authenticating...</div>
         </div>
-        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.3</div>
+        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.4</div>
         <button onclick="handleLogout()" style="background:#ef4444; color:white; border:none; padding:8px 18px; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s;">Logout</button>
     </header>
 
@@ -474,7 +474,7 @@
             const params = new URLSearchParams({
                 auth: 'active',
                 lang: getPortalLanguage(),
-                build: 'v2.0.3-access-point-order'
+                build: 'v2.0.4-access-point-ui'
             });
 
             if (window.currentUser && window.currentUser.uid) {
@@ -716,6 +716,33 @@
                     const val = getAdditionalAccessPointsAnswer(fields, answers);
                     container.innerHTML += `<div class="field"><label>${esc(label)}</label><select class="dyn-input" data-id="${esc(id)}" onchange="renderDynamicFormSafe(collectAnswers())"><option value="">اختر</option><option value="yes" ${val === 'yes' ? 'selected' : ''}>Yes</option><option value="no" ${val === 'no' ? 'selected' : ''}>No</option></select></div>`;
                 };
+                const accessPointRenderedRank = field => {
+                    const text = normalizeVisibilityValue(field.querySelector('label')?.textContent).trim().toLowerCase();
+                    if (text.includes('additional') && text.includes('access') && text.includes('point') && text.includes('required')) return 1;
+                    if (text.includes('number') && text.includes('additional') && text.includes('access') && text.includes('point')) return 2;
+                    if (text.includes('access') && text.includes('point') && text.includes('installation') && text.includes('location')) return 3;
+                    if (text.includes('installation') && text.includes('photo')) return 4;
+                    return 0;
+                };
+                const reorderRenderedAccessPointFields = () => {
+                    const renderedFields = Array.from(container.querySelectorAll(':scope > .field'));
+                    const apFields = renderedFields.filter(field => accessPointRenderedRank(field) > 0);
+                    if (!apFields.length) return;
+                    apFields.sort((a, b) => accessPointRenderedRank(a) - accessPointRenderedRank(b));
+                    const anchor = renderedFields.find(field => {
+                        const text = normalizeVisibilityValue(field.querySelector('label')?.textContent).trim().toLowerCase();
+                        return text.includes('indoor coverage completed') || text.includes('outdoor coverage completed');
+                    });
+                    let insertAfter = anchor || renderedFields.find(field => {
+                        const text = normalizeVisibilityValue(field.querySelector('label')?.textContent).trim().toLowerCase();
+                        return text.includes('access point coverage area');
+                    });
+                    apFields.forEach(field => {
+                        if (insertAfter?.nextSibling) container.insertBefore(field, insertAfter.nextSibling);
+                        else container.appendChild(field);
+                        insertAfter = field;
+                    });
+                };
                 const ensureAdditionalAccessPointsFallback = fields => {
                     const renderedFields = Array.from(container.querySelectorAll('.field'));
                     const textOf = field => normalizeVisibilityValue(field.querySelector('label')?.textContent).trim().toLowerCase();
@@ -812,7 +839,7 @@
                                 html += `<input type="number" class="dyn-input" data-id="${esc(field.id)}" value="${esc(val)}" onchange="renderDynamicFormSafe(collectAnswers())" />`;
                             } else if (field.fieldType === 'boolean') {
                                 html += `<select class="dyn-input" data-id="${esc(field.id)}" onchange="renderDynamicFormSafe(collectAnswers())"><option value="">اختر</option><option value="yes" ${val === 'yes' ? 'selected' : ''}>Yes</option><option value="no" ${val === 'no' ? 'selected' : ''}>No</option></select>`;
-                            } else if (field.fieldType === 'image') {
+                            } else if (field.fieldType === 'image' || fieldHasAllWords(field, ['installation', 'photo'])) {
                                 html += `${val ? `<div style="margin:8px 0"><img src="${esc(val)}" alt="Uploaded image" style="max-width:220px; max-height:160px; border:1px solid #cbd5e1; border-radius:8px; object-fit:contain"></div>` : ''}<input type="file" accept="image/*" class="dyn-input" data-id="${esc(field.id)}" onchange="readDynamicImageInput(this)" />`;
                             } else {
                                 html += `<input type="text" class="dyn-input" data-id="${esc(field.id)}" value="${esc(val)}" onchange="renderDynamicFormSafe(collectAnswers())" />`;
@@ -824,6 +851,7 @@
                         renderAdditionalAccessPointsFallback(fields, currentAnswers);
                     }
                     ensureAdditionalAccessPointsFallback(fields);
+                    reorderRenderedAccessPointFields();
 
                     if (!container.innerHTML.trim()) {
                         container.innerHTML = '<div class="notice" style="margin-top:12px;">لا توجد بنود مرتبطة بنوع الزيارة المختار.</div>';
