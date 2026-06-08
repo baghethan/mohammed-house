@@ -147,19 +147,66 @@
       const expectedList = splitVisibilityValues(rule?.value);
       const actualKey = canonicalVisibilityValue(actual);
       const expectedKeyList = expectedList.map(canonicalVisibilityValue);
-      switch (rule?.operator || 'equals') {
+      const operator = String(rule?.operator || 'equals').trim().toLowerCase();
+      let match = false;
+      switch (operator) {
         case 'equalsAny':
-        case 'equals': return expectedList.length ? (expectedList.includes(actual) || expectedKeyList.includes(actualKey)) : actual === expected;
+        case 'equalsany':
+        case 'equals_any':
+        case 'or':
+          match = expectedList.includes(actual) || expectedKeyList.includes(actualKey);
+          break;
+        case 'equals':
+          match = actual === expected || canonicalVisibilityValue(expected) === actualKey;
+          break;
         case 'notEqualsAny':
-        case 'notEquals': return expectedList.length ? !(expectedList.includes(actual) || expectedKeyList.includes(actualKey)) : actual !== expected;
-        case 'contains': return expectedList.length ? expectedList.some(v => actual.includes(v)) : actual.includes(expected);
-        case 'notContains': return expectedList.length ? expectedList.every(v => !actual.includes(v)) : !actual.includes(expected);
-        case 'startsWith': return expectedList.length ? expectedList.some(v => actual.startsWith(v)) : actual.startsWith(expected);
-        case 'endsWith': return expectedList.length ? expectedList.some(v => actual.endsWith(v)) : actual.endsWith(expected);
-        case 'isEmpty': return !actual;
-        case 'isNotEmpty': return !!actual;
-        default: return expectedList.length ? (expectedList.includes(actual) || expectedKeyList.includes(actualKey)) : actual === expected;
+        case 'notequalsany':
+        case 'not_equals_any':
+          match = !(expectedList.includes(actual) || expectedKeyList.includes(actualKey));
+          break;
+        case 'notEquals':
+        case 'notequals':
+        case 'not_equals':
+          match = !(actual === expected || canonicalVisibilityValue(expected) === actualKey);
+          break;
+        case 'contains':
+          match = expectedList.length ? expectedList.some(v => actual.includes(v)) : actual.includes(expected);
+          break;
+        case 'notContains':
+        case 'notcontains':
+        case 'not_contains':
+          match = expectedList.length ? expectedList.every(v => !actual.includes(v)) : !actual.includes(expected);
+          break;
+        case 'startsWith':
+        case 'startswith':
+        case 'starts_with':
+          match = expectedList.length ? expectedList.some(v => actual.startsWith(v)) : actual.startsWith(expected);
+          break;
+        case 'endsWith':
+        case 'endswith':
+        case 'ends_with':
+          match = expectedList.length ? expectedList.some(v => actual.endsWith(v)) : actual.endsWith(expected);
+          break;
+        case 'isEmpty':
+        case 'isempty':
+        case 'is_empty':
+          match = !actual;
+          break;
+        case 'isNotEmpty':
+        case 'isnotempty':
+        case 'is_not_empty':
+          match = !!actual;
+          break;
+        default:
+          match = actual === expected || canonicalVisibilityValue(expected) === actualKey;
       }
+      console.log('[Checklist OR Debug]', {
+        operator,
+        actualSelectedValue: actual,
+        expectedValues: expectedList,
+        match
+      });
+      return match;
     }
     function findChecklistFieldByNames(names) {
       const normalized = names.map(name => normalizeVisibilityValue(name).trim().toLowerCase());
@@ -168,24 +215,45 @@
         return keys.some(key => normalized.includes(key));
       }) || null;
     }
-    function isKnownAccessPointDependentField(field) {
-      const fieldKey = normalizeVisibilityValue(field.id || field.label || field.labelAr).trim().toLowerCase();
-      return [
-        'number_of_additional_access_points',
-        'access_point_installation_locations'
-      ].includes(fieldKey)
-        || fieldKey.includes('number of additional access points')
-        || fieldKey.includes('access point installation locations');
+    function getAnswerByFieldNames(answers, names) {
+      const field = findChecklistFieldByNames(names);
+      if (field && Object.prototype.hasOwnProperty.call(answers, field.id)) return answers[field.id];
+      const normalized = names.map(name => normalizeVisibilityValue(name).trim().toLowerCase());
+      const pair = Object.entries(answers).find(([key]) => normalized.includes(normalizeVisibilityValue(key).trim().toLowerCase()));
+      return pair ? pair[1] : '';
     }
     function shouldShowKnownAccessPointDependentField(field, answers) {
-      if (!isKnownAccessPointDependentField(field)) return true;
-      const src = findChecklistFieldByNames([
+      const fieldKey = normalizeVisibilityValue(field.id || field.label || field.labelAr).trim().toLowerCase();
+      const available = getAnswerByFieldNames(answers, ['access_point_available', 'Access Point Available']);
+      const coverage = getAnswerByFieldNames(answers, ['access_point_coverage_area', 'Access Point Coverage Area']);
+      const additional = getAnswerByFieldNames(answers, [
         'additional_access_points_required',
         'Additional Access Points Required?',
         'Additional Access Points Required'
       ]);
-      if (!src) return false;
-      return matchesVisibilityRule(answers[src.id], { operator: 'equals', value: 'yes' });
+
+      if (fieldKey === 'access_point_coverage_area' || fieldKey.includes('access point coverage area')) {
+        return matchesVisibilityRule(available, { operator: 'equals', value: 'yes' });
+      }
+      if (fieldKey === 'indoor_coverage_completed' || fieldKey.includes('indoor coverage completed')) {
+        return matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'indoor_only\nindoor_outdoor' });
+      }
+      if (fieldKey === 'outdoor_coverage_completed' || fieldKey.includes('outdoor coverage completed')) {
+        return matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'outdoor_only\nindoor_outdoor' });
+      }
+      if (fieldKey === 'additional_access_points_required' || fieldKey.includes('additional access points required')) {
+        return matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'indoor_only\noutdoor_only\nindoor_outdoor' });
+      }
+      if (fieldKey === 'number_of_additional_access_points' || fieldKey.includes('number of additional access points')) {
+        return matchesVisibilityRule(additional, { operator: 'equals', value: 'yes' });
+      }
+      if (fieldKey === 'access_point_installation_locations' || fieldKey.includes('access point installation locations')) {
+        return matchesVisibilityRule(additional, { operator: 'equals', value: 'yes' });
+      }
+      if (fieldKey === 'installation_photos_notes_links' || fieldKey.includes('installation photos notes')) {
+        return matchesVisibilityRule(additional, { operator: 'equals', value: 'yes' });
+      }
+      return true;
     }
     function collectDynamicAnswers() {
       const ans = {};
@@ -227,7 +295,13 @@
     const $ = (id) => document.getElementById(id);
     const dynamicLabels = ["Network Cabinets Condition", "Upload 4-6 Mbps", "Low Current Infrastructure Condition", "Download 6-9 Mbps", "Server Room Temperature", "UPS Status", "PCs Condition", "Printers Condition", "Unified Communication", "Unused or Damaged IT Assets", "Unused or Damaged IT Assets - Note", "Operating System Up to Date", "Cleanup and Remove Unwanted Apps", "OneDrive Backup", "Customer Facing Portals", "ERP & Business Applications", "Training Requirement", "Upgrade Windows_11", "Number of devices (Q29A)", "Employee IDs for devices (Q29B)"];
 
-    function resolveRef(id, lbl) { return (id && state.checklistFields.find(f => f.id === id)) || (lbl && state.checklistFields.find(f => f.label === lbl)) || null; }
+    function resolveRef(id, lbl) {
+      const wantedId = norm(id);
+      const wantedLabel = norm(lbl);
+      return state.checklistFields.find(f => wantedId && norm(f.id) === wantedId)
+        || state.checklistFields.find(f => wantedLabel && [f.label, f.labelAr].some(value => norm(value) === wantedLabel))
+        || null;
+    }
 
     function norm(v) { return String(v || '').trim().toLowerCase(); }
 
