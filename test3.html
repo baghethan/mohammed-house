@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.2 - IMAGE UPLOAD -->
+<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.3 - ACCESS POINT ORDER FIX -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
@@ -140,7 +140,7 @@
             <img src="LOGO-almajdouie.png" height="35" alt="MMC">
             <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">Authenticating...</div>
         </div>
-        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.2</div>
+        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.3</div>
         <button onclick="handleLogout()" style="background:#ef4444; color:white; border:none; padding:8px 18px; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s;">Logout</button>
     </header>
 
@@ -474,7 +474,7 @@
             const params = new URLSearchParams({
                 auth: 'active',
                 lang: getPortalLanguage(),
-                build: 'v2.0.2-image-upload'
+                build: 'v2.0.3-access-point-order'
             });
 
             if (window.currentUser && window.currentUser.uid) {
@@ -533,6 +533,15 @@
                     Object.entries(child.dynamicImageAnswers || {}).forEach(([id, value]) => {
                         if (value && !answers[id]) answers[id] = value;
                     });
+                    const fields = Array.isArray(child.__visitTypeChecklistFields) ? child.__visitTypeChecklistFields : [];
+                    const additionalField = findAccessPointFieldByWords(fields, ['additional', 'access', 'point', 'required']);
+                    if (additionalField) {
+                        const value = answers[additionalField.id] || answers.additional_access_points_required;
+                        if (value) {
+                            answers[additionalField.id] = value;
+                            answers.additional_access_points_required = value;
+                        }
+                    }
                     return answers;
                 };
                 child.dynamicImageAnswers = child.dynamicImageAnswers || {};
@@ -693,11 +702,18 @@
                     console.log('[Access Point Additional Debug]', { coverage, indoorCompleted, outdoorCompleted, needsIndoor, needsOutdoor, indoorFailed, outdoorFailed });
                     return indoorFailed || outdoorFailed;
                 };
+                const getAdditionalAccessPointsAnswer = (fields, answers) => {
+                    const field = findAccessPointFieldByWords(fields, ['additional', 'access', 'point', 'required']);
+                    return (field && answers[field.id])
+                        || answers.additional_access_points_required
+                        || getAnswerByFieldNames(fields, answers, ['additional_access_points_required', 'Additional Access Points Required?', 'Additional Access Points Required'])
+                        || '';
+                };
                 const renderAdditionalAccessPointsFallback = (fields, answers) => {
                     const field = findAccessPointFieldByWords(fields, ['additional', 'access', 'point', 'required']);
                     const id = field?.id || 'additional_access_points_required';
                     const label = field?.labelAr || field?.label || 'Additional Access Points Required';
-                    const val = answers[id] || '';
+                    const val = getAdditionalAccessPointsAnswer(fields, answers);
                     container.innerHTML += `<div class="field"><label>${esc(label)}</label><select class="dyn-input" data-id="${esc(id)}" onchange="renderDynamicFormSafe(collectAnswers())"><option value="">اختر</option><option value="yes" ${val === 'yes' ? 'selected' : ''}>Yes</option><option value="no" ${val === 'no' ? 'selected' : ''}>No</option></select></div>`;
                 };
                 const ensureAdditionalAccessPointsFallback = fields => {
@@ -719,7 +735,7 @@
                     const coverage = getAnswerByFieldText(fields, answers, 'access point coverage area') || getAnswerByFieldNames(fields, answers, ['access_point_coverage_area', 'Access Point Coverage Area']);
                     const indoorCompleted = getAnswerByFieldText(fields, answers, 'indoor coverage completed') || getAnswerByFieldNames(fields, answers, ['indoor_coverage_completed', 'Indoor Coverage Completed?', 'Indoor Coverage Completed']);
                     const outdoorCompleted = getAnswerByFieldText(fields, answers, 'outdoor coverage completed') || getAnswerByFieldNames(fields, answers, ['outdoor_coverage_completed', 'Outdoor Coverage Completed?', 'Outdoor Coverage Completed']);
-                    const additional = getAnswerByFieldNames(fields, answers, ['additional_access_points_required', 'Additional Access Points Required?', 'Additional Access Points Required']);
+                    const additional = getAdditionalAccessPointsAnswer(fields, answers);
 
                     if (fieldMatchesAccessPointName(field, ['additional_access_points_required'], 'additional access points required') || fieldHasAllWords(field, ['additional', 'access', 'point', 'required'])) {
                         return shouldAskAdditionalAccessPoints(fields, answers);
@@ -753,6 +769,14 @@
                     fields
                         .filter(field => field.active !== false)
                         .filter(field => normalizeVisitTypes(Array.isArray(field.visitTypes) && field.visitTypes.length ? field.visitTypes : field.visitType).includes(selectedVisitType) || isKnownAccessPointField(field))
+                        .sort((a, b) => {
+                            const apRank = field => fieldHasAllWords(field, ['additional', 'access', 'point', 'required']) ? 1
+                                : fieldHasAllWords(field, ['number', 'additional', 'access', 'point']) ? 2
+                                : fieldHasAllWords(field, ['access', 'point', 'installation', 'location']) ? 3
+                                : fieldHasAllWords(field, ['installation', 'photo']) ? 4
+                                : 0;
+                            return apRank(a) - apRank(b) || (Number(a.order) || 0) - (Number(b.order) || 0);
+                        })
                         .forEach(field => {
                             const isAccessPointField = isKnownAccessPointField(field);
                             if (!isAccessPointField && field.logic?.enabled && field.logic?.visibleWhen) {
@@ -764,7 +788,9 @@
                             if (fieldHasAllWords(field, ['additional', 'access', 'point', 'required'])) renderedAdditionalAccessPoints = true;
 
                             let html = `<div class="field"><label>${esc(field.labelAr || field.label || '')}</label>`;
-                            const val = currentAnswers[field.id] || '';
+                            const val = fieldHasAllWords(field, ['additional', 'access', 'point', 'required'])
+                                ? getAdditionalAccessPointsAnswer(fields, currentAnswers)
+                                : (currentAnswers[field.id] || '');
 
                             if (field.repeat?.enabled) {
                                 const countSrc = resolveRef(fields, field.repeat.countFromFieldId, field.repeat.countFromFieldLabel);
