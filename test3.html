@@ -531,6 +531,141 @@
                     return answers;
                 };
                 const resolveRef = (fields, id, label) => fields.find(field => field.id === id) || fields.find(field => field.label === label || field.labelAr === label) || null;
+                const normalizeVisibilityValue = value => Array.isArray(value) ? value.join(' ') : String(value ?? '');
+                const canonicalVisibilityValue = value => {
+                    const text = normalizeVisibilityValue(value).trim().toLowerCase();
+                    if (text.includes('indoor') && text.includes('outdoor')) return 'indoor_outdoor';
+                    if (text.includes('indoor')) return 'indoor_only';
+                    if (text.includes('outdoor')) return 'outdoor_only';
+                    return text;
+                };
+                const splitVisibilityValues = value => normalizeVisibilityValue(value)
+                    .split(/[\n,،|]+/)
+                    .map(item => item.trim().toLowerCase())
+                    .filter(Boolean);
+                const matchesVisibilityRule = (dependencyValue, rule) => {
+                    const actual = normalizeVisibilityValue(dependencyValue).trim().toLowerCase();
+                    const expected = normalizeVisibilityValue(rule?.value).trim().toLowerCase();
+                    const expectedValues = splitVisibilityValues(rule?.value);
+                    const actualKey = canonicalVisibilityValue(actual);
+                    const expectedKeys = expectedValues.map(canonicalVisibilityValue);
+                    const operator = String(rule?.operator || 'equals').trim().toLowerCase();
+                    let match = false;
+
+                    switch (operator) {
+                        case 'equalsany':
+                        case 'equals_any':
+                        case 'or':
+                            match = expectedValues.includes(actual) || expectedKeys.includes(actualKey);
+                            break;
+                        case 'equals':
+                            match = actual === expected || canonicalVisibilityValue(expected) === actualKey;
+                            break;
+                        case 'notequalsany':
+                        case 'not_equals_any':
+                            match = !(expectedValues.includes(actual) || expectedKeys.includes(actualKey));
+                            break;
+                        case 'notequals':
+                        case 'not_equals':
+                            match = !(actual === expected || canonicalVisibilityValue(expected) === actualKey);
+                            break;
+                        case 'contains':
+                            match = expectedValues.length ? expectedValues.some(item => actual.includes(item)) : actual.includes(expected);
+                            break;
+                        case 'notcontains':
+                        case 'not_contains':
+                            match = expectedValues.length ? expectedValues.every(item => !actual.includes(item)) : !actual.includes(expected);
+                            break;
+                        case 'startswith':
+                        case 'starts_with':
+                            match = expectedValues.length ? expectedValues.some(item => actual.startsWith(item)) : actual.startsWith(expected);
+                            break;
+                        case 'endswith':
+                        case 'ends_with':
+                            match = expectedValues.length ? expectedValues.some(item => actual.endsWith(item)) : actual.endsWith(expected);
+                            break;
+                        case 'isempty':
+                        case 'is_empty':
+                            match = !actual;
+                            break;
+                        case 'isnotempty':
+                        case 'is_not_empty':
+                            match = !!actual;
+                            break;
+                        default:
+                            match = actual === expected || canonicalVisibilityValue(expected) === actualKey;
+                    }
+
+                    console.log('[Checklist OR Debug]', {
+                        operator,
+                        actualSelectedValue: actual,
+                        expectedValues,
+                        match
+                    });
+                    return match;
+                };
+                const fieldKey = field => normalizeVisibilityValue(field.id || field.label || field.labelAr).trim().toLowerCase();
+                const isKnownAccessPointField = field => {
+                    const key = fieldKey(field);
+                    return [
+                        'access_point_coverage_area',
+                        'indoor_coverage_completed',
+                        'outdoor_coverage_completed',
+                        'additional_access_points_required',
+                        'number_of_additional_access_points',
+                        'access_point_installation_locations',
+                        'installation_photos_notes_links'
+                    ].includes(key)
+                        || key.includes('access point coverage area')
+                        || key.includes('indoor coverage completed')
+                        || key.includes('outdoor coverage completed')
+                        || key.includes('additional access points required')
+                        || key.includes('number of additional access points')
+                        || key.includes('access point installation locations')
+                        || key.includes('installation photos notes');
+                };
+                const findFieldByNames = (fields, names) => {
+                    const wanted = names.map(name => normalizeVisibilityValue(name).trim().toLowerCase());
+                    return fields.find(field => [field.id, field.label, field.labelAr]
+                        .map(value => normalizeVisibilityValue(value).trim().toLowerCase())
+                        .some(value => wanted.includes(value))) || null;
+                };
+                const getAnswerByFieldNames = (fields, answers, names) => {
+                    const field = findFieldByNames(fields, names);
+                    if (field && Object.prototype.hasOwnProperty.call(answers, field.id)) return answers[field.id];
+                    const wanted = names.map(name => normalizeVisibilityValue(name).trim().toLowerCase());
+                    const pair = Object.entries(answers).find(([key]) => wanted.includes(normalizeVisibilityValue(key).trim().toLowerCase()));
+                    return pair ? pair[1] : '';
+                };
+                const shouldShowAccessPointField = (field, fields, answers) => {
+                    const key = fieldKey(field);
+                    const available = getAnswerByFieldNames(fields, answers, ['access_point_available', 'Access Point Available']);
+                    const coverage = getAnswerByFieldNames(fields, answers, ['access_point_coverage_area', 'Access Point Coverage Area']);
+                    const additional = getAnswerByFieldNames(fields, answers, ['additional_access_points_required', 'Additional Access Points Required?', 'Additional Access Points Required']);
+
+                    if (key === 'access_point_coverage_area' || key.includes('access point coverage area')) {
+                        return matchesVisibilityRule(available, { operator: 'equals', value: 'yes' });
+                    }
+                    if (key === 'indoor_coverage_completed' || key.includes('indoor coverage completed')) {
+                        return matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'indoor_only\nindoor_outdoor' });
+                    }
+                    if (key === 'outdoor_coverage_completed' || key.includes('outdoor coverage completed')) {
+                        return matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'outdoor_only\nindoor_outdoor' });
+                    }
+                    if (key === 'additional_access_points_required' || key.includes('additional access points required')) {
+                        return matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'indoor_only\noutdoor_only\nindoor_outdoor' });
+                    }
+                    if (key === 'number_of_additional_access_points' || key.includes('number of additional access points')) {
+                        return matchesVisibilityRule(additional, { operator: 'equals', value: 'yes' });
+                    }
+                    if (key === 'access_point_installation_locations' || key.includes('access point installation locations')) {
+                        return matchesVisibilityRule(additional, { operator: 'equals', value: 'yes' });
+                    }
+                    if (key === 'installation_photos_notes_links' || key.includes('installation photos notes')) {
+                        return matchesVisibilityRule(additional, { operator: 'equals', value: 'yes' });
+                    }
+                    return true;
+                };
 
                 child.collectAnswers = getAnswers;
                 child.renderDynamicFormSafe = (answers = {}) => child.renderDynamicForm(answers);
@@ -549,11 +684,13 @@
                         .filter(field => field.active !== false)
                         .filter(field => normalizeVisitTypes(Array.isArray(field.visitTypes) && field.visitTypes.length ? field.visitTypes : field.visitType).includes(selectedVisitType))
                         .forEach(field => {
-                            if (field.logic?.enabled && field.logic?.visibleWhen) {
+                            const isAccessPointField = isKnownAccessPointField(field);
+                            if (!isAccessPointField && field.logic?.enabled && field.logic?.visibleWhen) {
                                 const rule = field.logic.visibleWhen;
                                 const src = resolveRef(fields, rule.fieldId, rule.fieldLabel);
-                                if (String(src ? currentAnswers[src.id] : '').toLowerCase() !== String(rule.value).toLowerCase()) return;
+                                if (!matchesVisibilityRule(src ? currentAnswers[src.id] : '', rule)) return;
                             }
+                            if (!shouldShowAccessPointField(field, fields, currentAnswers)) return;
 
                             let html = `<div class="field"><label>${esc(field.labelAr || field.label || '')}</label>`;
                             const val = currentAnswers[field.id] || '';
