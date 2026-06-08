@@ -73,7 +73,8 @@
           </div>
           <div class="section-title">3- Dynamic Check-List</div>
           <div class="grid-fields">
-            <div class="field"><label>Visit Type / نوع الزيارة *</label><select id="cl_visit_type"><option value="">Select Visit Type / اختر نوع الزيارة</option><option value="normal">Normal Visit / زيارة عادية</option><option value="troubleshooting">Troubleshooting Visit / زيارة تروبلشوتينق</option><option value="networkDown">Network Down Branch Visit / زيارة فرع مقطوع شبكة</option></select></div>
+            <div class="field"><label>Visit Type / نوع الزيارة *</label><select id="cl_visit_type" multiple size="3"><option value="normal">Normal Visit / زيارة عادية</option><option value="troubleshooting">Hardware / هاردوير</option><option value="networkDown">Networks / شبكات</option></select></div>
+            <div class="field"><label>All Items / البنود العامة</label><select id="cl_include_all_items"><option value="false">لا تعرض All</option><option value="true">اعرض All مع نوع الزيارة</option></select></div>
           </div>
           <div id="dynamicChecklistSections"></div>
           <button class="btn-save" id="saveChecklistBtn">حفظ وإرسال التقرير ✅</button>
@@ -109,10 +110,89 @@
     const esc = (v) => String(v == null || v === 'undefined' ? '' : v).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
     const VISIT_TYPES = ['normal', 'troubleshooting', 'networkDown'];
     function normalizeFieldVisitType(value) { return ['all', ...VISIT_TYPES].includes(value) ? value : 'all'; }
-    function isFieldForVisitType(field, selectedVisitType) {
-      const fieldVisitType = normalizeFieldVisitType(field && field.visitType);
-      return !!selectedVisitType && (fieldVisitType === 'all' || fieldVisitType === selectedVisitType);
+    function normalizeFieldVisitTypes(value) {
+      const source = Array.isArray(value) ? value : (value ? [value] : []);
+      const normalized = [...new Set(source.map(normalizeFieldVisitType))];
+      return normalized.length ? normalized : ['all'];
     }
+    function getSelectedVisitTypes() {
+      return Array.from($('cl_visit_type')?.selectedOptions || []).map(option => option.value).filter(Boolean);
+    }
+    function setSelectedVisitTypes(values) {
+      const selected = new Set(Array.isArray(values) ? values : (values ? [values] : []));
+      Array.from($('cl_visit_type')?.options || []).forEach(option => {
+        option.selected = selected.has(option.value);
+      });
+    }
+    function isFieldForVisitType(field, selectedVisitTypes) {
+      const selected = Array.isArray(selectedVisitTypes) ? selectedVisitTypes : [selectedVisitTypes].filter(Boolean);
+      const fieldVisitTypes = normalizeFieldVisitTypes(Array.isArray(field?.visitTypes) && field.visitTypes.length ? field.visitTypes : field?.visitType);
+      const includeAll = $('cl_include_all_items')?.value === 'true';
+      return selected.length > 0 && (fieldVisitTypes.some(type => selected.includes(type)) || (includeAll && fieldVisitTypes.includes('all')));
+    }
+    function normalizeVisibilityValue(value) { return Array.isArray(value) ? value.join(' ') : String(value ?? ''); }
+    function canonicalVisibilityValue(value) {
+      const v = normalizeVisibilityValue(value).trim().toLowerCase();
+      if (v.includes('indoor') && v.includes('outdoor')) return 'indoor_outdoor';
+      if (v.includes('indoor')) return 'indoor_only';
+      if (v.includes('outdoor')) return 'outdoor_only';
+      return v;
+    }
+    function splitVisibilityValues(value) {
+      return normalizeVisibilityValue(value).split(/[\n,،|]+/).map(v => v.trim().toLowerCase()).filter(Boolean);
+    }
+    function matchesVisibilityRule(sourceVal, rule) {
+      const actual = normalizeVisibilityValue(sourceVal).trim().toLowerCase();
+      const expected = normalizeVisibilityValue(rule?.value).trim().toLowerCase();
+      const expectedList = splitVisibilityValues(rule?.value);
+      const actualKey = canonicalVisibilityValue(actual);
+      const expectedKeyList = expectedList.map(canonicalVisibilityValue);
+      switch (rule?.operator || 'equals') {
+        case 'equalsAny':
+        case 'equals': return expectedList.length ? (expectedList.includes(actual) || expectedKeyList.includes(actualKey)) : actual === expected;
+        case 'notEqualsAny':
+        case 'notEquals': return expectedList.length ? !(expectedList.includes(actual) || expectedKeyList.includes(actualKey)) : actual !== expected;
+        case 'contains': return expectedList.length ? expectedList.some(v => actual.includes(v)) : actual.includes(expected);
+        case 'notContains': return expectedList.length ? expectedList.every(v => !actual.includes(v)) : !actual.includes(expected);
+        case 'startsWith': return expectedList.length ? expectedList.some(v => actual.startsWith(v)) : actual.startsWith(expected);
+        case 'endsWith': return expectedList.length ? expectedList.some(v => actual.endsWith(v)) : actual.endsWith(expected);
+        case 'isEmpty': return !actual;
+        case 'isNotEmpty': return !!actual;
+        default: return expectedList.length ? (expectedList.includes(actual) || expectedKeyList.includes(actualKey)) : actual === expected;
+      }
+    }
+    function findChecklistFieldByNames(names) {
+      const normalized = names.map(name => normalizeVisibilityValue(name).trim().toLowerCase());
+      return state.checklistFields.find(field => {
+        const keys = [field.id, field.label, field.labelAr].map(value => normalizeVisibilityValue(value).trim().toLowerCase());
+        return keys.some(key => normalized.includes(key));
+      }) || null;
+    }
+    function isKnownAccessPointDependentField(field) {
+      const fieldKey = normalizeVisibilityValue(field.id || field.label || field.labelAr).trim().toLowerCase();
+      return [
+        'number_of_additional_access_points',
+        'access_point_installation_locations'
+      ].includes(fieldKey)
+        || fieldKey.includes('number of additional access points')
+        || fieldKey.includes('access point installation locations');
+    }
+    function shouldShowKnownAccessPointDependentField(field, answers) {
+      if (!isKnownAccessPointDependentField(field)) return true;
+      const src = findChecklistFieldByNames([
+        'additional_access_points_required',
+        'Additional Access Points Required?',
+        'Additional Access Points Required'
+      ]);
+      if (!src) return false;
+      return matchesVisibilityRule(answers[src.id], { operator: 'equals', value: 'yes' });
+    }
+    function renderDynamicFormSafe(answers = {}) {
+      if (typeof renderDynamicForm === 'function') return renderDynamicForm(answers);
+      const container = $('dynamicChecklistSections');
+      if (container) container.innerHTML = '<div class="notice warn" style="margin-top:12px;">جاري تجهيز البنود الديناميكية...</div>';
+    }
+    window.renderDynamicFormSafe = renderDynamicFormSafe;
     var state = {
       checklists: [],
       checklistFields: [],
@@ -454,36 +534,40 @@
       $('mainLayout').classList.toggle('grid-full', !state.canEdit);
     }
 
-    window.renderDynamicForm = function(answers = {}) {
+    function renderDynamicForm(answers = {}) {
       const container = $('dynamicChecklistSections'); container.innerHTML = '';
-      const selectedVisitType = $('cl_visit_type').value;
-      if (!selectedVisitType) {
+      const selectedVisitTypes = getSelectedVisitTypes();
+      if (!selectedVisitTypes.length) {
         container.innerHTML = '<div class="notice warn" style="margin-top:12px;">Select Visit Type / اختر نوع الزيارة لعرض البنود.</div>';
         return;
       }
       const currentAnswers = Object.keys(answers).length ? answers : window.collectAnswers();
-      state.checklistFields.filter(field => isFieldForVisitType(field, selectedVisitType)).forEach(field => {
-        if (field.logic?.enabled && field.logic?.visibleWhen) { 
-          const rule = field.logic.visibleWhen; const src = resolveRef(rule.fieldId, rule.fieldLabel); 
-          if (String(src ? currentAnswers[src.id] : '').toLowerCase() !== String(rule.value).toLowerCase()) return; 
+      state.checklistFields.filter(field => isFieldForVisitType(field, selectedVisitTypes)).forEach(field => {
+        if (field.logic?.enabled && field.logic?.visibleWhen) {
+          const rule = field.logic.visibleWhen;
+          const src = resolveRef(rule.fieldId, rule.fieldLabel);
+          if (!matchesVisibilityRule(src ? currentAnswers[src.id] : '', rule)) return;
         }
+        if (!shouldShowKnownAccessPointDependentField(field, currentAnswers)) return;
         let html = `<div class="field"><label>${esc(field.labelAr || field.label)}</label>`;
         const val = currentAnswers[field.id] || '';
         if (field.repeat?.enabled) {
           const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel); const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
           for (let i = 0; i < count; i++) { html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i]||'')}" /></div>`; }
         } else if (field.fieldType === 'choice' && (field.renderMode === 'checkboxes' || field.renderMode === 'radios')) {
-          html += `<div class="choices-grid">`; (field.options || []).forEach(opt => { const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onclick="event.stopPropagation(); window.renderDynamicForm(window.collectAnswers());"></div>`; }); html += `</div>`;
+          html += `<div class="choices-grid">`; (field.options || []).forEach(opt => { const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onchange="event.stopPropagation(); renderDynamicFormSafe(window.collectAnswers());"></div>`; }); html += `</div>`;
         } else {
-          if (field.fieldType === 'choice') html += `<select class="dyn-input" data-id="${field.id}" onchange="window.renderDynamicForm(window.collectAnswers())"><option value="">اختر</option>${(field.options||[]).map(o=>`<option value="${esc(o.value)}" ${val==o.value?'selected':''}>${esc(o.label)}</option>`).join('')}</select>`;
-          else if (field.fieldType === 'number') html += `<input type="number" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="window.renderDynamicForm(window.collectAnswers())" />`;
-          else if (field.fieldType === 'boolean') html += `<select class="dyn-input" data-id="${field.id}" onchange="window.renderDynamicForm(window.collectAnswers())"><option value="">اختر</option><option value="yes" ${val==='yes'?'selected':''}>Yes</option><option value="no" ${val==='no'?'selected':''}>No</option></select>`;
-          else html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="window.renderDynamicForm(window.collectAnswers())" />`;
+          if (field.fieldType === 'choice') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(window.collectAnswers())"><option value="">اختر</option>${(field.options||[]).map(o=>`<option value="${esc(o.value)}" ${val==o.value?'selected':''}>${esc(o.label)}</option>`).join('')}</select>`;
+          else if (field.fieldType === 'number') html += `<input type="number" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicFormSafe(window.collectAnswers())" />`;
+          else if (field.fieldType === 'boolean') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(window.collectAnswers())"><option value="">اختر</option><option value="yes" ${val==='yes'?'selected':''}>Yes</option><option value="no" ${val==='no'?'selected':''}>No</option></select>`;
+          else if (field.fieldType === 'textarea') html += `<textarea class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(window.collectAnswers())">${esc(val)}</textarea>`;
+          else html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicFormSafe(window.collectAnswers())" />`;
         }
         container.innerHTML += html + `</div>`;
       });
       if (!container.innerHTML.trim()) container.innerHTML = '<div class="notice" style="margin-top:12px;">لا توجد بنود مرتبطة بنوع الزيارة المختار.</div>';
-    };
+    }
+    window.renderDynamicForm = renderDynamicForm;
 
     window.collectAnswers = function() {
       const ans = {}; document.querySelectorAll('.dyn-input').forEach(el => {
@@ -497,7 +581,8 @@
       const db = window.parent.appDb; const answers = window.collectAnswers(); const techDropdown = $('cl_technician');
       if (!techDropdown.value) return alert('اختر الفني أولاً.');
       if (!$('cl_visit_ref').value) return alert('لا توجد زيارة متاحة للحفظ.');
-      if (!$('cl_visit_type').value) return alert('اختر نوع الزيارة أولاً.');
+      const selectedVisitTypes = getSelectedVisitTypes();
+      if (!selectedVisitTypes.length) return alert('اختر نوع الزيارة أولاً.');
       if (isTechnicianMode()) {
         const identity = getCurrentTechnicianIdentity();
         if (!identity.matchedTechId || String(techDropdown.value) !== String(identity.matchedTechId)) {
@@ -517,7 +602,7 @@
       const selectedTech = state.technicians.find(t => String(t.id) === String(techDropdown.value) || String(t._docId) === String(techDropdown.value)) || (isTechnicianMode() ? getCurrentTechnicianIdentity().matchedTech : null) || {};
       const payload = { 
         technicianEmpId: selectedTech.empId || selectedTech.empNum || selectedTech.employeeId || techDropdown.value, technicianDocId: selectedTech._docId || techDropdown.value, technicianEmail: $('cl_technician_email').value, technicianAuthId: selectedTech.authUid || '', 
-        visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, department: $('cl_department').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, visitType: $('cl_visit_type').value, dynamicAnswers: answers, updatedAt: new Date().toISOString()
+        visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, department: $('cl_department').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, visitType: selectedVisitTypes[0], visitTypes: selectedVisitTypes, includeAllChecklistItems: $('cl_include_all_items')?.value === 'true', dynamicAnswers: answers, updatedAt: new Date().toISOString()
       };
       try { 
         const id = $('editingChecklistId').value; 
@@ -694,8 +779,10 @@
       $('editingChecklistId').value = r.id; $('cl_technician').value = r.technicianDocId || '';
       await loadVisitsForTech(r.technicianDocId, r.visitDocId);
       const m = { technicianEmail:'cl_technician_email', technicianId:'cl_technician_id', city:'cl_city', region:'cl_region', brand:'cl_brand', department:'cl_department', brandKey:'cl_brandKey', branchId:'cl_branch_id', locationSite:'cl_location', visitDate:'cl_visit_date', month:'cl_month', branchManager:'cl_branch_manager', visitScheduled:'cl_visit_scheduled', visitType:'cl_visit_type' };
-      Object.keys(m).forEach(k => { if($(m[k])) $(m[k]).value = r[k] || ''; });
-      window.renderDynamicForm(r.dynamicAnswers || {});
+      Object.keys(m).forEach(k => { if($(m[k]) && k !== 'visitType') $(m[k]).value = r[k] || ''; });
+      setSelectedVisitTypes(Array.isArray(r.visitTypes) ? r.visitTypes : r.visitType);
+      if ($('cl_include_all_items')) $('cl_include_all_items').value = String(r.includeAllChecklistItems === true);
+      renderDynamicFormSafe(r.dynamicAnswers || {});
     };
 
     function stopChecklistListeners() {
@@ -787,12 +874,13 @@
       });
       db.collection('checklist_fields').onSnapshot(snap => {
         state.checklistFields = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => (Number(a.order)||0)-(Number(b.order)||0));
-        window.renderDynamicForm(); if(state.canEdit) { updateTableHeaders(); renderTable(); }
+        renderDynamicFormSafe(); if(state.canEdit) { updateTableHeaders(); renderTable(); }
       });
       $('exportExcelBtn').onclick = exportToExcel;
       $('importExcelInput').onchange = handleImport;
       $('saveChecklistBtn').onclick = window.saveChecklist;
-      $('cl_visit_type').onchange = () => window.renderDynamicForm(window.collectAnswers());
+      $('cl_visit_type').onchange = () => renderDynamicFormSafe(window.collectAnswers());
+      $('cl_include_all_items').onchange = () => renderDynamicFormSafe(window.collectAnswers());
 
       $('cl_technician').onchange = (e) => {
         if (isTechnicianMode()) return;
