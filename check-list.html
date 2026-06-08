@@ -235,8 +235,11 @@
       const pair = Object.entries(answers).find(([key]) => normalized.includes(normalizeVisibilityValue(key).trim().toLowerCase()));
       return pair ? pair[1] : '';
     }
+    function fieldMatchesAccessPointName(field, exactNames, containsText) {
+      const keys = [field?.id, field?.label, field?.labelAr].map(value => normalizeVisibilityValue(value).trim().toLowerCase());
+      return keys.some(key => exactNames.includes(key) || key.includes(containsText));
+    }
     function shouldShowKnownAccessPointDependentField(field, answers) {
-      const fieldKey = normalizeVisibilityValue(field.id || field.label || field.labelAr).trim().toLowerCase();
       const available = getAnswerByFieldNames(answers, ['access_point_available', 'Access Point Available']);
       const coverage = getAnswerByFieldNames(answers, ['access_point_coverage_area', 'Access Point Coverage Area']);
       const indoorCompleted = getAnswerByFieldNames(answers, [
@@ -255,51 +258,41 @@
         'Additional Access Points Required'
       ]);
 
-      if (fieldKey === 'access_point_coverage_area' || fieldKey.includes('access point coverage area')) {
+      if (fieldMatchesAccessPointName(field, ['access_point_coverage_area'], 'access point coverage area')) {
         return matchesVisibilityRule(available, { operator: 'equals', value: 'yes' });
       }
-      if (fieldKey === 'indoor_coverage_completed' || fieldKey.includes('indoor coverage completed')) {
+      if (fieldMatchesAccessPointName(field, ['indoor_coverage_completed'], 'indoor coverage completed')) {
         return matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'indoor_only\nindoor_outdoor' });
       }
-      if (fieldKey === 'outdoor_coverage_completed' || fieldKey.includes('outdoor coverage completed')) {
+      if (fieldMatchesAccessPointName(field, ['outdoor_coverage_completed'], 'outdoor coverage completed')) {
         return matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'outdoor_only\nindoor_outdoor' });
       }
-      if (fieldKey === 'additional_access_points_required' || fieldKey.includes('additional access points required')) {
+      if (fieldMatchesAccessPointName(field, ['additional_access_points_required'], 'additional access points required')) {
         const needsIndoor = matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'indoor_only\nindoor_outdoor' });
         const needsOutdoor = matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'outdoor_only\nindoor_outdoor' });
         const indoorFailed = needsIndoor && matchesVisibilityRule(indoorCompleted, { operator: 'equals', value: 'no' });
         const outdoorFailed = needsOutdoor && matchesVisibilityRule(outdoorCompleted, { operator: 'equals', value: 'no' });
         return indoorFailed || outdoorFailed;
       }
-      if (fieldKey === 'number_of_additional_access_points' || fieldKey.includes('number of additional access points')) {
+      if (fieldMatchesAccessPointName(field, ['number_of_additional_access_points'], 'number of additional access points')) {
         return matchesVisibilityRule(additional, { operator: 'equals', value: 'yes' });
       }
-      if (fieldKey === 'access_point_installation_locations' || fieldKey.includes('access point installation locations')) {
+      if (fieldMatchesAccessPointName(field, ['access_point_installation_locations'], 'access point installation locations')) {
         return matchesVisibilityRule(additional, { operator: 'equals', value: 'yes' });
       }
-      if (fieldKey === 'installation_photos_notes_links' || fieldKey.includes('installation photos notes')) {
+      if (fieldMatchesAccessPointName(field, ['installation_photos_notes_links'], 'installation photos notes')) {
         return matchesVisibilityRule(additional, { operator: 'equals', value: 'yes' });
       }
       return true;
     }
     function isKnownAccessPointField(field) {
-      const fieldKey = normalizeVisibilityValue(field.id || field.label || field.labelAr).trim().toLowerCase();
-      return [
-        'access_point_coverage_area',
-        'indoor_coverage_completed',
-        'outdoor_coverage_completed',
-        'additional_access_points_required',
-        'number_of_additional_access_points',
-        'access_point_installation_locations',
-        'installation_photos_notes_links'
-      ].includes(fieldKey)
-        || fieldKey.includes('access point coverage area')
-        || fieldKey.includes('indoor coverage completed')
-        || fieldKey.includes('outdoor coverage completed')
-        || fieldKey.includes('additional access points required')
-        || fieldKey.includes('number of additional access points')
-        || fieldKey.includes('access point installation locations')
-        || fieldKey.includes('installation photos notes');
+      return fieldMatchesAccessPointName(field, ['access_point_coverage_area'], 'access point coverage area')
+        || fieldMatchesAccessPointName(field, ['indoor_coverage_completed'], 'indoor coverage completed')
+        || fieldMatchesAccessPointName(field, ['outdoor_coverage_completed'], 'outdoor coverage completed')
+        || fieldMatchesAccessPointName(field, ['additional_access_points_required'], 'additional access points required')
+        || fieldMatchesAccessPointName(field, ['number_of_additional_access_points'], 'number of additional access points')
+        || fieldMatchesAccessPointName(field, ['access_point_installation_locations'], 'access point installation locations')
+        || fieldMatchesAccessPointName(field, ['installation_photos_notes_links'], 'installation photos notes');
     }
     function collectDynamicAnswers() {
       const ans = {};
