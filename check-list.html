@@ -283,6 +283,35 @@
       const val = getAdditionalAccessPointsAnswer(answers);
       container.innerHTML += `<div class="field"><label>${esc(label)}</label><select class="dyn-input" data-id="${esc(id)}" onchange="renderDynamicFormSafe(collectDynamicAnswers())"><option value="">اختر</option><option value="yes" ${val === 'yes' ? 'selected' : ''}>Yes</option><option value="no" ${val === 'no' ? 'selected' : ''}>No</option></select></div>`;
     }
+    function accessPointRenderedRank(field) {
+      const text = normalizeVisibilityValue(field.querySelector('label')?.textContent).trim().toLowerCase();
+      if (text.includes('additional') && text.includes('access') && text.includes('point') && text.includes('required')) return 1;
+      if (text.includes('number') && text.includes('additional') && text.includes('access') && text.includes('point')) return 2;
+      if (text.includes('access') && text.includes('point') && text.includes('installation') && text.includes('location')) return 3;
+      if (text.includes('installation') && text.includes('photo')) return 4;
+      return 0;
+    }
+    function reorderRenderedAccessPointFields() {
+      const container = $('dynamicChecklistSections');
+      if (!container) return;
+      const fields = Array.from(container.querySelectorAll(':scope > .field'));
+      const apFields = fields.filter(field => accessPointRenderedRank(field) > 0);
+      if (!apFields.length) return;
+      apFields.sort((a, b) => accessPointRenderedRank(a) - accessPointRenderedRank(b));
+      const anchor = fields.find(field => {
+        const text = normalizeVisibilityValue(field.querySelector('label')?.textContent).trim().toLowerCase();
+        return text.includes('indoor coverage completed') || text.includes('outdoor coverage completed');
+      });
+      let insertAfter = anchor || fields.find(field => {
+        const text = normalizeVisibilityValue(field.querySelector('label')?.textContent).trim().toLowerCase();
+        return text.includes('access point coverage area');
+      });
+      apFields.forEach(field => {
+        if (insertAfter?.nextSibling) container.insertBefore(field, insertAfter.nextSibling);
+        else container.appendChild(field);
+        insertAfter = field;
+      });
+    }
     function ensureAdditionalAccessPointsFallback() {
       const container = $('dynamicChecklistSections');
       if (!container) return;
@@ -778,7 +807,7 @@
           if (field.fieldType === 'choice') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(collectDynamicAnswers())"><option value="">اختر</option>${(field.options||[]).map(o=>`<option value="${esc(o.value)}" ${val==o.value?'selected':''}>${esc(o.label)}</option>`).join('')}</select>`;
           else if (field.fieldType === 'number') html += `<input type="number" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicFormSafe(collectDynamicAnswers())" />`;
           else if (field.fieldType === 'boolean') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(collectDynamicAnswers())"><option value="">اختر</option><option value="yes" ${val==='yes'?'selected':''}>Yes</option><option value="no" ${val==='no'?'selected':''}>No</option></select>`;
-          else if (field.fieldType === 'image') html += `${val ? `<div style="margin:8px 0"><img src="${esc(val)}" alt="Uploaded image" style="max-width:220px; max-height:160px; border:1px solid #cbd5e1; border-radius:8px; object-fit:contain"></div>` : ''}<input type="file" accept="image/*" class="dyn-input" data-id="${field.id}" onchange="readDynamicImageInput(this)" />`;
+          else if (field.fieldType === 'image' || fieldHasAllWords(field, ['installation', 'photo'])) html += `${val ? `<div style="margin:8px 0"><img src="${esc(val)}" alt="Uploaded image" style="max-width:220px; max-height:160px; border:1px solid #cbd5e1; border-radius:8px; object-fit:contain"></div>` : ''}<input type="file" accept="image/*" class="dyn-input" data-id="${field.id}" onchange="readDynamicImageInput(this)" />`;
           else if (field.fieldType === 'textarea') html += `<textarea class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(collectDynamicAnswers())">${esc(val)}</textarea>`;
           else html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicFormSafe(collectDynamicAnswers())" />`;
         }
@@ -788,6 +817,7 @@
         renderAdditionalAccessPointsFallback(container, currentAnswers);
       }
       ensureAdditionalAccessPointsFallback();
+      reorderRenderedAccessPointFields();
       if (!container.innerHTML.trim()) container.innerHTML = '<div class="notice" style="margin-top:12px;">لا توجد بنود مرتبطة بنوع الزيارة المختار.</div>';
     }
     window.renderDynamicForm = renderDynamicForm;
