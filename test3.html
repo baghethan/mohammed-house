@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.1 - ACCESS POINT FALLBACK -->
+<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.2 - IMAGE UPLOAD -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
@@ -140,7 +140,7 @@
             <img src="LOGO-almajdouie.png" height="35" alt="MMC">
             <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">Authenticating...</div>
         </div>
-        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.1</div>
+        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.2</div>
         <button onclick="handleLogout()" style="background:#ef4444; color:white; border:none; padding:8px 18px; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s;">Logout</button>
     </header>
 
@@ -474,7 +474,7 @@
             const params = new URLSearchParams({
                 auth: 'active',
                 lang: getPortalLanguage(),
-                build: 'v2.0.1-access-point-fallback'
+                build: 'v2.0.2-image-upload'
             });
 
             if (window.currentUser && window.currentUser.uid) {
@@ -524,11 +524,33 @@
                         } else if (input.dataset.index !== undefined) {
                             if (!answers[id]) answers[id] = [];
                             answers[id][input.dataset.index] = input.value;
+                        } else if (input.type === 'file') {
+                            if (child.dynamicImageAnswers?.[id]) answers[id] = child.dynamicImageAnswers[id];
                         } else {
                             answers[id] = input.value;
                         }
                     });
+                    Object.entries(child.dynamicImageAnswers || {}).forEach(([id, value]) => {
+                        if (value && !answers[id]) answers[id] = value;
+                    });
                     return answers;
+                };
+                child.dynamicImageAnswers = child.dynamicImageAnswers || {};
+                child.readDynamicImageInput = input => {
+                    const id = input?.dataset?.id;
+                    const file = input?.files?.[0];
+                    if (!id || !file) return;
+                    if (!file.type.startsWith('image/')) {
+                        alert('اختر ملف صورة فقط.');
+                        input.value = '';
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        child.dynamicImageAnswers[id] = reader.result;
+                        child.renderDynamicFormSafe(child.collectAnswers());
+                    };
+                    reader.readAsDataURL(file);
                 };
                 const resolveRef = (fields, id, label) => fields.find(field => field.id === id) || fields.find(field => field.label === label || field.labelAr === label) || null;
                 const normalizeVisibilityValue = value => Array.isArray(value) ? value.join(' ') : String(value ?? '');
@@ -764,6 +786,8 @@
                                 html += `<input type="number" class="dyn-input" data-id="${esc(field.id)}" value="${esc(val)}" onchange="renderDynamicFormSafe(collectAnswers())" />`;
                             } else if (field.fieldType === 'boolean') {
                                 html += `<select class="dyn-input" data-id="${esc(field.id)}" onchange="renderDynamicFormSafe(collectAnswers())"><option value="">اختر</option><option value="yes" ${val === 'yes' ? 'selected' : ''}>Yes</option><option value="no" ${val === 'no' ? 'selected' : ''}>No</option></select>`;
+                            } else if (field.fieldType === 'image') {
+                                html += `${val ? `<div style="margin:8px 0"><img src="${esc(val)}" alt="Uploaded image" style="max-width:220px; max-height:160px; border:1px solid #cbd5e1; border-radius:8px; object-fit:contain"></div>` : ''}<input type="file" accept="image/*" class="dyn-input" data-id="${esc(field.id)}" onchange="readDynamicImageInput(this)" />`;
                             } else {
                                 html += `<input type="text" class="dyn-input" data-id="${esc(field.id)}" value="${esc(val)}" onchange="renderDynamicFormSafe(collectAnswers())" />`;
                             }
