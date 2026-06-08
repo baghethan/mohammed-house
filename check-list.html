@@ -187,6 +187,25 @@
       if (!src) return false;
       return matchesVisibilityRule(answers[src.id], { operator: 'equals', value: 'yes' });
     }
+    function collectDynamicAnswers() {
+      const ans = {};
+      document.querySelectorAll('.dyn-input').forEach(el => {
+        const id = el.dataset.id;
+        if (el.type === 'checkbox') {
+          if (!ans[id]) ans[id] = [];
+          if (el.checked) ans[id].push(el.value);
+        } else if (el.type === 'radio') {
+          if (el.checked) ans[id] = el.value;
+        } else if (el.dataset.index !== undefined) {
+          if (!ans[id]) ans[id] = [];
+          ans[id][el.dataset.index] = el.value;
+        } else {
+          ans[id] = el.value;
+        }
+      });
+      return ans;
+    }
+    window.collectAnswers = collectDynamicAnswers;
     function renderDynamicFormSafe(answers = {}) {
       if (typeof renderDynamicForm === 'function') return renderDynamicForm(answers);
       const container = $('dynamicChecklistSections');
@@ -541,7 +560,7 @@
         container.innerHTML = '<div class="notice warn" style="margin-top:12px;">Select Visit Type / اختر نوع الزيارة لعرض البنود.</div>';
         return;
       }
-      const currentAnswers = Object.keys(answers).length ? answers : window.collectAnswers();
+      const currentAnswers = Object.keys(answers).length ? answers : collectDynamicAnswers();
       state.checklistFields.filter(field => isFieldForVisitType(field, selectedVisitTypes)).forEach(field => {
         if (field.logic?.enabled && field.logic?.visibleWhen) {
           const rule = field.logic.visibleWhen;
@@ -555,13 +574,13 @@
           const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel); const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
           for (let i = 0; i < count; i++) { html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i]||'')}" /></div>`; }
         } else if (field.fieldType === 'choice' && (field.renderMode === 'checkboxes' || field.renderMode === 'radios')) {
-          html += `<div class="choices-grid">`; (field.options || []).forEach(opt => { const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onchange="event.stopPropagation(); renderDynamicFormSafe(window.collectAnswers());"></div>`; }); html += `</div>`;
+          html += `<div class="choices-grid">`; (field.options || []).forEach(opt => { const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onchange="event.stopPropagation(); renderDynamicFormSafe(collectDynamicAnswers());"></div>`; }); html += `</div>`;
         } else {
-          if (field.fieldType === 'choice') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(window.collectAnswers())"><option value="">اختر</option>${(field.options||[]).map(o=>`<option value="${esc(o.value)}" ${val==o.value?'selected':''}>${esc(o.label)}</option>`).join('')}</select>`;
-          else if (field.fieldType === 'number') html += `<input type="number" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicFormSafe(window.collectAnswers())" />`;
-          else if (field.fieldType === 'boolean') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(window.collectAnswers())"><option value="">اختر</option><option value="yes" ${val==='yes'?'selected':''}>Yes</option><option value="no" ${val==='no'?'selected':''}>No</option></select>`;
-          else if (field.fieldType === 'textarea') html += `<textarea class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(window.collectAnswers())">${esc(val)}</textarea>`;
-          else html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicFormSafe(window.collectAnswers())" />`;
+          if (field.fieldType === 'choice') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(collectDynamicAnswers())"><option value="">اختر</option>${(field.options||[]).map(o=>`<option value="${esc(o.value)}" ${val==o.value?'selected':''}>${esc(o.label)}</option>`).join('')}</select>`;
+          else if (field.fieldType === 'number') html += `<input type="number" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicFormSafe(collectDynamicAnswers())" />`;
+          else if (field.fieldType === 'boolean') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(collectDynamicAnswers())"><option value="">اختر</option><option value="yes" ${val==='yes'?'selected':''}>Yes</option><option value="no" ${val==='no'?'selected':''}>No</option></select>`;
+          else if (field.fieldType === 'textarea') html += `<textarea class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(collectDynamicAnswers())">${esc(val)}</textarea>`;
+          else html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicFormSafe(collectDynamicAnswers())" />`;
         }
         container.innerHTML += html + `</div>`;
       });
@@ -569,13 +588,7 @@
     }
     window.renderDynamicForm = renderDynamicForm;
 
-    window.collectAnswers = function() {
-      const ans = {}; document.querySelectorAll('.dyn-input').forEach(el => {
-        const id = el.dataset.id; if (el.type === 'checkbox') { if(!ans[id]) ans[id]=[]; if(el.checked) ans[id].push(el.value); } 
-        else if (el.type === 'radio') { if(el.checked) ans[id] = el.value; } 
-        else if (el.dataset.index !== undefined) { if(!ans[id]) ans[id]=[]; ans[id][el.dataset.index] = el.value; } else ans[id] = el.value;
-      }); return ans;
-    };
+    window.collectAnswers = collectDynamicAnswers;
 
     window.saveChecklist = async function() {
       const db = window.parent.appDb; const answers = window.collectAnswers(); const techDropdown = $('cl_technician');
@@ -879,8 +892,8 @@
       $('exportExcelBtn').onclick = exportToExcel;
       $('importExcelInput').onchange = handleImport;
       $('saveChecklistBtn').onclick = window.saveChecklist;
-      $('cl_visit_type').onchange = () => renderDynamicFormSafe(window.collectAnswers());
-      $('cl_include_all_items').onchange = () => renderDynamicFormSafe(window.collectAnswers());
+      $('cl_visit_type').onchange = () => renderDynamicFormSafe(collectDynamicAnswers());
+      $('cl_include_all_items').onchange = () => renderDynamicFormSafe(collectDynamicAnswers());
 
       $('cl_technician').onchange = (e) => {
         if (isTechnicianMode()) return;
