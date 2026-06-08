@@ -659,6 +659,25 @@
                         .some(value => value.includes(text)));
                     return field && Object.prototype.hasOwnProperty.call(answers, field.id) ? answers[field.id] : '';
                 };
+                const findAccessPointFieldByWords = (fields, words) => fields.find(field => fieldHasAllWords(field, words)) || null;
+                const shouldAskAdditionalAccessPoints = (fields, answers) => {
+                    const coverage = getAnswerByFieldText(fields, answers, 'access point coverage area') || getAnswerByFieldNames(fields, answers, ['access_point_coverage_area', 'Access Point Coverage Area']);
+                    const indoorCompleted = getAnswerByFieldText(fields, answers, 'indoor coverage completed') || getAnswerByFieldNames(fields, answers, ['indoor_coverage_completed', 'Indoor Coverage Completed?', 'Indoor Coverage Completed']);
+                    const outdoorCompleted = getAnswerByFieldText(fields, answers, 'outdoor coverage completed') || getAnswerByFieldNames(fields, answers, ['outdoor_coverage_completed', 'Outdoor Coverage Completed?', 'Outdoor Coverage Completed']);
+                    const needsIndoor = matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'indoor_only\nindoor_outdoor' });
+                    const needsOutdoor = matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'outdoor_only\nindoor_outdoor' });
+                    const indoorFailed = needsIndoor && matchesVisibilityRule(indoorCompleted, { operator: 'equals', value: 'no' });
+                    const outdoorFailed = needsOutdoor && matchesVisibilityRule(outdoorCompleted, { operator: 'equals', value: 'no' });
+                    console.log('[Access Point Additional Debug]', { coverage, indoorCompleted, outdoorCompleted, needsIndoor, needsOutdoor, indoorFailed, outdoorFailed });
+                    return indoorFailed || outdoorFailed;
+                };
+                const renderAdditionalAccessPointsFallback = (fields, answers) => {
+                    const field = findAccessPointFieldByWords(fields, ['additional', 'access', 'point', 'required']);
+                    const id = field?.id || 'additional_access_points_required';
+                    const label = field?.labelAr || field?.label || 'Additional Access Points Required';
+                    const val = answers[id] || '';
+                    container.innerHTML += `<div class="field"><label>${esc(label)}</label><select class="dyn-input" data-id="${esc(id)}" onchange="renderDynamicFormSafe(collectAnswers())"><option value="">اختر</option><option value="yes" ${val === 'yes' ? 'selected' : ''}>Yes</option><option value="no" ${val === 'no' ? 'selected' : ''}>No</option></select></div>`;
+                };
                 const shouldShowAccessPointField = (field, fields, answers) => {
                     const coverage = getAnswerByFieldText(fields, answers, 'access point coverage area') || getAnswerByFieldNames(fields, answers, ['access_point_coverage_area', 'Access Point Coverage Area']);
                     const indoorCompleted = getAnswerByFieldText(fields, answers, 'indoor coverage completed') || getAnswerByFieldNames(fields, answers, ['indoor_coverage_completed', 'Indoor Coverage Completed?', 'Indoor Coverage Completed']);
@@ -666,12 +685,7 @@
                     const additional = getAnswerByFieldNames(fields, answers, ['additional_access_points_required', 'Additional Access Points Required?', 'Additional Access Points Required']);
 
                     if (fieldMatchesAccessPointName(field, ['additional_access_points_required'], 'additional access points required') || fieldHasAllWords(field, ['additional', 'access', 'point', 'required'])) {
-                        const needsIndoor = matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'indoor_only\nindoor_outdoor' });
-                        const needsOutdoor = matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'outdoor_only\nindoor_outdoor' });
-                        const indoorFailed = needsIndoor && matchesVisibilityRule(indoorCompleted, { operator: 'equals', value: 'no' });
-                        const outdoorFailed = needsOutdoor && matchesVisibilityRule(outdoorCompleted, { operator: 'equals', value: 'no' });
-                        console.log('[Access Point Additional Debug]', { coverage, indoorCompleted, outdoorCompleted, needsIndoor, needsOutdoor, indoorFailed, outdoorFailed });
-                        return indoorFailed || outdoorFailed;
+                        return shouldAskAdditionalAccessPoints(fields, answers);
                     }
                     if (fieldMatchesAccessPointName(field, ['number_of_additional_access_points'], 'number of additional access points')) {
                         return matchesVisibilityRule(additional, { operator: 'equals', value: 'yes' });
@@ -698,6 +712,7 @@
                     }
 
                     const currentAnswers = Object.keys(answers || {}).length ? answers : getAnswers();
+                    let renderedAdditionalAccessPoints = false;
                     fields
                         .filter(field => field.active !== false)
                         .filter(field => normalizeVisitTypes(Array.isArray(field.visitTypes) && field.visitTypes.length ? field.visitTypes : field.visitType).includes(selectedVisitType) || isKnownAccessPointField(field))
@@ -709,6 +724,7 @@
                                 if (!matchesVisibilityRule(src ? currentAnswers[src.id] : '', rule)) return;
                             }
                             if (!shouldShowAccessPointField(field, fields, currentAnswers)) return;
+                            if (fieldHasAllWords(field, ['additional', 'access', 'point', 'required'])) renderedAdditionalAccessPoints = true;
 
                             let html = `<div class="field"><label>${esc(field.labelAr || field.label || '')}</label>`;
                             const val = currentAnswers[field.id] || '';
@@ -739,6 +755,9 @@
 
                             container.innerHTML += html + '</div>';
                         });
+                    if (!renderedAdditionalAccessPoints && shouldAskAdditionalAccessPoints(fields, currentAnswers)) {
+                        renderAdditionalAccessPointsFallback(fields, currentAnswers);
+                    }
 
                     if (!container.innerHTML.trim()) {
                         container.innerHTML = '<div class="notice" style="margin-top:12px;">لا توجد بنود مرتبطة بنوع الزيارة المختار.</div>';
