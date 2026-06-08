@@ -235,18 +235,28 @@
       const pair = Object.entries(answers).find(([key]) => normalized.includes(normalizeVisibilityValue(key).trim().toLowerCase()));
       return pair ? pair[1] : '';
     }
+    function getAnswerByFieldText(answers, containsText) {
+      const text = normalizeVisibilityValue(containsText).trim().toLowerCase();
+      const field = state.checklistFields.find(item => {
+        const keys = [item?.id, item?.label, item?.labelAr]
+          .map(value => normalizeVisibilityValue(value).trim().toLowerCase())
+          .filter(Boolean);
+        return keys.some(key => key.includes(text));
+      });
+      return field && Object.prototype.hasOwnProperty.call(answers, field.id) ? answers[field.id] : '';
+    }
     function fieldMatchesAccessPointName(field, exactNames, containsText) {
       const keys = [field?.id, field?.label, field?.labelAr].map(value => normalizeVisibilityValue(value).trim().toLowerCase());
       return keys.some(key => exactNames.includes(key) || key.includes(containsText));
     }
     function shouldShowKnownAccessPointDependentField(field, answers) {
-      const coverage = getAnswerByFieldNames(answers, ['access_point_coverage_area', 'Access Point Coverage Area']);
-      const indoorCompleted = getAnswerByFieldNames(answers, [
+      const coverage = getAnswerByFieldText(answers, 'access point coverage area') || getAnswerByFieldNames(answers, ['access_point_coverage_area', 'Access Point Coverage Area']);
+      const indoorCompleted = getAnswerByFieldText(answers, 'indoor coverage completed') || getAnswerByFieldNames(answers, [
         'indoor_coverage_completed',
         'Indoor Coverage Completed?',
         'Indoor Coverage Completed'
       ]);
-      const outdoorCompleted = getAnswerByFieldNames(answers, [
+      const outdoorCompleted = getAnswerByFieldText(answers, 'outdoor coverage completed') || getAnswerByFieldNames(answers, [
         'outdoor_coverage_completed',
         'Outdoor Coverage Completed?',
         'Outdoor Coverage Completed'
@@ -262,6 +272,7 @@
         const needsOutdoor = matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'outdoor_only\nindoor_outdoor' });
         const indoorFailed = needsIndoor && matchesVisibilityRule(indoorCompleted, { operator: 'equals', value: 'no' });
         const outdoorFailed = needsOutdoor && matchesVisibilityRule(outdoorCompleted, { operator: 'equals', value: 'no' });
+        console.log('[Access Point Additional Debug]', { coverage, indoorCompleted, outdoorCompleted, needsIndoor, needsOutdoor, indoorFailed, outdoorFailed });
         return indoorFailed || outdoorFailed;
       }
       if (fieldMatchesAccessPointName(field, ['number_of_additional_access_points'], 'number of additional access points')) {
