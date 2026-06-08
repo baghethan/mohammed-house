@@ -269,11 +269,18 @@
       console.log('[Access Point Additional Debug]', { coverage, indoorCompleted, outdoorCompleted, needsIndoor, needsOutdoor, indoorFailed, outdoorFailed });
       return indoorFailed || outdoorFailed;
     }
+    function getAdditionalAccessPointsAnswer(answers) {
+      const field = findAccessPointFieldByWords(['additional', 'access', 'point', 'required']);
+      return (field && answers[field.id])
+        || answers.additional_access_points_required
+        || getAnswerByFieldNames(answers, ['additional_access_points_required', 'Additional Access Points Required?', 'Additional Access Points Required'])
+        || '';
+    }
     function renderAdditionalAccessPointsFallback(container, answers) {
       const field = findAccessPointFieldByWords(['additional', 'access', 'point', 'required']);
       const id = field?.id || 'additional_access_points_required';
       const label = field?.labelAr || field?.label || 'Additional Access Points Required';
-      const val = answers[id] || '';
+      const val = getAdditionalAccessPointsAnswer(answers);
       container.innerHTML += `<div class="field"><label>${esc(label)}</label><select class="dyn-input" data-id="${esc(id)}" onchange="renderDynamicFormSafe(collectDynamicAnswers())"><option value="">اختر</option><option value="yes" ${val === 'yes' ? 'selected' : ''}>Yes</option><option value="no" ${val === 'no' ? 'selected' : ''}>No</option></select></div>`;
     }
     function ensureAdditionalAccessPointsFallback() {
@@ -305,11 +312,7 @@
         'Outdoor Coverage Completed?',
         'Outdoor Coverage Completed'
       ]);
-      const additional = getAnswerByFieldNames(answers, [
-        'additional_access_points_required',
-        'Additional Access Points Required?',
-        'Additional Access Points Required'
-      ]);
+      const additional = getAdditionalAccessPointsAnswer(answers);
 
       if (fieldMatchesAccessPointName(field, ['additional_access_points_required'], 'additional access points required') || fieldHasAllWords(field, ['additional', 'access', 'point', 'required'])) {
         return shouldAskAdditionalAccessPoints(answers);
@@ -373,6 +376,14 @@
       Object.entries(window.dynamicImageAnswers || {}).forEach(([id, value]) => {
         if (value && !ans[id]) ans[id] = value;
       });
+      const additionalField = findAccessPointFieldByWords(['additional', 'access', 'point', 'required']);
+      if (additionalField) {
+        const value = ans[additionalField.id] || ans.additional_access_points_required;
+        if (value) {
+          ans[additionalField.id] = value;
+          ans.additional_access_points_required = value;
+        }
+      }
       return ans;
     }
     window.collectAnswers = collectDynamicAnswers;
@@ -738,7 +749,14 @@
       }
       const currentAnswers = Object.keys(answers).length ? answers : collectDynamicAnswers();
       let renderedAdditionalAccessPoints = false;
-      state.checklistFields.filter(field => isFieldForVisitType(field, selectedVisitTypes) || isKnownAccessPointField(field)).forEach(field => {
+      state.checklistFields.filter(field => isFieldForVisitType(field, selectedVisitTypes) || isKnownAccessPointField(field)).sort((a, b) => {
+        const apRank = field => fieldHasAllWords(field, ['additional', 'access', 'point', 'required']) ? 1
+          : fieldHasAllWords(field, ['number', 'additional', 'access', 'point']) ? 2
+          : fieldHasAllWords(field, ['access', 'point', 'installation', 'location']) ? 3
+          : fieldHasAllWords(field, ['installation', 'photo']) ? 4
+          : 0;
+        return apRank(a) - apRank(b) || (Number(a.order) || 0) - (Number(b.order) || 0);
+      }).forEach(field => {
         const isAccessPointField = isKnownAccessPointField(field);
         if (!isAccessPointField && field.logic?.enabled && field.logic?.visibleWhen) {
           const rule = field.logic.visibleWhen;
@@ -748,7 +766,9 @@
         if (!shouldShowKnownAccessPointDependentField(field, currentAnswers)) return;
         if (fieldHasAllWords(field, ['additional', 'access', 'point', 'required'])) renderedAdditionalAccessPoints = true;
         let html = `<div class="field"><label>${esc(field.labelAr || field.label)}</label>`;
-        const val = currentAnswers[field.id] || '';
+        const val = fieldHasAllWords(field, ['additional', 'access', 'point', 'required'])
+          ? getAdditionalAccessPointsAnswer(currentAnswers)
+          : (currentAnswers[field.id] || '');
         if (field.repeat?.enabled) {
           const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel); const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
           for (let i = 0; i < count; i++) { html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i]||'')}" /></div>`; }
