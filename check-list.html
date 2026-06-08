@@ -335,6 +335,23 @@
         || fieldMatchesAccessPointName(field, ['installation_photos_notes_links'], 'installation photos notes')
         || fieldHasAllWords(field, ['installation', 'photo']);
     }
+    window.dynamicImageAnswers = window.dynamicImageAnswers || {};
+    window.readDynamicImageInput = function(input) {
+      const id = input?.dataset?.id;
+      const file = input?.files?.[0];
+      if (!id || !file) return;
+      if (!file.type.startsWith('image/')) {
+        alert('اختر ملف صورة فقط.');
+        input.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        window.dynamicImageAnswers[id] = reader.result;
+        renderDynamicFormSafe(collectDynamicAnswers());
+      };
+      reader.readAsDataURL(file);
+    };
     function collectDynamicAnswers() {
       const ans = {};
       document.querySelectorAll('.dyn-input').forEach(el => {
@@ -347,9 +364,14 @@
         } else if (el.dataset.index !== undefined) {
           if (!ans[id]) ans[id] = [];
           ans[id][el.dataset.index] = el.value;
+        } else if (el.type === 'file') {
+          if (window.dynamicImageAnswers[id]) ans[id] = window.dynamicImageAnswers[id];
         } else {
           ans[id] = el.value;
         }
+      });
+      Object.entries(window.dynamicImageAnswers || {}).forEach(([id, value]) => {
+        if (value && !ans[id]) ans[id] = value;
       });
       return ans;
     }
@@ -736,6 +758,7 @@
           if (field.fieldType === 'choice') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(collectDynamicAnswers())"><option value="">اختر</option>${(field.options||[]).map(o=>`<option value="${esc(o.value)}" ${val==o.value?'selected':''}>${esc(o.label)}</option>`).join('')}</select>`;
           else if (field.fieldType === 'number') html += `<input type="number" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicFormSafe(collectDynamicAnswers())" />`;
           else if (field.fieldType === 'boolean') html += `<select class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(collectDynamicAnswers())"><option value="">اختر</option><option value="yes" ${val==='yes'?'selected':''}>Yes</option><option value="no" ${val==='no'?'selected':''}>No</option></select>`;
+          else if (field.fieldType === 'image') html += `${val ? `<div style="margin:8px 0"><img src="${esc(val)}" alt="Uploaded image" style="max-width:220px; max-height:160px; border:1px solid #cbd5e1; border-radius:8px; object-fit:contain"></div>` : ''}<input type="file" accept="image/*" class="dyn-input" data-id="${field.id}" onchange="readDynamicImageInput(this)" />`;
           else if (field.fieldType === 'textarea') html += `<textarea class="dyn-input" data-id="${field.id}" onchange="renderDynamicFormSafe(collectDynamicAnswers())">${esc(val)}</textarea>`;
           else html += `<input type="text" class="dyn-input" data-id="${field.id}" value="${esc(val)}" onchange="renderDynamicFormSafe(collectDynamicAnswers())" />`;
         }
