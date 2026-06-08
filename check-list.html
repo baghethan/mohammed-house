@@ -276,6 +276,23 @@
       const val = answers[id] || '';
       container.innerHTML += `<div class="field"><label>${esc(label)}</label><select class="dyn-input" data-id="${esc(id)}" onchange="renderDynamicFormSafe(collectDynamicAnswers())"><option value="">اختر</option><option value="yes" ${val === 'yes' ? 'selected' : ''}>Yes</option><option value="no" ${val === 'no' ? 'selected' : ''}>No</option></select></div>`;
     }
+    function ensureAdditionalAccessPointsFallback() {
+      const container = $('dynamicChecklistSections');
+      if (!container) return;
+      const fields = Array.from(container.querySelectorAll('.field'));
+      const fieldText = field => normalizeVisibilityValue(field.querySelector('label')?.textContent).trim().toLowerCase();
+      const fieldValue = field => normalizeVisibilityValue(field.querySelector('.dyn-input')?.value).trim().toLowerCase();
+      const hasAdditional = fields.some(field => {
+        const text = fieldText(field);
+        return text.includes('additional') && text.includes('access') && text.includes('point') && text.includes('required');
+      });
+      if (hasAdditional) return;
+      const indoorNo = fields.some(field => fieldText(field).includes('indoor coverage completed') && matchesVisibilityRule(fieldValue(field), { operator: 'equals', value: 'no' }));
+      const outdoorNo = fields.some(field => fieldText(field).includes('outdoor coverage completed') && matchesVisibilityRule(fieldValue(field), { operator: 'equals', value: 'no' }));
+      if (indoorNo || outdoorNo) {
+        renderAdditionalAccessPointsFallback(container, collectDynamicAnswers());
+      }
+    }
     function shouldShowKnownAccessPointDependentField(field, answers) {
       const coverage = getAnswerByFieldText(answers, 'access point coverage area') || getAnswerByFieldNames(answers, ['access_point_coverage_area', 'Access Point Coverage Area']);
       const indoorCompleted = getAnswerByFieldText(answers, 'indoor coverage completed') || getAnswerByFieldNames(answers, [
@@ -727,6 +744,7 @@
       if (!renderedAdditionalAccessPoints && shouldAskAdditionalAccessPoints(currentAnswers)) {
         renderAdditionalAccessPointsFallback(container, currentAnswers);
       }
+      ensureAdditionalAccessPointsFallback();
       if (!container.innerHTML.trim()) container.innerHTML = '<div class="notice" style="margin-top:12px;">لا توجد بنود مرتبطة بنوع الزيارة المختار.</div>';
     }
     window.renderDynamicForm = renderDynamicForm;
