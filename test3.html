@@ -540,15 +540,25 @@
                     return text;
                 };
                 const splitVisibilityValues = value => normalizeVisibilityValue(value)
-                    .split(/[\n,،|]+/)
+                    .split(/[\n,،|/;]+/)
                     .map(item => item.trim().toLowerCase())
                     .filter(Boolean);
+                const visibilityValueCandidates = value => {
+                    const raw = normalizeVisibilityValue(value).trim().toLowerCase();
+                    const candidates = new Set();
+                    [raw, ...splitVisibilityValues(value)].filter(Boolean).forEach(item => {
+                        candidates.add(item);
+                        candidates.add(canonicalVisibilityValue(item));
+                    });
+                    return candidates;
+                };
                 const matchesVisibilityRule = (dependencyValue, rule) => {
                     const actual = normalizeVisibilityValue(dependencyValue).trim().toLowerCase();
                     const expected = normalizeVisibilityValue(rule?.value).trim().toLowerCase();
                     const expectedValues = splitVisibilityValues(rule?.value);
-                    const actualKey = canonicalVisibilityValue(actual);
-                    const expectedKeys = expectedValues.map(canonicalVisibilityValue);
+                    const actualCandidates = visibilityValueCandidates(dependencyValue);
+                    const expectedCandidates = visibilityValueCandidates(rule?.value);
+                    const hasAnyMatch = [...actualCandidates].some(item => expectedCandidates.has(item));
                     const operator = String(rule?.operator || 'equals').trim().toLowerCase();
                     let match = false;
 
@@ -556,18 +566,18 @@
                         case 'equalsany':
                         case 'equals_any':
                         case 'or':
-                            match = expectedValues.includes(actual) || expectedKeys.includes(actualKey);
+                            match = hasAnyMatch;
                             break;
                         case 'equals':
-                            match = actual === expected || canonicalVisibilityValue(expected) === actualKey;
+                            match = actual === expected || hasAnyMatch;
                             break;
                         case 'notequalsany':
                         case 'not_equals_any':
-                            match = !(expectedValues.includes(actual) || expectedKeys.includes(actualKey));
+                            match = !hasAnyMatch;
                             break;
                         case 'notequals':
                         case 'not_equals':
-                            match = !(actual === expected || canonicalVisibilityValue(expected) === actualKey);
+                            match = !(actual === expected || hasAnyMatch);
                             break;
                         case 'contains':
                             match = expectedValues.length ? expectedValues.some(item => actual.includes(item)) : actual.includes(expected);
@@ -593,13 +603,15 @@
                             match = !!actual;
                             break;
                         default:
-                            match = actual === expected || canonicalVisibilityValue(expected) === actualKey;
+                            match = actual === expected || hasAnyMatch;
                     }
 
                     console.log('[Checklist OR Debug]', {
                         operator,
                         actualSelectedValue: actual,
                         expectedValues,
+                        actualCandidates: [...actualCandidates],
+                        expectedCandidates: [...expectedCandidates],
                         match
                     });
                     return match;
@@ -641,6 +653,8 @@
                     const key = fieldKey(field);
                     const available = getAnswerByFieldNames(fields, answers, ['access_point_available', 'Access Point Available']);
                     const coverage = getAnswerByFieldNames(fields, answers, ['access_point_coverage_area', 'Access Point Coverage Area']);
+                    const indoorCompleted = getAnswerByFieldNames(fields, answers, ['indoor_coverage_completed', 'Indoor Coverage Completed?', 'Indoor Coverage Completed']);
+                    const outdoorCompleted = getAnswerByFieldNames(fields, answers, ['outdoor_coverage_completed', 'Outdoor Coverage Completed?', 'Outdoor Coverage Completed']);
                     const additional = getAnswerByFieldNames(fields, answers, ['additional_access_points_required', 'Additional Access Points Required?', 'Additional Access Points Required']);
 
                     if (key === 'access_point_coverage_area' || key.includes('access point coverage area')) {
@@ -653,7 +667,11 @@
                         return matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'outdoor_only\nindoor_outdoor' });
                     }
                     if (key === 'additional_access_points_required' || key.includes('additional access points required')) {
-                        return matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'indoor_only\noutdoor_only\nindoor_outdoor' });
+                        const needsIndoor = matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'indoor_only\nindoor_outdoor' });
+                        const needsOutdoor = matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'outdoor_only\nindoor_outdoor' });
+                        const indoorFailed = needsIndoor && matchesVisibilityRule(indoorCompleted, { operator: 'equals', value: 'no' });
+                        const outdoorFailed = needsOutdoor && matchesVisibilityRule(outdoorCompleted, { operator: 'equals', value: 'no' });
+                        return indoorFailed || outdoorFailed;
                     }
                     if (key === 'number_of_additional_access_points' || key.includes('number of additional access points')) {
                         return matchesVisibilityRule(additional, { operator: 'equals', value: 'yes' });
