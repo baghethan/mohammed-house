@@ -255,6 +255,25 @@
       }
       return true;
     }
+    function isKnownAccessPointField(field) {
+      const fieldKey = normalizeVisibilityValue(field.id || field.label || field.labelAr).trim().toLowerCase();
+      return [
+        'access_point_coverage_area',
+        'indoor_coverage_completed',
+        'outdoor_coverage_completed',
+        'additional_access_points_required',
+        'number_of_additional_access_points',
+        'access_point_installation_locations',
+        'installation_photos_notes_links'
+      ].includes(fieldKey)
+        || fieldKey.includes('access point coverage area')
+        || fieldKey.includes('indoor coverage completed')
+        || fieldKey.includes('outdoor coverage completed')
+        || fieldKey.includes('additional access points required')
+        || fieldKey.includes('number of additional access points')
+        || fieldKey.includes('access point installation locations')
+        || fieldKey.includes('installation photos notes');
+    }
     function collectDynamicAnswers() {
       const ans = {};
       document.querySelectorAll('.dyn-input').forEach(el => {
@@ -636,7 +655,8 @@
       }
       const currentAnswers = Object.keys(answers).length ? answers : collectDynamicAnswers();
       state.checklistFields.filter(field => isFieldForVisitType(field, selectedVisitTypes)).forEach(field => {
-        if (field.logic?.enabled && field.logic?.visibleWhen) {
+        const isAccessPointField = isKnownAccessPointField(field);
+        if (!isAccessPointField && field.logic?.enabled && field.logic?.visibleWhen) {
           const rule = field.logic.visibleWhen;
           const src = resolveRef(rule.fieldId, rule.fieldLabel);
           if (!matchesVisibilityRule(src ? currentAnswers[src.id] : '', rule)) return;
