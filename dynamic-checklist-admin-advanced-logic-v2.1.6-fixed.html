@@ -799,9 +799,21 @@
           .filter(Boolean);
       }
 
+      function normalizeLogicOperator(value) {
+        const operator = String(value || '').trim().toLowerCase();
+        return operator === 'or' || operator === 'equalsany' || operator === 'equals_any' ? 'equalsAny' : 'equals';
+      }
+
+      function normalizeLogicOptionValue(value) {
+        const text = String(value || '').trim();
+        if (!text) return '';
+        const slashParts = text.split('/').map(part => part.trim()).filter(Boolean);
+        return slashParts.length > 1 ? slashParts[slashParts.length - 1] : text;
+      }
+
       function collectLogicOrValues() {
         return Array.from(document.querySelectorAll('[data-logic-or-value]'))
-          .map(input => input.value.trim())
+          .map(input => normalizeLogicOptionValue(input.value))
           .filter(Boolean);
       }
 
@@ -833,7 +845,7 @@
       }
 
       function setLogicOrValues(values) {
-        const list = Array.isArray(values) && values.length ? values : [''];
+        const list = Array.isArray(values) && values.length ? values.map(normalizeLogicOptionValue) : [''];
         $('logicOrCount').value = String(Math.max(1, Math.min(20, list.length)));
         renderLogicOrValueInputs(list);
       }
@@ -851,7 +863,7 @@
       }
 
       function isLogicOrOperator() {
-        return $('logicOperator').value === 'equalsAny';
+        return normalizeLogicOperator($('logicOperator').value) === 'equalsAny';
       }
 
       function collectLogicValue() {
@@ -907,7 +919,7 @@
             visibleWhen: {
               fieldId: $('logicFieldRef').value,
               fieldLabel: logicField ? fieldLabel(logicField) : '',
-              operator: $('logicOperator').value,
+              operator: normalizeLogicOperator($('logicOperator').value),
               value: collectLogicValue()
             }
           },
@@ -1070,7 +1082,7 @@
         $('builderActive').value = String(field.active !== false);
         $('logicEnabled').value = String(field.logic?.enabled === true);
         $('logicFieldRef').value = field.logic?.visibleWhen?.fieldId || '';
-        $('logicOperator').value = field.logic?.visibleWhen?.operator || 'equals';
+        $('logicOperator').value = normalizeLogicOperator(field.logic?.visibleWhen?.operator || 'equals');
         $('logicValue').value = field.logic?.visibleWhen?.value || 'yes';
         updateLogicValueUI(field.logic?.visibleWhen?.value || 'yes');
         $('repeatEnabled').value = String(field.repeat?.enabled === true);
