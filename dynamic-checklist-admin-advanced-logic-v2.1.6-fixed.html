@@ -805,6 +805,33 @@
           .filter(Boolean);
       }
 
+      function getLogicSourceField() {
+        return allFields.find(field => field.id === $('logicFieldRef').value) || null;
+      }
+
+      function getLogicSourceOptions() {
+        const source = getLogicSourceField();
+        if (!source) return [];
+        if (source.fieldType === 'choice' && Array.isArray(source.options)) {
+          return source.options
+            .map(option => ({ label: option.label || option.value, value: option.value || option.label }))
+            .filter(option => option.value);
+        }
+        if (source.fieldType === 'boolean') {
+          return [{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }];
+        }
+        return [];
+      }
+
+      function logicValueControlHtml(value, attrName, placeholder = 'indoor_only') {
+        const options = getLogicSourceOptions();
+        if (!options.length) return `<input ${attrName} value="${esc(value || '')}" placeholder="${esc(placeholder)}">`;
+        return `<select ${attrName}>
+          <option value="">اختر قيمة</option>
+          ${options.map(option => `<option value="${esc(option.value)}" ${value === option.value ? 'selected' : ''}>${esc(option.label)} / ${esc(option.value)}</option>`).join('')}
+        </select>`;
+      }
+
       function setLogicOrValues(values) {
         const list = Array.isArray(values) && values.length ? values : [''];
         $('logicOrCount').value = String(Math.max(1, Math.min(20, list.length)));
@@ -818,7 +845,7 @@
           <div class="option-card">
             <div class="option-title">القيمة ${index + 1}</div>
             <small>القيمة الداخلية</small>
-            <input data-logic-or-value value="${esc(current[index] || '')}" placeholder="indoor_only">
+            ${logicValueControlHtml(current[index] || '', 'data-logic-or-value')}
           </div>
         `).join('');
       }
@@ -1514,6 +1541,7 @@
           renderOptionInputs();
         });
         $('logicOperator').addEventListener('change', () => updateLogicValueUI());
+        $('logicFieldRef').addEventListener('change', () => updateLogicValueUI());
         $('logicOrCount').addEventListener('input', () => renderLogicOrValueInputs());
         $('addLogicOrValueBtn').addEventListener('click', () => {
           $('logicOrCount').value = String(Math.min(20, (Number($('logicOrCount').value) || 1) + 1));
