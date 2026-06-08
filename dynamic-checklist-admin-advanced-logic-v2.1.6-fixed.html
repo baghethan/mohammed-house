@@ -819,9 +819,16 @@
                 <label>Visit Type / نوع الزيارة</label>
                 <div class="preview-choice">${visitTypeCheckboxesHtml(field.id, fieldVisitTypes(field))}</div>
               </div>
+              <div class="field" style="margin-top:8px; max-width:220px">
+                <label>الترتيب</label>
+                <input type="number" data-order-field="${esc(field.id)}" value="${esc(field.order ?? 0)}">
+              </div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
               <button class="btn small" data-edit="${esc(field.id)}">تعديل</button>
+              <button class="btn small" data-move-first="${esc(field.id)}">الأول</button>
+              <button class="btn small" data-move-last="${esc(field.id)}">الأخير</button>
+              <button class="btn small green" data-save-order="${esc(field.id)}">حفظ الترتيب</button>
               <button class="btn small green" data-save-visit-type="${esc(field.id)}">حفظ نوع الزيارة</button>
               <button class="btn small danger" data-delete="${esc(field.id)}">حذف</button>
             </div>
@@ -836,6 +843,15 @@
         });
         document.querySelectorAll('[data-save-visit-type]').forEach(button => {
           button.addEventListener('click', () => saveFieldVisitType(button.dataset.saveVisitType));
+        });
+        document.querySelectorAll('[data-save-order]').forEach(button => {
+          button.addEventListener('click', () => saveFieldOrder(button.dataset.saveOrder));
+        });
+        document.querySelectorAll('[data-move-first]').forEach(button => {
+          button.addEventListener('click', () => moveFieldOrder(button.dataset.moveFirst, 'first'));
+        });
+        document.querySelectorAll('[data-move-last]').forEach(button => {
+          button.addEventListener('click', () => moveFieldOrder(button.dataset.moveLast, 'last'));
         });
       }
 
@@ -925,6 +941,48 @@
             updatedAt: new Date().toISOString()
           }), { merge: true });
           setAdminStatus('تم حفظ نوع الزيارة للبند.', 'info');
+        } catch (error) {
+          setAdminStatus(error.message || String(error), 'error');
+        }
+      }
+
+      function orderScopeFields() {
+        const rows = filteredFieldsForAdmin();
+        return rows.length ? rows : allFields;
+      }
+
+      async function saveFieldOrder(id) {
+        const input = document.querySelector(`[data-order-field="${CSS.escape(id)}"]`);
+        if (!input) return;
+        const order = Number(input.value);
+        if (!Number.isFinite(order)) {
+          setAdminStatus('أدخل رقم ترتيب صحيح.', 'error');
+          return;
+        }
+        try {
+          await db.collection('checklist_fields').doc(id).set(nativeClean({
+            order,
+            updatedAt: new Date().toISOString()
+          }), { merge: true });
+          setAdminStatus('تم حفظ ترتيب البند.');
+        } catch (error) {
+          setAdminStatus(error.message || String(error), 'error');
+        }
+      }
+
+      async function moveFieldOrder(id, direction) {
+        const scope = orderScopeFields()
+          .map(field => Number(field.order))
+          .filter(order => Number.isFinite(order));
+        const nextOrder = direction === 'first'
+          ? (scope.length ? Math.min(...scope) - 1 : 1)
+          : (scope.length ? Math.max(...scope) + 1 : 1);
+        try {
+          await db.collection('checklist_fields').doc(id).set(nativeClean({
+            order: nextOrder,
+            updatedAt: new Date().toISOString()
+          }), { merge: true });
+          setAdminStatus(direction === 'first' ? 'تم نقل البند إلى الأول.' : 'تم نقل البند إلى الأخير.');
         } catch (error) {
           setAdminStatus(error.message || String(error), 'error');
         }
