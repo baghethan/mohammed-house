@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.0 - PERMISSION CONTROL MODE -->
+<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.1 - ACCESS POINT FALLBACK -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
@@ -140,7 +140,7 @@
             <img src="LOGO-almajdouie.png" height="35" alt="MMC">
             <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">Authenticating...</div>
         </div>
-        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.0</div>
+        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.1</div>
         <button onclick="handleLogout()" style="background:#ef4444; color:white; border:none; padding:8px 18px; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s;">Logout</button>
     </header>
 
@@ -474,7 +474,7 @@
             const params = new URLSearchParams({
                 auth: 'active',
                 lang: getPortalLanguage(),
-                build: '20260524-visit-type'
+                build: 'v2.0.1-access-point-fallback'
             });
 
             if (window.currentUser && window.currentUser.uid) {
@@ -678,6 +678,21 @@
                     const val = answers[id] || '';
                     container.innerHTML += `<div class="field"><label>${esc(label)}</label><select class="dyn-input" data-id="${esc(id)}" onchange="renderDynamicFormSafe(collectAnswers())"><option value="">اختر</option><option value="yes" ${val === 'yes' ? 'selected' : ''}>Yes</option><option value="no" ${val === 'no' ? 'selected' : ''}>No</option></select></div>`;
                 };
+                const ensureAdditionalAccessPointsFallback = fields => {
+                    const renderedFields = Array.from(container.querySelectorAll('.field'));
+                    const textOf = field => normalizeVisibilityValue(field.querySelector('label')?.textContent).trim().toLowerCase();
+                    const valueOf = field => normalizeVisibilityValue(field.querySelector('.dyn-input')?.value).trim().toLowerCase();
+                    const hasAdditional = renderedFields.some(field => {
+                        const text = textOf(field);
+                        return text.includes('additional') && text.includes('access') && text.includes('point') && text.includes('required');
+                    });
+                    if (hasAdditional) return;
+                    const indoorNo = renderedFields.some(field => textOf(field).includes('indoor coverage completed') && matchesVisibilityRule(valueOf(field), { operator: 'equals', value: 'no' }));
+                    const outdoorNo = renderedFields.some(field => textOf(field).includes('outdoor coverage completed') && matchesVisibilityRule(valueOf(field), { operator: 'equals', value: 'no' }));
+                    if (indoorNo || outdoorNo) {
+                        renderAdditionalAccessPointsFallback(fields, child.collectAnswers());
+                    }
+                };
                 const shouldShowAccessPointField = (field, fields, answers) => {
                     const coverage = getAnswerByFieldText(fields, answers, 'access point coverage area') || getAnswerByFieldNames(fields, answers, ['access_point_coverage_area', 'Access Point Coverage Area']);
                     const indoorCompleted = getAnswerByFieldText(fields, answers, 'indoor coverage completed') || getAnswerByFieldNames(fields, answers, ['indoor_coverage_completed', 'Indoor Coverage Completed?', 'Indoor Coverage Completed']);
@@ -758,6 +773,7 @@
                     if (!renderedAdditionalAccessPoints && shouldAskAdditionalAccessPoints(fields, currentAnswers)) {
                         renderAdditionalAccessPointsFallback(fields, currentAnswers);
                     }
+                    ensureAdditionalAccessPointsFallback(fields);
 
                     if (!container.innerHTML.trim()) {
                         container.innerHTML = '<div class="notice" style="margin-top:12px;">لا توجد بنود مرتبطة بنوع الزيارة المختار.</div>';
