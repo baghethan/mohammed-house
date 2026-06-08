@@ -651,6 +651,112 @@
         });
       }
 
+      function normalizeVisibilityValue(value) {
+        return Array.isArray(value) ? value.join(' ') : String(value ?? '');
+      }
+
+      function canonicalVisibilityValue(value) {
+        const text = normalizeVisibilityValue(value).trim().toLowerCase();
+        if (text.includes('indoor') && text.includes('outdoor')) return 'indoor_outdoor';
+        if (text.includes('indoor')) return 'indoor_only';
+        if (text.includes('outdoor')) return 'outdoor_only';
+        return text;
+      }
+
+      function splitVisibilityValues(value) {
+        return normalizeVisibilityValue(value)
+          .split(/[\n,،|]+/)
+          .map(item => item.trim().toLowerCase())
+          .filter(Boolean);
+      }
+
+      function matchesVisibilityRule(sourceVal, rule) {
+        const actual = normalizeVisibilityValue(sourceVal).trim().toLowerCase();
+        const expected = normalizeVisibilityValue(rule?.value).trim().toLowerCase();
+        const expectedValues = splitVisibilityValues(rule?.value);
+        const actualKey = canonicalVisibilityValue(actual);
+        const expectedKeys = expectedValues.map(canonicalVisibilityValue);
+        const operator = String(rule?.operator || 'equals').trim().toLowerCase();
+        let match = false;
+
+        switch (operator) {
+          case 'equalsany':
+          case 'equals_any':
+          case 'or':
+            match = expectedValues.includes(actual) || expectedKeys.includes(actualKey);
+            break;
+          case 'equals':
+            match = actual === expected || canonicalVisibilityValue(expected) === actualKey;
+            break;
+          case 'notequalsany':
+          case 'not_equals_any':
+            match = !(expectedValues.includes(actual) || expectedKeys.includes(actualKey));
+            break;
+          case 'notequals':
+          case 'not_equals':
+            match = !(actual === expected || canonicalVisibilityValue(expected) === actualKey);
+            break;
+          case 'contains':
+            match = expectedValues.length ? expectedValues.some(item => actual.includes(item)) : actual.includes(expected);
+            break;
+          case 'notcontains':
+          case 'not_contains':
+            match = expectedValues.length ? expectedValues.every(item => !actual.includes(item)) : !actual.includes(expected);
+            break;
+          case 'startswith':
+          case 'starts_with':
+            match = expectedValues.length ? expectedValues.some(item => actual.startsWith(item)) : actual.startsWith(expected);
+            break;
+          case 'endswith':
+          case 'ends_with':
+            match = expectedValues.length ? expectedValues.some(item => actual.endsWith(item)) : actual.endsWith(expected);
+            break;
+          case 'isempty':
+          case 'is_empty':
+            match = !actual;
+            break;
+          case 'isnotempty':
+          case 'is_not_empty':
+            match = !!actual;
+            break;
+          default:
+            match = actual === expected || canonicalVisibilityValue(expected) === actualKey;
+        }
+
+        console.log('[Checklist OR Debug]', {
+          operator,
+          actualSelectedValue: actual,
+          expectedValues,
+          match
+        });
+        return match;
+      }
+
+      function collectPreviewAnswers() {
+        const answers = {};
+        document.querySelectorAll('.preview-input').forEach(input => {
+          const id = input.dataset.previewId;
+          if (!id) return;
+          if (input.type === 'checkbox') {
+            if (!answers[id]) answers[id] = [];
+            if (input.checked) answers[id].push(input.value);
+          } else if (input.type === 'radio') {
+            if (input.checked) answers[id] = input.value;
+          } else {
+            answers[id] = input.value;
+          }
+        });
+        return answers;
+      }
+
+      function shouldShowPreviewField(field, answers) {
+        const rule = field.logic?.visibleWhen;
+        if (!field.logic?.enabled || !rule) return true;
+        const source = allFields.find(item => item.id === rule.fieldId)
+          || allFields.find(item => fieldLabel(item) === rule.fieldLabel || item.label === rule.fieldLabel || item.labelAr === rule.fieldLabel);
+        return matchesVisibilityRule(source ? answers[source.id] : '', rule);
+      }
+
       function preserveSelectValue(selectId, html) {
         const select = $(selectId);
         const oldValue = select.value;
@@ -855,23 +961,29 @@
         });
       }
 
-      function renderPreviewInput(field) {
+      function renderPreviewInput(field, answers = {}) {
+        const val = answers[field.id] || '';
         if (field.fieldType === 'choice') {
           const options = field.options || [];
           if (field.renderMode === 'checkboxes' || field.renderMode === 'radios') {
             const type = field.renderMode === 'checkboxes' ? 'checkbox' : 'radio';
-            return `<div class="preview-choice">${options.map(option => `<span class="preview-pill"><input type="${type}" disabled> ${esc(option.label)}</span>`).join('')}</div>`;
+            return `<div class="preview-choice">${options.map(option => {
+              const checked = Array.isArray(val) ? val.includes(option.value) : val === option.value;
+              return `<label class="preview-pill" style="cursor:pointer"><input class="preview-input" data-preview-id="${esc(field.id)}" type="${type}" name="preview_${esc(field.id)}" value="${esc(option.value)}" ${checked ? 'checked' : ''}> ${esc(option.label)}</label>`;
+            }).join('')}</div>`;
           }
-          return `<select disabled><option>اختر</option>${options.map(option => `<option>${esc(option.label)}</option>`).join('')}</select>`;
+          return `<select class="preview-input" data-preview-id="${esc(field.id)}"><option value="">اختر</option>${options.map(option => `<option value="${esc(option.value)}" ${val === option.value ? 'selected' : ''}>${esc(option.label)}</option>`).join('')}</select>`;
         }
 
-        if (field.fieldType === 'number') return '<input type="number" disabled placeholder="0">';
-        if (field.fieldType === 'boolean') return '<select disabled><option>Yes</option><option>No</option></select>';
-        return '<input type="text" disabled placeholder="معاينة الحقل...">';
+        if (field.fieldType === 'number') return `<input class="preview-input" data-preview-id="${esc(field.id)}" type="number" value="${esc(val)}" placeholder="0">`;
+        if (field.fieldType === 'boolean') return `<select class="preview-input" data-preview-id="${esc(field.id)}"><option value="">اختر</option><option value="yes" ${val === 'yes' ? 'selected' : ''}>Yes</option><option value="no" ${val === 'no' ? 'selected' : ''}>No</option></select>`;
+        if (field.fieldType === 'textarea') return `<textarea class="preview-input" data-preview-id="${esc(field.id)}" placeholder="معاينة الحقل...">${esc(val)}</textarea>`;
+        return `<input class="preview-input" data-preview-id="${esc(field.id)}" type="text" value="${esc(val)}" placeholder="معاينة الحقل...">`;
       }
 
       function renderPreview() {
-        const visibleFields = previewFields();
+        const previewAnswers = collectPreviewAnswers();
+        const visibleFields = previewFields().filter(field => shouldShowPreviewField(field, previewAnswers));
         if (!allFields.length) {
           $('previewArea').innerHTML = '<div class="empty-note">أضف بنداً لعرض المعاينة الحية.</div>';
           return;
@@ -884,7 +996,7 @@
         $('previewArea').innerHTML = visibleFields.map(field => `
           <div class="preview-field">
             <label>${esc(fieldLabel(field))} ${field.required ? '<span style="color:var(--danger)">*</span>' : ''}</label>
-            ${renderPreviewInput(field)}
+            ${renderPreviewInput(field, previewAnswers)}
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
               ${field.logic?.enabled ? '<span class="tag">شرط ظهور</span>' : ''}
               ${field.repeat?.enabled ? '<span class="tag">تكرار</span>' : ''}
@@ -892,6 +1004,10 @@
             </div>
           </div>
         `).join('');
+        document.querySelectorAll('.preview-input').forEach(input => {
+          input.addEventListener('change', renderPreview);
+          input.addEventListener('input', renderPreview);
+        });
       }
 
       function editField(id) {
@@ -1075,6 +1191,7 @@
         $('builderActive').value = 'true';
         $('logicEnabled').value = 'false';
         $('logicFieldRef').value = '';
+        $('logicOperator').value = 'equals';
         $('logicValue').value = 'yes';
         $('repeatEnabled').value = 'false';
         $('repeatCountRef').value = '';
