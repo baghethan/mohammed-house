@@ -249,6 +249,12 @@
       const keys = [field?.id, field?.label, field?.labelAr].map(value => normalizeVisibilityValue(value).trim().toLowerCase());
       return keys.some(key => exactNames.includes(key) || key.includes(containsText));
     }
+    function fieldHasAllWords(field, words) {
+      const keys = [field?.id, field?.label, field?.labelAr]
+        .map(value => normalizeVisibilityValue(value).trim().toLowerCase().replace(/[_?/()-]+/g, ' '))
+        .filter(Boolean);
+      return keys.some(key => words.every(word => key.includes(word)));
+    }
     function shouldShowKnownAccessPointDependentField(field, answers) {
       const coverage = getAnswerByFieldText(answers, 'access point coverage area') || getAnswerByFieldNames(answers, ['access_point_coverage_area', 'Access Point Coverage Area']);
       const indoorCompleted = getAnswerByFieldText(answers, 'indoor coverage completed') || getAnswerByFieldNames(answers, [
@@ -267,7 +273,7 @@
         'Additional Access Points Required'
       ]);
 
-      if (fieldMatchesAccessPointName(field, ['additional_access_points_required'], 'additional access points required')) {
+      if (fieldMatchesAccessPointName(field, ['additional_access_points_required'], 'additional access points required') || fieldHasAllWords(field, ['additional', 'access', 'point', 'required'])) {
         const needsIndoor = matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'indoor_only\nindoor_outdoor' });
         const needsOutdoor = matchesVisibilityRule(coverage, { operator: 'equalsAny', value: 'outdoor_only\nindoor_outdoor' });
         const indoorFailed = needsIndoor && matchesVisibilityRule(indoorCompleted, { operator: 'equals', value: 'no' });
@@ -288,9 +294,13 @@
     }
     function isKnownAccessPointField(field) {
       return fieldMatchesAccessPointName(field, ['additional_access_points_required'], 'additional access points required')
+        || fieldHasAllWords(field, ['additional', 'access', 'point', 'required'])
         || fieldMatchesAccessPointName(field, ['number_of_additional_access_points'], 'number of additional access points')
+        || fieldHasAllWords(field, ['number', 'additional', 'access', 'point'])
         || fieldMatchesAccessPointName(field, ['access_point_installation_locations'], 'access point installation locations')
-        || fieldMatchesAccessPointName(field, ['installation_photos_notes_links'], 'installation photos notes');
+        || fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])
+        || fieldMatchesAccessPointName(field, ['installation_photos_notes_links'], 'installation photos notes')
+        || fieldHasAllWords(field, ['installation', 'photo']);
     }
     function collectDynamicAnswers() {
       const ans = {};
