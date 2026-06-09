@@ -46,7 +46,7 @@
   <main class="container">
     <div id="mainLayout" class="grid-main">
       <section class="card">
-        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">AP v2.0.4</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">AP v2.0.5</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <div id="technicianNotice" class="notice hidden"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -275,6 +275,11 @@
         || answers.additional_access_points_required
         || getAnswerByFieldNames(answers, ['additional_access_points_required', 'Additional Access Points Required?', 'Additional Access Points Required'])
         || '';
+    }
+    function getAdditionalAccessPointCount(answers) {
+      const field = findAccessPointFieldByWords(['number', 'additional', 'access', 'point']);
+      const value = (field && answers[field.id]) || answers.number_of_additional_access_points || getAnswerByFieldNames(answers, ['number_of_additional_access_points', 'Number of Additional Access Points']) || 0;
+      return Math.max(0, Math.min(50, Number(value) || 0));
     }
     function renderAdditionalAccessPointsFallback(container, answers) {
       const field = findAccessPointFieldByWords(['additional', 'access', 'point', 'required']);
@@ -798,9 +803,15 @@
         const val = fieldHasAllWords(field, ['additional', 'access', 'point', 'required'])
           ? getAdditionalAccessPointsAnswer(currentAnswers)
           : (currentAnswers[field.id] || '');
-        if (field.repeat?.enabled) {
-          const countSrc = resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel); const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
-          for (let i = 0; i < count; i++) { html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i]||'')}" /></div>`; }
+        if (field.repeat?.enabled || fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])) {
+          const countSrc = field.repeat?.enabled ? resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel) : null;
+          const count = fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])
+            ? getAdditionalAccessPointCount(currentAnswers)
+            : Number(countSrc ? currentAnswers[countSrc.id] : 0);
+          const template = fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])
+            ? 'Access Point Location {index}'
+            : String(field.repeat.labelTemplate || '{index}');
+          for (let i = 0; i < count; i++) { html += `<div class="field" style="margin-top:8px;"><label>${esc(template.replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${field.id}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i]||'')}" /></div>`; }
         } else if (field.fieldType === 'choice' && (field.renderMode === 'checkboxes' || field.renderMode === 'radios')) {
           html += `<div class="choices-grid">`; (field.options || []).forEach(opt => { const isChecked = Array.isArray(val) ? val.includes(opt.value) : val === opt.value; html += `<div class="pill-box ${isChecked?'selected':''}" onclick="const inp=this.querySelector('input'); inp.click();"><span>${esc(opt.label)}</span><input type="${field.renderMode==='checkboxes'?'checkbox':'radio'}" name="g_${field.id}" class="dyn-input" data-id="${field.id}" value="${esc(opt.value)}" ${isChecked?'checked':''} onchange="event.stopPropagation(); renderDynamicFormSafe(collectDynamicAnswers());"></div>`; }); html += `</div>`;
         } else {
