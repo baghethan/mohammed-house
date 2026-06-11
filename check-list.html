@@ -46,7 +46,7 @@
   <main class="container">
     <div id="mainLayout" class="grid-main">
       <section class="card">
-        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">AP v2.0.6</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">AP v2.0.7</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <div id="technicianNotice" class="notice hidden"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -376,6 +376,7 @@
     window.dynamicAnswerCache = window.dynamicAnswerCache || {};
     window.readDynamicImageInput = function(input) {
       const id = input?.dataset?.id;
+      const index = input?.dataset?.index;
       const file = input?.files?.[0];
       if (!id || !file) return;
       if (!file.type.startsWith('image/')) {
@@ -385,7 +386,12 @@
       }
       const reader = new FileReader();
       reader.onload = () => {
-        window.dynamicImageAnswers[id] = reader.result;
+        if (index !== undefined) {
+          if (!Array.isArray(window.dynamicImageAnswers[id])) window.dynamicImageAnswers[id] = [];
+          window.dynamicImageAnswers[id][Number(index)] = reader.result;
+        } else {
+          window.dynamicImageAnswers[id] = reader.result;
+        }
         renderDynamicFormSafe(collectDynamicAnswers());
       };
       reader.readAsDataURL(file);
@@ -407,16 +413,21 @@
           if (el.checked) ans[id].push(el.value);
         } else if (el.type === 'radio') {
           if (el.checked) ans[id] = el.value;
+        } else if (el.type === 'file') {
+          if (el.dataset.index !== undefined) {
+            if (!Array.isArray(ans[id])) ans[id] = [];
+            ans[id][Number(el.dataset.index)] = window.dynamicImageAnswers[id]?.[Number(el.dataset.index)] || ans[id][Number(el.dataset.index)] || '';
+          } else if (window.dynamicImageAnswers[id]) {
+            ans[id] = window.dynamicImageAnswers[id];
+          }
         } else if (el.dataset.index !== undefined) {
           ans[id][el.dataset.index] = el.value;
-        } else if (el.type === 'file') {
-          if (window.dynamicImageAnswers[id]) ans[id] = window.dynamicImageAnswers[id];
         } else {
           ans[id] = el.value;
         }
       });
       Object.entries(window.dynamicImageAnswers || {}).forEach(([id, value]) => {
-        if (value && !ans[id]) ans[id] = value;
+        if (value) ans[id] = Array.isArray(value) ? [...value] : value;
       });
       const additionalField = findAccessPointFieldByWords(['additional', 'access', 'point', 'required']);
       if (additionalField) {
@@ -813,7 +824,13 @@
         const val = fieldHasAllWords(field, ['additional', 'access', 'point', 'required'])
           ? getAdditionalAccessPointsAnswer(currentAnswers)
           : (currentAnswers[field.id] || '');
-        if (field.repeat?.enabled || fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])) {
+        if (fieldHasAllWords(field, ['installation', 'photo'])) {
+          const count = getAdditionalAccessPointCount(currentAnswers);
+          const photos = Array.isArray(val) ? val : (val ? [val] : []);
+          for (let i = 0; i < count; i++) {
+            html += `<div class="field" style="margin-top:8px;"><label>Access Point Photo ${i + 1}</label>${photos[i] ? `<div style="margin:8px 0"><img src="${esc(photos[i])}" alt="Access Point Photo ${i + 1}" style="max-width:220px;max-height:160px;border:1px solid #cbd5e1;border-radius:8px;object-fit:contain"></div>` : ''}<input type="file" accept="image/*" class="dyn-input" data-id="${field.id}" data-index="${i}" onchange="readDynamicImageInput(this)" /></div>`;
+          }
+        } else if (field.repeat?.enabled || fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])) {
           const countSrc = field.repeat?.enabled ? resolveRef(field.repeat.countFromFieldId, field.repeat.countFromFieldLabel) : null;
           const count = fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])
             ? getAdditionalAccessPointCount(currentAnswers)
