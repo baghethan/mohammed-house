@@ -460,6 +460,7 @@
         <div class="actions">
           <button class="btn warning" id="seedBtn">إنشاء بنود Upgrade Windows تلقائياً</button>
           <button class="btn warning" id="seedAccessPointBtn">إنشاء بنود Access Point تلقائياً</button>
+          <button class="btn warning" id="seedPrintersBtn">إنشاء بنود Printers تلقائياً</button>
           <button class="btn" id="resetBtn">تنظيف</button>
           <button class="btn green" id="saveFieldBtn">حفظ البند</button>
         </div>
@@ -1556,6 +1557,100 @@
         alert('تم إنشاء بنود Access Point Coverage.');
       }
 
+      async function seedPrintersConditionAssessment() {
+        if (!confirm('إنشاء أو تحديث بنود Printers Condition Assessment؟')) return;
+
+        const section = 'Printers Condition Assessment';
+        const availableId = 'printer_available';
+        const yesLogic = {
+          enabled: true,
+          visibleWhen: {
+            fieldId: availableId,
+            fieldLabel: 'Printer Available?',
+            operator: 'equals',
+            value: 'yes'
+          }
+        };
+        const noLogic = {
+          enabled: true,
+          visibleWhen: {
+            fieldId: availableId,
+            fieldLabel: 'Printer Available?',
+            operator: 'equals',
+            value: 'no'
+          }
+        };
+        const base = {
+          section,
+          visitType: 'all',
+          visitTypes: ['all', 'normal', 'troubleshooting', 'networkDown'],
+          required: true,
+          active: true,
+          renderMode: 'select',
+          repeat: { enabled: false, countFromFieldId: '', countFromFieldLabel: '', labelTemplate: '', saveAsArray: true },
+          integration: null,
+          updatedAt: new Date().toISOString()
+        };
+        const choice = (id, label, order, options, logic) => ({
+          id,
+          data: {
+            ...base,
+            label,
+            labelAr: label,
+            fieldType: 'choice',
+            order,
+            options: options.map(([optionLabel, value]) => ({ label: optionLabel, value })),
+            logic: logic || { enabled: false, visibleWhen: { fieldId: '', fieldLabel: '', operator: 'equals', value: '' } }
+          }
+        });
+
+        const rows = [
+          choice(availableId, 'Printer Available?', 31, [['Yes', 'yes'], ['No', 'no']]),
+          {
+            id: 'number_of_printers_at_site',
+            data: { ...base, label: 'Number of Printers at Site', labelAr: 'Number of Printers at Site', fieldType: 'number', renderMode: '', order: 32, logic: yesLogic }
+          },
+          choice('printer_working', 'Printer Working?', 33, [['Yes', 'yes'], ['No', 'no'], ['Partially', 'partially']], yesLogic),
+          choice('uniflow_installed_working', 'uniFLOW Installed / Working?', 34, [['Yes', 'yes'], ['No', 'no'], ['N/A', 'na']], yesLogic),
+          choice('printer_quantity_status', 'Printer Quantity Status', 35, [
+            ['Enough', 'enough'],
+            ['Need Additional Printer', 'need_additional_printer'],
+            ['Need Reduce Printer', 'need_reduce_printer'],
+            ['Need Relocation', 'need_relocation']
+          ], yesLogic),
+          choice('printer_required_action', 'Required Action', 36, [
+            ['No Action Required', 'no_action_required'],
+            ['Add Printer', 'add_printer'],
+            ['Remove Printer', 'remove_printer'],
+            ['Relocate Printer', 'relocate_printer'],
+            ['Maintenance Required', 'maintenance_required'],
+            ['Install / Fix uniFLOW', 'install_fix_uniflow']
+          ], yesLogic),
+          choice('printer_required', 'Printer Required?', 37, [
+            ['Yes, Need Printer', 'yes_need_printer'],
+            ['No, Not Required', 'no_not_required']
+          ], noLogic),
+          {
+            id: 'printer_remarks',
+            data: {
+              ...base,
+              label: 'Remarks',
+              labelAr: 'Remarks',
+              fieldType: 'textarea',
+              renderMode: '',
+              order: 38,
+              required: false,
+              logic: { enabled: false, visibleWhen: { fieldId: '', fieldLabel: '', operator: 'equals', value: '' } }
+            }
+          }
+        ];
+
+        for (const row of rows) {
+          await db.collection('checklist_fields').doc(row.id).set(nativeClean(row.data), { merge: true });
+        }
+        alert('تم إنشاء بنود Printers Condition Assessment.');
+      }
+
       function loadData() {
         if (unsubscribeFields) unsubscribeFields();
         setAdminStatus('جاري تحميل البنود...');
@@ -1630,6 +1725,7 @@
         $('resetBtn').addEventListener('click', resetForm);
         $('seedBtn').addEventListener('click', seedUpgradeWindows);
         $('seedAccessPointBtn').addEventListener('click', seedAccessPointCoverage);
+        $('seedPrintersBtn').addEventListener('click', seedPrintersConditionAssessment);
         $('loginBtn').addEventListener('click', async () => {
           try {
             await auth.setPersistence(firebaseRef.auth.Auth.Persistence.LOCAL);
