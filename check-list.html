@@ -46,7 +46,7 @@
   <main class="container">
     <div id="mainLayout" class="grid-main">
       <section class="card">
-        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">Dynamic v2.0.8</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">Dynamic v2.0.9</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <div id="technicianNotice" class="notice hidden"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -906,8 +906,13 @@
         }
       }
       const selectedTech = state.technicians.find(t => String(t.id) === String(techDropdown.value) || String(t._docId) === String(techDropdown.value)) || (isTechnicianMode() ? getCurrentTechnicianIdentity().matchedTech : null) || {};
+      const technicianName = getTechnicianDisplayName(selectedTech)
+        || techDropdown.selectedOptions?.[0]?.textContent?.trim()
+        || state.userProfile?.name
+        || state.userProfile?.fullName
+        || '';
       const payload = { 
-        technicianEmpId: selectedTech.empId || selectedTech.empNum || selectedTech.employeeId || techDropdown.value, technicianDocId: selectedTech._docId || techDropdown.value, technicianEmail: $('cl_technician_email').value, technicianAuthId: selectedTech.authUid || '', 
+        technicianName, technicianEmpId: selectedTech.empId || selectedTech.empNum || selectedTech.employeeId || techDropdown.value, technicianDocId: selectedTech._docId || techDropdown.value, technicianEmail: $('cl_technician_email').value, technicianAuthId: selectedTech.authUid || '', 
         visitDocId: $('cl_visit_ref').value, locationSite: $('cl_location').value, city: $('cl_city').value, region: $('cl_region').value, brand: $('cl_brand').value, department: $('cl_department').value, branchId: $('cl_branch_id').value, visitDate: $('cl_visit_date').value, month: $('cl_month').value, branchManager: $('cl_branch_manager').value, visitScheduled: $('cl_visit_scheduled').value, visitType: selectedVisitTypes[0], visitTypes: selectedVisitTypes, includeAllChecklistItems: $('cl_include_all_items')?.value === 'true', dynamicAnswers: answers, updatedAt: new Date().toISOString()
       };
       try { 
@@ -953,7 +958,7 @@
 
     function exportToExcel() {
       const data = state.checklists.map(r => {
-        const row = { "ID": r.id, "تاريخ الزيارة": r.visitDate, "الفني": r.technicianName, "Brand": r.brand, "Department": r.department, "Branch ID": r.branchId, "Location/Site": r.locationSite, "مدير الفرع": r.branchManager };
+        const row = { "ID": r.id, "تاريخ الزيارة": r.visitDate, "الفني": resolveChecklistTechnicianName(r), "Brand": r.brand, "Department": r.department, "Branch ID": r.branchId, "Location/Site": r.locationSite, "مدير الفرع": r.branchManager };
         dynamicLabels.forEach(lbl => {
           const f = state.checklistFields.find(x => (x.labelAr || x.label) === lbl);
           const ans = f ? r.dynamicAnswers?.[f.id] : '';
@@ -969,11 +974,30 @@
       dynamicLabels.forEach(lbl => { h.innerHTML += `<th>${esc(lbl)}</th>`; });
     }
 
+    function resolveChecklistTechnicianName(record) {
+      const savedName = record?.technicianName || record?.technicianDisplayName || record?.techName || '';
+      if (String(savedName).trim()) return savedName;
+      const identities = [
+        record?.technicianDocId,
+        record?.technicianEmpId,
+        record?.technicianId,
+        record?.technicianCode,
+        record?.technicianEmail
+      ].map(value => norm(value)).filter(Boolean);
+      const technician = state.technicians.find(item => {
+        const values = [item?._docId, item?.id, item?.empId, item?.empNum, item?.employeeId, item?.technicianId, item?.technicianCode, item?.code, item?.email]
+          .map(value => norm(value))
+          .filter(Boolean);
+        return values.some(value => identities.includes(value));
+      });
+      return technician ? getTechnicianDisplayName(technician) : (record?.technicianEmpId || record?.technicianDocId || '');
+    }
+
     function renderTable() {
       const b = $('checklistTableBody'); b.innerHTML = '';
       if (state.checklistFields.length === 0) return;
       state.checklists.forEach(r => {
-        let html = `<td>${esc(r.visitDate)}</td><td>${esc(r.technicianName)}</td><td>${esc(r.brand)}</td><td>${esc(r.department)}</td><td>${esc(r.branchId)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.branchManager)}</td>`;
+        let html = `<td>${esc(r.visitDate)}</td><td>${esc(resolveChecklistTechnicianName(r))}</td><td>${esc(r.brand)}</td><td>${esc(r.department)}</td><td>${esc(r.branchId)}</td><td>${esc(r.locationSite)}</td><td>${esc(r.branchManager)}</td>`;
         dynamicLabels.forEach(lbl => {
           const f = state.checklistFields.find(x => (x.labelAr || x.label) === lbl);
           const ans = f ? r.dynamicAnswers?.[f.id] : '';
