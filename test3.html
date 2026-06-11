@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.4 - ACCESS POINT UI FIX -->
+<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.6 - AP ANSWER PERSISTENCE -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
@@ -140,7 +140,7 @@
             <img src="LOGO-almajdouie.png" height="35" alt="MMC">
             <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">Authenticating...</div>
         </div>
-        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.4</div>
+        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.6</div>
         <button onclick="handleLogout()" style="background:#ef4444; color:white; border:none; padding:8px 18px; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s;">Logout</button>
     </header>
 
@@ -474,7 +474,7 @@
             const params = new URLSearchParams({
                 auth: 'active',
                 lang: getPortalLanguage(),
-                build: 'v2.0.4-access-point-ui'
+                build: 'v2.0.6-ap-answer-persistence'
             });
 
             if (window.currentUser && window.currentUser.uid) {
@@ -511,18 +511,25 @@
                     const normalized = [...new Set(source.map(normalizeVisitType))];
                     return normalized.length ? normalized : ['all'];
                 };
+                child.dynamicAnswerCache = child.dynamicAnswerCache || {};
                 const getAnswers = () => {
-                    const answers = {};
+                    const answers = Object.fromEntries(Object.entries(child.dynamicAnswerCache || {}).map(([id, value]) => [id, Array.isArray(value) ? [...value] : value]));
+                    const prepared = new Set();
                     doc.querySelectorAll('.dyn-input').forEach(input => {
                         const id = input.dataset.id;
                         if (!id) return;
+                        if (!prepared.has(id)) {
+                            if (input.type === 'checkbox' || input.type === 'radio' || input.dataset.index !== undefined) {
+                                if (input.type === 'checkbox' || input.dataset.index !== undefined) answers[id] = [];
+                                else delete answers[id];
+                            }
+                            prepared.add(id);
+                        }
                         if (input.type === 'checkbox') {
-                            if (!answers[id]) answers[id] = [];
                             if (input.checked) answers[id].push(input.value);
                         } else if (input.type === 'radio') {
                             if (input.checked) answers[id] = input.value;
                         } else if (input.dataset.index !== undefined) {
-                            if (!answers[id]) answers[id] = [];
                             answers[id][input.dataset.index] = input.value;
                         } else if (input.type === 'file') {
                             if (child.dynamicImageAnswers?.[id]) answers[id] = child.dynamicImageAnswers[id];
@@ -542,6 +549,7 @@
                             answers.additional_access_points_required = value;
                         }
                     }
+                    child.dynamicAnswerCache = Object.fromEntries(Object.entries(answers).map(([id, value]) => [id, Array.isArray(value) ? [...value] : value]));
                     return answers;
                 };
                 child.dynamicImageAnswers = child.dynamicImageAnswers || {};
@@ -709,6 +717,11 @@
                         || getAnswerByFieldNames(fields, answers, ['additional_access_points_required', 'Additional Access Points Required?', 'Additional Access Points Required'])
                         || '';
                 };
+                const getAdditionalAccessPointCount = (fields, answers) => {
+                    const field = findAccessPointFieldByWords(fields, ['number', 'additional', 'access', 'point']);
+                    const value = (field && answers[field.id]) || answers.number_of_additional_access_points || getAnswerByFieldNames(fields, answers, ['number_of_additional_access_points', 'Number of Additional Access Points']) || 0;
+                    return Math.max(0, Math.min(50, Number(value) || 0));
+                };
                 const renderAdditionalAccessPointsFallback = (fields, answers) => {
                     const field = findAccessPointFieldByWords(fields, ['additional', 'access', 'point', 'required']);
                     const id = field?.id || 'additional_access_points_required';
@@ -791,7 +804,8 @@
                         return;
                     }
 
-                    const currentAnswers = Object.keys(answers || {}).length ? answers : getAnswers();
+                    const currentAnswers = { ...(child.dynamicAnswerCache || {}), ...(Object.keys(answers || {}).length ? answers : getAnswers()) };
+                    child.dynamicAnswerCache = Object.fromEntries(Object.entries(currentAnswers).map(([id, value]) => [id, Array.isArray(value) ? [...value] : value]));
                     let renderedAdditionalAccessPoints = false;
                     fields
                         .filter(field => field.active !== false)
@@ -819,11 +833,16 @@
                                 ? getAdditionalAccessPointsAnswer(fields, currentAnswers)
                                 : (currentAnswers[field.id] || '');
 
-                            if (field.repeat?.enabled) {
-                                const countSrc = resolveRef(fields, field.repeat.countFromFieldId, field.repeat.countFromFieldLabel);
-                                const count = Number(countSrc ? currentAnswers[countSrc.id] : 0);
+                            if (field.repeat?.enabled || fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])) {
+                                const countSrc = field.repeat?.enabled ? resolveRef(fields, field.repeat.countFromFieldId, field.repeat.countFromFieldLabel) : null;
+                                const count = fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])
+                                    ? getAdditionalAccessPointCount(fields, currentAnswers)
+                                    : Number(countSrc ? currentAnswers[countSrc.id] : 0);
+                                const template = fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])
+                                    ? 'Access Point Location {index}'
+                                    : String(field.repeat.labelTemplate || '{index}');
                                 for (let i = 0; i < count; i++) {
-                                    html += `<div class="field" style="margin-top:8px;"><label>${esc(String(field.repeat.labelTemplate || '{index}').replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${esc(field.id)}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i] || '')}" /></div>`;
+                                    html += `<div class="field" style="margin-top:8px;"><label>${esc(template.replace('{index}', i + 1))}</label><input type="text" class="dyn-input" data-id="${esc(field.id)}" data-index="${i}" value="${esc(currentAnswers[field.id]?.[i] || '')}" /></div>`;
                                 }
                             } else if (field.fieldType === 'choice' && (field.renderMode === 'checkboxes' || field.renderMode === 'radios')) {
                                 const type = field.renderMode === 'checkboxes' ? 'checkbox' : 'radio';
