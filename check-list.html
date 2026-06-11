@@ -46,7 +46,7 @@
   <main class="container">
     <div id="mainLayout" class="grid-main">
       <section class="card">
-        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">AP v2.0.7</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">Dynamic v2.0.8</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <div id="technicianNotice" class="notice hidden"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -281,6 +281,25 @@
       const value = (field && answers[field.id]) || answers.number_of_additional_access_points || getAnswerByFieldNames(answers, ['number_of_additional_access_points', 'Number of Additional Access Points']) || 0;
       return Math.max(0, Math.min(50, Number(value) || 0));
     }
+    function sanitizePrinterConditionalAnswers(answers) {
+      const available = normalizeVisibilityValue(answers.printer_available).trim().toLowerCase();
+      const yesFields = [
+        'number_of_printers_at_site',
+        'printer_working',
+        'uniflow_installed_working',
+        'printer_quantity_status',
+        'printer_required_action'
+      ];
+      const noFields = ['printer_required'];
+      const clear = ids => ids.forEach(id => {
+        delete answers[id];
+        if (window.dynamicAnswerCache) delete window.dynamicAnswerCache[id];
+      });
+      if (available === 'yes') clear(noFields);
+      else if (available === 'no') clear(yesFields);
+      else clear([...yesFields, ...noFields]);
+      return answers;
+    }
     function renderAdditionalAccessPointsFallback(container, answers) {
       const field = findAccessPointFieldByWords(['additional', 'access', 'point', 'required']);
       const id = field?.id || 'additional_access_points_required';
@@ -437,6 +456,7 @@
           ans.additional_access_points_required = value;
         }
       }
+      sanitizePrinterConditionalAnswers(ans);
       window.dynamicAnswerCache = Object.fromEntries(Object.entries(ans).map(([id, value]) => [id, Array.isArray(value) ? [...value] : value]));
       return ans;
     }
@@ -802,6 +822,7 @@
         return;
       }
       const currentAnswers = { ...(window.dynamicAnswerCache || {}), ...(Object.keys(answers).length ? answers : collectDynamicAnswers()) };
+      sanitizePrinterConditionalAnswers(currentAnswers);
       window.dynamicAnswerCache = Object.fromEntries(Object.entries(currentAnswers).map(([id, value]) => [id, Array.isArray(value) ? [...value] : value]));
       let renderedAdditionalAccessPoints = false;
       state.checklistFields.filter(field => isFieldForVisitType(field, selectedVisitTypes) || isKnownAccessPointField(field)).sort((a, b) => {
