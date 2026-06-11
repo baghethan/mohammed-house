@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.7 - AP PHOTO REPEAT -->
+<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.8 - PRINTERS DYNAMIC CHECKLIST -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
@@ -140,7 +140,7 @@
             <img src="LOGO-almajdouie.png" height="35" alt="MMC">
             <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">Authenticating...</div>
         </div>
-        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.7</div>
+        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.8</div>
         <button onclick="handleLogout()" style="background:#ef4444; color:white; border:none; padding:8px 18px; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s;">Logout</button>
     </header>
 
@@ -474,7 +474,7 @@
             const params = new URLSearchParams({
                 auth: 'active',
                 lang: getPortalLanguage(),
-                build: 'v2.0.7-ap-photo-repeat'
+                build: 'v2.0.8-printers-dynamic'
             });
 
             if (window.currentUser && window.currentUser.uid) {
@@ -554,6 +554,7 @@
                             answers.additional_access_points_required = value;
                         }
                     }
+                    sanitizePrinterConditionalAnswers(answers);
                     child.dynamicAnswerCache = Object.fromEntries(Object.entries(answers).map(([id, value]) => [id, Array.isArray(value) ? [...value] : value]));
                     return answers;
                 };
@@ -733,6 +734,19 @@
                     const value = (field && answers[field.id]) || answers.number_of_additional_access_points || getAnswerByFieldNames(fields, answers, ['number_of_additional_access_points', 'Number of Additional Access Points']) || 0;
                     return Math.max(0, Math.min(50, Number(value) || 0));
                 };
+                const sanitizePrinterConditionalAnswers = answers => {
+                    const available = normalizeVisibilityValue(answers.printer_available).trim().toLowerCase();
+                    const yesFields = ['number_of_printers_at_site', 'printer_working', 'uniflow_installed_working', 'printer_quantity_status', 'printer_required_action'];
+                    const noFields = ['printer_required'];
+                    const clear = ids => ids.forEach(id => {
+                        delete answers[id];
+                        if (child.dynamicAnswerCache) delete child.dynamicAnswerCache[id];
+                    });
+                    if (available === 'yes') clear(noFields);
+                    else if (available === 'no') clear(yesFields);
+                    else clear([...yesFields, ...noFields]);
+                    return answers;
+                };
                 const renderAdditionalAccessPointsFallback = (fields, answers) => {
                     const field = findAccessPointFieldByWords(fields, ['additional', 'access', 'point', 'required']);
                     const id = field?.id || 'additional_access_points_required';
@@ -816,6 +830,7 @@
                     }
 
                     const currentAnswers = { ...(child.dynamicAnswerCache || {}), ...(Object.keys(answers || {}).length ? answers : getAnswers()) };
+                    sanitizePrinterConditionalAnswers(currentAnswers);
                     child.dynamicAnswerCache = Object.fromEntries(Object.entries(currentAnswers).map(([id, value]) => [id, Array.isArray(value) ? [...value] : value]));
                     let renderedAdditionalAccessPoints = false;
                     fields
