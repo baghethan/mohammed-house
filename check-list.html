@@ -46,7 +46,7 @@
   <main class="container">
     <div id="mainLayout" class="grid-main">
       <section class="card">
-        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">AP v2.0.5</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">AP v2.0.6</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <div id="technicianNotice" class="notice hidden"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -373,6 +373,7 @@
         || fieldHasAllWords(field, ['installation', 'photo']);
     }
     window.dynamicImageAnswers = window.dynamicImageAnswers || {};
+    window.dynamicAnswerCache = window.dynamicAnswerCache || {};
     window.readDynamicImageInput = function(input) {
       const id = input?.dataset?.id;
       const file = input?.files?.[0];
@@ -390,16 +391,23 @@
       reader.readAsDataURL(file);
     };
     function collectDynamicAnswers() {
-      const ans = {};
+      const ans = Object.fromEntries(Object.entries(window.dynamicAnswerCache || {}).map(([id, value]) => [id, Array.isArray(value) ? [...value] : value]));
+      const prepared = new Set();
       document.querySelectorAll('.dyn-input').forEach(el => {
         const id = el.dataset.id;
+        if (!id) return;
+        if (!prepared.has(id)) {
+          if (el.type === 'checkbox' || el.type === 'radio' || el.dataset.index !== undefined) {
+            if (el.type === 'checkbox' || el.dataset.index !== undefined) ans[id] = [];
+            else delete ans[id];
+          }
+          prepared.add(id);
+        }
         if (el.type === 'checkbox') {
-          if (!ans[id]) ans[id] = [];
           if (el.checked) ans[id].push(el.value);
         } else if (el.type === 'radio') {
           if (el.checked) ans[id] = el.value;
         } else if (el.dataset.index !== undefined) {
-          if (!ans[id]) ans[id] = [];
           ans[id][el.dataset.index] = el.value;
         } else if (el.type === 'file') {
           if (window.dynamicImageAnswers[id]) ans[id] = window.dynamicImageAnswers[id];
@@ -418,6 +426,7 @@
           ans.additional_access_points_required = value;
         }
       }
+      window.dynamicAnswerCache = Object.fromEntries(Object.entries(ans).map(([id, value]) => [id, Array.isArray(value) ? [...value] : value]));
       return ans;
     }
     window.collectAnswers = collectDynamicAnswers;
@@ -781,7 +790,8 @@
         container.innerHTML = '<div class="notice warn" style="margin-top:12px;">Select Visit Type / اختر نوع الزيارة لعرض البنود.</div>';
         return;
       }
-      const currentAnswers = Object.keys(answers).length ? answers : collectDynamicAnswers();
+      const currentAnswers = { ...(window.dynamicAnswerCache || {}), ...(Object.keys(answers).length ? answers : collectDynamicAnswers()) };
+      window.dynamicAnswerCache = Object.fromEntries(Object.entries(currentAnswers).map(([id, value]) => [id, Array.isArray(value) ? [...value] : value]));
       let renderedAdditionalAccessPoints = false;
       state.checklistFields.filter(field => isFieldForVisitType(field, selectedVisitTypes) || isKnownAccessPointField(field)).sort((a, b) => {
         const apRank = field => fieldHasAllWords(field, ['additional', 'access', 'point', 'required']) ? 1
