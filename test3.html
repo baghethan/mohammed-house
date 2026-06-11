@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.6 - AP ANSWER PERSISTENCE -->
+<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.7 - AP PHOTO REPEAT -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
@@ -140,7 +140,7 @@
             <img src="LOGO-almajdouie.png" height="35" alt="MMC">
             <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">Authenticating...</div>
         </div>
-        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.6</div>
+        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.7</div>
         <button onclick="handleLogout()" style="background:#ef4444; color:white; border:none; padding:8px 18px; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s;">Logout</button>
     </header>
 
@@ -474,7 +474,7 @@
             const params = new URLSearchParams({
                 auth: 'active',
                 lang: getPortalLanguage(),
-                build: 'v2.0.6-ap-answer-persistence'
+                build: 'v2.0.7-ap-photo-repeat'
             });
 
             if (window.currentUser && window.currentUser.uid) {
@@ -529,16 +529,21 @@
                             if (input.checked) answers[id].push(input.value);
                         } else if (input.type === 'radio') {
                             if (input.checked) answers[id] = input.value;
+                        } else if (input.type === 'file') {
+                            if (input.dataset.index !== undefined) {
+                                if (!Array.isArray(answers[id])) answers[id] = [];
+                                answers[id][Number(input.dataset.index)] = child.dynamicImageAnswers?.[id]?.[Number(input.dataset.index)] || answers[id][Number(input.dataset.index)] || '';
+                            } else if (child.dynamicImageAnswers?.[id]) {
+                                answers[id] = child.dynamicImageAnswers[id];
+                            }
                         } else if (input.dataset.index !== undefined) {
                             answers[id][input.dataset.index] = input.value;
-                        } else if (input.type === 'file') {
-                            if (child.dynamicImageAnswers?.[id]) answers[id] = child.dynamicImageAnswers[id];
                         } else {
                             answers[id] = input.value;
                         }
                     });
                     Object.entries(child.dynamicImageAnswers || {}).forEach(([id, value]) => {
-                        if (value && !answers[id]) answers[id] = value;
+                        if (value) answers[id] = Array.isArray(value) ? [...value] : value;
                     });
                     const fields = Array.isArray(child.__visitTypeChecklistFields) ? child.__visitTypeChecklistFields : [];
                     const additionalField = findAccessPointFieldByWords(fields, ['additional', 'access', 'point', 'required']);
@@ -555,6 +560,7 @@
                 child.dynamicImageAnswers = child.dynamicImageAnswers || {};
                 child.readDynamicImageInput = input => {
                     const id = input?.dataset?.id;
+                    const index = input?.dataset?.index;
                     const file = input?.files?.[0];
                     if (!id || !file) return;
                     if (!file.type.startsWith('image/')) {
@@ -564,7 +570,12 @@
                     }
                     const reader = new FileReader();
                     reader.onload = () => {
-                        child.dynamicImageAnswers[id] = reader.result;
+                        if (index !== undefined) {
+                            if (!Array.isArray(child.dynamicImageAnswers[id])) child.dynamicImageAnswers[id] = [];
+                            child.dynamicImageAnswers[id][Number(index)] = reader.result;
+                        } else {
+                            child.dynamicImageAnswers[id] = reader.result;
+                        }
                         child.renderDynamicFormSafe(child.collectAnswers());
                     };
                     reader.readAsDataURL(file);
@@ -833,7 +844,13 @@
                                 ? getAdditionalAccessPointsAnswer(fields, currentAnswers)
                                 : (currentAnswers[field.id] || '');
 
-                            if (field.repeat?.enabled || fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])) {
+                            if (fieldHasAllWords(field, ['installation', 'photo'])) {
+                                const count = getAdditionalAccessPointCount(fields, currentAnswers);
+                                const photos = Array.isArray(val) ? val : (val ? [val] : []);
+                                for (let i = 0; i < count; i++) {
+                                    html += `<div class="field" style="margin-top:8px;"><label>Access Point Photo ${i + 1}</label>${photos[i] ? `<div style="margin:8px 0"><img src="${esc(photos[i])}" alt="Access Point Photo ${i + 1}" style="max-width:220px;max-height:160px;border:1px solid #cbd5e1;border-radius:8px;object-fit:contain"></div>` : ''}<input type="file" accept="image/*" class="dyn-input" data-id="${esc(field.id)}" data-index="${i}" onchange="readDynamicImageInput(this)" /></div>`;
+                                }
+                            } else if (field.repeat?.enabled || fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])) {
                                 const countSrc = field.repeat?.enabled ? resolveRef(fields, field.repeat.countFromFieldId, field.repeat.countFromFieldLabel) : null;
                                 const count = fieldHasAllWords(field, ['access', 'point', 'installation', 'location'])
                                     ? getAdditionalAccessPointCount(fields, currentAnswers)
