@@ -46,7 +46,7 @@
   <main class="container">
     <div id="mainLayout" class="grid-main">
       <section class="card">
-        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">Dynamic v2.0.10</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">Dynamic v2.0.11</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <div id="technicianNotice" class="notice hidden"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -643,7 +643,30 @@
     function isRecordForCurrentTechnician(record) {
       if (!isTechnicianMode()) return true;
       const identity = getCurrentTechnicianIdentity();
-      return recordTechnicianValues(record).map(norm).some(key => identity.keys.has(key));
+      return recordTechnicianValues(record).map(norm).some(key => identity.keys.has(key))
+        || isVisitInCurrentTechnicianBranchScope(record);
+    }
+
+    function isVisitInCurrentTechnicianBranchScope(record) {
+      if (!isTechnicianMode() || !record) return false;
+      const tech = getCurrentTechnicianIdentity().matchedTech;
+      if (!tech) return false;
+      const branch = findBranchForVisit(record);
+      const recordBranchId = normalizeBranchKey(getFirstValue(record.branchId, record.branchCode, branch.id, branch.branchId, branch.branchCode));
+      const recordBranchName = normalizeBranchKey(getFirstValue(record.branchName, record.locationSite, record.location, branch.branchName, branch.name, branch.location));
+      const allowedBranchIds = Array.isArray(tech.allowedBranchIds) ? tech.allowedBranchIds.map(normalizeBranchKey).filter(Boolean) : [];
+      const techBranchId = normalizeBranchKey(getFirstValue(tech.assignedBranchId, tech.branchId, tech.allowedBranchId));
+      const techBranchName = normalizeBranchKey(getFirstValue(tech.assignedBranchName, tech.branchName, tech.locationSite, tech.location));
+      if (recordBranchId && (recordBranchId === techBranchId || allowedBranchIds.includes(recordBranchId))) return true;
+      if (recordBranchName && techBranchName && recordBranchName === techBranchName) return true;
+
+      const scopeChecks = [
+        [record.region || branch.region, tech.allowedRegion || tech.region],
+        [record.city || branch.city || branch.locationCity, tech.allowedCity || tech.city],
+        [record.brand || branch.brand, tech.allowedBrand || tech.brand],
+        [record.department || getBranchDepartment(branch), tech.department || tech.allowedDepartment]
+      ];
+      return scopeChecks.some(([visitValue, techValue]) => normalizeMatchText(visitValue) && normalizeMatchText(visitValue) === normalizeMatchText(techValue));
     }
 
     function isVisitCompleted(visit) {
@@ -659,6 +682,10 @@
 
     function normalizeBranchKey(value) {
       return norm(value).replace(/\s+/g, '').replace(/[-_]+/g, '');
+    }
+
+    function normalizeMatchText(value) {
+      return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
     }
 
     function getBranchLookupValues(branch) {
@@ -1033,7 +1060,7 @@
           }
         }
       }
-      if (!rows.size && isTechnicianMode()) {
+      if (isTechnicianMode()) {
         try {
           const snap = await db.collection('siteVisits').get();
           snap.docs
