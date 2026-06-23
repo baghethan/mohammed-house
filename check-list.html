@@ -46,7 +46,7 @@
   <main class="container">
     <div id="mainLayout" class="grid-main">
       <section class="card">
-        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">Dynamic v2.0.12</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">Dynamic v2.0.14</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <div id="technicianNotice" class="notice hidden"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -472,6 +472,7 @@
       checklistFields: [],
       technicians: [],
       branches: [],
+      technicianSources: { employees: [], technicians: [] },
       userProfile: null,
       currentUser: null,
       canEdit: false,
@@ -551,7 +552,7 @@
       const profile = state.userProfile || {};
       const user = state.currentUser || {};
       const values = [];
-      addValues(values, profile, ['employeeId', 'empId', 'technicianId', 'technicianCode', 'code', 'email', 'name', 'fullName']);
+      addValues(values, profile, ['employeeId', 'employeeDocId', 'empId', 'empNum', 'technicianId', 'technicianDocId', 'technicianCode', 'code', 'authUid', 'uid', 'email', 'name', 'fullName', 'displayName']);
       addValues(values, user, ['uid', 'email', 'displayName']);
       return values;
     }
@@ -635,7 +636,15 @@
         'assignedTechnicianDocId',
         'assignedTechnicianEmpId',
         'assignedTechnicianEmail',
-        'assignedTechnicianName'
+        'assignedTechnicianName',
+        'employeeId',
+        'empId',
+        'empNum',
+        'authUid',
+        'uid',
+        'email',
+        'name',
+        'fullName'
       ]);
       return values;
     }
@@ -1042,13 +1051,25 @@
       });
     }
 
+    function buildFirestoreLookupValues(values) {
+      const result = [];
+      values.forEach(value => {
+        const text = String(value || '').trim();
+        if (!text) return;
+        if (!result.some(item => norm(item) === norm(text))) result.push(text);
+        if (/^\d+$/.test(text)) {
+          const numberValue = Number(text);
+          if (Number.isSafeInteger(numberValue) && !result.some(item => item === numberValue)) result.push(numberValue);
+        }
+      });
+      return result.slice(0, 30);
+    }
+
     async function queryVisitsByIdentity(values) {
       const db = window.parent.appDb;
       const rows = new Map();
-      const fields = ['technicianEmpId', 'technicianDocId', 'technicianId', 'technicianUid', 'technicianAuthId', 'technicianEmail', 'technicianName', 'technicianCode', 'techId', 'techDocId', 'techEmpId', 'techEmail', 'assignedTechnicianId', 'assignedTechnicianDocId', 'assignedTechnicianEmpId', 'assignedTechnicianEmail'];
-      const uniqueValues = values.map(v => String(v || '').trim()).filter(Boolean)
-        .filter((value, index, arr) => arr.findIndex(item => norm(item) === norm(value)) === index)
-        .slice(0, 20);
+      const fields = ['technicianEmpId', 'technicianDocId', 'technicianId', 'technicianUid', 'technicianAuthId', 'technicianEmail', 'technicianName', 'technicianCode', 'techId', 'techDocId', 'techEmpId', 'techEmail', 'assignedTechnicianId', 'assignedTechnicianDocId', 'assignedTechnicianEmpId', 'assignedTechnicianEmail', 'employeeId', 'empId', 'empNum', 'authUid', 'uid', 'email'];
+      const uniqueValues = buildFirestoreLookupValues(values);
 
       for (const field of fields) {
         for (const value of uniqueValues) {
@@ -1093,6 +1114,56 @@
         }
       }
       return Array.from(rows.values());
+    }
+
+    function normalizeEmployeeAsTechnician(data, docId) {
+      data = data || {};
+      const empId = data.empId || data.empNum || data.employeeId || data.technicianId || data.technicianCode || data.code || docId || '';
+      return {
+        ...data,
+        id: String(empId || docId || ''),
+        _docId: docId,
+        empId: String(empId || ''),
+        empNum: String(data.empNum || ''),
+        employeeId: String(data.employeeId || data.technicianId || empId || ''),
+        technicianId: data.technicianId || data.employeeId || empId || '',
+        technicianCode: data.technicianCode || data.code || empId || '',
+        name: data.name || data.fullName || data.displayName || data.technicianName || empId || docId || '',
+        fullName: data.fullName || data.name || '',
+        email: data.email || '',
+        authUid: data.authUid || data.uid || '',
+        status: data.status || (data.active === false ? 'inactive' : 'active')
+      };
+    }
+
+    function mergeTechnicianSources() {
+      const merged = [];
+      const owner = {};
+      const addRow = row => {
+        if (!row || String(row.status || 'active').toLowerCase() === 'inactive') return;
+        const keys = getTechnicianValues(row).map(norm).filter(Boolean);
+        let idx = -1;
+        keys.some(key => {
+          if (owner[key] !== undefined) {
+            idx = owner[key];
+            return true;
+          }
+          return false;
+        });
+        if (idx > -1) {
+          Object.keys(row).forEach(key => {
+            if (merged[idx][key] === undefined || merged[idx][key] === null || merged[idx][key] === '') merged[idx][key] = row[key];
+          });
+          getTechnicianValues(merged[idx]).map(norm).filter(Boolean).forEach(key => owner[key] = idx);
+          return;
+        }
+        idx = merged.length;
+        merged.push({ ...row });
+        keys.forEach(key => owner[key] = idx);
+      };
+      (state.technicianSources.employees || []).forEach(addRow);
+      (state.technicianSources.technicians || []).forEach(addRow);
+      state.technicians = merged;
     }
 
     async function loadVisitsForTech(techId, visitId = null) {
@@ -1236,7 +1307,8 @@
       }
       db.collection('employees').onSnapshot(snap => {
         state.employeeLookupError = false;
-        state.technicians = snap.docs.map(d => { const data = d.data() || {}; const empId = data.empId || data.empNum || data.employeeId || data.technicianId || d.id; return { ...data, id: String(empId || d.id), _docId: d.id, empId: String(empId || ''), technicianId: data.technicianId || empId || '', technicianCode: data.technicianCode || data.code || empId || '', name: data.name || data.fullName || empId || d.id, status: data.status || (data.active === false ? 'inactive' : 'active') }; }).filter(t => t.status !== 'inactive' && (String(t.employeeType || t.type || '').toLowerCase() === 'technician' || String(t.jobTitle || t.title || t.position || '').toLowerCase().includes('technician') || String(t.jobTitle || '').includes('فني') || t.isTechnician === true));
+        state.technicianSources.employees = snap.docs.map(d => normalizeEmployeeAsTechnician(d.data() || {}, d.id)).filter(t => t.status !== 'inactive' && (String(t.employeeType || t.type || '').toLowerCase() === 'technician' || String(t.jobTitle || t.title || t.position || '').toLowerCase().includes('technician') || String(t.jobTitle || '').includes('فني') || t.isTechnician === true));
+        mergeTechnicianSources();
         renderTechnicianSelector();
         listenChecklists();
       }, err => {
@@ -1244,6 +1316,14 @@
         console.warn('employees technician lookup failed; using app_users profile fallback', err);
         renderTechnicianSelector();
         listenChecklists();
+      });
+      db.collection('technicians').onSnapshot(snap => {
+        state.technicianSources.technicians = snap.docs.map(d => normalizeEmployeeAsTechnician(d.data() || {}, d.id));
+        mergeTechnicianSources();
+        renderTechnicianSelector();
+        listenChecklists();
+      }, err => {
+        console.warn('technicians lookup failed; using employees/profile fallback', err);
       });
       db.collection('branches').onSnapshot(snap => {
         state.branchLookupError = false;
