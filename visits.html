@@ -207,6 +207,55 @@
   function clearAllListeners(){ Object.keys(unsub).forEach(function(key){ if (unsub[key]) unsub[key](); unsub[key] = null; }); }
   function normalizeMatchValue(v){ return String(v || '').trim().toLowerCase(); }
   function getBranchDepartment(branch){ return branch.department || branch.departmentName || branch.functionName || branch.function || ''; }
+  function technicianDedupeKeys(row){
+    var keys = [
+      row && row.id,
+      row && row._docId,
+      row && row.empId,
+      row && row.empNum,
+      row && row.employeeId,
+      row && row.technicianId,
+      row && row.technicianCode,
+      row && row.code,
+      row && row.authUid,
+      row && row.uid,
+      row && row.email
+    ].map(normalizeMatchValue).filter(Boolean);
+    var name = normalizeMatchValue(row && row.name);
+    var region = normalizeMatchValue(row && (row.region || row.allowedRegion));
+    var city = normalizeMatchValue(row && row.city);
+    if (name) keys.push('name-scope:' + [name, region, city].join('|'));
+    return keys;
+  }
+  function mergeTechnicianRows(rows){
+    var merged = [];
+    var owner = {};
+    rows.forEach(function(row){
+      var keys = technicianDedupeKeys(row);
+      var idx = -1;
+      keys.some(function(key){
+        if (owner[key] !== undefined) {
+          idx = owner[key];
+          return true;
+        }
+        return false;
+      });
+      if (idx > -1) {
+        Object.keys(row).forEach(function(key){
+          if (merged[idx][key] === undefined || merged[idx][key] === null || merged[idx][key] === '') merged[idx][key] = row[key];
+        });
+        var existingAllowed = Array.isArray(merged[idx].allowedBranchIds) ? merged[idx].allowedBranchIds : [];
+        var incomingAllowed = Array.isArray(row.allowedBranchIds) ? row.allowedBranchIds : [];
+        merged[idx].allowedBranchIds = Array.from(new Set(existingAllowed.concat(incomingAllowed).filter(Boolean)));
+        technicianDedupeKeys(merged[idx]).forEach(function(key){ owner[key] = idx; });
+        return;
+      }
+      idx = merged.length;
+      merged.push(Object.assign({}, row));
+      keys.forEach(function(key){ owner[key] = idx; });
+    });
+    return merged;
+  }
   function normalizeEmployeeAsTechnician(data, docId){
     data = data || {};
     var empId = data.empId || data.empNum || data.employeeId || data.technicianId || data.code || docId || '';
@@ -372,6 +421,10 @@
     payload.technicianDocId = tech._docId || tech.id || '';
     payload.technicianId = tech.empId || tech.technicianId || tech.id || '';
     payload.technicianUid = tech.authUid || '';
+    payload.technicianAuthId = tech.authUid || '';
+    payload.technicianEmail = tech.email || '';
+    payload.technicianName = tech.name || tech.fullName || tech.displayName || tech.id || '';
+    payload.technicianCode = tech.technicianCode || tech.code || tech.empId || tech.id || '';
     payload.date = $('visitDate').value;
     payload.status = $('visitStatus').value;
     payload.notes = $('visitNotes').value.trim();
@@ -517,7 +570,7 @@
     if (unsub.technicians) unsub.technicians();
     var db = window.parent.appDb;
     unsub.technicians = db.collection('employees').orderBy('name').onSnapshot(function(snap){
-      state.technicians = snap.docs.map(function(d){ return normalizeEmployeeAsTechnician(d.data() || {}, d.id); }).filter(function(row){ return isTechnicianEmployee(row) && row.status !== 'inactive'; });
+      state.technicians = mergeTechnicianRows(snap.docs.map(function(d){ return normalizeEmployeeAsTechnician(d.data() || {}, d.id); }).filter(function(row){ return isTechnicianEmployee(row) && row.status !== 'inactive'; }));
       renderTechnicianSelectors();
       renderBranchSelectors();
     }, function(err){ setAlert('visitError', 'employees: ' + err.message); });
