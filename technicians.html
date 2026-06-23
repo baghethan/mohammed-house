@@ -60,7 +60,7 @@
     <button class="btn small" id="langArBtn" type="button">AR</button>
     <button class="btn small" id="langEnBtn" type="button">EN</button>
     <span class="badge">technicians</span>
-    <span class="badge">v1.1.2</span>
+    <span class="badge">v1.1.3</span>
   </div>
 
   <div id="sessionNotice" class="session-note hidden">
@@ -145,6 +145,8 @@
 (function(){
   var state = {
     technicians: [],
+    employeeCandidates: [],
+    userCandidates: [],
     branches: [],
     currentUser: null,
     currentUserProfile: null,
@@ -152,6 +154,8 @@
   };
 
   var unsubTechnicians = null;
+  var unsubEmployees = null;
+  var unsubUsers = null;
   var unsubBranches = null;
   var listenersBound = false;
 
@@ -307,6 +311,94 @@
     return String(v || '').trim().toLowerCase();
   }
 
+  function firstValue(row, keys){
+    for (var i = 0; i < keys.length; i++) {
+      var value = row && row[keys[i]];
+      if (value !== undefined && value !== null && String(value).trim() !== '') return String(value).trim();
+    }
+    return '';
+  }
+
+  function normalizePersonCandidate(data, docId, source){
+    data = data || {};
+    var id = firstValue(data, ['technicianId','employeeId','empId','empNum','technicianCode','code','uid','authUid']) || docId || firstValue(data, ['email','name','fullName','displayName']);
+    var name = firstValue(data, ['name','fullName','displayName','technicianName','employeeName']) || firstValue(data, ['email']) || id;
+    var email = firstValue(data, ['email','mail']);
+    var authUid = firstValue(data, ['authUid','uid']) || (source === 'app_users' ? docId : '');
+    var status = firstValue(data, ['status']) || (data.active === false ? 'inactive' : 'active');
+    return Object.assign({}, data, {
+      id: String(id || docId || '').trim(),
+      _docId: docId || '',
+      _source: source || '',
+      technicianCode: firstValue(data, ['technicianCode','code','employeeId','empId','empNum']) || String(id || '').trim(),
+      name: name,
+      email: email,
+      authUid: authUid,
+      status: status
+    });
+  }
+
+  function isActivePerson(row){
+    if (!row) return false;
+    if (row.active === false) return false;
+    return normalizeMatchValue(row.status || 'active') !== 'inactive';
+  }
+
+  function candidateKeys(row){
+    return [
+      row && row.id,
+      row && row._docId,
+      row && row.authUid,
+      row && row.uid,
+      row && row.email,
+      row && row.employeeId,
+      row && row.empId,
+      row && row.empNum,
+      row && row.technicianId,
+      row && row.technicianCode,
+      row && row.code
+    ].map(normalizeMatchValue).filter(Boolean);
+  }
+
+  function mergeCandidateFields(base, incoming){
+    Object.keys(incoming || {}).forEach(function(key){
+      if (base[key] === undefined || base[key] === null || base[key] === '') base[key] = incoming[key];
+    });
+    return base;
+  }
+
+  function getTechnicianCandidates(){
+    var rows = []
+      .concat(state.technicians || [])
+      .concat(state.employeeCandidates || [])
+      .concat(state.userCandidates || []);
+    var keyOwner = {};
+    var merged = [];
+
+    rows.forEach(function(row){
+      if (!row || !row.id || !isActivePerson(row)) return;
+      var keys = candidateKeys(row);
+      var existingIndex = -1;
+      keys.some(function(key){
+        if (keyOwner[key] !== undefined) {
+          existingIndex = keyOwner[key];
+          return true;
+        }
+        return false;
+      });
+      if (existingIndex > -1) {
+        mergeCandidateFields(merged[existingIndex], row);
+        candidateKeys(merged[existingIndex]).forEach(function(key){ keyOwner[key] = existingIndex; });
+        return;
+      }
+      var nextIndex = merged.length;
+      merged.push(Object.assign({}, row));
+      keys.forEach(function(key){ keyOwner[key] = nextIndex; });
+    });
+
+    return merged;
+  }
+
   function getBranchDepartment(branch){
     return branch.department || branch.departmentName || branch.functionName || branch.function || '';
   }
@@ -391,7 +483,7 @@
   }
 
   function renderTechnicianSelectors(){
-    var rows = state.technicians.slice().sort(function(a,b){ return String(a.name || '').localeCompare(String(b.name || '')); }).map(function(tn){
+    var rows = getTechnicianCandidates().sort(function(a,b){ return String(a.name || '').localeCompare(String(b.name || '')); }).map(function(tn){
       var suffix = '';
       if (tn.region || tn.city || tn.brand || tn.department) suffix = ' - ' + esc(tn.region || '-') + '/' + esc(tn.city || '-') + '/' + esc(tn.brand || '-') + '/' + esc(tn.department || '-');
       return '<option value="' + esc(tn.id) + '">' + esc(tn.name || tn.id) + suffix + '</option>';
@@ -440,8 +532,9 @@
   }
 
   function openTechnicianForEdit(id){
-    var tn = state.technicians.find(function(x){ return x.id === id; });
+    var tn = getTechnicianCandidates().find(function(x){ return x.id === id; });
     if (!tn) return;
+    var existing = state.technicians.some(function(x){ return x.id === id; });
     $('technicianSelector').value = tn.id || '';
     $('technicianDocId').value = tn.id || '';
     $('technicianCode').value = tn.technicianCode || '';
@@ -471,7 +564,7 @@
     if (tn.department && Array.prototype.some.call($('techAssignDepartment').options, function(o){ return o.value === tn.department; })) $('techAssignDepartment').value = tn.department;
     if (tn.assignedBranchId && Array.prototype.some.call($('techAssignBranch').options, function(o){ return o.value === tn.assignedBranchId; })) $('techAssignBranch').value = tn.assignedBranchId;
 
-    $('deleteTechnicianBtn').classList.remove('hidden');
+    $('deleteTechnicianBtn').classList.toggle('hidden', !existing);
     setMessage(t('loaded'));
     setAlert('');
     window.scrollTo({ top:0, behavior:'smooth' });
@@ -534,11 +627,14 @@
       payload.assignedBranchName = assignedBranch ? (assignedBranch.branchName || '') : '';
       payload.branch = payload.assignedBranchName;
       payload.allowedBranchIds = buildParentArray(allowedBranchIds);
+      payload.employeeType = 'technician';
+      payload.isTechnician = true;
       payload.status = $('technicianStatus').value;
       payload.updatedAt = fv.serverTimestamp();
       if (!exists) payload.createdAt = fv.serverTimestamp();
 
       await db.collection('technicians').doc(docId).set(payload, { merge:true });
+      await db.collection('employees').doc(docId).set(payload, { merge:true });
       setMessage(t('saved'));
       setAlert('', 'ok');
       clearTechnicianForm();
@@ -586,6 +682,8 @@
     if (!profile) return false;
     if (!isProfileActive(profile)) return false;
     var pages = Array.isArray(profile.pages) ? profile.pages : [];
+    var siteVisitPages = Array.isArray(profile.permissions_site_visit) ? profile.permissions_site_visit : [];
+    if (siteVisitPages.indexOf('technicians') > -1) return true;
     if (pages.length) return pages.indexOf('technicians') > -1;
     var role = String(profile.role || '').toLowerCase();
     return ['admin','supervisor'].indexOf(role) > -1;
@@ -628,10 +726,40 @@
     });
   }
 
+  function listenEmployeeCandidates(){
+    if (unsubEmployees) unsubEmployees();
+    var db = window.parent.appDb;
+    unsubEmployees = db.collection('employees').onSnapshot(function(snap){
+      state.employeeCandidates = snap.docs.map(function(d){
+        return normalizePersonCandidate(d.data() || {}, d.id, 'employees');
+      });
+      renderTechnicianSelectors();
+    }, function(err){
+      console.warn('employees candidates:', err);
+    });
+  }
+
+  function listenUserCandidates(){
+    if (unsubUsers) unsubUsers();
+    var db = window.parent.appDb;
+    unsubUsers = db.collection('app_users').onSnapshot(function(snap){
+      state.userCandidates = snap.docs.map(function(d){
+        return normalizePersonCandidate(d.data() || {}, d.id, 'app_users');
+      });
+      renderTechnicianSelectors();
+    }, function(err){
+      console.warn('app_users candidates:', err);
+    });
+  }
+
   function clearListeners(){
     if (unsubTechnicians) unsubTechnicians();
+    if (unsubEmployees) unsubEmployees();
+    if (unsubUsers) unsubUsers();
     if (unsubBranches) unsubBranches();
     unsubTechnicians = null;
+    unsubEmployees = null;
+    unsubUsers = null;
     unsubBranches = null;
   }
 
@@ -657,6 +785,8 @@
     state.currentUser = null;
     state.currentUserProfile = null;
     state.technicians = [];
+    state.employeeCandidates = [];
+    state.userCandidates = [];
     state.branches = [];
     $('appRoot').classList.add('hidden');
     $('sessionNotice').classList.remove('hidden');
@@ -698,6 +828,8 @@
           $('appRoot').classList.remove('hidden');
           listenBranches();
           listenTechnicians();
+          listenEmployeeCandidates();
+          listenUserCandidates();
         } catch (err) {
           console.error(err);
           setAlert(err.message || String(err));
