@@ -46,7 +46,7 @@
   <main class="container">
     <div id="mainLayout" class="grid-main">
       <section class="card">
-        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">Dynamic v2.0.11</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
+        <h3>نموذج الفحص v3.1.9 (Native Object Sync) <span style="font-size:10px;color:#64748b">Dynamic v2.0.12</span> <span id="roleBadge" style="font-size:10px;"></span></h3>
         <div class="card-body">
           <div id="technicianNotice" class="notice hidden"></div>
           <input id="editingChecklistId" type="hidden" />
@@ -1057,6 +1057,27 @@
             snap.docs.forEach(d => rows.set(d.id, { id: d.id, ...d.data() }));
           } catch (err) {
             console.warn('siteVisits technician query failed', field, err);
+          }
+        }
+      }
+      if (isTechnicianMode()) {
+        const tech = getCurrentTechnicianIdentity().matchedTech || {};
+        const branchValues = [
+          tech.assignedBranchId,
+          tech.branchId,
+          tech.allowedBranchId,
+          ...(Array.isArray(tech.allowedBranchIds) ? tech.allowedBranchIds : [])
+        ].map(v => String(v || '').trim()).filter(Boolean)
+          .filter((value, index, arr) => arr.findIndex(item => norm(item) === norm(value)) === index);
+        for (const branchId of branchValues) {
+          try {
+            const snap = await db.collection('siteVisits').where('branchId', '==', branchId).get();
+            snap.docs
+              .map(d => ({ id: d.id, ...d.data() }))
+              .filter(isRecordForCurrentTechnician)
+              .forEach(row => rows.set(row.id, row));
+          } catch (err) {
+            console.warn('siteVisits branch scope query failed', branchId, err);
           }
         }
       }
