@@ -554,7 +554,17 @@ function hasEmployeeAction(action) {
   if (!Array.isArray(profile?.permissions_employee_actions)) {
     return hasLegacyEmployeePageAccess(profile);
   }
-  return profile.permissions_employee_actions.map(item => String(item || '').trim()).includes(action);
+  const actions = profile.permissions_employee_actions
+    .map(item => String(item || '').trim().toLowerCase())
+    .filter(Boolean);
+  if (actions.includes(action)) return true;
+
+  const inlineEditActions = [
+    EMPLOYEE_ACTIONS.editShift,
+    EMPLOYEE_ACTIONS.editRotation,
+    EMPLOYEE_ACTIONS.editStatus
+  ];
+  return actions.includes(EMPLOYEE_ACTIONS.edit) && inlineEditActions.includes(action);
 }
 
 function requireEmployeeAction(action) {
@@ -1412,7 +1422,7 @@ window.editEmployee = id => {
   const emp = emps.map(normalizeEmployee).find(item => String(item.id) === String(id));
   if (!emp) return;
   fillForm(emp);
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  $('formTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 window.deleteEmployee = async id => {
