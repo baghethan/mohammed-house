@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Annual Leave Management v1.0.4 - Almajdouie Motors</title>
+  <title>Annual Leave Management v1.0.5 - Almajdouie Motors</title>
   <style>
     :root{--primary:#0d2149;--primary2:#1b4fa3;--text:#1f2937;--muted:#64748b;--surface:rgba(255,255,255,.94);--surface2:#fff;--shadow:0 18px 50px rgba(13,33,73,.16);--danger:#d32f2f}
     *{box-sizing:border-box} 
@@ -42,7 +42,7 @@
         <div style="display:flex; align-items:center; gap:15px">
             <img src="LOGO-almajdouie.png" style="height:55px" />
             <div>
-                <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:22px"><span id="title">إدارة الإجازات السنوية</span><span class="version-badge">v1.0.4</span></h2>
+                <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:22px"><span id="title">إدارة الإجازات السنوية</span><span class="version-badge">v1.0.5</span></h2>
                 <p id="subtitle" style="margin:0; color:var(--muted); font-size:12px; font-weight:700">تخطيط وتوثيق الإجازات - المجدوعي للسيارات</p>
             </div>
         </div>
@@ -100,7 +100,7 @@
 
 <script type="module">
 import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
-import { doc, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
     ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', type:'نوع الإجازة', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', selectType:'نوع الإجازة...', assign:'تعيين إجازة', saveEdit:'حفظ التعديل', cancel:'إلغاء', edit:'تعديل', del:'حذف', searchEmp:'ابحث باسم أو رقم الموظف...', requestCount:'عدد الطلبات', allRequests:'كل الطلبات', noRecords:'لا توجد طلبات مطابقة', dateError:'تاريخ البداية لا يمكن أن يكون بعد تاريخ النهاية', recordMissing:'لم يتم العثور على الطلب', filterFrom:'من', filterTo:'إلى', saving:'جاري حفظ الإجازة...', saveSuccess:'تم حفظ الإجازة وظهرت في الجدول.', saveFailed:'تعذر حفظ الإجازة', noEmployees:'لا يمكن تحميل الموظفين. تأكد من صلاحية Annual Leave.' },
@@ -113,7 +113,7 @@ const leaveTypes = {
     absence: { ar: 'غياب', en: 'Absence' }
 };
 
-let employees=[], vacationsList=[], currentLang=localStorage.getItem('lang')||'ar', editingVacationId='';
+let employees=[], vacationsList=[], scheduleLeaves=[], legacyVacationLeaves=[], currentLang=localStorage.getItem('lang')||'ar', editingVacationId='';
 const $=id=>document.getElementById(id), tr=()=>i18n[currentLang];
 
 function setSaveStatus(message = '', type = '') {
@@ -176,13 +176,15 @@ window.addAnnualLeave = async () => {
                 alert(tr().recordMissing);
                 return;
             }
-            const updatedVacations = vacationsList.map(record => String(record.id) === String(editingVacationId)
-                ? { ...vacationPayload, createdAt: existing.createdAt || vacationPayload.createdAt, updatedAt: now }
-                : record
-            );
-            await saveAnnualLeaves(updatedVacations);
+            const updatedRecord = { ...vacationPayload, createdAt: existing.createdAt || vacationPayload.createdAt, updatedAt: now };
+            if (existing.storageSource === 'legacy-vacations') {
+                await updateDoc(doc(db, 'vacations', editingVacationId), updatedRecord);
+            } else {
+                const updatedVacations = scheduleLeaves.map(record => String(record.id) === String(editingVacationId) ? updatedRecord : record);
+                await saveAnnualLeaves(updatedVacations);
+            }
         } else {
-            await saveAnnualLeaves([...vacationsList, vacationPayload]);
+            await saveAnnualLeaves([...scheduleLeaves, vacationPayload]);
         }
         resetLeaveForm();
         setSaveStatus(tr().saveSuccess, 'success');
@@ -217,7 +219,12 @@ window.cancelLeaveEdit = () => resetLeaveForm();
 window.deleteVacation = async (id) => {
     if(!confirm(currentLang==='ar'?'هل تريد حذف هذه الإجازة؟':'Are you sure you want to delete this leave?')) return;
     await waitForSignedInUser();
-    await saveAnnualLeaves(vacationsList.filter(record => String(record.id) !== String(id)));
+    const existing = vacationsList.find(record => String(record.id) === String(id));
+    if (existing?.storageSource === 'legacy-vacations') {
+        await deleteDoc(doc(db, 'vacations', id));
+        return;
+    }
+    await saveAnnualLeaves(scheduleLeaves.filter(record => String(record.id) !== String(id)));
 };
 
 // --- 2. Rendering ---
@@ -395,14 +402,30 @@ function normalizeVacation(record) {
     };
 }
 
+function leaveIdentity(record) {
+    return [
+        record.empId || record.empNum || record.employeeId || record.employeeDocId || record.fireId || record.employeeName || record.name,
+        record.start || record.from,
+        record.end || record.to,
+        normalizeLeaveType(record.leaveType || record.type)
+    ].map(value => String(value || '').trim().toLowerCase()).join('|');
+}
+
+function rebuildVacationList() {
+    const merged = new Map();
+    [...legacyVacationLeaves, ...scheduleLeaves].forEach(record => merged.set(leaveIdentity(record), record));
+    vacationsList = Array.from(merged.values());
+    renderUI();
+}
+
 async function saveAnnualLeaves(updatedVacations) {
     const normalized = updatedVacations.map((record, index) => normalizeVacation({
         ...record,
         id: record.id || `leave_${Date.now()}_${index}`
     }));
     await setDoc(doc(db, 'schedule', 'jadwal_annual_leave'), { vacations: normalized }, { merge: true });
-    vacationsList = normalized;
-    renderUI();
+    scheduleLeaves = normalized.map(record => ({ ...record, storageSource: 'schedule' }));
+    rebuildVacationList();
 }
 
 async function bindSnapshots(){
@@ -419,13 +442,21 @@ async function bindSnapshots(){
         // Firestore emits local pending writes before the server approves them.
         // Do not show a leave record until the server confirms the write.
         if (s.metadata.hasPendingWrites) return;
-        vacationsList = (s.exists() ? s.data().vacations || [] : []).map((item, index) =>
-            normalizeVacation({ ...item, id: item.id || `legacy_leave_${index}_${item.empId || 'employee'}_${item.start || item.from || ''}` })
+        scheduleLeaves = (s.exists() ? s.data().vacations || [] : []).map((item, index) =>
+            normalizeVacation({ ...item, id: item.id || `legacy_leave_${index}_${item.empId || 'employee'}_${item.start || item.from || ''}`, storageSource: 'schedule' })
         );
-        renderUI();
+        rebuildVacationList();
     }, e => {
         logFirebaseError('Annual leave vacations listener failed', e);
         setSaveStatus(`${tr().saveFailed}: ${e?.code || e?.message || e}`, 'error');
+    });
+    onSnapshot(collection(db, 'vacations'), s => {
+        legacyVacationLeaves = s.docs
+            .map(item => normalizeVacation({ id: item.id, ...item.data(), storageSource: 'legacy-vacations' }))
+            .filter(record => record.source === 'Annual-Leave');
+        rebuildVacationList();
+    }, e => {
+        logFirebaseError('Legacy annual leave listener failed', e);
     });
 }
 
