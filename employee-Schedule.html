@@ -29,7 +29,8 @@
     .brand{display:flex;align-items:center;gap:12px}
     .brand img{height:45px;width:auto;object-fit:contain}
     h2,h3,p{margin:0}
-    .title{color:var(--primary);font-size:22px;font-weight:900}
+    .title{color:var(--primary);font-size:22px;font-weight:900;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+    .version-badge{display:inline-flex;align-items:center;border-radius:999px;background:#e0f2fe;color:#0369a1;padding:4px 9px;font-size:11px;font-weight:900;direction:ltr}
     .subtitle{color:var(--muted);font-size:12px;font-weight:700;margin-top:3px}
     .card{background:var(--surface2);border-radius:18px;padding:20px;margin-bottom:20px;border:1px solid #eee;box-shadow:0 8px 24px rgba(15,23,42,.04)}
     .sync-status{font-size:12px;color:#10b981;font-weight:900;margin-bottom:16px;display:flex;align-items:center;gap:7px}
@@ -84,7 +85,7 @@
     <div class="brand">
       <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
       <div>
-        <h2 class="title" id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</h2>
+        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.6.0</span></h2>
         <p class="subtitle" id="pageSubtitle">إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات</p>
       </div>
     </div>
@@ -214,6 +215,7 @@ import {
 
 let emps = [];
 let employeeRecords = [];
+let renderedEmployeeRows = [];
 let scheduleLoaded = false;
 let currentAuthUser = null;
 let currentUserProfile = null;
@@ -246,7 +248,7 @@ const JOB_TITLE_LABELS = {
 };
 const I18N = {
   ar: {
-    documentTitle: 'إدارة الموظفين v1.5.0 - مزامنة تلقائية',
+    documentTitle: 'إدارة الموظفين v1.6.0 - مزامنة تلقائية',
     pageTitle: 'إدارة سجل الموظفين (مزامنة تلقائية)',
     pageSubtitle: 'إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات',
     reload: 'تحديث',
@@ -320,7 +322,7 @@ const I18N = {
     confirmDelete: 'هل تريد حذف هذا الموظف؟'
   },
   en: {
-    documentTitle: 'Employee Management v1.5.0 - Auto Sync',
+    documentTitle: 'Employee Management v1.6.0 - Auto Sync',
     pageTitle: 'Employee Management (Auto Sync)',
     pageSubtitle: 'Add and update employees linked to the schedule and vacation plan',
     reload: 'Refresh',
@@ -1255,6 +1257,7 @@ async function handleExcelImport(event) {
 function render() {
   const tbody = $('empTableBody');
   const rows = emps.map(normalizeEmployee).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), currentLang));
+  renderedEmployeeRows = rows;
   $('empCount').textContent = employeeCountLabel(rows.length);
 
   if (!rows.length) {
@@ -1262,7 +1265,7 @@ function render() {
     return;
   }
 
-  tbody.innerHTML = rows.map(emp => {
+  tbody.innerHTML = rows.map((emp, rowIndex) => {
     const source = employeeSource(emp);
     return `
       <tr data-id="${escapeHtml(emp.id)}">
@@ -1273,44 +1276,73 @@ function render() {
         <td>${escapeHtml(emp.empNum || '-')}</td>
         <td>${escapeHtml(emp.dept || '-')}</td>
         <td>
-          <select class="compact-select" data-field="jobTitle" data-id="${escapeHtml(emp.id)}" onchange="event.stopPropagation(); window.updateEmployeeField(this.dataset.id, this.dataset.field, this.value).catch(window.handleEmployeeActionError)">
+          <select class="compact-select" data-field="jobTitle" data-id="${escapeHtml(emp.id)}" data-row-index="${rowIndex}">
             ${jobTitleOptions(emp.jobTitle)}
           </select>
         </td>
         <td>${escapeHtml(emp.email || '-')}</td>
         <td>${escapeHtml(emp.phone || '-')}</td>
         <td>
-          <select class="compact-select" data-field="fixed" data-id="${escapeHtml(emp.id)}" onchange="event.stopPropagation(); window.updateEmployeeField(this.dataset.id, this.dataset.field, this.value).catch(window.handleEmployeeActionError)">
+          <select class="compact-select" data-field="fixed" data-id="${escapeHtml(emp.id)}" data-row-index="${rowIndex}">
             ${shiftOptions(shiftValue(emp))}
           </select>
         </td>
         <td>
-          <select class="compact-select" data-field="rotation" data-id="${escapeHtml(emp.id)}" onchange="event.stopPropagation(); window.updateEmployeeField(this.dataset.id, this.dataset.field, this.value).catch(window.handleEmployeeActionError)">
+          <select class="compact-select" data-field="rotation" data-id="${escapeHtml(emp.id)}" data-row-index="${rowIndex}">
             ${rotationOptions(emp.rotType || emp.rotation)}
           </select>
           <div class="muted">${rotationLabel(emp.rotType || emp.rotation)}</div>
         </td>
         <td>
-          <select class="compact-select" data-field="active" data-id="${escapeHtml(emp.id)}" onchange="event.stopPropagation(); window.updateEmployeeField(this.dataset.id, this.dataset.field, this.value).catch(window.handleEmployeeActionError)">
+          <select class="compact-select" data-field="active" data-id="${escapeHtml(emp.id)}" data-row-index="${rowIndex}">
             <option value="true" ${emp.active !== false ? 'selected' : ''}>${t('statusActive')}</option>
             <option value="false" ${emp.active === false ? 'selected' : ''}>${t('statusHidden')}</option>
           </select>
           <div><span class="status-pill ${emp.active !== false ? 'status-active' : 'status-hidden'}">${emp.active !== false ? t('statusActive') : t('statusHidden')}</span></div>
         </td>
         <td>
-          <input class="compact-select" style="max-width:90px;text-align:center" type="number" min="1" step="1" data-field="weeklyOrder" data-id="${escapeHtml(emp.id)}" value="${escapeHtml(normalizeScheduleOrder(emp.weeklyOrder))}" onchange="event.stopPropagation(); window.updateEmployeeField(this.dataset.id, this.dataset.field, this.value).catch(window.handleEmployeeActionError)" />
+          <input class="compact-select" style="max-width:90px;text-align:center" type="number" min="1" step="1" data-field="weeklyOrder" data-id="${escapeHtml(emp.id)}" data-row-index="${rowIndex}" value="${escapeHtml(normalizeScheduleOrder(emp.weeklyOrder))}" />
           <div class="muted">1 = أعلى</div>
         </td>
         <td><span class="source-pill ${source === 'manual' ? 'source-manual' : source === 'excel' ? 'source-excel' : 'source-sync'}">${sourceLabel({...emp, source})}</span></td>
         <td>
           <div class="row-actions">
-            <button class="btn" type="button" data-action="edit" data-id="${escapeHtml(emp.id)}" onclick="event.stopPropagation(); window.editEmployee(this.dataset.id)">${t('actionEdit')}</button>
-            <button class="danger-btn ${deniedClassForAction(EMPLOYEE_ACTIONS.delete)}" type="button" data-action="delete" data-id="${escapeHtml(emp.id)}" onclick="event.stopPropagation(); window.deleteEmployee(this.dataset.id).catch(window.handleEmployeeActionError)">${t('actionDelete')}</button>
+            <button class="btn" type="button" data-action="edit" data-id="${escapeHtml(emp.id)}" data-row-index="${rowIndex}">${t('actionEdit')}</button>
+            <button class="danger-btn ${deniedClassForAction(EMPLOYEE_ACTIONS.delete)}" type="button" data-action="delete" data-id="${escapeHtml(emp.id)}" data-row-index="${rowIndex}">${t('actionDelete')}</button>
           </div>
         </td>
       </tr>
     `;
   }).join('');
+  bindRenderedEmployeeControls();
+}
+
+function bindRenderedEmployeeControls() {
+  $('empTableBody').querySelectorAll('[data-field]').forEach(control => {
+    control.disabled = false;
+    control.addEventListener('change', () => {
+      window.updateEmployeeField(control.dataset.id, control.dataset.field, control.value)
+        .catch(window.handleEmployeeActionError);
+    });
+  });
+
+  $('empTableBody').querySelectorAll('[data-action="edit"]').forEach(button => {
+    button.addEventListener('click', () => {
+      const employee = renderedEmployeeRows[Number(button.dataset.rowIndex)];
+      if (!employee) {
+        window.handleEmployeeActionError(new Error('employee-row-not-found'));
+        return;
+      }
+      fillForm(employee);
+      $('formTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  $('empTableBody').querySelectorAll('[data-action="delete"]').forEach(button => {
+    button.addEventListener('click', () => {
+      window.deleteEmployee(button.dataset.id).catch(window.handleEmployeeActionError);
+    });
+  });
 }
 
 function getExternalEmployees() {
