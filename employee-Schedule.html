@@ -89,7 +89,7 @@
     <div class="brand">
       <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
       <div>
-        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.6.2</span></h2>
+        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.6.3</span></h2>
         <p class="subtitle" id="pageSubtitle">إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات</p>
       </div>
     </div>
@@ -242,6 +242,7 @@ const EMPLOYEE_EDIT_ACTIONS = [
   EMPLOYEE_ACTIONS.editShift,
   EMPLOYEE_ACTIONS.editRotation,
   EMPLOYEE_ACTIONS.editStatus,
+  EMPLOYEE_ACTIONS.delete,
   EMPLOYEE_ACTIONS.importExcel,
   EMPLOYEE_ACTIONS.exportExcel
 ];
@@ -255,7 +256,7 @@ const JOB_TITLE_LABELS = {
 };
 const I18N = {
   ar: {
-    documentTitle: 'إدارة الموظفين v1.6.2 - مزامنة تلقائية',
+    documentTitle: 'إدارة الموظفين v1.6.3 - مزامنة تلقائية',
     pageTitle: 'إدارة سجل الموظفين (مزامنة تلقائية)',
     pageSubtitle: 'إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات',
     reload: 'تحديث',
@@ -325,11 +326,11 @@ const I18N = {
     alertActionDenied: 'ليس لديك صلاحية تنفيذ هذا الإجراء.',
     alertSaveFailed: error => `تعذر حفظ التعديل: ${error}`,
     noAddPermission: 'لا توجد لديك صلاحية إضافة موظف جديد. يمكنك مراجعة مسؤول النظام لتفعيلها من Employee Actions.',
-    confirmDeleteSynced: 'هذا الموظف متزامن من سجل employees. سيتم تحويل حالته إلى غير نشط بدلاً من حذف بياناته نهائياً. هل تريد المتابعة؟',
+    confirmDeleteSynced: 'سيتم حذف هذا الموظف نهائياً من سجل employees ومن جدول الموظفين. هل تريد المتابعة؟',
     confirmDelete: 'هل تريد حذف هذا الموظف؟'
   },
   en: {
-    documentTitle: 'Employee Management v1.6.2 - Auto Sync',
+    documentTitle: 'Employee Management v1.6.3 - Auto Sync',
     pageTitle: 'Employee Management (Auto Sync)',
     pageSubtitle: 'Add and update employees linked to the schedule and vacation plan',
     reload: 'Refresh',
@@ -399,7 +400,7 @@ const I18N = {
     alertActionDenied: 'You do not have permission to perform this action.',
     alertSaveFailed: error => `Could not save the change: ${error}`,
     noAddPermission: 'You do not have permission to add a new employee. Ask an administrator to enable it from Employee Actions.',
-    confirmDeleteSynced: 'This employee is synced from employees. It will be marked inactive instead of being permanently deleted. Continue?',
+    confirmDeleteSynced: 'This employee will be permanently deleted from employees and the schedule. Continue?',
     confirmDelete: 'Delete this employee?'
   }
 };
@@ -1511,13 +1512,36 @@ window.deleteEmployee = async id => {
     ? t('confirmDeleteSynced')
     : t('confirmDelete');
   if (!confirm(message)) return;
+
+  const previousEmployees = emps;
+  const previousEmployeeRecords = employeeRecords;
+  const deletedKeys = new Set(employeeIdentityKeys(emp));
+  const remaining = dedupeEmployees(emps.filter(item => String(item.id) !== String(id)));
+
+  emps = remaining;
   if (isSynced) {
-    const inactive = { ...normalizeEmployee(emp), active: false, status: 'inactive', updatedAt: new Date().toISOString() };
-    await saveEmployeeRecord(inactive, { inactive: true });
-    await saveEmployees(emps.map(item => String(item.id) === String(id) ? inactive : item));
-    return;
+    employeeRecords = employeeRecords.filter(record =>
+      !employeeIdentityKeys(record).some(key => deletedKeys.has(key))
+    );
   }
-  await saveEmployees(emps.filter(item => String(item.id) !== String(id)));
+  render();
+
+  try {
+    await waitForSignedInUser();
+    if (isSynced) {
+      const batch = writeBatch(db);
+      batch.delete(doc(db, 'employees', safeEmployeeDocId(emp)));
+      batch.set(scheduleDocRef, { data: { emps: remaining } }, { merge: true });
+      await batch.commit();
+    } else {
+      await setDoc(scheduleDocRef, { data: { emps: remaining } }, { merge: true });
+    }
+  } catch (error) {
+    emps = previousEmployees;
+    employeeRecords = previousEmployeeRecords;
+    render();
+    throw error;
+  }
 };
 
 window.updateEmployeeField = async (id, field, value) => {
