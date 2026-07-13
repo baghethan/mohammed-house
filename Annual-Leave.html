@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Annual Leave Management v1.0.3 - Almajdouie Motors</title>
+  <title>Annual Leave Management v1.0.4 - Almajdouie Motors</title>
   <style>
     :root{--primary:#0d2149;--primary2:#1b4fa3;--text:#1f2937;--muted:#64748b;--surface:rgba(255,255,255,.94);--surface2:#fff;--shadow:0 18px 50px rgba(13,33,73,.16);--danger:#d32f2f}
     *{box-sizing:border-box} 
@@ -42,7 +42,7 @@
         <div style="display:flex; align-items:center; gap:15px">
             <img src="LOGO-almajdouie.png" style="height:55px" />
             <div>
-                <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:22px"><span id="title">إدارة الإجازات السنوية</span><span class="version-badge">v1.0.3</span></h2>
+                <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:22px"><span id="title">إدارة الإجازات السنوية</span><span class="version-badge">v1.0.4</span></h2>
                 <p id="subtitle" style="margin:0; color:var(--muted); font-size:12px; font-weight:700">تخطيط وتوثيق الإجازات - المجدوعي للسيارات</p>
             </div>
         </div>
@@ -415,7 +415,10 @@ async function bindSnapshots(){
         logFirebaseError('Annual leave employees listener failed', e);
         setSaveStatus(`${tr().noEmployees}: ${e?.code || e?.message || e}`, 'error');
     });
-    onSnapshot(doc(db, 'schedule', 'jadwal_annual_leave'), s => {
+    onSnapshot(doc(db, 'schedule', 'jadwal_annual_leave'), { includeMetadataChanges: true }, s => {
+        // Firestore emits local pending writes before the server approves them.
+        // Do not show a leave record until the server confirms the write.
+        if (s.metadata.hasPendingWrites) return;
         vacationsList = (s.exists() ? s.data().vacations || [] : []).map((item, index) =>
             normalizeVacation({ ...item, id: item.id || `legacy_leave_${index}_${item.empId || 'employee'}_${item.start || item.from || ''}` })
         );
