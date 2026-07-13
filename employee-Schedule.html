@@ -89,7 +89,7 @@
     <div class="brand">
       <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
       <div>
-        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.6.3</span></h2>
+        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.6.4</span></h2>
         <p class="subtitle" id="pageSubtitle">إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات</p>
       </div>
     </div>
@@ -220,6 +220,7 @@ import {
 
 let emps = [];
 let employeeRecords = [];
+let excelImportInProgress = false;
 let renderedEmployeeRows = [];
 let scheduleLoaded = false;
 let currentAuthUser = null;
@@ -256,7 +257,7 @@ const JOB_TITLE_LABELS = {
 };
 const I18N = {
   ar: {
-    documentTitle: 'إدارة الموظفين v1.6.3 - مزامنة تلقائية',
+    documentTitle: 'إدارة الموظفين v1.6.4 - مزامنة تلقائية',
     pageTitle: 'إدارة سجل الموظفين (مزامنة تلقائية)',
     pageSubtitle: 'إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات',
     reload: 'تحديث',
@@ -330,7 +331,7 @@ const I18N = {
     confirmDelete: 'هل تريد حذف هذا الموظف؟'
   },
   en: {
-    documentTitle: 'Employee Management v1.6.3 - Auto Sync',
+    documentTitle: 'Employee Management v1.6.4 - Auto Sync',
     pageTitle: 'Employee Management (Auto Sync)',
     pageSubtitle: 'Add and update employees linked to the schedule and vacation plan',
     reload: 'Refresh',
@@ -922,9 +923,17 @@ function mergeEmployeeRows(existingRow, incomingRow) {
   const preferIncomingMaster = sourceRank(incoming.source) >= sourceRank(existing.source);
   const master = preferIncomingMaster ? incoming : existing;
   const schedule = existing;
-  const rot = normalizeRotation(schedule.rotType || schedule.rotation || incoming.rotType || incoming.rotation);
   const incomingHasExplicitStatus = typeof incomingRow?.active === 'boolean' || Boolean(cleanIdentityValue(incomingRow?.status));
   const incomingIsNewer = Boolean(incoming.updatedAt) && (!schedule.updatedAt || String(incoming.updatedAt) >= String(schedule.updatedAt));
+  const scheduleHasExplicitRotation = ['rotType', 'rotation'].some(field =>
+    Object.prototype.hasOwnProperty.call(existingRow || {}, field) && String(existingRow[field] ?? '').trim() !== ''
+  );
+  const incomingHasExplicitRotation = ['rotType', 'rotation'].some(field =>
+    Object.prototype.hasOwnProperty.call(incomingRow || {}, field) && String(incomingRow[field] ?? '').trim() !== ''
+  );
+  const rot = incomingHasExplicitRotation && (!scheduleHasExplicitRotation || incomingIsNewer)
+    ? normalizeRotation(incomingRow.rotType ?? incomingRow.rotation)
+    : normalizeRotation(existingRow.rotType ?? existingRow.rotation ?? incoming.rotType ?? incoming.rotation);
   const active = preferIncomingMaster && incomingHasExplicitStatus && incomingIsNewer
     ? incoming.active !== false
     : schedule.active !== false;
@@ -1226,6 +1235,7 @@ async function handleExcelImport(event) {
 
   const importButton = $('importExcelBtn');
   const previousEmployees = emps;
+  excelImportInProgress = true;
   importButton.disabled = true;
   setImportStatus(isArabic() ? 'جاري قراءة ملف Excel...' : 'Reading Excel file...', 'working');
 
@@ -1292,6 +1302,10 @@ async function handleExcelImport(event) {
     );
     alert(t('alertImportFailed', error.message || error));
   } finally {
+    excelImportInProgress = false;
+    if (scheduleLoaded && employeeRecords.length) {
+      syncEmployees().catch(error => logFirebaseError('Post-import employee sync failed', error));
+    }
     importButton.disabled = false;
     event.target.value = '';
   }
@@ -1448,14 +1462,14 @@ async function bindSnapshots() {
 
   onSnapshot(collection(db, 'employees'), snap => {
     employeeRecords = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-    if (scheduleLoaded) syncEmployees().catch(error => logFirebaseError('Employees collection sync failed', error));
+    if (scheduleLoaded && !excelImportInProgress) syncEmployees().catch(error => logFirebaseError('Employees collection sync failed', error));
     render();
   }, error => logFirebaseError('Employees collection listener failed', error));
 
   onSnapshot(scheduleDocRef, snap => {
     emps = snap.exists() ? dedupeEmployees(snap.data().data?.emps || []) : [];
     scheduleLoaded = true;
-    if (employeeRecords.length) syncEmployees().catch(error => logFirebaseError('Employee sync failed', error));
+    if (employeeRecords.length && !excelImportInProgress) syncEmployees().catch(error => logFirebaseError('Employee sync failed', error));
     render();
   }, error => logFirebaseError('Employee schedule listener failed', error));
 }
@@ -1574,7 +1588,7 @@ window.updateEmployeeField = async (id, field, value) => {
   emps = dedupeEmployees(updated);
   render();
 
-  if (changed && (field === 'jobTitle' || field === 'active' || field === 'weeklyOrder' || field === 'fixed')) {
+  if (changed && (field === 'jobTitle' || field === 'active' || field === 'weeklyOrder' || field === 'fixed' || field === 'rotation')) {
     try {
       await saveEmployeeAndSchedule(changed, updated, { inactive: field === 'active' && value !== 'true' });
       return;
