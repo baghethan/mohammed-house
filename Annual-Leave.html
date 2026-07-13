@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Annual Leave Management v1.0.5 - Almajdouie Motors</title>
+  <title>Annual Leave Management v1.0.6 - Almajdouie Motors</title>
   <style>
     :root{--primary:#0d2149;--primary2:#1b4fa3;--text:#1f2937;--muted:#64748b;--surface:rgba(255,255,255,.94);--surface2:#fff;--shadow:0 18px 50px rgba(13,33,73,.16);--danger:#d32f2f}
     *{box-sizing:border-box} 
@@ -42,7 +42,7 @@
         <div style="display:flex; align-items:center; gap:15px">
             <img src="LOGO-almajdouie.png" style="height:55px" />
             <div>
-                <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:22px"><span id="title">إدارة الإجازات السنوية</span><span class="version-badge">v1.0.5</span></h2>
+                <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:22px"><span id="title">إدارة الإجازات السنوية</span><span class="version-badge">v1.0.6</span></h2>
                 <p id="subtitle" style="margin:0; color:var(--muted); font-size:12px; font-weight:700">تخطيط وتوثيق الإجازات - المجدوعي للسيارات</p>
             </div>
         </div>
@@ -100,7 +100,7 @@
 
 <script type="module">
 import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
-import { collection, doc, onSnapshot, setDoc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
     ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', type:'نوع الإجازة', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', selectType:'نوع الإجازة...', assign:'تعيين إجازة', saveEdit:'حفظ التعديل', cancel:'إلغاء', edit:'تعديل', del:'حذف', searchEmp:'ابحث باسم أو رقم الموظف...', requestCount:'عدد الطلبات', allRequests:'كل الطلبات', noRecords:'لا توجد طلبات مطابقة', dateError:'تاريخ البداية لا يمكن أن يكون بعد تاريخ النهاية', recordMissing:'لم يتم العثور على الطلب', filterFrom:'من', filterTo:'إلى', saving:'جاري حفظ الإجازة...', saveSuccess:'تم حفظ الإجازة وظهرت في الجدول.', saveFailed:'تعذر حفظ الإجازة', noEmployees:'لا يمكن تحميل الموظفين. تأكد من صلاحية Annual Leave.' },
@@ -184,7 +184,9 @@ window.addAnnualLeave = async () => {
                 await saveAnnualLeaves(updatedVacations);
             }
         } else {
-            await saveAnnualLeaves([...scheduleLeaves, vacationPayload]);
+            // New records use the proven per-document vacations source.
+            // Weekly Schedule already listens to this collection and avoids whole-array overwrite races.
+            await addDoc(collection(db, 'vacations'), vacationPayload);
         }
         resetLeaveForm();
         setSaveStatus(tr().saveSuccess, 'success');
