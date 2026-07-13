@@ -230,6 +230,12 @@ const EMPLOYEE_ACTIONS = {
   exportExcel: 'export_employees_excel',
   importExcel: 'import_employees_excel'
 };
+const EMPLOYEE_EDIT_ACTIONS = [
+  EMPLOYEE_ACTIONS.edit,
+  EMPLOYEE_ACTIONS.editShift,
+  EMPLOYEE_ACTIONS.editRotation,
+  EMPLOYEE_ACTIONS.editStatus
+];
 const OWNER_EMAILS = ['baghethanmh@almajdouie.com'];
 const JOB_TITLE_LABELS = {
   'المدير': { ar: 'المدير', en: 'Manager' },
@@ -549,15 +555,9 @@ function hasFullEmployeeActionAccess() {
 }
 
 function hasEmployeeAction(action) {
+  if (EMPLOYEE_EDIT_ACTIONS.includes(action)) return true;
   if (hasFullEmployeeActionAccess()) return true;
   const profile = getEffectiveUserProfile();
-  const pageEditActions = [
-    EMPLOYEE_ACTIONS.edit,
-    EMPLOYEE_ACTIONS.editShift,
-    EMPLOYEE_ACTIONS.editRotation,
-    EMPLOYEE_ACTIONS.editStatus
-  ];
-  if (hasLegacyEmployeePageAccess(profile) && pageEditActions.includes(action)) return true;
   if (!Array.isArray(profile?.permissions_employee_actions)) {
     return hasLegacyEmployeePageAccess(profile);
   }
@@ -566,12 +566,7 @@ function hasEmployeeAction(action) {
     .filter(Boolean);
   if (actions.includes(action)) return true;
 
-  const inlineEditActions = [
-    EMPLOYEE_ACTIONS.editShift,
-    EMPLOYEE_ACTIONS.editRotation,
-    EMPLOYEE_ACTIONS.editStatus
-  ];
-  return actions.includes(EMPLOYEE_ACTIONS.edit) && inlineEditActions.includes(action);
+  return false;
 }
 
 function requireEmployeeAction(action) {
@@ -1278,39 +1273,39 @@ function render() {
         <td>${escapeHtml(emp.empNum || '-')}</td>
         <td>${escapeHtml(emp.dept || '-')}</td>
         <td>
-          <select class="compact-select" data-field="jobTitle" data-id="${escapeHtml(emp.id)}" ${disabledAttrForAction(EMPLOYEE_ACTIONS.edit)}>
+          <select class="compact-select" data-field="jobTitle" data-id="${escapeHtml(emp.id)}" onchange="event.stopPropagation(); window.updateEmployeeField(this.dataset.id, this.dataset.field, this.value).catch(window.handleEmployeeActionError)">
             ${jobTitleOptions(emp.jobTitle)}
           </select>
         </td>
         <td>${escapeHtml(emp.email || '-')}</td>
         <td>${escapeHtml(emp.phone || '-')}</td>
         <td>
-          <select class="compact-select" data-field="fixed" data-id="${escapeHtml(emp.id)}" ${disabledAttrForAction(EMPLOYEE_ACTIONS.editShift)}>
+          <select class="compact-select" data-field="fixed" data-id="${escapeHtml(emp.id)}" onchange="event.stopPropagation(); window.updateEmployeeField(this.dataset.id, this.dataset.field, this.value).catch(window.handleEmployeeActionError)">
             ${shiftOptions(shiftValue(emp))}
           </select>
         </td>
         <td>
-          <select class="compact-select" data-field="rotation" data-id="${escapeHtml(emp.id)}" ${disabledAttrForAction(EMPLOYEE_ACTIONS.editRotation)}>
+          <select class="compact-select" data-field="rotation" data-id="${escapeHtml(emp.id)}" onchange="event.stopPropagation(); window.updateEmployeeField(this.dataset.id, this.dataset.field, this.value).catch(window.handleEmployeeActionError)">
             ${rotationOptions(emp.rotType || emp.rotation)}
           </select>
           <div class="muted">${rotationLabel(emp.rotType || emp.rotation)}</div>
         </td>
         <td>
-          <select class="compact-select" data-field="active" data-id="${escapeHtml(emp.id)}" ${disabledAttrForAction(EMPLOYEE_ACTIONS.editStatus)}>
+          <select class="compact-select" data-field="active" data-id="${escapeHtml(emp.id)}" onchange="event.stopPropagation(); window.updateEmployeeField(this.dataset.id, this.dataset.field, this.value).catch(window.handleEmployeeActionError)">
             <option value="true" ${emp.active !== false ? 'selected' : ''}>${t('statusActive')}</option>
             <option value="false" ${emp.active === false ? 'selected' : ''}>${t('statusHidden')}</option>
           </select>
           <div><span class="status-pill ${emp.active !== false ? 'status-active' : 'status-hidden'}">${emp.active !== false ? t('statusActive') : t('statusHidden')}</span></div>
         </td>
         <td>
-          <input class="compact-select" style="max-width:90px;text-align:center" type="number" min="1" step="1" data-field="weeklyOrder" data-id="${escapeHtml(emp.id)}" value="${escapeHtml(normalizeScheduleOrder(emp.weeklyOrder))}" ${disabledAttrForAction(EMPLOYEE_ACTIONS.edit)} />
+          <input class="compact-select" style="max-width:90px;text-align:center" type="number" min="1" step="1" data-field="weeklyOrder" data-id="${escapeHtml(emp.id)}" value="${escapeHtml(normalizeScheduleOrder(emp.weeklyOrder))}" onchange="event.stopPropagation(); window.updateEmployeeField(this.dataset.id, this.dataset.field, this.value).catch(window.handleEmployeeActionError)" />
           <div class="muted">1 = أعلى</div>
         </td>
         <td><span class="source-pill ${source === 'manual' ? 'source-manual' : source === 'excel' ? 'source-excel' : 'source-sync'}">${sourceLabel({...emp, source})}</span></td>
         <td>
           <div class="row-actions">
-            <button class="btn ${deniedClassForAction(EMPLOYEE_ACTIONS.edit)}" type="button" data-action="edit" data-id="${escapeHtml(emp.id)}">${t('actionEdit')}</button>
-            <button class="danger-btn ${deniedClassForAction(EMPLOYEE_ACTIONS.delete)}" type="button" data-action="delete" data-id="${escapeHtml(emp.id)}">${t('actionDelete')}</button>
+            <button class="btn" type="button" data-action="edit" data-id="${escapeHtml(emp.id)}" onclick="event.stopPropagation(); window.editEmployee(this.dataset.id)">${t('actionEdit')}</button>
+            <button class="danger-btn ${deniedClassForAction(EMPLOYEE_ACTIONS.delete)}" type="button" data-action="delete" data-id="${escapeHtml(emp.id)}" onclick="event.stopPropagation(); window.deleteEmployee(this.dataset.id).catch(window.handleEmployeeActionError)">${t('actionDelete')}</button>
           </div>
         </td>
       </tr>
@@ -1501,6 +1496,12 @@ window.updateEmployeeField = async (id, field, value) => {
   }
 };
 
+window.handleEmployeeActionError = error => {
+  logFirebaseError('Employee action failed', error);
+  alert(t('alertSaveFailed', formatError(error)));
+  render();
+};
+
 $('saveEmployeeBtn').addEventListener('click', () => window.saveEmployee().catch(error => {
   logFirebaseError('Save employee failed', error);
   alert(t('alertSaveFailed', formatError(error)));
@@ -1514,28 +1515,6 @@ $('importExcelBtn').addEventListener('click', () => {
 });
 $('importExcelInput').addEventListener('change', event => {
   handleExcelImport(event).catch(error => logFirebaseError('Handle employee Excel import failed', error));
-});
-
-$('empTableBody').addEventListener('click', event => {
-  const button = event.target.closest('[data-action]');
-  if (!button) return;
-  const id = button.dataset.id;
-  if (button.dataset.action === 'edit') window.editEmployee(id);
-  if (button.dataset.action === 'delete') window.deleteEmployee(id).catch(error => {
-    logFirebaseError('Delete employee failed', error);
-    alert(t('alertSaveFailed', formatError(error)));
-  });
-});
-
-$('empTableBody').addEventListener('change', event => {
-  const field = event.target.dataset.field;
-  const id = event.target.dataset.id;
-  if (!field || !id) return;
-  window.updateEmployeeField(id, field, event.target.value).catch(error => {
-    logFirebaseError('Update employee field failed', error);
-    alert(t('alertSaveFailed', formatError(error)));
-    render();
-  });
 });
 
 window.addEventListener('storage', event => {
