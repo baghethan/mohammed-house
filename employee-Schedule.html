@@ -877,7 +877,8 @@ function normalizeExternalEmployee(record, source) {
     source,
     weeklyOrder: normalizeScheduleOrder(record.weeklyOrder ?? record.scheduleOrder ?? record.sortOrder),
     employeeDocId: source === 'employees' ? id : '',
-    createdAt: record.createdAt || new Date().toISOString()
+    createdAt: record.createdAt || new Date().toISOString(),
+    updatedAt: record.updatedAt || ''
   };
 }
 
@@ -894,6 +895,11 @@ function mergeEmployeeRows(existingRow, incomingRow) {
   const master = preferIncomingMaster ? incoming : existing;
   const schedule = existing;
   const rot = normalizeRotation(schedule.rotType || schedule.rotation || incoming.rotType || incoming.rotation);
+  const incomingHasExplicitStatus = typeof incomingRow?.active === 'boolean' || Boolean(cleanIdentityValue(incomingRow?.status));
+  const incomingIsNewer = Boolean(incoming.updatedAt) && (!schedule.updatedAt || String(incoming.updatedAt) >= String(schedule.updatedAt));
+  const active = preferIncomingMaster && incomingHasExplicitStatus && incomingIsNewer
+    ? incoming.active !== false
+    : schedule.active !== false;
 
   return normalizeEmployee({
     ...master,
@@ -908,7 +914,8 @@ function mergeEmployeeRows(existingRow, incomingRow) {
     fixed: schedule.fixed === true,
     rotation: rot,
     rotType: rot,
-    active: schedule.active !== false,
+    active,
+    status: active ? 'active' : 'inactive',
     weeklyOrder: normalizeScheduleOrder(schedule.weeklyOrder ?? master.weeklyOrder),
     source: preferIncomingMaster ? master.source : schedule.source,
     createdAt: schedule.createdAt || master.createdAt,
@@ -987,6 +994,20 @@ async function saveEmployees(updated = emps) {
   emps = normalized;
 }
 
+async function saveEmployeeAndSchedule(emp, updatedEmployees, options = {}) {
+  const normalizedEmployees = dedupeEmployees(updatedEmployees);
+  const employeeId = safeEmployeeDocId(emp);
+  const batch = writeBatch(db);
+  batch.set(
+    doc(db, 'employees', employeeId),
+    employeeRecordPayload({ ...emp, id: employeeId, source: 'employees' }, options),
+    { merge: true }
+  );
+  batch.set(scheduleDocRef, { data: { emps: normalizedEmployees } }, { merge: true });
+  await batch.commit();
+  emps = normalizedEmployees;
+}
+
 function fillForm(emp) {
   $('editingId').value = emp?.id || '';
   $('empNum').value = emp?.empNum || '';
@@ -1021,6 +1042,7 @@ function buildEmployeePayload(existing) {
   }
 
   const rot = normalizeRotation($('empRotation').value);
+  const active = $('empStatus').value === 'true';
   return {
     ...(existing || {}),
     id: existing?.id || `emp_${Date.now()}`,
@@ -1033,7 +1055,8 @@ function buildEmployeePayload(existing) {
     fixed: $('empShift').value === 'night',
     rotation: rot,
     rotType: rot,
-    active: $('empStatus').value === 'true',
+    active,
+    status: active ? 'active' : 'inactive',
     weeklyOrder: normalizeScheduleOrder($('empWeeklyOrder').value),
     scheduleOrder: normalizeScheduleOrder($('empWeeklyOrder').value),
     source: 'employees',
@@ -1416,10 +1439,14 @@ window.updateEmployeeField = async (id, field, value) => {
     render();
     return;
   }
+  const previousEmployees = emps;
   const updated = emps.map(emp => {
     if (String(emp.id) !== String(id)) return emp;
     if (field === 'fixed') return { ...emp, fixed: value === 'night', updatedAt: new Date().toISOString() };
-    if (field === 'active') return { ...emp, active: value === 'true', updatedAt: new Date().toISOString() };
+    if (field === 'active') {
+      const active = value === 'true';
+      return { ...emp, active, status: active ? 'active' : 'inactive', updatedAt: new Date().toISOString() };
+    }
     if (field === 'jobTitle') return { ...emp, jobTitle: normalizeJobTitle(value, 'الفني'), updatedAt: new Date().toISOString() };
     if (field === 'weeklyOrder') return { ...emp, weeklyOrder: normalizeScheduleOrder(value), scheduleOrder: normalizeScheduleOrder(value), updatedAt: new Date().toISOString() };
     if (field === 'rotation') {
@@ -1429,10 +1456,32 @@ window.updateEmployeeField = async (id, field, value) => {
     return emp;
   });
   const changed = updated.find(emp => String(emp.id) === String(id));
-  if (changed && (field === 'jobTitle' || field === 'active' || field === 'weeklyOrder' || field === 'fixed')) {
-    await saveEmployeeRecord(changed, { inactive: field === 'active' && value !== 'true' });
+  if (!changed) {
+    render();
+    return;
   }
-  await saveEmployees(updated);
+
+  emps = dedupeEmployees(updated);
+  render();
+
+  if (changed && (field === 'jobTitle' || field === 'active' || field === 'weeklyOrder' || field === 'fixed')) {
+    try {
+      await saveEmployeeAndSchedule(changed, updated, { inactive: field === 'active' && value !== 'true' });
+      return;
+    } catch (error) {
+      emps = previousEmployees;
+      render();
+      throw error;
+    }
+  }
+
+  try {
+    await saveEmployees(updated);
+  } catch (error) {
+    emps = previousEmployees;
+    render();
+    throw error;
+  }
 };
 
 $('saveEmployeeBtn').addEventListener('click', () => window.saveEmployee().catch(error => {
