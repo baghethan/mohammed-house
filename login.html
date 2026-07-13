@@ -47,10 +47,10 @@
     <input type="email" id="email" placeholder="البريد الإلكتروني">
     <input type="password" id="password" placeholder="كلمة المرور">
 
-    <button onclick="login()">دخول آمن</button>
+    <button id="loginBtn" onclick="login()">دخول آمن</button>
 
     <div class="version">
-      <div>Version: <strong>v1.2.1</strong></div>
+      <div>System: <strong>v2.0.18</strong> | Login: <strong>v1.2.2</strong></div>
       <div id="buildTime"></div>
     </div>
   </div>
@@ -79,8 +79,17 @@
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
       const errorMsg = document.getElementById("errorMsg");
+      const loginBtn = document.getElementById("loginBtn");
 
       errorMsg.style.display = "none";
+      if (!email || !password) {
+        errorMsg.innerText = "أدخل البريد الإلكتروني وكلمة المرور أولاً.";
+        errorMsg.style.display = "block";
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.innerText = "جاري الدخول...";
 
       auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
         .then(() => auth.signInWithEmailAndPassword(email, password))
@@ -98,10 +107,25 @@
         })
         .catch((err) => {
           console.error(err);
-          errorMsg.innerText = err.message;
+          const messages = {
+            'auth/invalid-email': 'صيغة البريد الإلكتروني غير صحيحة.',
+            'auth/invalid-login-credentials': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+            'auth/user-not-found': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+            'auth/wrong-password': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+            'auth/too-many-requests': 'تم إيقاف المحاولات مؤقتاً. حاول لاحقاً.'
+          };
+          errorMsg.innerText = messages[err.code] || err.message || 'تعذر تسجيل الدخول.';
           errorMsg.style.display = "block";
+        })
+        .finally(() => {
+          loginBtn.disabled = false;
+          loginBtn.innerText = "دخول آمن";
         });
     }
+
+    document.getElementById("password").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") login();
+    });
 
     const now = new Date();
     document.getElementById("buildTime").innerText = "Last Update: " + now.toLocaleDateString("ar-SA");
