@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weekly Schedule v1.1.7 - Compact Job Title Sort</title>
+  <title>Weekly Schedule v1.1.8 - Annual Leave Sync</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root {
@@ -82,7 +82,7 @@
     <div class="controls">
         <div style="display:flex; align-items:center; gap:12px">
             <img src="LOGO-almajdouie.png" style="height:40px" />
-            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.1.7</div>
+            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.1.8</div>
         </div>
         <div class="nav-group">
             <button class="btn-nav" id="btnPrev">السابق</button>
@@ -212,7 +212,9 @@ function getEmployeeKeys(emp) {
 
 function matchesEmployee(record, emp) {
     const keys = new Set(getEmployeeKeys(emp));
-    return [record.empId, record.fireId, record.employeeId, record.technicianId, record.email, record.name].filter(Boolean).some(v => keys.has(String(v).trim().toLowerCase()));
+    return [record.empId, record.empNum, record.fireId, record.employeeId, record.employeeDocId, record.technicianId, record.email, record.name, record.employeeName]
+        .filter(Boolean)
+        .some(v => keys.has(String(v).trim().toLowerCase()));
 }
 
 function normalizeIdentityValue(value) {
@@ -341,7 +343,7 @@ function shiftForLeaveRecord(record) {
 }
 
 function leaveShiftForEmployee(emp, date) {
-    const annual = annualLeaves.find(v => matchesEmployee(v, emp) && isDateInRange(date, v.start, v.end));
+    const annual = annualLeaves.find(v => matchesEmployee(v, emp) && isDateInRange(date, v.start || v.from, v.end || v.to));
     if (annual) return shiftForLeaveRecord(annual);
 
     const approvedPlan = vacationPlans.find(p => String(p.status || 'pending') === 'approved' && matchesEmployee(p, emp) && isDateInRange(date, p.from, p.to));
@@ -605,7 +607,7 @@ async function renderTable() {
             const publicHoliday = publicHolidayForDate(d);
             const holidayShift = publicHoliday ? holidayShiftForEmployee(emp, d) : '';
             const leaveShift = leaveShiftForEmployee(emp, d);
-            let shift = manualShift || (leaveShift || (publicHoliday ? (holidayShift || 'Holiday') : baseShift(emp, d, rotations)));
+            let shift = leaveShift || (manualShift || (publicHoliday ? (holidayShift || 'Holiday') : baseShift(emp, d, rotations)));
             const icons = { Morning:'☀️', Night:'🌙', Vacation:'', Sick:'🏥', Holiday:'🎊', Absent:'🚫', OnCall:'📞', Work:'🏢', Off:'⌛' };
             const icon = icons[shift] || '';
             const label = t[shift.toLowerCase()] || shift;
