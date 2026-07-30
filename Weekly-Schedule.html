@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weekly Schedule v1.1.8 - Annual Leave Sync</title>
+  <title>Weekly Schedule v1.2.0 - Employees Single Source</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root {
@@ -82,7 +82,7 @@
     <div class="controls">
         <div style="display:flex; align-items:center; gap:12px">
             <img src="LOGO-almajdouie.png" style="height:40px" />
-            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.1.8</div>
+            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.2.0</div>
         </div>
         <div class="nav-group">
             <button class="btn-nav" id="btnPrev">السابق</button>
@@ -201,6 +201,43 @@ function normalizeRotation(emp) {
     if (raw === 'thu_fri') return 'thu';
     if (raw === 'fri_sat') return 'fri';
     return ['thu', 'fri', 'none'].includes(raw) ? raw : 'none';
+}
+
+function normalizeEmployeeRecord(record) {
+    const source = record || {};
+    const shiftText = String(source.shiftType || source.shift || source.workType || '').trim().toLowerCase();
+    const statusText = String(source.status || '').trim().toLowerCase();
+    const active = typeof source.active === 'boolean'
+        ? source.active
+        : !['inactive', 'hidden', 'false', '0', 'مخفي', 'غيرنشط', 'غير نشط'].includes(statusText);
+    const rotation = normalizeRotation(source);
+
+    return {
+        ...source,
+        id: String(source.id || source.uid || source.empId || source.empNum || source.employeeId || source.email || source.name || ''),
+        empNum: source.empNum || source.empId || source.employeeId || source.technicianId || '',
+        empId: source.empId || source.empNum || source.employeeId || source.technicianId || '',
+        name: source.name || source.fullName || source.employeeName || '',
+        dept: source.dept || source.department || '',
+        department: source.department || source.dept || '',
+        jobTitle: source.jobTitle || source.jobTitleAr || source.jobTitleEn || source.position || source.title || '',
+        email: source.email || '',
+        phone: source.phone || source.mobile || '',
+        mobile: source.mobile || source.phone || '',
+        fixed: source.fixed === true || ['night', 'fixed', 'ليلي', 'ثابت'].includes(shiftText),
+        shiftType: source.fixed === true || ['night', 'fixed', 'ليلي', 'ثابت'].includes(shiftText) ? 'night' : 'morning',
+        rotation,
+        rotType: rotation,
+        weeklyOrder: source.weeklyOrder ?? source.scheduleOrder ?? source.sortOrder ?? '',
+        scheduleOrder: source.scheduleOrder ?? source.weeklyOrder ?? source.sortOrder ?? '',
+        active,
+        status: active ? 'active' : 'inactive',
+        source: 'employees'
+    };
+}
+
+function employeePrimaryKey(emp) {
+    return String(emp?.empNum || emp?.empId || emp?.employeeId || emp?.technicianId || emp?.id || emp?.email || emp?.name || '').trim();
 }
 
 function getEmployeeKeys(emp) {
@@ -406,9 +443,19 @@ function isAssignedHolidayEmployee(emp, holiday) {
 }
 
 function employeeIdsForOverrides(emp) {
-    return [emp?.id, ...(Array.isArray(emp?.aliasIds) ? emp.aliasIds : [])]
+    return [
+        employeePrimaryKey(emp),
+        emp?.id,
+        emp?.empNum,
+        emp?.empId,
+        emp?.employeeId,
+        emp?.technicianId,
+        emp?.email,
+        ...(Array.isArray(emp?.aliasIds) ? emp.aliasIds : [])
+    ]
         .filter(Boolean)
-        .map(value => String(value));
+        .map(value => String(value).trim())
+        .filter((value, index, list) => list.indexOf(value) === index);
 }
 
 function manualShiftForEmployee(emp, dateString) {
@@ -611,7 +658,7 @@ async function renderTable() {
             const icons = { Morning:'☀️', Night:'🌙', Vacation:'', Sick:'🏥', Holiday:'🎊', Absent:'🚫', OnCall:'📞', Work:'🏢', Off:'⌛' };
             const icon = icons[shift] || '';
             const label = t[shift.toLowerCase()] || shift;
-            row += `<td><div class="schedule-badge ${shift}" onclick="window.openDialog('${safeJs(emp.id)}','${dStr}','${safeJs(emp.name)}','${shift}')">${icon ? `${icon} ` : ''}${label}</div></td>`;
+            row += `<td><div class="schedule-badge ${shift}" onclick="window.openDialog('${safeJs(employeePrimaryKey(emp))}','${dStr}','${safeJs(emp.name)}','${shift}')">${icon ? `${icon} ` : ''}${label}</div></td>`;
         });
         return `<tr>${row}</tr>`;
     }).join('');
@@ -692,8 +739,11 @@ $('datePicker').onchange = renderTable;
 
 async function bindSnapshots() {
     await waitForSignedInUser();
-    onSnapshot(doc(db, 'schedule', 'jadwal_v6'), s => { emps = s.data()?.data?.emps || []; renderTable(); }, e => logFirebaseError('Weekly schedule employees listener failed', e));
-    onSnapshot(collection(db, 'employees'), s => { employeeRecords = s.docs.map(item => ({ id: item.id, ...item.data() })); renderTable(); }, e => logFirebaseError('Weekly schedule employees collection listener failed', e));
+    onSnapshot(collection(db, 'employees'), s => {
+        employeeRecords = s.docs.map(item => normalizeEmployeeRecord({ id: item.id, ...item.data() }));
+        emps = dedupeWeeklyEmployees(employeeRecords);
+        renderTable();
+    }, e => logFirebaseError('Weekly schedule employees collection listener failed', e));
     onSnapshot(doc(db, 'schedule', 'jadwal_holidays'), s => { holidayDuties = s.exists() ? (s.data().duties || []) : []; renderTable(); }, e => logFirebaseError('Weekly schedule public holidays listener failed', e));
     onSnapshot(doc(db, 'schedule', 'manual_overrides'), s => { overrides = s.data() || {}; renderTable(); }, e => logFirebaseError('Weekly schedule overrides listener failed', e));
     onSnapshot(doc(db, 'schedule', 'jadwal_annual_leave'), s => { annualLeaves = s.exists() ? (s.data().vacations || []) : []; renderTable(); }, e => logFirebaseError('Weekly schedule annual leave listener failed', e));
