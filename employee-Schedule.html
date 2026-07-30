@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Employee Management v1.7.0 - Single Source</title>
+  <title>Employee Management v1.7.1 - Single Source</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root{
@@ -89,7 +89,7 @@
     <div class="brand">
       <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
       <div>
-        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.7.0</span></h2>
+        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.7.1</span></h2>
         <p class="subtitle" id="pageSubtitle">إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات</p>
       </div>
     </div>
@@ -259,7 +259,7 @@ const JOB_TITLE_LABELS = {
 };
 const I18N = {
   ar: {
-    documentTitle: 'إدارة الموظفين v1.7.0 - مصدر موحد',
+    documentTitle: 'إدارة الموظفين v1.7.1 - مصدر موحد',
     pageTitle: 'إدارة سجل الموظفين (مزامنة تلقائية)',
     pageSubtitle: 'إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات',
     reload: 'تحديث',
@@ -333,7 +333,7 @@ const I18N = {
     confirmDelete: 'هل تريد حذف هذا الموظف؟'
   },
   en: {
-    documentTitle: 'Employee Management v1.7.0 - Single Source',
+    documentTitle: 'Employee Management v1.7.1 - Single Source',
     pageTitle: 'Employee Management (Auto Sync)',
     pageSubtitle: 'Add and update employees linked to the schedule and vacation plan',
     reload: 'Refresh',
@@ -842,9 +842,50 @@ function activeFromRecord(record, fallback = true) {
 }
 
 function fixedFromRecord(record) {
-  if (record.fixed === true) return true;
-  const shiftValue = record.shiftType || record.shift || record.role || record.workType || '';
+  if (typeof record?.fixed === 'boolean') return record.fixed;
+  const shiftValue = record?.shiftType || record?.shift || record?.role || record?.workType || '';
   return excelFixedShift(shiftValue);
+}
+
+function employeeRecordTimestamp(record) {
+  const timestamp = Date.parse(record?.updatedAt || record?.createdAt || '');
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function hasExplicitEmployeeShift(record) {
+  if (typeof record?.fixed === 'boolean') return true;
+  return ['shiftType', 'shift', 'workType'].some(field =>
+    Object.prototype.hasOwnProperty.call(record || {}, field) && String(record[field] ?? '').trim() !== ''
+  );
+}
+
+function hasExplicitEmployeeStatus(record) {
+  return typeof record?.active === 'boolean' ||
+    (Object.prototype.hasOwnProperty.call(record || {}, 'status') && String(record?.status ?? '').trim() !== '');
+}
+
+function hasExplicitEmployeeRotation(record) {
+  return ['rotType', 'rotation'].some(field =>
+    Object.prototype.hasOwnProperty.call(record || {}, field) && String(record[field] ?? '').trim() !== ''
+  );
+}
+
+function isCanonicalEmployeeDocument(record) {
+  const id = cleanIdentityValue(record?.id || record?.employeeDocId);
+  const empNum = cleanIdentityValue(record?.empNum || record?.empId || record?.employeeId || record?.technicianId);
+  return Boolean(id && empNum && id === empNum);
+}
+
+function preferIncomingEmployeeRecord(existingRow, incomingRow) {
+  const existingTime = employeeRecordTimestamp(existingRow);
+  const incomingTime = employeeRecordTimestamp(incomingRow);
+  if (incomingTime !== existingTime) return incomingTime > existingTime;
+
+  const existingCanonical = isCanonicalEmployeeDocument(existingRow);
+  const incomingCanonical = isCanonicalEmployeeDocument(incomingRow);
+  if (incomingCanonical !== existingCanonical) return incomingCanonical;
+
+  return sourceRank(incomingRow?.source) >= sourceRank(existingRow?.source);
 }
 
 function safeEmployeeDocId(emp) {
@@ -922,43 +963,63 @@ function findEmployeeIndex(list, incoming) {
 function mergeEmployeeRows(existingRow, incomingRow) {
   const existing = normalizeEmployee(existingRow);
   const incoming = normalizeEmployee(incomingRow);
-  const preferIncomingMaster = sourceRank(incoming.source) >= sourceRank(existing.source);
-  const master = preferIncomingMaster ? incoming : existing;
-  const schedule = existing;
-  const incomingHasExplicitStatus = typeof incomingRow?.active === 'boolean' || Boolean(cleanIdentityValue(incomingRow?.status));
-  const incomingIsNewer = Boolean(incoming.updatedAt) && (!schedule.updatedAt || String(incoming.updatedAt) >= String(schedule.updatedAt));
-  const scheduleHasExplicitRotation = ['rotType', 'rotation'].some(field =>
-    Object.prototype.hasOwnProperty.call(existingRow || {}, field) && String(existingRow[field] ?? '').trim() !== ''
+  const preferIncoming = preferIncomingEmployeeRecord(existingRow, incomingRow);
+  const preferredRow = preferIncoming ? incomingRow : existingRow;
+  const fallbackRow = preferIncoming ? existingRow : incomingRow;
+  const preferred = preferIncoming ? incoming : existing;
+  const fallback = preferIncoming ? existing : incoming;
+
+  const preferredHasShift = hasExplicitEmployeeShift(preferredRow);
+  const fallbackHasShift = hasExplicitEmployeeShift(fallbackRow);
+  const fixed = preferredHasShift
+    ? fixedFromRecord(preferredRow)
+    : (fallbackHasShift ? fixedFromRecord(fallbackRow) : preferred.fixed === true);
+
+  const preferredHasStatus = hasExplicitEmployeeStatus(preferredRow);
+  const fallbackHasStatus = hasExplicitEmployeeStatus(fallbackRow);
+  const active = preferredHasStatus
+    ? activeFromRecord(preferredRow, true)
+    : (fallbackHasStatus ? activeFromRecord(fallbackRow, true) : preferred.active !== false);
+
+  const preferredHasRotation = hasExplicitEmployeeRotation(preferredRow);
+  const fallbackHasRotation = hasExplicitEmployeeRotation(fallbackRow);
+  const rot = preferredHasRotation
+    ? normalizeRotation(preferredRow.rotType ?? preferredRow.rotation)
+    : (fallbackHasRotation
+      ? normalizeRotation(fallbackRow.rotType ?? fallbackRow.rotation)
+      : normalizeRotation(preferred.rotType ?? preferred.rotation));
+
+  const preferredOrder = normalizeScheduleOrder(
+    preferredRow?.weeklyOrder ?? preferredRow?.scheduleOrder ?? preferredRow?.sortOrder
   );
-  const incomingHasExplicitRotation = ['rotType', 'rotation'].some(field =>
-    Object.prototype.hasOwnProperty.call(incomingRow || {}, field) && String(incomingRow[field] ?? '').trim() !== ''
+  const fallbackOrder = normalizeScheduleOrder(
+    fallbackRow?.weeklyOrder ?? fallbackRow?.scheduleOrder ?? fallbackRow?.sortOrder
   );
-  const rot = incomingHasExplicitRotation && (!scheduleHasExplicitRotation || incomingIsNewer)
-    ? normalizeRotation(incomingRow.rotType ?? incomingRow.rotation)
-    : normalizeRotation(existingRow.rotType ?? existingRow.rotation ?? incoming.rotType ?? incoming.rotation);
-  const active = preferIncomingMaster && incomingHasExplicitStatus && incomingIsNewer
-    ? incoming.active !== false
-    : schedule.active !== false;
 
   return normalizeEmployee({
-    ...master,
-    id: schedule.id || master.id,
-    employeeDocId: master.employeeDocId || incoming.employeeDocId || schedule.employeeDocId || '',
-    empNum: master.empNum || schedule.empNum,
-    name: master.name || schedule.name,
-    dept: master.dept || schedule.dept,
-    email: master.email || schedule.email,
-    phone: master.phone || schedule.phone,
-    jobTitle: schedule.jobTitle || master.jobTitle,
-    fixed: schedule.fixed === true,
+    ...fallback,
+    ...preferred,
+    id: preferred.id || fallback.id,
+    employeeDocId: preferred.employeeDocId || preferred.id || fallback.employeeDocId || fallback.id || '',
+    empNum: preferred.empNum || fallback.empNum,
+    name: preferred.name || fallback.name,
+    dept: preferred.dept || fallback.dept,
+    email: preferred.email || fallback.email,
+    phone: preferred.phone || fallback.phone,
+    jobTitle: preferred.jobTitle || fallback.jobTitle,
+    fixed,
+    shiftType: fixed ? 'night' : 'morning',
     rotation: rot,
     rotType: rot,
     active,
     status: active ? 'active' : 'inactive',
-    weeklyOrder: normalizeScheduleOrder(schedule.weeklyOrder ?? master.weeklyOrder),
-    source: preferIncomingMaster ? master.source : schedule.source,
-    createdAt: schedule.createdAt || master.createdAt,
-    updatedAt: schedule.updatedAt || master.updatedAt || ''
+    weeklyOrder: preferredOrder || fallbackOrder,
+    scheduleOrder: preferredOrder || fallbackOrder,
+    source: preferred.source || fallback.source,
+    createdAt: preferred.createdAt || fallback.createdAt || '',
+    updatedAt: employeeRecordTimestamp(preferredRow) >= employeeRecordTimestamp(fallbackRow)
+      ? (preferredRow?.updatedAt || preferredRow?.createdAt || '')
+      : (fallbackRow?.updatedAt || fallbackRow?.createdAt || '')
   });
 }
 
@@ -1412,7 +1473,7 @@ async function migrateLegacyScheduleEmployees() {
         completed: true,
         completedAt: new Date().toISOString(),
         migratedCount: missingEmployees.length,
-        source: 'employee-Schedule-v1.7.0'
+        source: 'employee-Schedule-v1.7.1'
       }
     }, { merge: true });
   } catch (error) {
