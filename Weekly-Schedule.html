@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weekly Schedule v1.2.0 - Employees Single Source</title>
+  <title>Weekly Schedule v1.2.1 - Employees Single Source</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root {
@@ -82,7 +82,7 @@
     <div class="controls">
         <div style="display:flex; align-items:center; gap:12px">
             <img src="LOGO-almajdouie.png" style="height:40px" />
-            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.2.0</div>
+            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.2.1</div>
         </div>
         <div class="nav-group">
             <button class="btn-nav" id="btnPrev">السابق</button>
@@ -210,6 +210,9 @@ function normalizeEmployeeRecord(record) {
     const active = typeof source.active === 'boolean'
         ? source.active
         : !['inactive', 'hidden', 'false', '0', 'مخفي', 'غيرنشط', 'غير نشط'].includes(statusText);
+    const fixed = typeof source.fixed === 'boolean'
+        ? source.fixed
+        : ['night', 'fixed', 'ليلي', 'ثابت'].includes(shiftText);
     const rotation = normalizeRotation(source);
 
     return {
@@ -224,8 +227,8 @@ function normalizeEmployeeRecord(record) {
         email: source.email || '',
         phone: source.phone || source.mobile || '',
         mobile: source.mobile || source.phone || '',
-        fixed: source.fixed === true || ['night', 'fixed', 'ليلي', 'ثابت'].includes(shiftText),
-        shiftType: source.fixed === true || ['night', 'fixed', 'ليلي', 'ثابت'].includes(shiftText) ? 'night' : 'morning',
+        fixed,
+        shiftType: fixed ? 'night' : 'morning',
         rotation,
         rotType: rotation,
         weeklyOrder: source.weeklyOrder ?? source.scheduleOrder ?? source.sortOrder ?? '',
@@ -234,6 +237,29 @@ function normalizeEmployeeRecord(record) {
         status: active ? 'active' : 'inactive',
         source: 'employees'
     };
+}
+
+function weeklyEmployeeTimestamp(record) {
+    const timestamp = Date.parse(record?.updatedAt || record?.createdAt || '');
+    return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function isCanonicalWeeklyEmployeeDocument(record) {
+    const id = normalizeIdentityValue(record?.id || record?.employeeDocId);
+    const empNum = normalizeIdentityValue(record?.empNum || record?.empId || record?.employeeId || record?.technicianId);
+    return Boolean(id && empNum && id === empNum);
+}
+
+function preferIncomingWeeklyEmployee(existing, incoming) {
+    const existingTime = weeklyEmployeeTimestamp(existing);
+    const incomingTime = weeklyEmployeeTimestamp(incoming);
+    if (incomingTime !== existingTime) return incomingTime > existingTime;
+
+    const existingCanonical = isCanonicalWeeklyEmployeeDocument(existing);
+    const incomingCanonical = isCanonicalWeeklyEmployeeDocument(incoming);
+    if (incomingCanonical !== existingCanonical) return incomingCanonical;
+
+    return employeeCompletenessScore(incoming) >= employeeCompletenessScore(existing);
 }
 
 function employeePrimaryKey(emp) {
@@ -283,8 +309,9 @@ function employeeCompletenessScore(emp) {
 }
 
 function mergeWeeklyEmployee(existing, incoming) {
-    const preferred = employeeCompletenessScore(incoming) > employeeCompletenessScore(existing) ? incoming : existing;
-    const fallback = preferred === incoming ? existing : incoming;
+    const preferIncoming = preferIncomingWeeklyEmployee(existing, incoming);
+    const preferred = preferIncoming ? incoming : existing;
+    const fallback = preferIncoming ? existing : incoming;
     const aliasIds = new Set([
         ...(Array.isArray(existing.aliasIds) ? existing.aliasIds : []),
         ...(Array.isArray(incoming.aliasIds) ? incoming.aliasIds : []),
@@ -294,15 +321,19 @@ function mergeWeeklyEmployee(existing, incoming) {
         incoming.empNum
     ].filter(Boolean).map(value => String(value)));
 
-    const preferredRotation = normalizeRotation(preferred);
-    const fallbackRotation = normalizeRotation(fallback);
-    const rotation = preferredRotation !== 'none' ? preferredRotation : fallbackRotation;
+    const rotation = normalizeRotation(preferred);
+    const preferredOrder = Number(preferred.weeklyOrder ?? preferred.scheduleOrder ?? preferred.sortOrder);
+    const fallbackOrder = Number(fallback.weeklyOrder ?? fallback.scheduleOrder ?? fallback.sortOrder);
+    const weeklyOrder = Number.isFinite(preferredOrder) && preferredOrder > 0
+        ? preferredOrder
+        : (Number.isFinite(fallbackOrder) && fallbackOrder > 0 ? fallbackOrder : '');
 
     return {
         ...fallback,
         ...preferred,
         id: preferred.id || fallback.id,
         empNum: preferred.empNum || preferred.empId || fallback.empNum || fallback.empId || '',
+        empId: preferred.empId || preferred.empNum || fallback.empId || fallback.empNum || '',
         name: preferred.name || fallback.name || '',
         dept: preferred.dept || preferred.department || fallback.dept || fallback.department || '',
         department: preferred.department || preferred.dept || fallback.department || fallback.dept || '',
@@ -310,10 +341,17 @@ function mergeWeeklyEmployee(existing, incoming) {
             fallback.jobTitle || fallback.jobTitleAr || fallback.jobTitleEn || fallback.position || fallback.title || '',
         email: preferred.email || fallback.email || '',
         phone: preferred.phone || preferred.mobile || fallback.phone || fallback.mobile || '',
-        active: existing.active !== false || incoming.active !== false,
-        fixed: preferred.fixed === true || fallback.fixed === true,
+        active: preferred.active !== false,
+        status: preferred.active !== false ? 'active' : 'inactive',
+        fixed: preferred.fixed === true,
+        shiftType: preferred.fixed === true ? 'night' : 'morning',
         rotation,
         rotType: rotation,
+        weeklyOrder,
+        scheduleOrder: weeklyOrder,
+        employeeDocId: preferred.employeeDocId || preferred.id || fallback.employeeDocId || fallback.id || '',
+        updatedAt: preferred.updatedAt || fallback.updatedAt || '',
+        createdAt: preferred.createdAt || fallback.createdAt || '',
         aliasIds: Array.from(aliasIds)
     };
 }
@@ -571,9 +609,11 @@ function employeeSortKey(emp) {
 
 function isNightShiftEmployee(emp) {
     const record = findEmployeeRecord(emp) || {};
-    const values = [emp?.fixed, record?.fixed, emp?.shiftType, record?.shiftType, emp?.shift, record?.shift, emp?.role, record?.role]
+    if (typeof emp?.fixed === 'boolean') return emp.fixed;
+    if (typeof record?.fixed === 'boolean') return record.fixed;
+    const values = [emp?.shiftType, record?.shiftType, emp?.shift, record?.shift, emp?.role, record?.role]
         .map(value => String(value ?? '').trim().toLowerCase());
-    return values.includes('true') || values.includes('night') || values.includes('fixed') || values.includes('ليلي');
+    return values.includes('night') || values.includes('fixed') || values.includes('ليلي');
 }
 
 function weeklyManualOrder(emp) {
