@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Employee Management v1.5.0 - Auto Sync</title>
+  <title>Employee Management v1.7.0 - Single Source</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root{
@@ -89,7 +89,7 @@
     <div class="brand">
       <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
       <div>
-        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.6.4</span></h2>
+        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.7.0</span></h2>
         <p class="subtitle" id="pageSubtitle">إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات</p>
       </div>
     </div>
@@ -215,14 +215,16 @@ import {
   onSnapshot,
   setDoc,
   collection,
-  writeBatch
+  writeBatch,
+  deleteDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 let emps = [];
 let employeeRecords = [];
 let excelImportInProgress = false;
 let renderedEmployeeRows = [];
-let scheduleLoaded = false;
+let employeesLoaded = false;
+let legacyMigrationStarted = false;
 let currentAuthUser = null;
 let currentUserProfile = null;
 const scheduleDocRef = doc(db, 'schedule', 'jadwal_v6');
@@ -257,7 +259,7 @@ const JOB_TITLE_LABELS = {
 };
 const I18N = {
   ar: {
-    documentTitle: 'إدارة الموظفين v1.6.4 - مزامنة تلقائية',
+    documentTitle: 'إدارة الموظفين v1.7.0 - مصدر موحد',
     pageTitle: 'إدارة سجل الموظفين (مزامنة تلقائية)',
     pageSubtitle: 'إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات',
     reload: 'تحديث',
@@ -327,11 +329,11 @@ const I18N = {
     alertActionDenied: 'ليس لديك صلاحية تنفيذ هذا الإجراء.',
     alertSaveFailed: error => `تعذر حفظ التعديل: ${error}`,
     noAddPermission: 'لا توجد لديك صلاحية إضافة موظف جديد. يمكنك مراجعة مسؤول النظام لتفعيلها من Employee Actions.',
-    confirmDeleteSynced: 'سيتم حذف هذا الموظف نهائياً من سجل employees ومن جدول الموظفين. هل تريد المتابعة؟',
+    confirmDeleteSynced: 'سيتم حذف هذا الموظف نهائياً من سجل employees. هل تريد المتابعة؟',
     confirmDelete: 'هل تريد حذف هذا الموظف؟'
   },
   en: {
-    documentTitle: 'Employee Management v1.6.4 - Auto Sync',
+    documentTitle: 'Employee Management v1.7.0 - Single Source',
     pageTitle: 'Employee Management (Auto Sync)',
     pageSubtitle: 'Add and update employees linked to the schedule and vacation plan',
     reload: 'Refresh',
@@ -401,7 +403,7 @@ const I18N = {
     alertActionDenied: 'You do not have permission to perform this action.',
     alertSaveFailed: error => `Could not save the change: ${error}`,
     noAddPermission: 'You do not have permission to add a new employee. Ask an administrator to enable it from Employee Actions.',
-    confirmDeleteSynced: 'This employee will be permanently deleted from employees and the schedule. Continue?',
+    confirmDeleteSynced: 'This employee will be permanently deleted from employees. Continue?',
     confirmDelete: 'Delete this employee?'
   }
 };
@@ -676,7 +678,7 @@ function applyLanguage({ rerender = false } = {}) {
   $('empStatus').innerHTML = statusOptions(statusValueCurrent);
   $('empStatus').value = statusValueCurrent;
   $('employeeTableHead').innerHTML = tableHeadHtml();
-  if (!scheduleLoaded && !emps.length) {
+  if (!employeesLoaded && !emps.length) {
     $('empTableBody').innerHTML = `<tr><td class="empty" colspan="12">${t('loading')}</td></tr>`;
   }
 
@@ -1028,26 +1030,6 @@ async function saveEmployeeRecords(records) {
   return normalized.map(emp => normalizeExternalEmployee({ ...emp, id: safeEmployeeDocId(emp) }, 'employees'));
 }
 
-async function saveEmployees(updated = emps) {
-  const normalized = dedupeEmployees(updated);
-  await waitForSignedInUser();
-  await setDoc(scheduleDocRef, { data: { emps: normalized } }, { merge: true });
-  emps = normalized;
-}
-
-async function saveEmployeeAndSchedule(emp, updatedEmployees, options = {}) {
-  const normalizedEmployees = dedupeEmployees(updatedEmployees);
-  const employeeId = safeEmployeeDocId(emp);
-  const batch = writeBatch(db);
-  batch.set(
-    doc(db, 'employees', employeeId),
-    employeeRecordPayload({ ...emp, id: employeeId, source: 'employees' }, options),
-    { merge: true }
-  );
-  batch.set(scheduleDocRef, { data: { emps: normalizedEmployees } }, { merge: true });
-  await batch.commit();
-  emps = normalizedEmployees;
-}
 
 function fillForm(emp) {
   $('editingId').value = emp?.id || '';
@@ -1284,7 +1266,6 @@ async function handleExcelImport(event) {
 
     emps = dedupeEmployees(next);
     render();
-    await saveEmployees(emps);
     setImportStatus(
       isArabic()
         ? `تم التحديث: إضافة ${added}، تعديل ${updated}`
@@ -1303,9 +1284,6 @@ async function handleExcelImport(event) {
     alert(t('alertImportFailed', error.message || error));
   } finally {
     excelImportInProgress = false;
-    if (scheduleLoaded && employeeRecords.length) {
-      syncEmployees().catch(error => logFirebaseError('Post-import employee sync failed', error));
-    }
     importButton.disabled = false;
     event.target.value = '';
   }
@@ -1406,34 +1384,41 @@ function getExternalEmployees() {
   return employeeRecords.map(employee => normalizeExternalEmployee(employee, 'employees'));
 }
 
-async function syncEmployees() {
-  let needsUpdate = false;
-  const next = dedupeEmployees(emps);
+async function migrateLegacyScheduleEmployees() {
+  if (legacyMigrationStarted) return;
+  legacyMigrationStarted = true;
 
-  getExternalEmployees().forEach(incoming => {
-    const index = findEmployeeIndex(next, incoming);
-    if (index === -1) {
-      next.push(incoming);
-      needsUpdate = true;
-      return;
+  try {
+    const legacySnap = await getDoc(scheduleDocRef);
+    const legacyData = legacySnap.exists() ? legacySnap.data() : {};
+    const migrationState = legacyData?._employeeSingleSourceMigration || {};
+
+    if (migrationState.completed === true) return;
+
+    const legacyEmployees = dedupeEmployees(legacyData?.data?.emps || []);
+    const currentEmployees = getExternalEmployees();
+    const missingEmployees = legacyEmployees.filter(employee =>
+      findEmployeeIndex(currentEmployees, employee) === -1
+    );
+
+    if (missingEmployees.length) {
+      await saveEmployeeRecords(
+        missingEmployees.map(employee => ({ ...employee, source: 'employees' }))
+      );
     }
 
-    const existing = normalizeEmployee(next[index]);
-    const candidate = mergeEmployeeRows(existing, incoming);
-
-    if (JSON.stringify(existing) !== JSON.stringify(candidate)) {
-      next[index] = { ...candidate, updatedAt: new Date().toISOString() };
-      needsUpdate = true;
-    }
-  });
-
-  const deduped = dedupeEmployees(next);
-  if (deduped.length !== next.length || JSON.stringify(deduped) !== JSON.stringify(next)) {
-    next.splice(0, next.length, ...deduped);
-    needsUpdate = true;
+    await setDoc(scheduleDocRef, {
+      _employeeSingleSourceMigration: {
+        completed: true,
+        completedAt: new Date().toISOString(),
+        migratedCount: missingEmployees.length,
+        source: 'employee-Schedule-v1.7.0'
+      }
+    }, { merge: true });
+  } catch (error) {
+    legacyMigrationStarted = false;
+    logFirebaseError('Legacy schedule employee migration failed', error);
   }
-
-  if (needsUpdate) await saveEmployees(next);
 }
 
 async function bindCurrentUserProfile() {
@@ -1462,16 +1447,14 @@ async function bindSnapshots() {
 
   onSnapshot(collection(db, 'employees'), snap => {
     employeeRecords = snap.docs.map(item => ({ id: item.id, ...item.data() }));
-    if (scheduleLoaded && !excelImportInProgress) syncEmployees().catch(error => logFirebaseError('Employees collection sync failed', error));
+    emps = dedupeEmployees(getExternalEmployees());
+    employeesLoaded = true;
     render();
-  }, error => logFirebaseError('Employees collection listener failed', error));
 
-  onSnapshot(scheduleDocRef, snap => {
-    emps = snap.exists() ? dedupeEmployees(snap.data().data?.emps || []) : [];
-    scheduleLoaded = true;
-    if (employeeRecords.length && !excelImportInProgress) syncEmployees().catch(error => logFirebaseError('Employee sync failed', error));
-    render();
-  }, error => logFirebaseError('Employee schedule listener failed', error));
+    if (!excelImportInProgress) {
+      migrateLegacyScheduleEmployees();
+    }
+  }, error => logFirebaseError('Employees collection listener failed', error));
 }
 
 window.saveEmployee = async () => {
@@ -1492,7 +1475,7 @@ window.saveEmployee = async () => {
   }
 
   const syncedPayload = await saveEmployeeRecord(payload);
-  const schedulePayload = normalizeEmployee({
+  const savedEmployee = normalizeEmployee({
     ...syncedPayload,
     ...payload,
     id: syncedPayload.id || payload.id,
@@ -1500,11 +1483,11 @@ window.saveEmployee = async () => {
     createdAt: existing?.createdAt || payload.createdAt || new Date().toISOString()
   });
 
-  const updated = existing
-    ? emps.map(emp => String(emp.id) === String(existing.id) ? schedulePayload : emp)
-    : [...emps, schedulePayload];
-
-  await saveEmployees(updated);
+  emps = dedupeEmployees(existing
+    ? emps.map(emp => String(emp.id) === String(existing.id) ? savedEmployee : emp)
+    : [...emps, savedEmployee]
+  );
+  render();
   fillForm(null);
 };
 
@@ -1520,36 +1503,21 @@ window.deleteEmployee = async id => {
   if (!requireEmployeeAction(EMPLOYEE_ACTIONS.delete)) return;
   const emp = emps.find(item => String(item.id) === String(id));
   if (!emp) return;
-  const source = employeeSource(emp);
-  const isSynced = source === 'employees';
-  const message = isSynced
-    ? t('confirmDeleteSynced')
-    : t('confirmDelete');
-  if (!confirm(message)) return;
+  if (!confirm(t('confirmDeleteSynced'))) return;
 
   const previousEmployees = emps;
   const previousEmployeeRecords = employeeRecords;
   const deletedKeys = new Set(employeeIdentityKeys(emp));
-  const remaining = dedupeEmployees(emps.filter(item => String(item.id) !== String(id)));
 
-  emps = remaining;
-  if (isSynced) {
-    employeeRecords = employeeRecords.filter(record =>
-      !employeeIdentityKeys(record).some(key => deletedKeys.has(key))
-    );
-  }
+  emps = dedupeEmployees(emps.filter(item => String(item.id) !== String(id)));
+  employeeRecords = employeeRecords.filter(record =>
+    !employeeIdentityKeys(record).some(key => deletedKeys.has(key))
+  );
   render();
 
   try {
     await waitForSignedInUser();
-    if (isSynced) {
-      const batch = writeBatch(db);
-      batch.delete(doc(db, 'employees', safeEmployeeDocId(emp)));
-      batch.set(scheduleDocRef, { data: { emps: remaining } }, { merge: true });
-      await batch.commit();
-    } else {
-      await setDoc(scheduleDocRef, { data: { emps: remaining } }, { merge: true });
-    }
+    await deleteDoc(doc(db, 'employees', safeEmployeeDocId(emp)));
   } catch (error) {
     emps = previousEmployees;
     employeeRecords = previousEmployeeRecords;
@@ -1588,19 +1556,8 @@ window.updateEmployeeField = async (id, field, value) => {
   emps = dedupeEmployees(updated);
   render();
 
-  if (changed && (field === 'jobTitle' || field === 'active' || field === 'weeklyOrder' || field === 'fixed' || field === 'rotation')) {
-    try {
-      await saveEmployeeAndSchedule(changed, updated, { inactive: field === 'active' && value !== 'true' });
-      return;
-    } catch (error) {
-      emps = previousEmployees;
-      render();
-      throw error;
-    }
-  }
-
   try {
-    await saveEmployees(updated);
+    await saveEmployeeRecord(changed);
   } catch (error) {
     emps = previousEmployees;
     render();
