@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Annual Leave Management v1.1.0 - Single Source - Almajdouie Motors</title>
+  <title>Annual Leave Management v1.2.0 - Reports - Almajdouie Motors</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root{--primary:#0d2149;--primary2:#1b4fa3;--text:#1f2937;--muted:#64748b;--surface:rgba(255,255,255,.94);--surface2:#fff;--shadow:0 18px 50px rgba(13,33,73,.16);--danger:#d32f2f}
     *{box-sizing:border-box} 
@@ -33,6 +34,37 @@
     thead th{background:#f8fafc;color:var(--primary);font-weight:900;padding:15px;text-align:center;border-bottom:2px solid #eef2f7}
     td{padding:15px;text-align:center;border-bottom:1px solid #f9f9f9}
     .emp-name-cell{text-align:right !important; font-weight:800; color:var(--primary); padding-right:25px}
+
+    .report-toolbar{display:grid;grid-template-columns:minmax(220px,2fr) minmax(160px,1fr) minmax(145px,1fr) minmax(145px,1fr) auto;gap:10px;align-items:end}
+    .report-toolbar .field label{display:block;margin-bottom:6px;font-size:12px;font-weight:900;color:var(--muted)}
+    .report-toolbar select,.report-toolbar input{width:100%}
+    .report-card{display:none;position:relative;background:#fff}
+    .report-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;border-bottom:2px solid #eef2f7;padding-bottom:16px;margin-bottom:16px}
+    .report-brand{display:flex;align-items:center;gap:12px}
+    .report-logo{height:48px;width:auto;object-fit:contain}
+    .report-title{margin:0;color:var(--primary);font-size:20px;font-weight:900}
+    .report-subtitle{margin-top:4px;color:var(--muted);font-size:12px;font-weight:700}
+    .report-meta{text-align:left;color:var(--muted);font-size:11px;font-weight:800;line-height:1.8}
+    html[dir="ltr"] .report-meta{text-align:right}
+    .employee-report-info{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+    .report-info-item{background:#f8fafc;border:1px solid #eef2f7;border-radius:12px;padding:10px 12px}
+    .report-info-item span{display:block;color:var(--muted);font-size:10px;font-weight:800;margin-bottom:3px}
+    .report-info-item strong{display:block;color:var(--primary);font-size:13px;word-break:break-word}
+    .report-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .summary-chip{border:1px solid #dbe5f2;background:#f8fbff;color:var(--primary);border-radius:999px;padding:7px 11px;font-size:11px;font-weight:900}
+    .report-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}
+    .report-actions .btn{min-width:120px}
+    .report-empty{padding:24px;text-align:center;color:var(--muted);font-weight:800}
+    .report-index{width:55px}
+    @media(max-width:900px){.report-toolbar{grid-template-columns:1fr 1fr}.employee-report-info{grid-template-columns:1fr 1fr}}
+    @media(max-width:560px){.report-toolbar{grid-template-columns:1fr}.employee-report-info{grid-template-columns:1fr}}
+    @media print{
+      body{background:#fff!important;padding:0!important;display:block!important}
+      body *{visibility:hidden!important}
+      #employeeReport,#employeeReport *{visibility:visible!important}
+      #employeeReport{display:block!important;position:absolute!important;left:0;top:0;width:100%!important;margin:0!important;border:none!important;box-shadow:none!important;border-radius:0!important}
+      #employeeReport .report-actions{display:none!important}
+    }
   </style>
 </head>
 <body>
@@ -42,7 +74,7 @@
         <div style="display:flex; align-items:center; gap:15px">
             <img src="LOGO-almajdouie.png" style="height:55px" />
             <div>
-                <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:22px"><span id="title">إدارة الإجازات السنوية</span><span class="version-badge">v1.1.0</span></h2>
+                <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:22px"><span id="title">إدارة الإجازات السنوية</span><span class="version-badge">v1.2.0</span></h2>
                 <p id="subtitle" style="margin:0; color:var(--muted); font-size:12px; font-weight:700">تخطيط وتوثيق الإجازات - المجدوعي للسيارات</p>
             </div>
         </div>
@@ -57,6 +89,7 @@
                 <option value="annual">إجازة سنوية</option>
                 <option value="sick">مرضية</option>
                 <option value="absence">غياب</option>
+                <option value="delay">تأخير</option>
             </select>
             <input type="date" id="aStart" style="flex:1" />
             <input type="date" id="aEnd" style="flex:1" />
@@ -95,6 +128,66 @@
             </table>
         </div>
     </div>
+
+    <div class="card">
+        <h3 id="reportSectionTitle" style="margin-top:0;color:var(--primary);margin-bottom:16px">📄 تقرير الموظف</h3>
+        <div class="report-toolbar">
+            <div class="field">
+                <label id="reportEmployeeLabel" for="reportEmp">الموظف</label>
+                <select id="reportEmp"><option value="">اختر الموظف...</option></select>
+            </div>
+            <div class="field">
+                <label id="reportTypeLabel" for="reportType">نوع الإجازة</label>
+                <select id="reportType"><option value="">كل الأنواع</option></select>
+            </div>
+            <div class="field">
+                <label id="reportFromLabel" for="reportFrom">من</label>
+                <input id="reportFrom" type="date" />
+            </div>
+            <div class="field">
+                <label id="reportToLabel" for="reportTo">إلى</label>
+                <input id="reportTo" type="date" />
+            </div>
+            <button id="btnBuildReport" class="btn2" type="button">عرض التقرير</button>
+        </div>
+    </div>
+
+    <div class="card report-card" id="employeeReport">
+        <div class="report-head">
+            <div class="report-brand">
+                <img src="LOGO-almajdouie.png" class="report-logo" alt="Almajdouie Motors" />
+                <div>
+                    <h3 class="report-title" id="reportTitle">تقرير الإجازات والتأخير</h3>
+                    <div class="report-subtitle" id="reportRangeText"></div>
+                </div>
+            </div>
+            <div class="report-meta" id="reportGeneratedText"></div>
+        </div>
+        <div class="employee-report-info">
+            <div class="report-info-item"><span id="reportNameLabel">اسم الموظف</span><strong id="reportEmployeeName">-</strong></div>
+            <div class="report-info-item"><span id="reportIdLabel">رقم الموظف</span><strong id="reportEmployeeId">-</strong></div>
+            <div class="report-info-item"><span id="reportDeptLabel">القسم</span><strong id="reportEmployeeDept">-</strong></div>
+            <div class="report-info-item"><span id="reportJobLabel">المسمى الوظيفي</span><strong id="reportEmployeeJob">-</strong></div>
+        </div>
+        <div class="report-summary" id="reportSummary"></div>
+        <div style="overflow-x:auto">
+            <table>
+                <thead><tr>
+                    <th class="report-index">#</th>
+                    <th id="reportThType">نوع الإجازة</th>
+                    <th id="reportThFrom">من</th>
+                    <th id="reportThTo">إلى</th>
+                    <th id="reportThDays">الأيام</th>
+                </tr></thead>
+                <tbody id="reportBody"></tbody>
+            </table>
+        </div>
+        <div class="report-actions" data-html2canvas-ignore="true">
+            <button id="btnPrintReport" class="btn" type="button">🖨️ طباعة</button>
+            <button id="btnCopyReport" class="btn" type="button">📋 نسخ صورة</button>
+            <button id="btnDownloadReport" class="btn2" type="button">🖼️ تنزيل صورة</button>
+        </div>
+    </div>
   </div>
 </div>
 
@@ -103,14 +196,15 @@ import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js
 import { collection, doc, getDoc, getDocs, onSnapshot, setDoc, deleteDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', type:'نوع الإجازة', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', selectType:'نوع الإجازة...', assign:'تعيين إجازة', saveEdit:'حفظ التعديل', cancel:'إلغاء', edit:'تعديل', del:'حذف', searchEmp:'ابحث باسم أو رقم الموظف...', requestCount:'عدد الطلبات', allRequests:'كل الطلبات', noRecords:'لا توجد طلبات مطابقة', dateError:'تاريخ البداية لا يمكن أن يكون بعد تاريخ النهاية', recordMissing:'لم يتم العثور على الطلب', filterFrom:'من', filterTo:'إلى', saving:'جاري حفظ الإجازة...', saveSuccess:'تم حفظ الإجازة وظهرت في الجدول.', saveFailed:'تعذر حفظ الإجازة', noEmployees:'لا يمكن تحميل الموظفين. تأكد من صلاحية Annual Leave.' },
-    en: { title:'Annual Leave Management', subtitle:'Leave Planning & Documentation - Almajdouie Motors', list:'🌴 Annual Leave Records', name:'Employee', type:'Leave Type', from:'From', to:'To', action:'Action', selectEmp:'Select Employee...', selectType:'Leave Type...', assign:'Assign Leave', saveEdit:'Save Changes', cancel:'Cancel', edit:'Edit', del:'Delete', searchEmp:'Search by employee name or number...', requestCount:'Requests', allRequests:'All requests', noRecords:'No matching requests', dateError:'Start date cannot be after end date', recordMissing:'Leave request was not found', filterFrom:'From', filterTo:'To', saving:'Saving leave...', saveSuccess:'Leave saved and added to the table.', saveFailed:'Could not save leave', noEmployees:'Employees could not be loaded. Check the Annual Leave permission.' }
+    ar: { title:'إدارة الإجازات السنوية', subtitle:'تخطيط وتوثيق الإجازات - المجدوعي للسيارات', list:'🌴 سجل الإجازات السنوية', name:'الموظف', type:'نوع الإجازة', from:'من', to:'إلى', action:'الإجراء', selectEmp:'اختر الموظف...', selectType:'نوع الإجازة...', assign:'تعيين إجازة', saveEdit:'حفظ التعديل', cancel:'إلغاء', edit:'تعديل', del:'حذف', searchEmp:'ابحث باسم أو رقم الموظف...', requestCount:'عدد الطلبات', allRequests:'كل الطلبات', noRecords:'لا توجد طلبات مطابقة', dateError:'تاريخ البداية لا يمكن أن يكون بعد تاريخ النهاية', recordMissing:'لم يتم العثور على الطلب', filterFrom:'من', filterTo:'إلى', saving:'جاري حفظ الإجازة...', saveSuccess:'تم حفظ الإجازة وظهرت في الجدول.', saveFailed:'تعذر حفظ الإجازة', noEmployees:'لا يمكن تحميل الموظفين. تأكد من صلاحية Annual Leave.', reportSection:'📄 تقرير الموظف', reportEmployee:'الموظف', reportType:'نوع الإجازة', allTypes:'كل الأنواع', showReport:'عرض التقرير', reportTitle:'تقرير الإجازات والتأخير', generated:'تاريخ التقرير', employeeName:'اسم الموظف', employeeId:'رقم الموظف', department:'القسم', jobTitle:'المسمى الوظيفي', days:'الأيام', print:'🖨️ طباعة', copyImage:'📋 نسخ صورة', downloadImage:'🖼️ تنزيل صورة', selectReportEmployee:'اختر موظفاً لإنشاء التقرير', copied:'تم نسخ صورة التقرير.', imageDownloaded:'تم تنزيل صورة التقرير.', imageFailed:'تعذر إنشاء صورة التقرير.' },
+    en: { title:'Annual Leave Management', subtitle:'Leave Planning & Documentation - Almajdouie Motors', list:'🌴 Annual Leave Records', name:'Employee', type:'Leave Type', from:'From', to:'To', action:'Action', selectEmp:'Select Employee...', selectType:'Leave Type...', assign:'Assign Leave', saveEdit:'Save Changes', cancel:'Cancel', edit:'Edit', del:'Delete', searchEmp:'Search by employee name or number...', requestCount:'Requests', allRequests:'All requests', noRecords:'No matching requests', dateError:'Start date cannot be after end date', recordMissing:'Leave request was not found', filterFrom:'From', filterTo:'To', saving:'Saving leave...', saveSuccess:'Leave saved and added to the table.', saveFailed:'Could not save leave', noEmployees:'Employees could not be loaded. Check the Annual Leave permission.', reportSection:'📄 Employee Report', reportEmployee:'Employee', reportType:'Leave Type', allTypes:'All Types', showReport:'Show Report', reportTitle:'Leave & Delay Report', generated:'Report Date', employeeName:'Employee Name', employeeId:'Employee ID', department:'Department', jobTitle:'Job Title', days:'Days', print:'🖨️ Print', copyImage:'📋 Copy Image', downloadImage:'🖼️ Download Image', selectReportEmployee:'Select an employee to create the report', copied:'Report image copied.', imageDownloaded:'Report image downloaded.', imageFailed:'Could not create report image.' }
 };
 
 const leaveTypes = {
     annual: { ar: 'إجازة سنوية', en: 'Annual Leave' },
     sick: { ar: 'مرضية', en: 'Sick Leave' },
-    absence: { ar: 'غياب', en: 'Absence' }
+    absence: { ar: 'غياب', en: 'Absence' },
+    delay: { ar: 'تأخير', en: 'Delay' }
 };
 
 let employees=[], vacationsList=[], currentLang=localStorage.getItem('lang')||'ar', editingVacationId='';
@@ -288,11 +382,27 @@ function renderUI() {
         employees.filter(e => e.active !== false).map(e => `<option value="${escapeHtml(e.key)}">${escapeHtml(e.name)}</option>`).join('');
     select.value = currentVal;
 
+    const reportEmp = $('reportEmp');
+    if (reportEmp) {
+        const currentReportEmp = reportEmp.value;
+        reportEmp.innerHTML = `<option value="">${t.selectEmp}</option>` +
+            employees.filter(e => e.active !== false).map(e => `<option value="${escapeHtml(e.key)}">${escapeHtml(e.name)}</option>`).join('');
+        reportEmp.value = currentReportEmp;
+    }
+
     const typeSelect = $('aType');
     const currentType = typeSelect.value;
     typeSelect.innerHTML = `<option value="">${t.selectType}</option>` +
         Object.entries(leaveTypes).map(([key, label]) => `<option value="${key}">${label[currentLang]}</option>`).join('');
     typeSelect.value = currentType;
+
+    const reportType = $('reportType');
+    if (reportType) {
+        const currentReportType = reportType.value;
+        reportType.innerHTML = `<option value="">${t.allTypes}</option>` +
+            Object.entries(leaveTypes).map(([key, label]) => `<option value="${key}">${label[currentLang]}</option>`).join('');
+        reportType.value = currentReportType;
+    }
 
     const searchBox = $('empSearch');
     const searchTerm = String(searchBox?.value || '').trim().toLowerCase();
@@ -347,6 +457,7 @@ function normalizeLeaveType(value) {
     if (['annual', 'annual leave', 'vacation', 'إجازة سنوية', 'اجازة سنوية'].includes(text)) return 'annual';
     if (['sick', 'sick leave', 'medical', 'مرضية', 'اجازة مرضية', 'إجازة مرضية'].includes(text)) return 'sick';
     if (['absence', 'absent', 'غياب'].includes(text)) return 'absence';
+    if (['delay', 'late', 'lateness', 'تأخير', 'تاخير'].includes(text)) return 'delay';
     return text || 'annual';
 }
 
@@ -534,6 +645,129 @@ async function migrateLegacyAnnualLeavesOnce() {
     }, { merge: true });
 }
 
+
+function employeeReportRows(emp, typeFilter = '', from = '', to = '') {
+    return vacationsList
+        .filter(record => vacationMatchesEmployee(record, emp))
+        .filter(record => !typeFilter || normalizeLeaveType(record.leaveType || record.type) === typeFilter)
+        .filter(record => dateSearchMatchesSelectedRange(record.start || record.from || '', record.end || record.to || '', from, to))
+        .sort((a, b) => String(b.start || b.from || '').localeCompare(String(a.start || a.from || '')));
+}
+
+function inclusiveDays(startValue, endValue) {
+    const start = parseDateValue(startValue);
+    const end = parseDateValue(endValue);
+    if (!start || !end) return '';
+    start.setHours(0,0,0,0); end.setHours(0,0,0,0);
+    return Math.max(1, Math.round((end - start) / 86400000) + 1);
+}
+
+function reportPeriodText(from, to) {
+    if (from && to) return currentLang === 'ar' ? `الفترة: ${from} إلى ${to}` : `Period: ${from} to ${to}`;
+    if (from) return currentLang === 'ar' ? `من: ${from}` : `From: ${from}`;
+    if (to) return currentLang === 'ar' ? `إلى: ${to}` : `To: ${to}`;
+    return currentLang === 'ar' ? 'جميع السجلات' : 'All records';
+}
+
+window.buildEmployeeReport = () => {
+    const t = tr();
+    const empKey = $('reportEmp').value;
+    if (!empKey) {
+        alert(t.selectReportEmployee);
+        return false;
+    }
+    const emp = employees.find(e => String(e.key) === String(empKey));
+    if (!emp) {
+        alert(t.selectReportEmployee);
+        return false;
+    }
+
+    const typeFilter = $('reportType').value;
+    const from = $('reportFrom').value;
+    const to = $('reportTo').value;
+    if (from && to && new Date(from) > new Date(to)) {
+        alert(t.dateError);
+        return false;
+    }
+
+    const rows = employeeReportRows(emp, typeFilter, from, to);
+    $('reportTitle').textContent = t.reportTitle;
+    $('reportRangeText').textContent = reportPeriodText(from, to);
+    $('reportGeneratedText').textContent = `${t.generated}: ${new Date().toLocaleString(currentLang === 'ar' ? 'ar-SA' : 'en-GB')}`;
+    $('reportEmployeeName').textContent = emp.name || '-';
+    $('reportEmployeeId').textContent = emp.empNum || emp.empId || emp.key || '-';
+    $('reportEmployeeDept').textContent = emp.department || emp.dept || '-';
+    $('reportEmployeeJob').textContent = emp.jobTitle || emp.position || emp.title || '-';
+
+    const counts = Object.keys(leaveTypes).map(type => ({
+        type,
+        count: rows.filter(record => normalizeLeaveType(record.leaveType || record.type) === type).length
+    }));
+    $('reportSummary').innerHTML = [
+        `<div class="summary-chip">${currentLang === 'ar' ? 'الإجمالي' : 'Total'}: ${rows.length}</div>`,
+        ...counts.map(item => `<div class="summary-chip">${escapeHtml(leaveTypes[item.type][currentLang])}: ${item.count}</div>`)
+    ].join('');
+
+    $('reportBody').innerHTML = rows.length ? rows.map((record, index) => {
+        const start = record.start || record.from || '';
+        const end = record.end || record.to || '';
+        return `<tr>
+            <td>${index + 1}</td>
+            <td><strong>${escapeHtml(getLeaveTypeLabel(record))}</strong></td>
+            <td>${escapeHtml(start)}</td>
+            <td>${escapeHtml(end)}</td>
+            <td>${escapeHtml(inclusiveDays(start, end))}</td>
+        </tr>`;
+    }).join('') : `<tr><td colspan="5" class="report-empty">${t.noRecords}</td></tr>`;
+
+    $('employeeReport').style.display = 'block';
+    return true;
+};
+
+window.printEmployeeReport = () => {
+    if (!window.buildEmployeeReport()) return;
+    window.print();
+};
+
+function downloadReportCanvas(canvas, emp) {
+    const a = document.createElement('a');
+    const safeName = String(emp?.name || emp?.empNum || 'Employee').replace(/[^\p{L}\p{N}_-]+/gu, '_');
+    a.download = `Leave_Report_${safeName}_${new Date().toISOString().slice(0,10)}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+}
+
+async function captureEmployeeReport(mode = 'copy') {
+    const t = tr();
+    if (!window.buildEmployeeReport()) return;
+    if (!window.html2canvas) {
+        alert(t.imageFailed);
+        return;
+    }
+    const emp = employees.find(e => String(e.key) === String($('reportEmp').value));
+    try {
+        const canvas = await html2canvas($('employeeReport'), { backgroundColor:'#ffffff', scale:2, useCORS:true });
+        if (mode === 'download') {
+            downloadReportCanvas(canvas, emp);
+            return;
+        }
+        canvas.toBlob(async blob => {
+            if (!blob) { alert(t.imageFailed); return; }
+            try {
+                if (!navigator.clipboard || typeof ClipboardItem === 'undefined') throw new Error('clipboard-not-supported');
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                alert(t.copied);
+            } catch (error) {
+                downloadReportCanvas(canvas, emp);
+                alert(currentLang === 'ar' ? 'تعذر النسخ المباشر، تم تنزيل الصورة بدلاً من ذلك.' : 'Direct copy was blocked; the image was downloaded instead.');
+            }
+        }, 'image/png');
+    } catch (error) {
+        console.error(error);
+        alert(t.imageFailed);
+    }
+}
+
 async function bindSnapshots(){
     await waitForSignedInUser();
 
@@ -583,6 +817,33 @@ window.addEventListener('DOMContentLoaded', () => {
     $('dateFromSearch').addEventListener('change', renderUI);
     $('dateToSearch').addEventListener('change', renderUI);
     $('aEmp').addEventListener('change', renderUI);
+
+    $('reportSectionTitle').innerText = t.reportSection;
+    $('reportEmployeeLabel').innerText = t.reportEmployee;
+    $('reportTypeLabel').innerText = t.reportType;
+    $('reportFromLabel').innerText = t.filterFrom;
+    $('reportToLabel').innerText = t.filterTo;
+    $('btnBuildReport').innerText = t.showReport;
+    $('reportNameLabel').innerText = t.employeeName;
+    $('reportIdLabel').innerText = t.employeeId;
+    $('reportDeptLabel').innerText = t.department;
+    $('reportJobLabel').innerText = t.jobTitle;
+    $('reportThType').innerText = t.type;
+    $('reportThFrom').innerText = t.from;
+    $('reportThTo').innerText = t.to;
+    $('reportThDays').innerText = t.days;
+    $('btnPrintReport').innerText = t.print;
+    $('btnCopyReport').innerText = t.copyImage;
+    $('btnDownloadReport').innerText = t.downloadImage;
+    $('btnBuildReport').addEventListener('click', window.buildEmployeeReport);
+    $('btnPrintReport').addEventListener('click', window.printEmployeeReport);
+    $('btnCopyReport').addEventListener('click', () => captureEmployeeReport('copy'));
+    $('btnDownloadReport').addEventListener('click', () => captureEmployeeReport('download'));
+    $('reportEmp').addEventListener('change', () => { if ($('employeeReport').style.display === 'block') window.buildEmployeeReport(); });
+    $('reportType').addEventListener('change', () => { if ($('employeeReport').style.display === 'block') window.buildEmployeeReport(); });
+    $('reportFrom').addEventListener('change', () => { if ($('employeeReport').style.display === 'block') window.buildEmployeeReport(); });
+    $('reportTo').addEventListener('change', () => { if ($('employeeReport').style.display === 'block') window.buildEmployeeReport(); });
+
     bindSnapshots().catch(e => logFirebaseError('Annual leave startup failed', e));
 });
 </script>
