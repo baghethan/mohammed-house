@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weekly Schedule v1.2.2 - Employees Single Source</title>
+  <title>Weekly Schedule v1.3.0 - Monthly Employee Report</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     :root {
       --primary: #0d2149; --primary2: #1b4fa3;
@@ -74,6 +75,42 @@
     .opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 20px; }
     .opt-btn { padding: 15px; border-radius: 15px; border: 1.5px solid #eee; background: #fff; cursor: pointer; font-weight: 800; text-align: center; font-size: 13px; }
     .opt-btn.active { border-color: var(--primary2); background: #f0f9ff; color: var(--primary2); }
+
+    .monthly-report-card{margin-top:10px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:12px;box-shadow:var(--shadow);width:min(1120px,calc(100vw - 8px));box-sizing:border-box}
+    .monthly-report-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .monthly-report-title{font-size:15px;font-weight:900;color:var(--primary)}
+    .monthly-report-controls{display:grid;grid-template-columns:minmax(220px,1fr) minmax(150px,190px) auto;gap:8px;align-items:end}
+    .monthly-report-controls label{display:block;font-size:10px;font-weight:900;color:#64748b;margin-bottom:4px}
+    .monthly-report-controls select,.monthly-report-controls input[type="month"]{width:100%;min-height:39px;border:1px solid #d8dee8;border-radius:9px;padding:7px 9px;background:#fff;font:inherit;font-size:12px;font-weight:700;color:var(--primary)}
+    .report-actions{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0}
+    .report-action-btn{padding:8px 11px;border-radius:9px;border:1px solid #dbe3ef;background:#fff;color:var(--primary);font-weight:900;font-size:11px;cursor:pointer}
+    .report-action-btn.primary{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none}
+    .monthly-report-capture{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;direction:rtl;color:#1f2937;overflow:hidden}
+    html[dir="ltr"] .monthly-report-capture{direction:ltr}
+    .report-brand{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-bottom:2px solid #e8edf5;padding-bottom:10px;margin-bottom:10px}
+    .report-brand-left{display:flex;align-items:center;gap:9px}.report-brand img{height:34px;width:auto}
+    .report-main-title{font-size:17px;font-weight:950;color:var(--primary)}
+    .report-subtitle{font-size:10px;color:#64748b;font-weight:800;margin-top:2px}
+    .report-employee-meta{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:7px;margin:9px 0}
+    .report-meta-box,.report-stat{border:1px solid #e5e7eb;border-radius:9px;padding:8px;background:#fbfdff}
+    .report-meta-label,.report-stat-label{font-size:9px;font-weight:900;color:#64748b;margin-bottom:3px}
+    .report-meta-value,.report-stat-value{font-size:12px;font-weight:950;color:var(--primary)}
+    .report-stats{display:grid;grid-template-columns:repeat(5,minmax(90px,1fr));gap:6px;margin:8px 0}
+    .report-stat{text-align:center}.report-stat-value{font-size:18px}
+    .compliance-box{border:1px solid #dbe3ef;border-radius:10px;padding:9px;margin:10px 0;background:#f8fafc}
+    .compliance-title{font-size:11px;font-weight:950;color:var(--primary);margin-bottom:4px}
+    .compliance-ok{color:#166534}.compliance-review{color:#b45309}.compliance-risk{color:#b91c1c}
+    .compliance-line{font-size:10px;font-weight:800;line-height:1.65}
+    .report-table-wrap{overflow:hidden;margin-top:9px}
+    .report-table{width:100%;border-collapse:collapse;font-size:9px;table-layout:fixed}
+    .report-table th{background:#f1f5f9;color:var(--primary);padding:5px;border:1px solid #e5e7eb;font-size:9px;min-width:0}
+    .report-table td{padding:5px;border:1px solid #e5e7eb;font-size:9px;background:#fff}
+    .report-table .status-cell{font-weight:900}
+    .weekly-review{color:#b45309;font-weight:900}.weekly-risk{color:#b91c1c;font-weight:900}.weekly-ok{color:#166534;font-weight:900}
+    .report-footnote{font-size:8.5px;line-height:1.55;color:#64748b;margin-top:9px;border-top:1px solid #e5e7eb;padding-top:7px}
+    .report-empty{padding:22px;text-align:center;font-weight:900;color:#64748b}
+    @media(max-width:760px){.monthly-report-controls{grid-template-columns:1fr}.report-employee-meta{grid-template-columns:1fr 1fr}.report-stats{grid-template-columns:1fr 1fr 1fr}.monthly-report-card{width:100%}}
+    @media print{body *{visibility:hidden!important}.monthly-report-capture,.monthly-report-capture *{visibility:visible!important}.monthly-report-capture{position:absolute;inset:0;width:100%;border:none}.report-actions,.monthly-report-head,.monthly-report-controls{display:none!important}}
   </style>
 </head>
 <body>
@@ -82,7 +119,7 @@
     <div class="controls">
         <div style="display:flex; align-items:center; gap:12px">
             <img src="LOGO-almajdouie.png" style="height:40px" />
-            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.2.2</div>
+            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.3.0</div>
         </div>
         <div class="nav-group">
             <button class="btn-nav" id="btnPrev">السابق</button>
@@ -119,6 +156,31 @@
     </div>
 </div>
 
+
+<div class="monthly-report-card" id="monthlyReportCard">
+    <div class="monthly-report-head">
+        <div class="monthly-report-title" id="monthlyReportSectionTitle">📊 تقرير الموظف الشهري</div>
+    </div>
+    <div class="monthly-report-controls">
+        <div>
+            <label id="reportEmployeeLabel" for="reportEmployeeSelect">الموظف</label>
+            <select id="reportEmployeeSelect"><option value="">اختر الموظف...</option></select>
+        </div>
+        <div>
+            <label id="reportMonthLabel" for="reportMonthInput">الشهر</label>
+            <input id="reportMonthInput" type="month" />
+        </div>
+        <button class="report-action-btn primary" id="btnGenerateMonthlyReport" type="button">إنشاء التقرير</button>
+    </div>
+    <div class="report-actions" id="monthlyReportActions" style="display:none">
+        <button class="report-action-btn" id="btnCopyMonthlyReport" type="button">📋 نسخ صورة</button>
+        <button class="report-action-btn" id="btnDownloadMonthlyPng" type="button">🖼️ تنزيل صورة</button>
+        <button class="report-action-btn" id="btnDownloadMonthlyPdf" type="button">📄 تنزيل PDF</button>
+        <button class="report-action-btn" id="btnPrintMonthlyReport" type="button">🖨️ طباعة</button>
+    </div>
+    <div id="monthlyReportCapture" class="monthly-report-capture" style="display:none"></div>
+</div>
+
 <div class="overlay" id="shiftOverlay">
     <div class="dialog">
         <div style="padding:20px; background:#f8fafc; font-weight:900; color:var(--primary); border-bottom:1px solid #eee; text-align:center" id="dialogTitle"></div>
@@ -135,8 +197,24 @@ import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js
 import { doc, collection, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { title:'جدول المناوبات الأسبوعي', morning:'صباحي', night:'ليلي', vacation:'إجازة', sick:'مريض', holiday:'بدون دوام', absent:'غائب', oncall:'أون كول', work:'تغطية', off:'أوف', employee:'الموظف', allDay:'طوال اليوم', help:'حسب الحاجة', copyImage:'نسخ صورة', copied:'تم نسخ صورة الجدول.', downloaded:'تعذر النسخ المباشر، تم تنزيل الصورة بدلاً من ذلك.', copyFailed:'تعذر إنشاء صورة الجدول.', generated:'تم الإنشاء', range:(from,to)=>`من ${from} إلى ${to}`, days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'] },
-    en: { title:'Weekly Shift Schedule', morning:'Morning', night:'Night', vacation:'Vacation', sick:'Sick', holiday:'No Duty', absent:'Absent', oncall:'On Call', work:'Coverage', off:'Off', employee:'Employee', allDay:'Full Day', help:'As Needed', copyImage:'Copy Image', copied:'Schedule image copied.', downloaded:'Direct copy was blocked, so the image was downloaded instead.', copyFailed:'Could not create the schedule image.', generated:'Generated', range:(from,to)=>`From ${from} to ${to}`, days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] }
+    ar: {
+        title:'جدول المناوبات الأسبوعي', morning:'صباحي', night:'ليلي', vacation:'إجازة', sick:'مريض', holiday:'بدون دوام', absent:'غائب', oncall:'أون كول', work:'تغطية', off:'أوف', employee:'الموظف', allDay:'طوال اليوم', help:'حسب الحاجة', copyImage:'نسخ صورة', copied:'تم نسخ صورة الجدول.', downloaded:'تعذر النسخ المباشر، تم تنزيل الصورة بدلاً من ذلك.', copyFailed:'تعذر إنشاء صورة الجدول.', generated:'تم الإنشاء', range:(from,to)=>`من ${from} إلى ${to}`, days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'],
+        monthlyReport:'تقرير الموظف الشهري', reportEmployee:'الموظف', reportMonth:'الشهر', selectEmployee:'اختر الموظف...', generateReport:'إنشاء التقرير', copyReport:'نسخ صورة', downloadPng:'تنزيل صورة', downloadPdf:'تنزيل PDF', printReport:'طباعة',
+        employeeId:'رقم الموظف', department:'القسم', jobTitle:'المسمى الوظيفي', reportPeriod:'فترة التقرير', scheduledWorkDays:'أيام الدوام المؤكدة', onCallDays:'أيام الأون كول', dutyAssignments:'إجمالي تكليفات الدوام', offDays:'أيام الأوف', leaveDays:'إجازات', sickDays:'مرضية', absentDays:'غياب', holidayDays:'عطلات', maxConsecutive:'أقصى أيام عمل متتالية',
+        complianceTitle:'فحص إرشادي للراحة الأسبوعية', complianceOk:'لا توجد إشارة واضحة لمخالفة الراحة الأسبوعية في الجدول المحدد.', complianceReview:'توجد أسابيع تحتاج مراجعة لأن يوم الراحة الكامل غير واضح من الجدول.', complianceRisk:'تنبيه: يوجد 7 أيام عمل مؤكدة متتالية أو أكثر، ويحتاج الجدول إلى مراجعة.',
+        hoursNotChecked:'لا يتم الحكم على حد ساعات العمل من هذا التقرير؛ لأن الجدول لا يحتوي على ساعات العمل الفعلية وفترات الراحة.', onCallNote:'الأون كول يظهر منفصلاً ولا يُحتسب يوم عمل مؤكد إلا إذا سُجل كتغطية/عمل فعلي.', legalNote:'مرجع الفحص: المادة 104 من نظام العمل السعودي تشترط راحة أسبوعية لا تقل عن 24 ساعة متتالية. هذا تقرير جدولي إرشادي وليس سجل حضور وانصراف أو رأيًا قانونيًا.',
+        dailyDetails:'تفاصيل الشهر', weeklyCheck:'ملخص الراحة الأسبوعية', date:'التاريخ', day:'اليوم', shift:'الحالة / المناوبة', classification:'التصنيف', definiteWork:'دوام مؤكد', nonWork:'غير دوام مؤكد', week:'الأسبوع', workDays:'أيام الدوام', restShown:'راحة ظاهرة', result:'النتيجة', yes:'نعم', no:'لا', ok:'سليم جدوليًا', review:'مراجعة', risk:'تنبيه',
+        reportRequired:'اختر الموظف والشهر أولاً.', reportCopied:'تم نسخ التقرير كصورة.', reportDownloaded:'تم تنزيل صورة التقرير.', reportPdfDownloaded:'تم تنزيل PDF.', reportExportFailed:'تعذر إنشاء التقرير.'
+    },
+    en: {
+        title:'Weekly Shift Schedule', morning:'Morning', night:'Night', vacation:'Vacation', sick:'Sick', holiday:'No Duty', absent:'Absent', oncall:'On Call', work:'Coverage', off:'Off', employee:'Employee', allDay:'Full Day', help:'As Needed', copyImage:'Copy Image', copied:'Schedule image copied.', downloaded:'Direct copy was blocked, so the image was downloaded instead.', copyFailed:'Could not create the schedule image.', generated:'Generated', range:(from,to)=>`From ${from} to ${to}`, days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+        monthlyReport:'Monthly Employee Report', reportEmployee:'Employee', reportMonth:'Month', selectEmployee:'Select employee...', generateReport:'Generate Report', copyReport:'Copy Image', downloadPng:'Download Image', downloadPdf:'Download PDF', printReport:'Print',
+        employeeId:'Employee ID', department:'Department', jobTitle:'Job Title', reportPeriod:'Report Period', scheduledWorkDays:'Confirmed Work Days', onCallDays:'On-Call Days', dutyAssignments:'Total Duty Assignments', offDays:'Off Days', leaveDays:'Vacation', sickDays:'Sick', absentDays:'Absent', holidayDays:'Holidays', maxConsecutive:'Max Consecutive Work Days',
+        complianceTitle:'Weekly Rest Schedule Check', complianceOk:'No clear weekly-rest issue was detected in the selected schedule.', complianceReview:'Some weeks need review because a full rest day is not clearly shown.', complianceRisk:'Alert: 7 or more confirmed consecutive work days appear in the schedule and should be reviewed.',
+        hoursNotChecked:'Working-hour limits are not evaluated because this schedule does not contain actual worked hours and break periods.', onCallNote:'On-call is shown separately and is not counted as a confirmed work day unless it is recorded as Coverage/actual work.', legalNote:'Reference: Saudi Labor Law Article 104 requires a weekly rest of at least 24 consecutive hours. This is a schedule-based indicator, not an attendance record or legal opinion.',
+        dailyDetails:'Monthly Details', weeklyCheck:'Weekly Rest Summary', date:'Date', day:'Day', shift:'Status / Shift', classification:'Classification', definiteWork:'Confirmed Work', nonWork:'Not Confirmed Work', week:'Week', workDays:'Work Days', restShown:'Rest Shown', result:'Result', yes:'Yes', no:'No', ok:'Schedule OK', review:'Review', risk:'Alert',
+        reportRequired:'Select an employee and month first.', reportCopied:'Report image copied.', reportDownloaded:'Report image downloaded.', reportPdfDownloaded:'PDF downloaded.', reportExportFailed:'Could not create the report.'
+    }
 };
 
 let emps = [], employeeRecords = [], holidayDuties = [], overrides = {}, annualLeaves = [], vacationPlans = [], currentLang = localStorage.getItem('lang') || 'ar', selectedCell = null, selectedOption = null;
@@ -772,12 +850,344 @@ async function copyScheduleImage() {
     }
 }
 
+
+function reportShiftLabel(shift) {
+    const t = i18n[currentLang];
+    return t[String(shift || '').toLowerCase()] || String(shift || '');
+}
+
+function shiftCountsAsConfirmedWork(shift) {
+    return ['Morning', 'Night', 'Work'].includes(String(shift || ''));
+}
+
+function shiftShowsWeeklyRest(shift) {
+    return ['Off', 'Holiday'].includes(String(shift || ''));
+}
+
+function activeWeeklyEmployees() {
+    return sortWeeklyEmployees(dedupeWeeklyEmployees(emps).filter(e => e.active !== false));
+}
+
+function rotationsForWeek(weekStart) {
+    const dates = datesBetween(weekStart, addDays(weekStart, 6));
+    const thuDate = findDateByDay(dates, 4);
+    const friDate = findDateByDay(dates, 5);
+    const satDate = findDateByDay(dates, 6);
+    const activeEmps = activeWeeklyEmployees();
+    return {
+        thu: pickRotationEmployee(activeEmps.filter(e => normalizeRotation(e) === 'thu'), weekStart, [thuDate, friDate, satDate].filter(Boolean)),
+        fri: pickRotationEmployee(activeEmps.filter(e => normalizeRotation(e) === 'fri'), weekStart, [friDate, satDate].filter(Boolean))
+    };
+}
+
+function resolveEmployeeShift(emp, date) {
+    const dStr = formatLocalDate(date);
+    const manualShift = manualShiftForEmployee(emp, dStr);
+    const publicHoliday = publicHolidayForDate(date);
+    const holidayShift = publicHoliday ? holidayShiftForEmployee(emp, date) : '';
+    const leaveShift = leaveShiftForEmployee(emp, date);
+    const rotations = rotationsForWeek(startOfWeek(date));
+    return leaveShift || (manualShift || (publicHoliday ? (holidayShift || 'Holiday') : baseShift(emp, date, rotations)));
+}
+
+function renderMonthlyReportEmployeeOptions() {
+    const select = $('reportEmployeeSelect');
+    if (!select) return;
+    const current = select.value;
+    const t = i18n[currentLang];
+    const rows = activeWeeklyEmployees();
+    select.innerHTML = `<option value="">${escapeHtml(t.selectEmployee)}</option>` + rows.map(emp => {
+        const key = employeePrimaryKey(emp);
+        const label = emp.empNum ? `${emp.name} - ${emp.empNum}` : emp.name;
+        return `<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`;
+    }).join('');
+    if (rows.some(emp => employeePrimaryKey(emp) === current)) select.value = current;
+}
+
+function findReportEmployee(key) {
+    const normalized = String(key || '').trim().toLowerCase();
+    return activeWeeklyEmployees().find(emp => employeeIdsForOverrides(emp).some(value => String(value).trim().toLowerCase() === normalized)) || null;
+}
+
+function monthBounds(monthValue) {
+    const match = String(monthValue || '').match(/^(\d{4})-(\d{2})$/);
+    if (!match) return null;
+    const year = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    return { start: new Date(year, month, 1), end: new Date(year, month + 1, 0) };
+}
+
+function monthlyEmployeeRows(emp, start, end) {
+    return datesBetween(start, end).map(date => {
+        const shift = resolveEmployeeShift(emp, date);
+        return { date, shift, confirmedWork: shiftCountsAsConfirmedWork(shift), weeklyRest: shiftShowsWeeklyRest(shift) };
+    });
+}
+
+function maxConsecutiveConfirmedWork(rows) {
+    let current = 0, maximum = 0;
+    rows.forEach(row => {
+        current = row.confirmedWork ? current + 1 : 0;
+        maximum = Math.max(maximum, current);
+    });
+    return maximum;
+}
+
+function weeklyComplianceRows(emp, monthStart, monthEnd) {
+    const weeks = [];
+    let cursor = startOfWeek(monthStart);
+    const lastWeek = startOfWeek(monthEnd);
+    while (cursor <= lastWeek) {
+        const start = new Date(cursor);
+        const end = addDays(start, 6);
+        const rows = monthlyEmployeeRows(emp, start, end);
+        const workDays = rows.filter(row => row.confirmedWork).length;
+        const onCallDays = rows.filter(row => row.shift === 'OnCall').length;
+        const restDays = rows.filter(row => row.weeklyRest).length;
+        const maxConsecutive = maxConsecutiveConfirmedWork(rows);
+        const level = maxConsecutive >= 7 ? 'risk' : (restDays < 1 ? 'review' : 'ok');
+        weeks.push({ start, end, workDays, onCallDays, restDays, maxConsecutive, level });
+        cursor = addDays(cursor, 7);
+    }
+    return weeks;
+}
+
+function monthlyReportSummary(rows) {
+    const count = shift => rows.filter(row => row.shift === shift).length;
+    const workDays = rows.filter(row => row.confirmedWork).length;
+    const onCallDays = count('OnCall');
+    return {
+        workDays,
+        onCallDays,
+        dutyAssignments: workDays + onCallDays,
+        offDays: count('Off'),
+        vacationDays: count('Vacation'),
+        sickDays: count('Sick'),
+        absentDays: count('Absent'),
+        holidayDays: count('Holiday'),
+        maxConsecutive: maxConsecutiveConfirmedWork(rows)
+    };
+}
+
+function reportDayName(date) {
+    return i18n[currentLang].days[date.getDay()];
+}
+
+function reportMonthLabel(start) {
+    return start.toLocaleDateString(currentLang === 'ar' ? 'ar-SA' : 'en-US', { year: 'numeric', month: 'long' });
+}
+
+function complianceOverall(summary, weeks) {
+    if (summary.maxConsecutive >= 7 || weeks.some(item => item.level === 'risk')) return 'risk';
+    if (weeks.some(item => item.level === 'review')) return 'review';
+    return 'ok';
+}
+
+function complianceText(level) {
+    const t = i18n[currentLang];
+    return level === 'risk' ? t.complianceRisk : (level === 'review' ? t.complianceReview : t.complianceOk);
+}
+
+function renderMonthlyEmployeeReport() {
+    const employeeKey = $('reportEmployeeSelect').value;
+    const bounds = monthBounds($('reportMonthInput').value);
+    const t = i18n[currentLang];
+    if (!employeeKey || !bounds) {
+        alert(t.reportRequired);
+        return;
+    }
+    const emp = findReportEmployee(employeeKey);
+    if (!emp) {
+        alert(t.reportRequired);
+        return;
+    }
+
+    const rows = monthlyEmployeeRows(emp, bounds.start, bounds.end);
+    const summary = monthlyReportSummary(rows);
+    const weeks = weeklyComplianceRows(emp, bounds.start, bounds.end);
+    const level = complianceOverall(summary, weeks);
+    const levelClass = level === 'risk' ? 'compliance-risk' : (level === 'review' ? 'compliance-review' : 'compliance-ok');
+    const empRecord = findEmployeeRecord(emp) || emp;
+    const capture = $('monthlyReportCapture');
+
+    const stat = (label, value) => `<div class="report-stat"><div class="report-stat-label">${escapeHtml(label)}</div><div class="report-stat-value">${escapeHtml(value)}</div></div>`;
+    const meta = (label, value) => `<div class="report-meta-box"><div class="report-meta-label">${escapeHtml(label)}</div><div class="report-meta-value">${escapeHtml(value || '-')}</div></div>`;
+
+    const dailyRows = rows.map(row => `<tr>
+        <td>${escapeHtml(formatDisplayDate(row.date))}</td>
+        <td>${escapeHtml(reportDayName(row.date))}</td>
+        <td class="status-cell">${escapeHtml(reportShiftLabel(row.shift))}</td>
+        <td>${escapeHtml(row.confirmedWork ? t.definiteWork : t.nonWork)}</td>
+    </tr>`).join('');
+
+    const weeklyRows = weeks.map(item => {
+        const statusText = item.level === 'risk' ? t.risk : (item.level === 'review' ? t.review : t.ok);
+        const cls = item.level === 'risk' ? 'weekly-risk' : (item.level === 'review' ? 'weekly-review' : 'weekly-ok');
+        return `<tr>
+            <td>${escapeHtml(formatDisplayDate(item.start))} - ${escapeHtml(formatDisplayDate(item.end))}</td>
+            <td>${item.workDays}</td>
+            <td>${item.onCallDays}</td>
+            <td>${item.restDays ? t.yes : t.no}</td>
+            <td>${item.maxConsecutive}</td>
+            <td class="${cls}">${escapeHtml(statusText)}</td>
+        </tr>`;
+    }).join('');
+
+    capture.innerHTML = `
+        <div class="report-brand">
+            <div class="report-brand-left">
+                <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
+                <div><div class="report-main-title">${escapeHtml(t.monthlyReport)}</div><div class="report-subtitle">${escapeHtml(reportMonthLabel(bounds.start))}</div></div>
+            </div>
+            <div class="report-subtitle">${escapeHtml(t.generated)}: ${escapeHtml(new Date().toLocaleString('en-GB'))}</div>
+        </div>
+        <div class="report-employee-meta">
+            ${meta(t.employee, emp.name)}
+            ${meta(t.employeeId, emp.empNum || emp.empId || employeePrimaryKey(emp))}
+            ${meta(t.department, emp.dept || emp.department || empRecord.dept || empRecord.department)}
+            ${meta(t.jobTitle, employeeJobValue(emp))}
+        </div>
+        <div class="report-stats">
+            ${stat(t.scheduledWorkDays, summary.workDays)}
+            ${stat(t.onCallDays, summary.onCallDays)}
+            ${stat(t.dutyAssignments, summary.dutyAssignments)}
+            ${stat(t.offDays, summary.offDays)}
+            ${stat(t.maxConsecutive, summary.maxConsecutive)}
+            ${stat(t.leaveDays, summary.vacationDays)}
+            ${stat(t.sickDays, summary.sickDays)}
+            ${stat(t.absentDays, summary.absentDays)}
+            ${stat(t.holidayDays, summary.holidayDays)}
+        </div>
+        <div class="compliance-box">
+            <div class="compliance-title ${levelClass}">${escapeHtml(t.complianceTitle)}</div>
+            <div class="compliance-line ${levelClass}">${escapeHtml(complianceText(level))}</div>
+            <div class="compliance-line">${escapeHtml(t.onCallNote)}</div>
+            <div class="compliance-line">${escapeHtml(t.hoursNotChecked)}</div>
+        </div>
+        <div class="report-table-wrap">
+            <div class="compliance-title">${escapeHtml(t.weeklyCheck)}</div>
+            <table class="report-table"><thead><tr>
+                <th>${escapeHtml(t.week)}</th><th>${escapeHtml(t.workDays)}</th><th>${escapeHtml(t.oncall)}</th><th>${escapeHtml(t.restShown)}</th><th>${escapeHtml(t.maxConsecutive)}</th><th>${escapeHtml(t.result)}</th>
+            </tr></thead><tbody>${weeklyRows}</tbody></table>
+        </div>
+        <div class="report-table-wrap">
+            <div class="compliance-title">${escapeHtml(t.dailyDetails)}</div>
+            <table class="report-table"><thead><tr>
+                <th>${escapeHtml(t.date)}</th><th>${escapeHtml(t.day)}</th><th>${escapeHtml(t.shift)}</th><th>${escapeHtml(t.classification)}</th>
+            </tr></thead><tbody>${dailyRows}</tbody></table>
+        </div>
+        <div class="report-footnote">${escapeHtml(t.legalNote)}</div>
+    `;
+    capture.style.display = 'block';
+    $('monthlyReportActions').style.display = 'flex';
+}
+
+async function monthlyReportCanvas() {
+    const capture = $('monthlyReportCapture');
+    const t = i18n[currentLang];
+    if (!capture || capture.style.display === 'none' || !capture.innerHTML.trim()) throw new Error(t.reportRequired);
+    if (!window.html2canvas) throw new Error(t.reportExportFailed);
+    return await html2canvas(capture, { backgroundColor: '#ffffff', scale: 2, useCORS: true, windowWidth: Math.max(capture.scrollWidth, 1100) });
+}
+
+function monthlyReportFilename(ext) {
+    const employee = findReportEmployee($('reportEmployeeSelect').value);
+    const month = $('reportMonthInput').value || formatLocalDate(new Date()).slice(0, 7);
+    const key = String(employee?.empNum || employee?.name || 'Employee').replace(/[^a-zA-Z0-9_-]+/g, '_');
+    return `Employee_Monthly_Report_${key}_${month}.${ext}`;
+}
+
+async function copyMonthlyReportImage() {
+    const t = i18n[currentLang];
+    try {
+        const canvas = await monthlyReportCanvas();
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error('png-blob-failed');
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        alert(t.reportCopied);
+    } catch (error) {
+        console.error(error);
+        alert(`${t.reportExportFailed}: ${error?.message || error}`);
+    }
+}
+
+async function downloadMonthlyReportPng() {
+    const t = i18n[currentLang];
+    try {
+        const canvas = await monthlyReportCanvas();
+        const a = document.createElement('a');
+        a.download = monthlyReportFilename('png');
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+    } catch (error) {
+        console.error(error);
+        alert(`${t.reportExportFailed}: ${error?.message || error}`);
+    }
+}
+
+async function downloadMonthlyReportPdf() {
+    const t = i18n[currentLang];
+    try {
+        const canvas = await monthlyReportCanvas();
+        if (!window.jspdf?.jsPDF) throw new Error('jsPDF library not loaded');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+        const margin = 7;
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const usableWidth = pageWidth - margin * 2;
+        const usableHeight = pageHeight - margin * 2;
+        const imgData = canvas.toDataURL('image/jpeg', 0.93);
+        const imgHeight = canvas.height * usableWidth / canvas.width;
+        let offset = 0;
+        pdf.addImage(imgData, 'JPEG', margin, margin, usableWidth, imgHeight, undefined, 'FAST');
+        offset += usableHeight;
+        while (offset < imgHeight) {
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', margin, margin - offset, usableWidth, imgHeight, undefined, 'FAST');
+            offset += usableHeight;
+        }
+        pdf.save(monthlyReportFilename('pdf'));
+    } catch (error) {
+        console.error(error);
+        alert(`${t.reportExportFailed}: ${error?.message || error}`);
+    }
+}
+
+function printMonthlyReport() {
+    const capture = $('monthlyReportCapture');
+    if (!capture || capture.style.display === 'none') {
+        alert(i18n[currentLang].reportRequired);
+        return;
+    }
+    window.print();
+}
+
+function updateMonthlyReportLabels() {
+    const t = i18n[currentLang];
+    if (!$('monthlyReportSectionTitle')) return;
+    $('monthlyReportSectionTitle').textContent = `📊 ${t.monthlyReport}`;
+    $('reportEmployeeLabel').textContent = t.reportEmployee;
+    $('reportMonthLabel').textContent = t.reportMonth;
+    $('btnGenerateMonthlyReport').textContent = t.generateReport;
+    $('btnCopyMonthlyReport').textContent = `📋 ${t.copyReport}`;
+    $('btnDownloadMonthlyPng').textContent = `🖼️ ${t.downloadPng}`;
+    $('btnDownloadMonthlyPdf').textContent = `📄 ${t.downloadPdf}`;
+    $('btnPrintMonthlyReport').textContent = `🖨️ ${t.printReport}`;
+    renderMonthlyReportEmployeeOptions();
+}
+
 $('btnPrev').onclick = () => { const p = $('datePicker'); const d = startOfWeek(parseLocalDate(p.value)); d.setDate(d.getDate()-7); p.value = formatLocalDate(d); renderTable(); };
 $('btnNext').onclick = () => { const p = $('datePicker'); const d = startOfWeek(parseLocalDate(p.value)); d.setDate(d.getDate()+7); p.value = formatLocalDate(d); renderTable(); };
 $('btnToday').onclick = () => { $('datePicker').value = formatLocalDate(startOfWeek(new Date())); renderTable(); };
-$('btnToggleLang').onclick = () => { currentLang = currentLang==='ar'?'en':'ar'; localStorage.setItem('lang', currentLang); renderTable(); };
+$('btnToggleLang').onclick = () => { currentLang = currentLang==='ar'?'en':'ar'; localStorage.setItem('lang', currentLang); renderTable(); updateMonthlyReportLabels(); if ($('monthlyReportCapture')?.style.display !== 'none' && $('reportEmployeeSelect')?.value && $('reportMonthInput')?.value) renderMonthlyEmployeeReport(); };
 $('btnCopyImage').onclick = copyScheduleImage;
 $('datePicker').onchange = renderTable;
+$('btnGenerateMonthlyReport').onclick = renderMonthlyEmployeeReport;
+$('btnCopyMonthlyReport').onclick = copyMonthlyReportImage;
+$('btnDownloadMonthlyPng').onclick = downloadMonthlyReportPng;
+$('btnDownloadMonthlyPdf').onclick = downloadMonthlyReportPdf;
+$('btnPrintMonthlyReport').onclick = printMonthlyReport;
 
 async function bindSnapshots() {
     await waitForSignedInUser();
@@ -785,6 +1195,7 @@ async function bindSnapshots() {
         employeeRecords = s.docs.map(item => normalizeEmployeeRecord({ id: item.id, ...item.data() }));
         emps = dedupeWeeklyEmployees(employeeRecords);
         renderTable();
+        renderMonthlyReportEmployeeOptions();
     }, e => logFirebaseError('Weekly schedule employees collection listener failed', e));
     onSnapshot(doc(db, 'schedule', 'jadwal_holidays'), s => { holidayDuties = s.exists() ? (s.data().duties || []) : []; renderTable(); }, e => logFirebaseError('Weekly schedule public holidays listener failed', e));
     onSnapshot(doc(db, 'schedule', 'manual_overrides'), s => { overrides = s.data() || {}; renderTable(); }, e => logFirebaseError('Weekly schedule overrides listener failed', e));
@@ -795,6 +1206,8 @@ async function bindSnapshots() {
 
 window.onload = () => {
     $('datePicker').value = formatLocalDate(startOfWeek(new Date()));
+    $('reportMonthInput').value = formatLocalDate(new Date()).slice(0, 7);
+    updateMonthlyReportLabels();
     renderTable();
     bindSnapshots().catch(e => logFirebaseError('Weekly schedule startup failed', e));
 };
