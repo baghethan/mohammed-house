@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weekly Schedule v1.2.1 - Employees Single Source</title>
+  <title>Weekly Schedule v1.2.2 - Employees Single Source</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root {
@@ -82,7 +82,7 @@
     <div class="controls">
         <div style="display:flex; align-items:center; gap:12px">
             <img src="LOGO-almajdouie.png" style="height:40px" />
-            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.2.1</div>
+            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.2.2</div>
         </div>
         <div class="nav-group">
             <button class="btn-nav" id="btnPrev">السابق</button>
@@ -407,6 +407,7 @@ function normalizeLeaveType(value) {
     const text = String(value || '').trim().toLowerCase();
     if (['sick', 'sick leave', 'medical', 'مرضية', 'مريض', 'اجازة مرضية', 'إجازة مرضية'].includes(text)) return 'sick';
     if (['absence', 'absent', 'غياب', 'غائب'].includes(text)) return 'absence';
+    if (['delay', 'late', 'lateness', 'تأخير', 'تاخير'].includes(text)) return 'delay';
     return 'annual';
 }
 
@@ -414,14 +415,15 @@ function shiftForLeaveRecord(record) {
     const type = normalizeLeaveType(record.leaveType || record.type || record.leaveTypeLabel);
     if (type === 'sick') return 'Sick';
     if (type === 'absence') return 'Absent';
+    if (type === 'delay') return '';
     return 'Vacation';
 }
 
 function leaveShiftForEmployee(emp, date) {
-    const annual = annualLeaves.find(v => matchesEmployee(v, emp) && isDateInRange(date, v.start || v.from, v.end || v.to));
+    const annual = annualLeaves.find(v => normalizeLeaveType(v.leaveType || v.type || v.leaveTypeLabel) !== 'delay' && matchesEmployee(v, emp) && isDateInRange(date, v.start || v.from, v.end || v.to));
     if (annual) return shiftForLeaveRecord(annual);
 
-    const approvedPlan = vacationPlans.find(p => String(p.status || 'pending') === 'approved' && matchesEmployee(p, emp) && isDateInRange(date, p.from, p.to));
+    const approvedPlan = vacationPlans.find(p => normalizeLeaveType(p.leaveType || p.type || p.leaveTypeLabel) !== 'delay' && String(p.status || 'pending') === 'approved' && matchesEmployee(p, emp) && isDateInRange(date, p.from || p.start, p.to || p.end));
     return approvedPlan ? shiftForLeaveRecord(approvedPlan) : '';
 }
 
