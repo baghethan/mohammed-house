@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Employee Management v1.7.1 - Single Source</title>
+  <title>Employee Management v1.8.0 - Shift History</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root{
@@ -89,7 +89,7 @@
     <div class="brand">
       <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
       <div>
-        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.7.1</span></h2>
+        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.8.0</span></h2>
         <p class="subtitle" id="pageSubtitle">إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات</p>
       </div>
     </div>
@@ -139,6 +139,10 @@
           <option value="morning">صباحي / متغير</option>
           <option value="night">ليلي ثابت</option>
         </select>
+      </div>
+      <div>
+        <label for="empShiftEffectiveFrom">تاريخ سريان نوع الدوام</label>
+        <input id="empShiftEffectiveFrom" type="date" />
       </div>
       <div>
         <label for="empRotation">الروتيشن</label>
@@ -225,6 +229,7 @@ let excelImportInProgress = false;
 let renderedEmployeeRows = [];
 let employeesLoaded = false;
 let legacyMigrationStarted = false;
+let shiftHistoryMigrationStarted = false;
 let currentAuthUser = null;
 let currentUserProfile = null;
 const scheduleDocRef = doc(db, 'schedule', 'jadwal_v6');
@@ -259,7 +264,7 @@ const JOB_TITLE_LABELS = {
 };
 const I18N = {
   ar: {
-    documentTitle: 'إدارة الموظفين v1.7.1 - مصدر موحد',
+    documentTitle: 'إدارة الموظفين v1.8.0 - سجل تاريخ الدوام',
     pageTitle: 'إدارة سجل الموظفين (مزامنة تلقائية)',
     pageSubtitle: 'إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات',
     reload: 'تحديث',
@@ -272,6 +277,7 @@ const I18N = {
     labelEmpEmail: 'البريد الإلكتروني',
     labelEmpPhone: 'رقم الجوال',
     labelEmpShift: 'نوع الدوام',
+    labelEmpShiftEffectiveFrom: 'تاريخ سريان نوع الدوام',
     labelEmpRotation: 'الروتيشن',
     labelEmpStatus: 'الحالة',
     labelWeeklyOrder: 'ترتيب الجدول',
@@ -333,7 +339,7 @@ const I18N = {
     confirmDelete: 'هل تريد حذف هذا الموظف؟'
   },
   en: {
-    documentTitle: 'Employee Management v1.7.1 - Single Source',
+    documentTitle: 'Employee Management v1.8.0 - Shift History',
     pageTitle: 'Employee Management (Auto Sync)',
     pageSubtitle: 'Add and update employees linked to the schedule and vacation plan',
     reload: 'Refresh',
@@ -346,6 +352,7 @@ const I18N = {
     labelEmpEmail: 'Email Address',
     labelEmpPhone: 'Mobile Number',
     labelEmpShift: 'Shift Type',
+    labelEmpShiftEffectiveFrom: 'Shift Effective From',
     labelEmpRotation: 'Rotation',
     labelEmpStatus: 'Status',
     labelWeeklyOrder: 'Schedule Order',
@@ -655,6 +662,7 @@ function applyLanguage({ rerender = false } = {}) {
   setLabel('empEmail', 'labelEmpEmail');
   setLabel('empPhone', 'labelEmpPhone');
   setLabel('empShift', 'labelEmpShift');
+  setLabel('empShiftEffectiveFrom', 'labelEmpShiftEffectiveFrom');
   setLabel('empRotation', 'labelEmpRotation');
   setLabel('empStatus', 'labelEmpStatus');
   setLabel('empWeeklyOrder', 'labelWeeklyOrder');
@@ -859,6 +867,118 @@ function hasExplicitEmployeeShift(record) {
   );
 }
 
+function normalizeDateOnly(value) {
+  if (!value) return '';
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const text = String(value).trim();
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const y = parsed.getFullYear();
+  const m = String(parsed.getMonth() + 1).padStart(2, '0');
+  const d = String(parsed.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function todayDateOnly() {
+  return normalizeDateOnly(new Date());
+}
+
+function normalizeShiftHistory(history) {
+  const rows = (Array.isArray(history) ? history : []).map((item, index) => {
+    const effectiveFrom = normalizeDateOnly(item?.effectiveFrom || item?.from || item?.date || item?.start);
+    if (!effectiveFrom) return null;
+    const fixed = typeof item?.fixed === 'boolean'
+      ? item.fixed
+      : excelFixedShift(item?.shiftType || item?.shift || item?.workType || '');
+    return {
+      effectiveFrom,
+      fixed,
+      shiftType: fixed ? 'night' : 'morning',
+      changedAt: String(item?.changedAt || item?.updatedAt || item?.createdAt || ''),
+      source: String(item?.source || 'employee-Schedule'),
+      _index: index
+    };
+  }).filter(Boolean);
+
+  rows.sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom) || a.changedAt.localeCompare(b.changedAt) || a._index - b._index);
+  const byDate = new Map();
+  rows.forEach(item => byDate.set(item.effectiveFrom, item));
+  return Array.from(byDate.values())
+    .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))
+    .map(({ _index, ...item }) => item);
+}
+
+function shiftEventFromRecord(record, fallbackFrom = '') {
+  if (!record || !hasExplicitEmployeeShift(record)) return null;
+  const effectiveFrom = normalizeDateOnly(record.shiftEffectiveFrom || record.updatedAt || record.createdAt || fallbackFrom);
+  if (!effectiveFrom) return null;
+  const fixed = fixedFromRecord(record);
+  return {
+    effectiveFrom,
+    fixed,
+    shiftType: fixed ? 'night' : 'morning',
+    changedAt: String(record.updatedAt || record.createdAt || ''),
+    source: String(record.source || 'employee-record')
+  };
+}
+
+function mergeEmployeeShiftHistories(...records) {
+  const rows = [];
+  records.filter(Boolean).forEach(record => {
+    const history = normalizeShiftHistory(record.shiftHistory);
+    if (history.length) rows.push(...history);
+    else {
+      const inferred = shiftEventFromRecord(record);
+      if (inferred) rows.push(inferred);
+    }
+  });
+  return normalizeShiftHistory(rows);
+}
+
+function appendEmployeeShiftChange(existing, nextFixed, effectiveFrom) {
+  const now = new Date().toISOString();
+  const effective = normalizeDateOnly(effectiveFrom) || todayDateOnly();
+  if (!existing) {
+    return normalizeShiftHistory([{
+      effectiveFrom: effective,
+      fixed: nextFixed,
+      shiftType: nextFixed ? 'night' : 'morning',
+      changedAt: now,
+      source: 'employee-Schedule'
+    }]);
+  }
+
+  let history = mergeEmployeeShiftHistories(existing);
+  const previousFixed = fixedFromRecord(existing);
+  if (!history.length) {
+    history = normalizeShiftHistory([{
+      effectiveFrom: normalizeDateOnly(existing.shiftEffectiveFrom || existing.createdAt || existing.updatedAt) || '2000-01-01',
+      fixed: previousFixed,
+      shiftType: previousFixed ? 'night' : 'morning',
+      changedAt: String(existing.createdAt || existing.updatedAt || now),
+      source: 'baseline'
+    }]);
+  }
+
+  if (previousFixed !== nextFixed) {
+    history.push({
+      effectiveFrom: effective,
+      fixed: nextFixed,
+      shiftType: nextFixed ? 'night' : 'morning',
+      changedAt: now,
+      source: 'employee-Schedule'
+    });
+  }
+  return normalizeShiftHistory(history);
+}
+
 function hasExplicitEmployeeStatus(record) {
   return typeof record?.active === 'boolean' ||
     (Object.prototype.hasOwnProperty.call(record || {}, 'status') && String(record?.status ?? '').trim() !== '');
@@ -913,6 +1033,7 @@ function normalizeScheduleOrder(value) {
 
 function normalizeEmployee(emp) {
   const rot = normalizeRotation(emp.rotType || emp.rotation);
+  const shiftHistory = normalizeShiftHistory(emp.shiftHistory);
   return {
     ...emp,
     name: emp.name || '',
@@ -927,13 +1048,16 @@ function normalizeEmployee(emp) {
     rotType: rot,
     source: employeeSource(emp),
     weeklyOrder: normalizeScheduleOrder(emp.weeklyOrder ?? emp.scheduleOrder ?? emp.sortOrder),
-    employeeDocId: emp.employeeDocId || (emp.source === 'employees' ? emp.id : '')
+    employeeDocId: emp.employeeDocId || (emp.source === 'employees' ? emp.id : ''),
+    shiftHistory,
+    shiftEffectiveFrom: normalizeDateOnly(emp.shiftEffectiveFrom) || (shiftHistory.length ? shiftHistory[shiftHistory.length - 1].effectiveFrom : '')
   };
 }
 
 function normalizeExternalEmployee(record, source) {
   const id = String(record.id || record.uid || record.empId || record.empNum || `emp_${Date.now()}`);
   const rot = normalizeRotation(record.rotType || record.rotation);
+  const shiftHistory = normalizeShiftHistory(record.shiftHistory);
   return {
     id,
     empNum: record.empId || record.empNum || record.employeeId || record.technicianId || '',
@@ -950,7 +1074,9 @@ function normalizeExternalEmployee(record, source) {
     weeklyOrder: normalizeScheduleOrder(record.weeklyOrder ?? record.scheduleOrder ?? record.sortOrder),
     employeeDocId: source === 'employees' ? id : '',
     createdAt: record.createdAt || new Date().toISOString(),
-    updatedAt: record.updatedAt || ''
+    updatedAt: record.updatedAt || '',
+    shiftHistory,
+    shiftEffectiveFrom: normalizeDateOnly(record.shiftEffectiveFrom) || (shiftHistory.length ? shiftHistory[shiftHistory.length - 1].effectiveFrom : '')
   };
 }
 
@@ -989,6 +1115,8 @@ function mergeEmployeeRows(existingRow, incomingRow) {
       ? normalizeRotation(fallbackRow.rotType ?? fallbackRow.rotation)
       : normalizeRotation(preferred.rotType ?? preferred.rotation));
 
+  const shiftHistory = mergeEmployeeShiftHistories(existingRow, incomingRow);
+
   const preferredOrder = normalizeScheduleOrder(
     preferredRow?.weeklyOrder ?? preferredRow?.scheduleOrder ?? preferredRow?.sortOrder
   );
@@ -1015,6 +1143,8 @@ function mergeEmployeeRows(existingRow, incomingRow) {
     status: active ? 'active' : 'inactive',
     weeklyOrder: preferredOrder || fallbackOrder,
     scheduleOrder: preferredOrder || fallbackOrder,
+    shiftHistory,
+    shiftEffectiveFrom: shiftHistory.length ? shiftHistory[shiftHistory.length - 1].effectiveFrom : (preferred.shiftEffectiveFrom || fallback.shiftEffectiveFrom || ''),
     source: preferred.source || fallback.source,
     createdAt: preferred.createdAt || fallback.createdAt || '',
     updatedAt: employeeRecordTimestamp(preferredRow) >= employeeRecordTimestamp(fallbackRow)
@@ -1050,6 +1180,8 @@ function dedupeEmployees(list) {
 function employeeRecordPayload(emp, options = {}) {
   const normalized = normalizeEmployee(emp);
   const active = options.inactive ? false : normalized.active !== false;
+  const shiftHistory = normalizeShiftHistory(emp.shiftHistory || normalized.shiftHistory);
+  const latestShift = shiftHistory.length ? shiftHistory[shiftHistory.length - 1] : null;
   return {
     empId: normalized.empNum || '',
     name: normalized.name || '',
@@ -1067,6 +1199,7 @@ function employeeRecordPayload(emp, options = {}) {
     scheduleOrder: normalizeScheduleOrder(normalized.weeklyOrder),
     active,
     status: active ? 'active' : 'inactive',
+    ...(shiftHistory.length ? { shiftHistory, shiftEffectiveFrom: latestShift.effectiveFrom } : {}),
     updatedAt: new Date().toISOString(),
     source: 'employee-Schedule'
   };
@@ -1103,6 +1236,7 @@ function fillForm(emp) {
   $('empPhone').value = emp?.phone || '';
   $('empShift').innerHTML = shiftOptions(emp?.fixed ? 'night' : 'morning');
   $('empShift').value = emp?.fixed ? 'night' : 'morning';
+  $('empShiftEffectiveFrom').value = todayDateOnly();
   $('empRotation').innerHTML = rotationOptions(emp?.rotType || emp?.rotation || 'none');
   $('empRotation').value = normalizeRotation(emp?.rotType || emp?.rotation);
   $('empStatus').innerHTML = statusOptions(emp?.active === false ? 'false' : 'true');
@@ -1127,6 +1261,9 @@ function buildEmployeePayload(existing) {
 
   const rot = normalizeRotation($('empRotation').value);
   const active = $('empStatus').value === 'true';
+  const nextFixed = $('empShift').value === 'night';
+  const shiftHistory = appendEmployeeShiftChange(existing, nextFixed, $('empShiftEffectiveFrom').value);
+  const latestShift = shiftHistory.length ? shiftHistory[shiftHistory.length - 1] : null;
   return {
     ...(existing || {}),
     id: existing?.id || `emp_${Date.now()}`,
@@ -1136,7 +1273,10 @@ function buildEmployeePayload(existing) {
     jobTitle,
     email: $('empEmail').value.trim(),
     phone: $('empPhone').value.trim(),
-    fixed: $('empShift').value === 'night',
+    fixed: nextFixed,
+    shiftType: nextFixed ? 'night' : 'morning',
+    shiftHistory,
+    shiftEffectiveFrom: latestShift?.effectiveFrom || normalizeDateOnly($('empShiftEffectiveFrom').value) || todayDateOnly(),
     rotation: rot,
     rotType: rot,
     active,
@@ -1473,12 +1613,100 @@ async function migrateLegacyScheduleEmployees() {
         completed: true,
         completedAt: new Date().toISOString(),
         migratedCount: missingEmployees.length,
-        source: 'employee-Schedule-v1.7.1'
+        source: 'employee-Schedule-v1.8.0'
       }
     }, { merge: true });
   } catch (error) {
     legacyMigrationStarted = false;
     logFirebaseError('Legacy schedule employee migration failed', error);
+  }
+}
+
+
+async function migrateLegacyEmployeeShiftHistory() {
+  if (shiftHistoryMigrationStarted) return;
+  shiftHistoryMigrationStarted = true;
+
+  try {
+    const legacySnap = await getDoc(scheduleDocRef);
+    const legacyData = legacySnap.exists() ? legacySnap.data() : {};
+    const migrationState = legacyData?._employeeShiftHistoryMigrationV1 || {};
+    if (migrationState.completed === true) return;
+
+    const legacyEmployees = dedupeEmployees(legacyData?.data?.emps || []);
+    const updates = [];
+
+    employeeRecords.forEach(currentRaw => {
+      const current = normalizeExternalEmployee({ ...currentRaw, source: 'employees' }, 'employees');
+      const legacyIndex = findEmployeeIndex(legacyEmployees, current);
+      if (legacyIndex === -1) return;
+      const legacy = normalizeEmployee(legacyEmployees[legacyIndex]);
+
+      const currentFixed = fixedFromRecord(currentRaw);
+      const legacyFixed = fixedFromRecord(legacy);
+      const currentFrom = normalizeDateOnly(currentRaw.shiftEffectiveFrom || currentRaw.updatedAt || currentRaw.createdAt) || todayDateOnly();
+      let legacyFrom = normalizeDateOnly(legacy.shiftEffectiveFrom || legacy.createdAt || legacy.updatedAt) || '2000-01-01';
+      if (legacyFixed !== currentFixed && legacyFrom >= currentFrom) legacyFrom = '2000-01-01';
+
+      let history = normalizeShiftHistory(currentRaw.shiftHistory);
+      if (!history.length) {
+        history.push({
+          effectiveFrom: legacyFrom,
+          fixed: legacyFixed,
+          shiftType: legacyFixed ? 'night' : 'morning',
+          changedAt: String(legacy.updatedAt || legacy.createdAt || ''),
+          source: 'legacy-schedule'
+        });
+        history.push({
+          effectiveFrom: currentFrom,
+          fixed: currentFixed,
+          shiftType: currentFixed ? 'night' : 'morning',
+          changedAt: String(currentRaw.updatedAt || currentRaw.createdAt || new Date().toISOString()),
+          source: 'employees-current'
+        });
+      } else if (legacyFixed !== currentFixed && !history.some(item => item.fixed === legacyFixed && item.effectiveFrom <= currentFrom)) {
+        history.push({
+          effectiveFrom: legacyFrom,
+          fixed: legacyFixed,
+          shiftType: legacyFixed ? 'night' : 'morning',
+          changedAt: String(legacy.updatedAt || legacy.createdAt || ''),
+          source: 'legacy-schedule'
+        });
+      }
+
+      history = normalizeShiftHistory(history);
+      if (!history.length) return;
+      const latest = history[history.length - 1];
+      const oldSerialized = JSON.stringify(normalizeShiftHistory(currentRaw.shiftHistory));
+      const newSerialized = JSON.stringify(history);
+      if (oldSerialized !== newSerialized || normalizeDateOnly(currentRaw.shiftEffectiveFrom) !== latest.effectiveFrom) {
+        updates.push({ id: String(currentRaw.id), history, latest });
+      }
+    });
+
+    for (let start = 0; start < updates.length; start += 400) {
+      const batch = writeBatch(db);
+      updates.slice(start, start + 400).forEach(item => {
+        batch.set(doc(db, 'employees', item.id), {
+          shiftHistory: item.history,
+          shiftEffectiveFrom: item.latest.effectiveFrom,
+          shiftHistoryMigratedAt: new Date().toISOString()
+        }, { merge: true });
+      });
+      await batch.commit();
+    }
+
+    await setDoc(scheduleDocRef, {
+      _employeeShiftHistoryMigrationV1: {
+        completed: true,
+        completedAt: new Date().toISOString(),
+        updatedEmployees: updates.length,
+        source: 'employee-Schedule-v1.8.0'
+      }
+    }, { merge: true });
+  } catch (error) {
+    shiftHistoryMigrationStarted = false;
+    logFirebaseError('Employee shift history migration failed', error);
   }
 }
 
@@ -1514,6 +1742,7 @@ async function bindSnapshots() {
 
     if (!excelImportInProgress) {
       migrateLegacyScheduleEmployees();
+      migrateLegacyEmployeeShiftHistory();
     }
   }, error => logFirebaseError('Employees collection listener failed', error));
 }
@@ -1595,7 +1824,19 @@ window.updateEmployeeField = async (id, field, value) => {
   const previousEmployees = emps;
   const updated = emps.map(emp => {
     if (String(emp.id) !== String(id)) return emp;
-    if (field === 'fixed') return { ...emp, fixed: value === 'night', updatedAt: new Date().toISOString() };
+    if (field === 'fixed') {
+      const nextFixed = value === 'night';
+      const shiftHistory = appendEmployeeShiftChange(emp, nextFixed, todayDateOnly());
+      const latestShift = shiftHistory.length ? shiftHistory[shiftHistory.length - 1] : null;
+      return {
+        ...emp,
+        fixed: nextFixed,
+        shiftType: nextFixed ? 'night' : 'morning',
+        shiftHistory,
+        shiftEffectiveFrom: latestShift?.effectiveFrom || todayDateOnly(),
+        updatedAt: new Date().toISOString()
+      };
+    }
     if (field === 'active') {
       const active = value === 'true';
       return { ...emp, active, status: active ? 'active' : 'inactive', updatedAt: new Date().toISOString() };
