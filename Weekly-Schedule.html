@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weekly Schedule v1.5.0 - Historical Shift Report</title>
+  <title>Weekly Schedule v1.5.1 - Historical Shift Report</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
@@ -108,6 +108,17 @@
     .report-table td{padding:5px;border:1px solid #e5e7eb;font-size:9px;background:#fff}
     .report-table .status-cell{font-weight:900}
     .weekly-review{color:#b45309;font-weight:900}.weekly-risk{color:#b91c1c;font-weight:900}.weekly-ok{color:#166534;font-weight:900}
+    .week-row-extra td{background:#fff1f2!important;border-color:#fecdd3!important}
+    .week-row-extra td:first-child{box-shadow:inset 4px 0 0 #dc2626}
+    html[dir="rtl"] .week-row-extra td:first-child{box-shadow:inset -4px 0 0 #dc2626}
+    .week-row-swap td{background:#f0fdf4!important;border-color:#bbf7d0!important}
+    .week-row-swap td:first-child{box-shadow:inset 4px 0 0 #16a34a}
+    html[dir="rtl"] .week-row-swap td:first-child{box-shadow:inset -4px 0 0 #16a34a}
+    .week-row-short td{background:#fff7ed!important;border-color:#fed7aa!important}
+    .week-row-short td:first-child{box-shadow:inset 4px 0 0 #d97706}
+    html[dir="rtl"] .week-row-short td:first-child{box-shadow:inset -4px 0 0 #d97706}
+    .daily-extra td{background:#fff1f2!important;border-color:#fecdd3!important}
+    .daily-swap td{background:#f0fdf4!important;border-color:#bbf7d0!important}
     .report-footnote{font-size:8.5px;line-height:1.55;color:#64748b;margin-top:9px;border-top:1px solid #e5e7eb;padding-top:7px}
     .report-empty{padding:22px;text-align:center;font-weight:900;color:#64748b}
     @media(max-width:760px){.monthly-report-controls{grid-template-columns:1fr}.report-employee-meta{grid-template-columns:1fr 1fr}.report-stats{grid-template-columns:1fr 1fr 1fr}.monthly-report-card{width:100%}}
@@ -120,7 +131,7 @@
     <div class="controls">
         <div style="display:flex; align-items:center; gap:12px">
             <img src="LOGO-almajdouie.png" style="height:40px" />
-            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.5.0</div>
+            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.5.1</div>
         </div>
         <div class="nav-group">
             <button class="btn-nav" id="btnPrev">السابق</button>
@@ -1142,12 +1153,20 @@ function renderMonthlyEmployeeReport() {
     const stat = (label, value) => `<div class="report-stat"><div class="report-stat-label">${escapeHtml(label)}</div><div class="report-stat-value">${escapeHtml(value)}</div></div>`;
     const meta = (label, value) => `<div class="report-meta-box"><div class="report-meta-label">${escapeHtml(label)}</div><div class="report-meta-value">${escapeHtml(value || '-')}</div></div>`;
 
-    const dailyRows = rows.map(row => `<tr>
-        <td>${escapeHtml(formatDisplayDate(row.date))}</td>
-        <td>${escapeHtml(reportDayName(row.date))}</td>
-        <td class="status-cell">${escapeHtml(reportShiftLabel(row.shift))}</td>
-        <td>${escapeHtml(row.confirmedWork ? t.definiteWork : t.nonWork)}</td>
-    </tr>`).join('');
+    const weekForDate = date => weeks.find(item => date >= item.calendarStart && date <= item.calendarEnd) || null;
+    const dailyRows = rows.map(row => {
+        const week = weekForDate(row.date);
+        const isSaturdayCoverage = row.date.getDay() === 6 && row.shift === 'Work';
+        const dailyClass = isSaturdayCoverage && week?.coverageType === 'extra'
+            ? 'daily-extra'
+            : (isSaturdayCoverage && week?.coverageType === 'swap' ? 'daily-swap' : '');
+        return `<tr class="${dailyClass}">
+            <td>${escapeHtml(formatDisplayDate(row.date))}</td>
+            <td>${escapeHtml(reportDayName(row.date))}</td>
+            <td class="status-cell">${escapeHtml(reportShiftLabel(row.shift))}</td>
+            <td>${escapeHtml(row.confirmedWork ? t.definiteWork : t.nonWork)}</td>
+        </tr>`;
+    }).join('');
 
     const weeklyRows = weeks.map(item => {
         const statusText = item.level === 'risk' ? t.risk : (item.level === 'review' ? t.review : t.ok);
@@ -1163,7 +1182,12 @@ function renderMonthlyEmployeeReport() {
             item.nightDays ? `${item.nightDays} ${t.night}` : '',
             item.coverageDays ? `${item.coverageDays} ${t.work}` : ''
         ].filter(Boolean).join(' + ') || '-';
-        return `<tr>
+        const rowClass = item.balance > 0
+            ? 'week-row-extra'
+            : (item.coverageType === 'swap' && item.balance === 0
+                ? 'week-row-swap'
+                : (item.balance < 0 ? 'week-row-short' : ''));
+        return `<tr class="${rowClass}">
             <td>${escapeHtml(formatDisplayDate(item.start))} - ${escapeHtml(formatDisplayDate(item.end))}</td>
             <td>${item.workDays}<br><small>${escapeHtml(composition)}</small></td>
             <td>${item.coverageDays}${item.saturdayCoverageDays ? `<br><small>${escapeHtml(t.saturdayCoverage)}: ${item.saturdayCoverageDays}</small>` : ''}</td>
