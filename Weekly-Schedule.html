@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weekly Schedule v1.3.0 - Monthly Employee Report</title>
+  <title>Weekly Schedule v1.3.1 - Employee Period Report</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
@@ -79,9 +79,10 @@
     .monthly-report-card{margin-top:10px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:12px;box-shadow:var(--shadow);width:min(1120px,calc(100vw - 8px));box-sizing:border-box}
     .monthly-report-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
     .monthly-report-title{font-size:15px;font-weight:900;color:var(--primary)}
-    .monthly-report-controls{display:grid;grid-template-columns:minmax(220px,1fr) minmax(150px,190px) auto;gap:8px;align-items:end}
+    .monthly-report-controls{display:grid;grid-template-columns:minmax(210px,1.2fr) minmax(140px,.7fr) minmax(145px,.7fr) minmax(145px,.7fr) auto;gap:8px;align-items:end}
     .monthly-report-controls label{display:block;font-size:10px;font-weight:900;color:#64748b;margin-bottom:4px}
-    .monthly-report-controls select,.monthly-report-controls input[type="month"]{width:100%;min-height:39px;border:1px solid #d8dee8;border-radius:9px;padding:7px 9px;background:#fff;font:inherit;font-size:12px;font-weight:700;color:var(--primary)}
+    .monthly-report-controls select,.monthly-report-controls input[type="month"],.monthly-report-controls input[type="date"]{width:100%;min-height:39px;border:1px solid #d8dee8;border-radius:9px;padding:7px 9px;background:#fff;font:inherit;font-size:12px;font-weight:700;color:var(--primary)}
+    .report-period-field[hidden]{display:none!important}
     .report-actions{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0}
     .report-action-btn{padding:8px 11px;border-radius:9px;border:1px solid #dbe3ef;background:#fff;color:var(--primary);font-weight:900;font-size:11px;cursor:pointer}
     .report-action-btn.primary{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none}
@@ -119,7 +120,7 @@
     <div class="controls">
         <div style="display:flex; align-items:center; gap:12px">
             <img src="LOGO-almajdouie.png" style="height:40px" />
-            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.3.0</div>
+            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.3.1</div>
         </div>
         <div class="nav-group">
             <button class="btn-nav" id="btnPrev">السابق</button>
@@ -159,7 +160,7 @@
 
 <div class="monthly-report-card" id="monthlyReportCard">
     <div class="monthly-report-head">
-        <div class="monthly-report-title" id="monthlyReportSectionTitle">📊 تقرير الموظف الشهري</div>
+        <div class="monthly-report-title" id="monthlyReportSectionTitle">📊 تقرير دوام الموظف</div>
     </div>
     <div class="monthly-report-controls">
         <div>
@@ -167,8 +168,23 @@
             <select id="reportEmployeeSelect"><option value="">اختر الموظف...</option></select>
         </div>
         <div>
+            <label id="reportPeriodTypeLabel" for="reportPeriodType">نوع الفترة</label>
+            <select id="reportPeriodType">
+                <option value="month">شهري</option>
+                <option value="range">من تاريخ إلى تاريخ</option>
+            </select>
+        </div>
+        <div class="report-period-field" id="reportMonthField">
             <label id="reportMonthLabel" for="reportMonthInput">الشهر</label>
             <input id="reportMonthInput" type="month" />
+        </div>
+        <div class="report-period-field" id="reportFromField" hidden>
+            <label id="reportFromLabel" for="reportFromInput">من تاريخ</label>
+            <input id="reportFromInput" type="date" />
+        </div>
+        <div class="report-period-field" id="reportToField" hidden>
+            <label id="reportToLabel" for="reportToInput">إلى تاريخ</label>
+            <input id="reportToInput" type="date" />
         </div>
         <button class="report-action-btn primary" id="btnGenerateMonthlyReport" type="button">إنشاء التقرير</button>
     </div>
@@ -199,21 +215,21 @@ import { doc, collection, onSnapshot, setDoc } from 'https://www.gstatic.com/fir
 const i18n = {
     ar: {
         title:'جدول المناوبات الأسبوعي', morning:'صباحي', night:'ليلي', vacation:'إجازة', sick:'مريض', holiday:'بدون دوام', absent:'غائب', oncall:'أون كول', work:'تغطية', off:'أوف', employee:'الموظف', allDay:'طوال اليوم', help:'حسب الحاجة', copyImage:'نسخ صورة', copied:'تم نسخ صورة الجدول.', downloaded:'تعذر النسخ المباشر، تم تنزيل الصورة بدلاً من ذلك.', copyFailed:'تعذر إنشاء صورة الجدول.', generated:'تم الإنشاء', range:(from,to)=>`من ${from} إلى ${to}`, days:['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'],
-        monthlyReport:'تقرير الموظف الشهري', reportEmployee:'الموظف', reportMonth:'الشهر', selectEmployee:'اختر الموظف...', generateReport:'إنشاء التقرير', copyReport:'نسخ صورة', downloadPng:'تنزيل صورة', downloadPdf:'تنزيل PDF', printReport:'طباعة',
+        monthlyReport:'تقرير دوام الموظف', reportEmployee:'الموظف', reportPeriodType:'نوع الفترة', reportMonth:'الشهر', reportFrom:'من تاريخ', reportTo:'إلى تاريخ', periodMonthly:'شهري', periodRange:'من تاريخ إلى تاريخ', selectEmployee:'اختر الموظف...', generateReport:'إنشاء التقرير', copyReport:'نسخ صورة', downloadPng:'تنزيل صورة', downloadPdf:'تنزيل PDF', printReport:'طباعة',
         employeeId:'رقم الموظف', department:'القسم', jobTitle:'المسمى الوظيفي', reportPeriod:'فترة التقرير', scheduledWorkDays:'أيام الدوام المؤكدة', onCallDays:'أيام الأون كول', dutyAssignments:'إجمالي تكليفات الدوام', offDays:'أيام الأوف', leaveDays:'إجازات', sickDays:'مرضية', absentDays:'غياب', holidayDays:'عطلات', maxConsecutive:'أقصى أيام عمل متتالية',
         complianceTitle:'فحص إرشادي للراحة الأسبوعية', complianceOk:'لا توجد إشارة واضحة لمخالفة الراحة الأسبوعية في الجدول المحدد.', complianceReview:'توجد أسابيع تحتاج مراجعة لأن يوم الراحة الكامل غير واضح من الجدول.', complianceRisk:'تنبيه: يوجد 7 أيام عمل مؤكدة متتالية أو أكثر، ويحتاج الجدول إلى مراجعة.',
         hoursNotChecked:'لا يتم الحكم على حد ساعات العمل من هذا التقرير؛ لأن الجدول لا يحتوي على ساعات العمل الفعلية وفترات الراحة.', onCallNote:'الأون كول يظهر منفصلاً ولا يُحتسب يوم عمل مؤكد إلا إذا سُجل كتغطية/عمل فعلي.', legalNote:'مرجع الفحص: المادة 104 من نظام العمل السعودي تشترط راحة أسبوعية لا تقل عن 24 ساعة متتالية. هذا تقرير جدولي إرشادي وليس سجل حضور وانصراف أو رأيًا قانونيًا.',
-        dailyDetails:'تفاصيل الشهر', weeklyCheck:'ملخص الراحة الأسبوعية', date:'التاريخ', day:'اليوم', shift:'الحالة / المناوبة', classification:'التصنيف', definiteWork:'دوام مؤكد', nonWork:'غير دوام مؤكد', week:'الأسبوع', workDays:'أيام الدوام', restShown:'راحة ظاهرة', result:'النتيجة', yes:'نعم', no:'لا', ok:'سليم جدوليًا', review:'مراجعة', risk:'تنبيه',
-        reportRequired:'اختر الموظف والشهر أولاً.', reportCopied:'تم نسخ التقرير كصورة.', reportDownloaded:'تم تنزيل صورة التقرير.', reportPdfDownloaded:'تم تنزيل PDF.', reportExportFailed:'تعذر إنشاء التقرير.'
+        dailyDetails:'تفاصيل الفترة', weeklyCheck:'ملخص الراحة الأسبوعية', date:'التاريخ', day:'اليوم', shift:'الحالة / المناوبة', classification:'التصنيف', definiteWork:'دوام مؤكد', nonWork:'غير دوام مؤكد', week:'الأسبوع', workDays:'أيام الدوام', restShown:'راحة ظاهرة', result:'النتيجة', yes:'نعم', no:'لا', ok:'سليم جدوليًا', review:'مراجعة', risk:'تنبيه',
+        reportRequired:'اختر الموظف وحدد فترة التقرير أولاً.', reportCopied:'تم نسخ التقرير كصورة.', reportDownloaded:'تم تنزيل صورة التقرير.', reportPdfDownloaded:'تم تنزيل PDF.', reportExportFailed:'تعذر إنشاء التقرير.'
     },
     en: {
         title:'Weekly Shift Schedule', morning:'Morning', night:'Night', vacation:'Vacation', sick:'Sick', holiday:'No Duty', absent:'Absent', oncall:'On Call', work:'Coverage', off:'Off', employee:'Employee', allDay:'Full Day', help:'As Needed', copyImage:'Copy Image', copied:'Schedule image copied.', downloaded:'Direct copy was blocked, so the image was downloaded instead.', copyFailed:'Could not create the schedule image.', generated:'Generated', range:(from,to)=>`From ${from} to ${to}`, days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
-        monthlyReport:'Monthly Employee Report', reportEmployee:'Employee', reportMonth:'Month', selectEmployee:'Select employee...', generateReport:'Generate Report', copyReport:'Copy Image', downloadPng:'Download Image', downloadPdf:'Download PDF', printReport:'Print',
+        monthlyReport:'Employee Duty Report', reportEmployee:'Employee', reportPeriodType:'Period Type', reportMonth:'Month', reportFrom:'From Date', reportTo:'To Date', periodMonthly:'Monthly', periodRange:'Date Range', selectEmployee:'Select employee...', generateReport:'Generate Report', copyReport:'Copy Image', downloadPng:'Download Image', downloadPdf:'Download PDF', printReport:'Print',
         employeeId:'Employee ID', department:'Department', jobTitle:'Job Title', reportPeriod:'Report Period', scheduledWorkDays:'Confirmed Work Days', onCallDays:'On-Call Days', dutyAssignments:'Total Duty Assignments', offDays:'Off Days', leaveDays:'Vacation', sickDays:'Sick', absentDays:'Absent', holidayDays:'Holidays', maxConsecutive:'Max Consecutive Work Days',
         complianceTitle:'Weekly Rest Schedule Check', complianceOk:'No clear weekly-rest issue was detected in the selected schedule.', complianceReview:'Some weeks need review because a full rest day is not clearly shown.', complianceRisk:'Alert: 7 or more confirmed consecutive work days appear in the schedule and should be reviewed.',
         hoursNotChecked:'Working-hour limits are not evaluated because this schedule does not contain actual worked hours and break periods.', onCallNote:'On-call is shown separately and is not counted as a confirmed work day unless it is recorded as Coverage/actual work.', legalNote:'Reference: Saudi Labor Law Article 104 requires a weekly rest of at least 24 consecutive hours. This is a schedule-based indicator, not an attendance record or legal opinion.',
-        dailyDetails:'Monthly Details', weeklyCheck:'Weekly Rest Summary', date:'Date', day:'Day', shift:'Status / Shift', classification:'Classification', definiteWork:'Confirmed Work', nonWork:'Not Confirmed Work', week:'Week', workDays:'Work Days', restShown:'Rest Shown', result:'Result', yes:'Yes', no:'No', ok:'Schedule OK', review:'Review', risk:'Alert',
-        reportRequired:'Select an employee and month first.', reportCopied:'Report image copied.', reportDownloaded:'Report image downloaded.', reportPdfDownloaded:'PDF downloaded.', reportExportFailed:'Could not create the report.'
+        dailyDetails:'Period Details', weeklyCheck:'Weekly Rest Summary', date:'Date', day:'Day', shift:'Status / Shift', classification:'Classification', definiteWork:'Confirmed Work', nonWork:'Not Confirmed Work', week:'Week', workDays:'Work Days', restShown:'Rest Shown', result:'Result', yes:'Yes', no:'No', ok:'Schedule OK', review:'Review', risk:'Alert',
+        reportRequired:'Select an employee and report period first.', reportCopied:'Report image copied.', reportDownloaded:'Report image downloaded.', reportPdfDownloaded:'PDF downloaded.', reportExportFailed:'Could not create the report.'
     }
 };
 
@@ -917,6 +933,40 @@ function monthBounds(monthValue) {
     return { start: new Date(year, month, 1), end: new Date(year, month + 1, 0) };
 }
 
+function reportPeriodBounds() {
+    const mode = $('reportPeriodType')?.value || 'month';
+    if (mode === 'range') {
+        const fromValue = $('reportFromInput')?.value || '';
+        const toValue = $('reportToInput')?.value || '';
+        if (!fromValue || !toValue) return null;
+        const start = parseLocalDate(fromValue);
+        const end = parseLocalDate(toValue);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return null;
+        return { start, end, mode };
+    }
+    const month = monthBounds($('reportMonthInput')?.value || '');
+    return month ? { ...month, mode } : null;
+}
+
+function reportPeriodDisplay(bounds) {
+    if (!bounds) return '';
+    if (bounds.mode === 'month') return reportMonthLabel(bounds.start);
+    const t = i18n[currentLang];
+    return t.range(formatDisplayDate(bounds.start), formatDisplayDate(bounds.end));
+}
+
+function updateReportPeriodControls() {
+    const mode = $('reportPeriodType')?.value || 'month';
+    const monthField = $('reportMonthField');
+    const fromField = $('reportFromField');
+    const toField = $('reportToField');
+    if (monthField) monthField.hidden = mode !== 'month';
+    if (fromField) fromField.hidden = mode !== 'range';
+    if (toField) toField.hidden = mode !== 'range';
+    $('monthlyReportCapture').style.display = 'none';
+    $('monthlyReportActions').style.display = 'none';
+}
+
 function monthlyEmployeeRows(emp, start, end) {
     return datesBetween(start, end).map(date => {
         const shift = resolveEmployeeShift(emp, date);
@@ -990,7 +1040,7 @@ function complianceText(level) {
 
 function renderMonthlyEmployeeReport() {
     const employeeKey = $('reportEmployeeSelect').value;
-    const bounds = monthBounds($('reportMonthInput').value);
+    const bounds = reportPeriodBounds();
     const t = i18n[currentLang];
     if (!employeeKey || !bounds) {
         alert(t.reportRequired);
@@ -1037,13 +1087,14 @@ function renderMonthlyEmployeeReport() {
         <div class="report-brand">
             <div class="report-brand-left">
                 <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
-                <div><div class="report-main-title">${escapeHtml(t.monthlyReport)}</div><div class="report-subtitle">${escapeHtml(reportMonthLabel(bounds.start))}</div></div>
+                <div><div class="report-main-title">${escapeHtml(t.monthlyReport)}</div><div class="report-subtitle">${escapeHtml(reportPeriodDisplay(bounds))}</div></div>
             </div>
             <div class="report-subtitle">${escapeHtml(t.generated)}: ${escapeHtml(new Date().toLocaleString('en-GB'))}</div>
         </div>
         <div class="report-employee-meta">
             ${meta(t.employee, emp.name)}
             ${meta(t.employeeId, emp.empNum || emp.empId || employeePrimaryKey(emp))}
+            ${meta(t.reportPeriod, reportPeriodDisplay(bounds))}
             ${meta(t.department, emp.dept || emp.department || empRecord.dept || empRecord.department)}
             ${meta(t.jobTitle, employeeJobValue(emp))}
         </div>
@@ -1092,9 +1143,10 @@ async function monthlyReportCanvas() {
 
 function monthlyReportFilename(ext) {
     const employee = findReportEmployee($('reportEmployeeSelect').value);
-    const month = $('reportMonthInput').value || formatLocalDate(new Date()).slice(0, 7);
+    const bounds = reportPeriodBounds();
+    const period = bounds ? `${formatLocalDate(bounds.start)}_to_${formatLocalDate(bounds.end)}` : formatLocalDate(new Date());
     const key = String(employee?.empNum || employee?.name || 'Employee').replace(/[^a-zA-Z0-9_-]+/g, '_');
-    return `Employee_Monthly_Report_${key}_${month}.${ext}`;
+    return `Employee_Duty_Report_${key}_${period}.${ext}`;
 }
 
 async function copyMonthlyReportImage() {
@@ -1168,7 +1220,16 @@ function updateMonthlyReportLabels() {
     if (!$('monthlyReportSectionTitle')) return;
     $('monthlyReportSectionTitle').textContent = `📊 ${t.monthlyReport}`;
     $('reportEmployeeLabel').textContent = t.reportEmployee;
+    $('reportPeriodTypeLabel').textContent = t.reportPeriodType;
     $('reportMonthLabel').textContent = t.reportMonth;
+    $('reportFromLabel').textContent = t.reportFrom;
+    $('reportToLabel').textContent = t.reportTo;
+    const periodType = $('reportPeriodType');
+    if (periodType) {
+        const currentMode = periodType.value || 'month';
+        periodType.innerHTML = `<option value="month">${escapeHtml(t.periodMonthly)}</option><option value="range">${escapeHtml(t.periodRange)}</option>`;
+        periodType.value = currentMode;
+    }
     $('btnGenerateMonthlyReport').textContent = t.generateReport;
     $('btnCopyMonthlyReport').textContent = `📋 ${t.copyReport}`;
     $('btnDownloadMonthlyPng').textContent = `🖼️ ${t.downloadPng}`;
@@ -1180,9 +1241,10 @@ function updateMonthlyReportLabels() {
 $('btnPrev').onclick = () => { const p = $('datePicker'); const d = startOfWeek(parseLocalDate(p.value)); d.setDate(d.getDate()-7); p.value = formatLocalDate(d); renderTable(); };
 $('btnNext').onclick = () => { const p = $('datePicker'); const d = startOfWeek(parseLocalDate(p.value)); d.setDate(d.getDate()+7); p.value = formatLocalDate(d); renderTable(); };
 $('btnToday').onclick = () => { $('datePicker').value = formatLocalDate(startOfWeek(new Date())); renderTable(); };
-$('btnToggleLang').onclick = () => { currentLang = currentLang==='ar'?'en':'ar'; localStorage.setItem('lang', currentLang); renderTable(); updateMonthlyReportLabels(); if ($('monthlyReportCapture')?.style.display !== 'none' && $('reportEmployeeSelect')?.value && $('reportMonthInput')?.value) renderMonthlyEmployeeReport(); };
+$('btnToggleLang').onclick = () => { currentLang = currentLang==='ar'?'en':'ar'; localStorage.setItem('lang', currentLang); renderTable(); updateMonthlyReportLabels(); if ($('monthlyReportCapture')?.style.display !== 'none' && $('reportEmployeeSelect')?.value && reportPeriodBounds()) renderMonthlyEmployeeReport(); };
 $('btnCopyImage').onclick = copyScheduleImage;
 $('datePicker').onchange = renderTable;
+$('reportPeriodType').onchange = updateReportPeriodControls;
 $('btnGenerateMonthlyReport').onclick = renderMonthlyEmployeeReport;
 $('btnCopyMonthlyReport').onclick = copyMonthlyReportImage;
 $('btnDownloadMonthlyPng').onclick = downloadMonthlyReportPng;
@@ -1207,7 +1269,11 @@ async function bindSnapshots() {
 window.onload = () => {
     $('datePicker').value = formatLocalDate(startOfWeek(new Date()));
     $('reportMonthInput').value = formatLocalDate(new Date()).slice(0, 7);
+    const today = new Date();
+    $('reportFromInput').value = formatLocalDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    $('reportToInput').value = formatLocalDate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
     updateMonthlyReportLabels();
+    updateReportPeriodControls();
     renderTable();
     bindSnapshots().catch(e => logFirebaseError('Weekly schedule startup failed', e));
 };
