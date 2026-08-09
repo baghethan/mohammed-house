@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Weekly Schedule v1.3.1 - Employee Period Report</title>
+  <title>Weekly Schedule v1.4.0 - Historical Shift Report</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
@@ -120,7 +120,7 @@
     <div class="controls">
         <div style="display:flex; align-items:center; gap:12px">
             <img src="LOGO-almajdouie.png" style="height:40px" />
-            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.3.1</div>
+            <div style="font-weight: 900; color: var(--primary); font-size: 17px;">جدول المناوبات الأسبوعي v1.4.0</div>
         </div>
         <div class="nav-group">
             <button class="btn-nav" id="btnPrev">السابق</button>
@@ -297,8 +297,40 @@ function normalizeRotation(emp) {
     return ['thu', 'fri', 'none'].includes(raw) ? raw : 'none';
 }
 
+
+function normalizeWeeklyShiftHistory(history) {
+    const rows = (Array.isArray(history) ? history : []).map((item, index) => {
+        const effectiveFrom = String(item?.effectiveFrom || item?.from || item?.date || '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) return null;
+        const fixed = typeof item?.fixed === 'boolean'
+            ? item.fixed
+            : ['night', 'fixed', 'ليلي', 'ثابت'].includes(String(item?.shiftType || item?.shift || '').trim().toLowerCase());
+        return {
+            effectiveFrom,
+            fixed,
+            shiftType: fixed ? 'night' : 'morning',
+            changedAt: String(item?.changedAt || item?.updatedAt || item?.createdAt || ''),
+            source: String(item?.source || 'employees'),
+            _index: index
+        };
+    }).filter(Boolean);
+    rows.sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom) || a.changedAt.localeCompare(b.changedAt) || a._index - b._index);
+    const byDate = new Map();
+    rows.forEach(item => byDate.set(item.effectiveFrom, item));
+    return Array.from(byDate.values())
+        .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom))
+        .map(({ _index, ...item }) => item);
+}
+
+function mergeWeeklyShiftHistories(...records) {
+    const rows = [];
+    records.filter(Boolean).forEach(record => rows.push(...normalizeWeeklyShiftHistory(record.shiftHistory)));
+    return normalizeWeeklyShiftHistory(rows);
+}
+
 function normalizeEmployeeRecord(record) {
     const source = record || {};
+    const shiftHistory = normalizeWeeklyShiftHistory(source.shiftHistory);
     const shiftText = String(source.shiftType || source.shift || source.workType || '').trim().toLowerCase();
     const statusText = String(source.status || '').trim().toLowerCase();
     const active = typeof source.active === 'boolean'
@@ -329,6 +361,8 @@ function normalizeEmployeeRecord(record) {
         scheduleOrder: source.scheduleOrder ?? source.weeklyOrder ?? source.sortOrder ?? '',
         active,
         status: active ? 'active' : 'inactive',
+        shiftHistory,
+        shiftEffectiveFrom: String(source.shiftEffectiveFrom || (shiftHistory.length ? shiftHistory[shiftHistory.length - 1].effectiveFrom : '')).slice(0, 10),
         source: 'employees'
     };
 }
@@ -421,6 +455,7 @@ function mergeWeeklyEmployee(existing, incoming) {
     const weeklyOrder = Number.isFinite(preferredOrder) && preferredOrder > 0
         ? preferredOrder
         : (Number.isFinite(fallbackOrder) && fallbackOrder > 0 ? fallbackOrder : '');
+    const shiftHistory = mergeWeeklyShiftHistories(existing, incoming);
 
     return {
         ...fallback,
@@ -443,6 +478,8 @@ function mergeWeeklyEmployee(existing, incoming) {
         rotType: rotation,
         weeklyOrder,
         scheduleOrder: weeklyOrder,
+        shiftHistory,
+        shiftEffectiveFrom: shiftHistory.length ? shiftHistory[shiftHistory.length - 1].effectiveFrom : (preferred.shiftEffectiveFrom || fallback.shiftEffectiveFrom || ''),
         employeeDocId: preferred.employeeDocId || preferred.id || fallback.employeeDocId || fallback.id || '',
         updatedAt: preferred.updatedAt || fallback.updatedAt || '',
         createdAt: preferred.createdAt || fallback.createdAt || '',
@@ -631,7 +668,7 @@ function pickRotationEmployee(pool, start, datesToCheck) {
 }
 
 function baseShift(emp, date, rotations) {
-    const nightShift = isNightShiftEmployee(emp);
+    const nightShift = isNightShiftEmployeeOnDate(emp, date);
     if (date.getDay() === 4) {
         if (rotations.thu?.id === emp.id) return 'Off';
         return nightShift ? 'Night' : 'Morning';
@@ -710,6 +747,17 @@ function isNightShiftEmployee(emp) {
     const values = [emp?.shiftType, record?.shiftType, emp?.shift, record?.shift, emp?.role, record?.role]
         .map(value => String(value ?? '').trim().toLowerCase());
     return values.includes('night') || values.includes('fixed') || values.includes('ليلي');
+}
+
+
+function isNightShiftEmployeeOnDate(emp, date) {
+    const record = findEmployeeRecord(emp) || {};
+    const history = mergeWeeklyShiftHistories(emp, record);
+    if (!history.length) return isNightShiftEmployee(emp);
+    const dateKey = formatLocalDate(date);
+    const applicable = history.filter(item => item.effectiveFrom <= dateKey);
+    const state = applicable.length ? applicable[applicable.length - 1] : history[0];
+    return state.fixed === true;
 }
 
 function weeklyManualOrder(emp) {
