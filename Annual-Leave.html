@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Annual Leave Management v1.2.0 - Reports - Almajdouie Motors</title>
+  <title>Annual Leave Management v1.3.0 - Delay Time Report - Almajdouie Motors</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root{--primary:#0d2149;--primary2:#1b4fa3;--text:#1f2937;--muted:#64748b;--surface:rgba(255,255,255,.94);--surface2:#fff;--shadow:0 18px 50px rgba(13,33,73,.16);--danger:#d32f2f}
@@ -18,6 +18,14 @@
     .danger-btn{background:var(--danger);color:#fff; padding: 8px 12px;}
     .edit-btn{background:#eef6ff;color:var(--primary);border:1px solid #cfe3ff;padding:8px 12px}
     .form-box{display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+    .delay-fields{display:none;gap:10px;align-items:end;flex-wrap:wrap;flex:2;min-width:330px}
+    .delay-fields.active{display:flex}
+    .delay-field{display:flex;flex-direction:column;gap:5px;min-width:145px;flex:1}
+    .delay-field label{font-size:11px;font-weight:900;color:var(--muted)}
+    .delay-field input[readonly]{background:#f8fafc;color:var(--primary);font-weight:900}
+    .delay-note{font-size:11px;font-weight:800;color:var(--muted);margin-top:6px}
+    .duration-delay{color:#b45309;font-weight:900}
+    .duration-absence{color:#b91c1c;font-weight:900}
     .form-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     input,select{padding:12px 15px;border-radius:12px;border:1px solid #d8dee8;background:#fff;min-height:45px;font-size:14px}
     .filter-box{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap}
@@ -74,7 +82,7 @@
         <div style="display:flex; align-items:center; gap:15px">
             <img src="LOGO-almajdouie.png" style="height:55px" />
             <div>
-                <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:22px"><span id="title">إدارة الإجازات السنوية</span><span class="version-badge">v1.2.0</span></h2>
+                <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:22px"><span id="title">إدارة الإجازات السنوية</span><span class="version-badge">v1.3.0</span></h2>
                 <p id="subtitle" style="margin:0; color:var(--muted); font-size:12px; font-weight:700">تخطيط وتوثيق الإجازات - المجدوعي للسيارات</p>
             </div>
         </div>
@@ -93,6 +101,16 @@
             </select>
             <input type="date" id="aStart" style="flex:1" />
             <input type="date" id="aEnd" style="flex:1" />
+            <div id="delayFields" class="delay-fields">
+                <div class="delay-field">
+                    <label id="attendanceLabel" for="aAttendance">وقت الحضور</label>
+                    <input type="time" id="aAttendance" step="60" />
+                </div>
+                <div class="delay-field">
+                    <label id="delayDurationLabel" for="aDelayDuration">مدة التأخير</label>
+                    <input type="text" id="aDelayDuration" value="0 دقيقة" readonly />
+                </div>
+            </div>
             <div class="form-actions">
                 <button id="saveLeaveBtn" class="btn2" type="button" onclick="window.addAnnualLeave()">🌴 تعيين إجازة</button>
                 <button id="cancelEditBtn" class="btn" type="button" onclick="window.cancelLeaveEdit()" style="display:none">إلغاء</button>
@@ -174,10 +192,11 @@
             <table>
                 <thead><tr>
                     <th class="report-index">#</th>
-                    <th id="reportThType">نوع الإجازة</th>
-                    <th id="reportThFrom">من</th>
-                    <th id="reportThTo">إلى</th>
-                    <th id="reportThDays">الأيام</th>
+                    <th id="reportThDate">التاريخ</th>
+                    <th id="reportThDay">اليوم</th>
+                    <th id="reportThType">النوع</th>
+                    <th id="reportThAttendance">وقت الحضور</th>
+                    <th id="reportThDuration">مدة التأخير / الغياب</th>
                 </tr></thead>
                 <tbody id="reportBody"></tbody>
             </table>
@@ -206,6 +225,81 @@ const leaveTypes = {
     absence: { ar: 'غياب', en: 'Absence' },
     delay: { ar: 'تأخير', en: 'Delay' }
 };
+
+const WORK_START = '07:30';
+const WORK_END = '17:00';
+const WORK_START_MINUTES = 7 * 60 + 30;
+const WORK_END_MINUTES = 17 * 60;
+const FULL_WORKDAY_MINUTES = WORK_END_MINUTES - WORK_START_MINUTES;
+const DAY_NAMES = {
+    ar: ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'],
+    en: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+};
+
+function timeToMinutes(value) {
+    const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return null;
+    return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function delayMinutesFromAttendance(value) {
+    const arrival = timeToMinutes(value);
+    if (arrival === null) return 0;
+    return Math.max(0, Math.min(FULL_WORKDAY_MINUTES, arrival - WORK_START_MINUTES));
+}
+
+function formatMinutes(totalMinutes) {
+    const minutes = Math.max(0, Number(totalMinutes) || 0);
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    if (currentLang === 'ar') {
+        if (hours && mins) return `${hours} س ${mins} د`;
+        if (hours) return `${hours} س`;
+        return `${mins} د`;
+    }
+    if (hours && mins) return `${hours}h ${mins}m`;
+    if (hours) return `${hours}h`;
+    return `${mins}m`;
+}
+
+function dayNameForDate(value) {
+    const date = parseDateValue(value);
+    return date ? DAY_NAMES[currentLang][date.getDay()] : '';
+}
+
+function dateStringsBetween(startValue, endValue) {
+    const start = parseDateValue(startValue);
+    const end = parseDateValue(endValue);
+    if (!start || !end) return [];
+    start.setHours(0,0,0,0); end.setHours(0,0,0,0);
+    const dates = [];
+    for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+        const y = cursor.getFullYear();
+        const m = String(cursor.getMonth() + 1).padStart(2, '0');
+        const d = String(cursor.getDate()).padStart(2, '0');
+        dates.push(`${y}-${m}-${d}`);
+    }
+    return dates;
+}
+
+function updateDelayPreview() {
+    const attendance = $('aAttendance')?.value || '';
+    if ($('aDelayDuration')) $('aDelayDuration').value = formatMinutes(delayMinutesFromAttendance(attendance));
+}
+
+function updateDelayFields() {
+    const isDelay = $('aType')?.value === 'delay';
+    $('delayFields')?.classList.toggle('active', isDelay);
+    if ($('aEnd')) {
+        $('aEnd').disabled = isDelay;
+        if (isDelay && $('aStart').value) $('aEnd').value = $('aStart').value;
+    }
+    if (!isDelay && $('aAttendance')) {
+        $('aAttendance').value = '';
+        if ($('aDelayDuration')) $('aDelayDuration').value = formatMinutes(0);
+    }
+    updateDelayPreview();
+}
 
 let employees=[], vacationsList=[], currentLang=localStorage.getItem('lang')||'ar', editingVacationId='';
 const $=id=>document.getElementById(id), tr=()=>i18n[currentLang];
@@ -282,7 +376,9 @@ window.addAnnualLeave = async () => {
     const empId = $('aEmp').value;
     const leaveType = $('aType').value;
     const start = $('aStart').value;
-    const end = $('aEnd').value;
+    const end = leaveType === 'delay' ? start : $('aEnd').value;
+    const attendanceTime = leaveType === 'delay' ? $('aAttendance').value : '';
+    const delayMinutes = leaveType === 'delay' ? delayMinutesFromAttendance(attendanceTime) : 0;
 
     if(!empId || !leaveType || !start || !end) {
         alert(currentLang==='ar'?'يرجى إكمال جميع الحقول':'Please complete all fields');
@@ -290,6 +386,10 @@ window.addAnnualLeave = async () => {
     }
     if(new Date(start) > new Date(end)) {
         alert(tr().dateError);
+        return;
+    }
+    if (leaveType === 'delay' && !attendanceTime) {
+        alert(currentLang === 'ar' ? 'يرجى إدخال وقت حضور الموظف.' : 'Please enter the employee arrival time.');
         return;
     }
 
@@ -307,6 +407,10 @@ window.addAnnualLeave = async () => {
         type: leaveType,
         leaveType,
         leaveTypeLabel: leaveTypes[leaveType]?.en || leaveType,
+        attendanceTime,
+        delayMinutes,
+        scheduledStart: WORK_START,
+        scheduledEnd: WORK_END,
         status: 'approved',
         createdAt: now,
         updatedAt: now,
@@ -355,6 +459,8 @@ window.editVacation = (id) => {
     $('aType').value = normalizeLeaveType(record.leaveType || record.type);
     $('aStart').value = record.start || record.from || '';
     $('aEnd').value = record.end || record.to || '';
+    $('aAttendance').value = record.attendanceTime || '';
+    updateDelayFields();
     renderEditState();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -425,7 +531,7 @@ function renderUI() {
         return `
             <tr>
                 <td class="emp-name-cell">${escapeHtml(emp ? emp.name : getVacationEmployeeLabel(v))}</td>
-                <td>${escapeHtml(getLeaveTypeLabel(v))}</td>
+                <td>${escapeHtml(getLeaveTypeLabel(v))}${normalizeLeaveType(v.leaveType || v.type) === 'delay' ? `<div class="delay-note">${escapeHtml(v.attendanceTime || '-')} · ${escapeHtml(formatMinutes(v.delayMinutes ?? delayMinutesFromAttendance(v.attendanceTime)))}</div>` : ''}</td>
                 <td>${escapeHtml(v.start || v.from || '')}</td>
                 <td>${escapeHtml(v.end || v.to || '')}</td>
                 <td>
@@ -553,6 +659,9 @@ function resetLeaveForm() {
     $('aStart').value = '';
     $('aEnd').value = '';
     $('aType').value = '';
+    $('aAttendance').value = '';
+    $('aEnd').disabled = false;
+    updateDelayFields();
     renderEditState();
 }
 
@@ -602,6 +711,10 @@ function migrationVacationRecord(record, index) {
         type: normalized.leaveType,
         leaveType: normalized.leaveType,
         leaveTypeLabel: leaveTypes[normalized.leaveType]?.en || normalized.leaveType,
+        attendanceTime: record?.attendanceTime || record?.arrivalTime || '',
+        delayMinutes: Number(record?.delayMinutes) || delayMinutesFromAttendance(record?.attendanceTime || record?.arrivalTime || ''),
+        scheduledStart: record?.scheduledStart || WORK_START,
+        scheduledEnd: record?.scheduledEnd || WORK_END,
         status: record?.status || 'approved',
         createdAt,
         updatedAt: record?.updatedAt || createdAt,
@@ -651,22 +764,50 @@ function employeeReportRows(emp, typeFilter = '', from = '', to = '') {
         .filter(record => vacationMatchesEmployee(record, emp))
         .filter(record => !typeFilter || normalizeLeaveType(record.leaveType || record.type) === typeFilter)
         .filter(record => dateSearchMatchesSelectedRange(record.start || record.from || '', record.end || record.to || '', from, to))
-        .sort((a, b) => String(b.start || b.from || '').localeCompare(String(a.start || a.from || '')));
+        .sort((a, b) => String(a.start || a.from || '').localeCompare(String(b.start || b.from || '')));
 }
 
-function inclusiveDays(startValue, endValue) {
-    const start = parseDateValue(startValue);
-    const end = parseDateValue(endValue);
-    if (!start || !end) return '';
-    start.setHours(0,0,0,0); end.setHours(0,0,0,0);
-    return Math.max(1, Math.round((end - start) / 86400000) + 1);
+function reportDailyRows(records, from = '', to = '') {
+    const fromDate = parseDateValue(from);
+    const toDate = parseDateValue(to);
+    if (fromDate) fromDate.setHours(0,0,0,0);
+    if (toDate) toDate.setHours(0,0,0,0);
+
+    const rows = [];
+    records.forEach(record => {
+        const type = normalizeLeaveType(record.leaveType || record.type);
+        const start = record.start || record.from || '';
+        const end = record.end || record.to || start;
+        dateStringsBetween(start, end).forEach(dateString => {
+            const date = parseDateValue(dateString);
+            if (fromDate && date < fromDate) return;
+            if (toDate && date > toDate) return;
+            const durationMinutes = type === 'delay'
+                ? Number(record.delayMinutes ?? delayMinutesFromAttendance(record.attendanceTime))
+                : type === 'absence' ? FULL_WORKDAY_MINUTES : null;
+            rows.push({
+                record,
+                date: dateString,
+                day: dayNameForDate(dateString),
+                type,
+                attendanceTime: type === 'delay' ? (record.attendanceTime || '') : '',
+                durationMinutes
+            });
+        });
+    });
+    return rows.sort((a,b) => a.date.localeCompare(b.date));
 }
 
 function reportPeriodText(from, to) {
-    if (from && to) return currentLang === 'ar' ? `الفترة: ${from} إلى ${to}` : `Period: ${from} to ${to}`;
-    if (from) return currentLang === 'ar' ? `من: ${from}` : `From: ${from}`;
-    if (to) return currentLang === 'ar' ? `إلى: ${to}` : `To: ${to}`;
-    return currentLang === 'ar' ? 'جميع السجلات' : 'All records';
+    const schedule = currentLang === 'ar'
+        ? `الدوام المرجعي: ${WORK_START} - ${WORK_END}`
+        : `Reference schedule: ${WORK_START} - ${WORK_END}`;
+    let period;
+    if (from && to) period = currentLang === 'ar' ? `الفترة: ${from} إلى ${to}` : `Period: ${from} to ${to}`;
+    else if (from) period = currentLang === 'ar' ? `من: ${from}` : `From: ${from}`;
+    else if (to) period = currentLang === 'ar' ? `إلى: ${to}` : `To: ${to}`;
+    else period = currentLang === 'ar' ? 'جميع السجلات' : 'All records';
+    return `${period} | ${schedule}`;
 }
 
 window.buildEmployeeReport = () => {
@@ -690,7 +831,8 @@ window.buildEmployeeReport = () => {
         return false;
     }
 
-    const rows = employeeReportRows(emp, typeFilter, from, to);
+    const records = employeeReportRows(emp, typeFilter, from, to);
+    const rows = reportDailyRows(records, from, to);
     $('reportTitle').textContent = t.reportTitle;
     $('reportRangeText').textContent = reportPeriodText(from, to);
     $('reportGeneratedText').textContent = `${t.generated}: ${new Date().toLocaleString(currentLang === 'ar' ? 'ar-SA' : 'en-GB')}`;
@@ -701,24 +843,30 @@ window.buildEmployeeReport = () => {
 
     const counts = Object.keys(leaveTypes).map(type => ({
         type,
-        count: rows.filter(record => normalizeLeaveType(record.leaveType || record.type) === type).length
+        count: rows.filter(row => row.type === type).length
     }));
+    const totalDelayMinutes = rows.filter(row => row.type === 'delay').reduce((sum, row) => sum + (row.durationMinutes || 0), 0);
+    const totalAbsenceMinutes = rows.filter(row => row.type === 'absence').reduce((sum, row) => sum + (row.durationMinutes || 0), 0);
+
     $('reportSummary').innerHTML = [
-        `<div class="summary-chip">${currentLang === 'ar' ? 'الإجمالي' : 'Total'}: ${rows.length}</div>`,
-        ...counts.map(item => `<div class="summary-chip">${escapeHtml(leaveTypes[item.type][currentLang])}: ${item.count}</div>`)
+        `<div class="summary-chip">${currentLang === 'ar' ? 'إجمالي الأيام/السجلات' : 'Total Days/Entries'}: ${rows.length}</div>`,
+        ...counts.map(item => `<div class="summary-chip">${escapeHtml(leaveTypes[item.type][currentLang])}: ${item.count}</div>`),
+        `<div class="summary-chip duration-delay">${currentLang === 'ar' ? 'إجمالي التأخير' : 'Total Delay'}: ${escapeHtml(formatMinutes(totalDelayMinutes))}</div>`,
+        `<div class="summary-chip duration-absence">${currentLang === 'ar' ? 'إجمالي ساعات الغياب' : 'Total Absence'}: ${escapeHtml(formatMinutes(totalAbsenceMinutes))}</div>`
     ].join('');
 
-    $('reportBody').innerHTML = rows.length ? rows.map((record, index) => {
-        const start = record.start || record.from || '';
-        const end = record.end || record.to || '';
+    $('reportBody').innerHTML = rows.length ? rows.map((row, index) => {
+        const durationClass = row.type === 'delay' ? 'duration-delay' : row.type === 'absence' ? 'duration-absence' : '';
+        const durationText = row.durationMinutes === null ? '-' : formatMinutes(row.durationMinutes);
         return `<tr>
             <td>${index + 1}</td>
-            <td><strong>${escapeHtml(getLeaveTypeLabel(record))}</strong></td>
-            <td>${escapeHtml(start)}</td>
-            <td>${escapeHtml(end)}</td>
-            <td>${escapeHtml(inclusiveDays(start, end))}</td>
+            <td>${escapeHtml(row.date)}</td>
+            <td><strong>${escapeHtml(row.day)}</strong></td>
+            <td><strong>${escapeHtml(leaveTypes[row.type]?.[currentLang] || row.type)}</strong></td>
+            <td>${escapeHtml(row.attendanceTime || '-')}</td>
+            <td class="${durationClass}">${escapeHtml(durationText)}</td>
         </tr>`;
-    }).join('') : `<tr><td colspan="5" class="report-empty">${t.noRecords}</td></tr>`;
+    }).join('') : `<tr><td colspan="6" class="report-empty">${t.noRecords}</td></tr>`;
 
     $('employeeReport').style.display = 'block';
     return true;
@@ -817,6 +965,12 @@ window.addEventListener('DOMContentLoaded', () => {
     $('dateFromSearch').addEventListener('change', renderUI);
     $('dateToSearch').addEventListener('change', renderUI);
     $('aEmp').addEventListener('change', renderUI);
+    $('aType').addEventListener('change', updateDelayFields);
+    $('aStart').addEventListener('change', () => {
+        if ($('aType').value === 'delay') $('aEnd').value = $('aStart').value;
+    });
+    $('aAttendance').addEventListener('input', updateDelayPreview);
+    updateDelayFields();
 
     $('reportSectionTitle').innerText = t.reportSection;
     $('reportEmployeeLabel').innerText = t.reportEmployee;
@@ -828,10 +982,13 @@ window.addEventListener('DOMContentLoaded', () => {
     $('reportIdLabel').innerText = t.employeeId;
     $('reportDeptLabel').innerText = t.department;
     $('reportJobLabel').innerText = t.jobTitle;
+    $('reportThDate').innerText = currentLang === 'ar' ? 'التاريخ' : 'Date';
+    $('reportThDay').innerText = currentLang === 'ar' ? 'اليوم' : 'Day';
     $('reportThType').innerText = t.type;
-    $('reportThFrom').innerText = t.from;
-    $('reportThTo').innerText = t.to;
-    $('reportThDays').innerText = t.days;
+    $('reportThAttendance').innerText = currentLang === 'ar' ? 'وقت الحضور' : 'Arrival Time';
+    $('reportThDuration').innerText = currentLang === 'ar' ? 'مدة التأخير / الغياب' : 'Delay / Absence Duration';
+    $('attendanceLabel').innerText = currentLang === 'ar' ? 'وقت الحضور' : 'Arrival Time';
+    $('delayDurationLabel').innerText = currentLang === 'ar' ? 'مدة التأخير' : 'Delay Duration';
     $('btnPrintReport').innerText = t.print;
     $('btnCopyReport').innerText = t.copyImage;
     $('btnDownloadReport').innerText = t.downloadImage;
