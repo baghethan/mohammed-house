@@ -19,12 +19,27 @@
     .stat-val{font-size:36px;font-weight:900;color:var(--primary);margin:8px 0}
     .card{background:var(--surface2);border:1px solid rgba(15,23,42,.08);border-radius:18px;padding:20px;box-shadow:0 10px 24px rgba(0,0,0,.05)}
     .row{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
-    .gantt-bar-db{position:absolute;height:28px;top:50%;transform:translateY(-50%);border-radius:14px;color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 10px;z-index:5;cursor:help;box-shadow:0 3px 10px rgba(15,23,42,.12)}
+    .gantt-bar-db{position:absolute;height:28px;top:50%;transform:translateY(-50%);border-radius:14px;color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 10px;z-index:5;cursor:pointer;box-shadow:0 3px 10px rgba(15,23,42,.12)}
     .gantt-bar-db:hover{filter:brightness(1.08);transform:translateY(-50%) scale(1.02);z-index:8}
     .gname-db{padding:0 15px;font-weight:800;color:var(--primary);font-size:11px;border-left:1px solid #f1f5f9;height:100%;display:flex;align-items:center;justify-content:flex-end;gap:7px;background:#fafbfc}
     .new-plan-badge{display:inline-flex;align-items:center;justify-content:center;min-width:42px;padding:4px 7px;border-radius:999px;background:#dc2626;color:#fff;font-size:9px;font-weight:900;line-height:1;box-shadow:0 3px 10px rgba(220,38,38,.22);animation:newPulse 1.8s infinite}
     .new-year-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 7px;border-radius:999px;background:#7c3aed;color:#fff;font-size:9px;font-weight:900;line-height:1}
     @keyframes newPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+    .plan-modal{position:fixed;inset:0;background:rgba(15,23,42,.58);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999;backdrop-filter:blur(4px)}
+    .plan-modal.show{display:flex}
+    .plan-modal-card{width:min(720px,96vw);max-height:88vh;overflow:auto;background:#fff;border-radius:22px;box-shadow:0 25px 70px rgba(0,0,0,.28);padding:22px;position:relative}
+    .plan-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;border-bottom:1px solid #e5e7eb;padding-bottom:14px;margin-bottom:16px}
+    .plan-modal-title{font-size:20px;font-weight:900;color:var(--primary);margin:0}
+    .modal-close{border:none;background:#f1f5f9;color:#334155;width:38px;height:38px;border-radius:12px;font-size:20px;font-weight:900;cursor:pointer}
+    .detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .detail-box{border:1px solid #e5e7eb;border-radius:14px;padding:12px;background:#f8fafc}
+    .detail-label{font-size:10px;font-weight:900;color:var(--muted);margin-bottom:5px}
+    .detail-value{font-size:13px;font-weight:900;color:var(--text);word-break:break-word}
+    .edit-yes{color:#b91c1c}.edit-no{color:#15803d}
+    .history-wrap{margin-top:16px;border-top:1px solid #e5e7eb;padding-top:14px}
+    .history-item{border:1px solid #dbeafe;background:#eff6ff;border-radius:14px;padding:12px;margin-top:10px;font-size:12px;line-height:1.7}
+    .history-arrow{font-weight:900;color:var(--primary)}
+    @media(max-width:650px){.detail-grid{grid-template-columns:1fr}.plan-modal-card{padding:16px}}
   </style>
 </head>
 <body>
@@ -67,6 +82,19 @@
             <div id="dbGanttArea" style="min-width:1100px; background:#fff; border-radius:16px; border:1px solid #eef2f7; overflow:hidden"></div>
         </div>
     </div>
+  </div>
+</div>
+
+<div class="plan-modal" id="planDetailsModal" aria-hidden="true">
+  <div class="plan-modal-card" role="dialog" aria-modal="true" aria-labelledby="planModalTitle">
+    <div class="plan-modal-head">
+      <div>
+        <h3 class="plan-modal-title" id="planModalTitle">تفاصيل خطة الإجازة</h3>
+        <div id="planModalSub" style="font-size:11px;color:var(--muted);font-weight:800;margin-top:4px"></div>
+      </div>
+      <button type="button" class="modal-close" id="planModalClose" aria-label="Close">×</button>
+    </div>
+    <div id="planModalBody"></div>
   </div>
 </div>
 
@@ -150,6 +178,72 @@ function statusText(status){
     return 'Pending';
 }
 
+function formatDate(value){
+    const d = validDate(value);
+    if(!d) return value || '-';
+    if(/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+        return d.toLocaleDateString(currentLang==='ar'?'ar-SA':'en-GB', {year:'numeric',month:'long',day:'numeric'});
+    }
+    return d.toLocaleString(currentLang==='ar'?'ar-SA':'en-GB', {year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+function detailBox(label, value, extraClass=''){
+    return `<div class="detail-box"><div class="detail-label">${escapeHtml(label)}</div><div class="detail-value ${extraClass}">${escapeHtml(value ?? '-')}</div></div>`;
+}
+
+window.openPlanDetails = id => {
+    const p = planList.find(item => String(item.id) === String(id));
+    if(!p) return;
+    const t = tr();
+    const edited = Number(p.editCount || 0) > 0 || !!p.updatedAt;
+    const creator = p.createdByName || p.createdByEmail || '-';
+    const updater = p.updatedByName || p.updatedByEmail || '-';
+    const history = Array.isArray(p.editHistory) ? p.editHistory : [];
+    const modal = $('planDetailsModal');
+    $('planModalTitle').textContent = currentLang==='ar' ? 'تفاصيل خطة الإجازة' : 'Vacation Plan Details';
+    $('planModalSub').textContent = p.name || p.empId || p.employeeId || '';
+
+    let historyHtml = '';
+    if(edited){
+        if(history.length){
+            historyHtml = `<div class="history-wrap"><div style="font-weight:900;color:var(--primary)">${currentLang==='ar'?'سجل التعديلات':'Edit History'}</div>` + history.map((h, i) => `
+                <div class="history-item">
+                  <div><strong>${currentLang==='ar'?'التعديل':'Edit'} ${i+1}</strong> — ${escapeHtml(formatDate(h.changedAt || ''))}</div>
+                  <div><span class="history-arrow">${escapeHtml(h.previousFrom || '-')} → ${escapeHtml(h.newFrom || '-')}</span></div>
+                  <div><span class="history-arrow">${escapeHtml(h.previousTo || '-')} → ${escapeHtml(h.newTo || '-')}</span></div>
+                  <div>${currentLang==='ar'?'بواسطة':'By'}: ${escapeHtml(h.changedByName || h.changedByEmail || '-')}</div>
+                </div>`).join('') + `</div>`;
+        } else {
+            historyHtml = `<div class="history-wrap"><div class="history-item">${currentLang==='ar'?'تم تعديل هذه الخطة سابقًا، لكن التاريخ السابق غير محفوظ لأن التعديل تم قبل إضافة سجل التعديلات.':'This plan was edited before edit history tracking was added, so the previous dates are not available.'}</div></div>`;
+        }
+    }
+
+    $('planModalBody').innerHTML = `
+      <div class="detail-grid">
+        ${detailBox(currentLang==='ar'?'الموظف':'Employee', p.name || p.empId || p.employeeId || '-')}
+        ${detailBox(t.status, statusText(p.status))}
+        ${detailBox(t.from, `${p.from || '-'} — ${formatDate(p.from)}`)}
+        ${detailBox(t.to, `${p.to || '-'} — ${formatDate(p.to)}`)}
+        ${detailBox(currentLang==='ar'?'تم التعديل؟':'Edited?', edited ? (currentLang==='ar'?'نعم':'Yes') : (currentLang==='ar'?'لا':'No'), edited?'edit-yes':'edit-no')}
+        ${detailBox(currentLang==='ar'?'عدد التعديلات':'Edit Count', String(p.editCount || 0))}
+        ${detailBox(currentLang==='ar'?'وقت الإضافة':'Created At', formatDate(p.createdAt))}
+        ${detailBox(currentLang==='ar'?'أضيفت بواسطة':'Created By', creator)}
+        ${detailBox(currentLang==='ar'?'آخر تعديل':'Last Updated', edited ? formatDate(p.updatedAt) : (currentLang==='ar'?'لا يوجد تعديل':'Not edited'))}
+        ${detailBox(currentLang==='ar'?'عدلها':'Updated By', edited ? updater : '-')}
+      </div>
+      ${historyHtml}
+    `;
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden','false');
+};
+
+window.closePlanDetails = () => {
+    const modal = $('planDetailsModal');
+    if(!modal) return;
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden','true');
+};
+
 window.refreshDashboard = () => {
     const t = tr();
     updateYearOptions();
@@ -215,7 +309,7 @@ window.refreshDashboard = () => {
             const barWidth = Math.max(mWidth-0.5, spanMonths*mWidth-0.5);
             const colors = ['#1e40af', '#0f766e', '#6d28d9'];
             const tooltip = `${t.from}: ${p.from || '-'}  |  ${t.to}: ${p.to || '-'}  |  ${t.status}: ${statusText(p.status)}${p.createdAt ? `  |  ${t.added}: ${new Date(p.createdAt).toLocaleString(currentLang==='ar'?'ar-SA':'en-GB')}` : ''}`;
-            html += `<div class="gantt-bar-db" title="${escapeHtml(tooltip)}" style="${currentLang==='ar'?'right':'left'}:${leftIndex}%; width:${barWidth}%; background:${colors[idx%3]}">${escapeHtml(p.from || '')}${isPlanNew(p)?' 🆕':''}</div>`;
+            html += `<div class="gantt-bar-db" role="button" tabindex="0" onclick="window.openPlanDetails('${String(p.id).replace(/'/g, "\\'")}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openPlanDetails('${String(p.id).replace(/'/g, "\\'")}')}" title="${escapeHtml(tooltip)}" aria-label="${escapeHtml(tooltip)}" style="${currentLang==='ar'?'right':'left'}:${leftIndex}%; width:${barWidth}%; background:${colors[idx%3]}">${escapeHtml(p.from || '')}${isPlanNew(p)?' 🆕':''}</div>`;
         });
         html += `</div></div>`;
     });
@@ -238,6 +332,10 @@ $('copyDashboardBtn').addEventListener('click', async () => {
     const canvas = await html2canvas($('dashboardCaptureArea'), { scale: 3, backgroundColor: "#f8fafc", useCORS: true });
     canvas.toBlob(async b => { await navigator.clipboard.write([new ClipboardItem({"image/png":b})]); alert("✅ تم النسخ!"); });
 });
+
+$('planModalClose').addEventListener('click', window.closePlanDetails);
+$('planDetailsModal').addEventListener('click', event => { if(event.target === $('planDetailsModal')) window.closePlanDetails(); });
+document.addEventListener('keydown', event => { if(event.key === 'Escape') window.closePlanDetails(); });
 
 window.addEventListener('DOMContentLoaded', () => { 
     if(currentLang==='en') { $('mainHtml').dir='ltr'; $('mainHtml').lang='en'; }
