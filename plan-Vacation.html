@@ -67,6 +67,8 @@
       margin-bottom:20px;
     }
     .form-box{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:12px;align-items:end}
+    .form-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .edit-note{margin-top:12px;padding:10px 12px;border-radius:12px;background:#eff6ff;color:var(--primary);font-size:12px;font-weight:900;border:1px solid #dbeafe}
     label{display:block;color:var(--primary);font-size:12px;font-weight:900;margin-bottom:7px}
     input,select{
       width:100%;
@@ -98,7 +100,7 @@
     .table-wrap{overflow-x:auto}
     table{
       width:100%;
-      min-width:820px;
+      min-width:1160px;
       border-collapse:separate;
       border-spacing:0;
       font-size:13px;
@@ -137,6 +139,10 @@
     .approved{background:var(--ok-bg);color:var(--ok-t)}
     .cancelled{background:var(--cancel-bg);color:var(--cancel-t)}
     .actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+    .activity-cell{min-width:155px;line-height:1.45}
+    .activity-label{display:block;font-size:11px;font-weight:900;color:var(--primary);margin-bottom:3px}
+    .activity-time{display:block;font-size:12px;color:var(--text);font-weight:800}
+    .activity-user{display:block;font-size:10px;color:var(--muted);margin-top:2px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .empty{padding:26px;color:var(--muted);font-weight:800;text-align:center;background:#fff}
     .hidden{display:none!important}
     @media (max-width:850px){
@@ -178,8 +184,12 @@
           <label for="pEnd">إلى التاريخ</label>
           <input type="date" id="pEnd" />
         </div>
-        <button class="btn2" id="btnAddPlan" type="button">إضافة الخطة</button>
+        <div class="form-actions">
+          <button class="btn2" id="btnAddPlan" type="button">إضافة الخطة</button>
+          <button class="btn hidden" id="btnCancelEdit" type="button">إلغاء التعديل</button>
+        </div>
       </div>
+      <div class="edit-note hidden" id="editNote"></div>
     </div>
 
     <div class="card" id="planListCard">
@@ -195,11 +205,13 @@
               <th>من التاريخ</th>
               <th>إلى التاريخ</th>
               <th>الحالة</th>
+              <th>تاريخ الإضافة</th>
+              <th>آخر تعديل</th>
               <th>الإجراء</th>
             </tr>
           </thead>
           <tbody id="planningBody">
-            <tr><td class="empty" colspan="5">لا توجد خطط إجازات حالياً</td></tr>
+            <tr><td class="empty" colspan="7">لا توجد خطط إجازات حالياً</td></tr>
           </tbody>
         </table>
       </div>
@@ -216,15 +228,21 @@ import {
   addDoc,
   deleteDoc,
   updateDoc,
-  getDoc
+  getDoc,
+  getDocs,
+  query,
+  where,
+  limit
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 let employees = [];
 let employeeRecords = [];
+let appUserRecords = [];
 let planList = [];
 let currentUser = null;
 let currentProfile = null;
 let canManagePlans = false;
+let editingPlanId = null;
 const $ = id => document.getElementById(id);
 
 function escapeHtml(value) {
@@ -241,33 +259,93 @@ function byDate(a, b) {
   return String(a.from || '').localeCompare(String(b.from || '')) || String(a.name || '').localeCompare(String(b.name || ''));
 }
 
+function firstValue(...values) {
+  return values.find(value => value !== undefined && value !== null && String(value).trim() !== '') || '';
+}
+
 function normalizeVacationEmployee(record, source) {
   const status = norm(record.status);
+  const id = firstValue(
+    record.id,
+    record.employeeDocId,
+    record.uid,
+    record.employeeId,
+    record.empId,
+    record.empNum,
+    record.employeeNumber,
+    record.staffId,
+    record.email
+  );
+
   return {
-    id: String(record.id || record.uid || record.empId || record.empNum || `emp_${Date.now()}`),
-    empNum: record.empId || record.empNum || record.technicianId || '',
-    name: record.name || record.fullName || '',
-    dept: record.dept || record.department || '',
-    jobTitle: record.jobTitle || record.role || 'Employee',
-    email: record.email || '',
-    active: !(record.active === false || status === 'inactive' || status === 'hidden'),
+    id: String(id || `emp_${source}_${Math.random().toString(36).slice(2, 10)}`),
+    fireId: firstValue(record.fireId, record.id, record.uid),
+    uid: firstValue(record.uid, record.authUid),
+    empNum: firstValue(record.empId, record.empNum, record.employeeId, record.employeeNumber, record.staffId, record.technicianId),
+    employeeId: firstValue(record.employeeId, record.empId, record.empNum, record.employeeNumber, record.staffId),
+    technicianId: firstValue(record.technicianId, record.empId, record.empNum),
+    name: firstValue(record.name, record.fullName, record.displayName, record.full_name, record.employeeName),
+    dept: firstValue(record.dept, record.department, record.departmentName, record.section),
+    jobTitle: firstValue(record.jobTitle, record.title, record.position, record.designation, record.role, 'Employee'),
+    role: firstValue(record.role, record.userRole, record.accessLevel, record.jobTitle),
+    email: firstValue(record.email, record.workEmail, record.userEmail),
+    active: !(record.active === false || record.enabled === false || ['inactive', 'hidden', 'disabled'].includes(status)),
     source
   };
 }
 
-function employeeKey(emp) {
-  return norm(emp.empNum || emp.empId || emp.email || emp.id || emp.name);
+function employeeAliases(emp) {
+  return [
+    emp.id,
+    emp.fireId,
+    emp.uid,
+    emp.empNum,
+    emp.employeeId,
+    emp.technicianId,
+    emp.email,
+    emp.name
+  ].map(norm).filter(Boolean);
+}
+
+function mergeEmployeeRecord(base, incoming) {
+  if (!base) return incoming;
+  const merged = { ...base };
+  Object.entries(incoming).forEach(([key, value]) => {
+    if (key === 'active') {
+      merged.active = base.active !== false && incoming.active !== false;
+      return;
+    }
+    if (value !== undefined && value !== null && String(value).trim() !== '') merged[key] = value;
+  });
+  return merged;
 }
 
 function refreshEmployeeSources() {
+  const sourceRecords = [
+    ...employeeRecords,
+    ...appUserRecords
+  ];
+
+  const fallbackEmployee = getFallbackCurrentEmployee();
+  if (fallbackEmployee) sourceRecords.push({ ...fallbackEmployee, source: 'current-profile' });
+
   const merged = new Map();
-  employeeRecords.forEach(emp => {
-    const normalized = normalizeVacationEmployee(emp, emp.source || 'employees');
-    const key = employeeKey(normalized);
-    if (!key) return;
-    merged.set(key, { ...(merged.get(key) || {}), ...normalized });
+  const aliasToKey = new Map();
+
+  sourceRecords.forEach((raw, index) => {
+    const normalized = raw.source
+      ? normalizeVacationEmployee(raw, raw.source)
+      : normalizeVacationEmployee(raw, 'employees');
+    const aliases = employeeAliases(normalized);
+    const existingKey = aliases.map(alias => aliasToKey.get(alias)).find(Boolean);
+    const key = existingKey || aliases[0] || `record_${index}`;
+    merged.set(key, mergeEmployeeRecord(merged.get(key), normalized));
+    employeeAliases(merged.get(key)).forEach(alias => aliasToKey.set(alias, key));
   });
-  employees = Array.from(merged.values());
+
+  employees = Array.from(merged.values())
+    .filter(emp => emp.id || emp.name || emp.email || emp.empNum)
+    .sort((a, b) => String(a.name || a.empNum || '').localeCompare(String(b.name || b.empNum || ''), 'ar'));
   renderEmployees();
 }
 
@@ -276,17 +354,48 @@ function norm(value) {
 }
 
 function getUserProfileFromParent(user) {
-  const profile = window.parent && window.parent.currentUserData;
-  if (profile && profile.uid === user.uid) return profile;
-  return null;
+  try {
+    const profile = window.parent && window.parent.currentUserData;
+    if (!profile) return null;
+    const uidMatches = profile.uid && user.uid && norm(profile.uid) === norm(user.uid);
+    const emailMatches = profile.email && user.email && norm(profile.email) === norm(user.email);
+    return uidMatches || emailMatches ? profile : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function findProfileByField(collectionName, field, value) {
+  if (!value) return null;
+  try {
+    const result = await getDocs(query(collection(db, collectionName), where(field, '==', value), limit(1)));
+    if (result.empty) return null;
+    const item = result.docs[0];
+    return { id: item.id, ...item.data() };
+  } catch (error) {
+    return null;
+  }
 }
 
 async function loadCurrentProfile(user) {
   const parentProfile = getUserProfileFromParent(user);
-  if (parentProfile) return parentProfile;
+  if (parentProfile) return { ...parentProfile, uid: parentProfile.uid || user.uid };
 
-  const snap = await getDoc(doc(db, 'app_users', user.uid));
-  if (snap.exists()) return { id: snap.id, uid: user.uid, ...snap.data() };
+  try {
+    const snap = await getDoc(doc(db, 'app_users', user.uid));
+    if (snap.exists()) return { id: snap.id, uid: user.uid, ...snap.data() };
+  } catch (error) {
+    // Continue with alternate lookup methods.
+  }
+
+  const byUid = await findProfileByField('app_users', 'uid', user.uid);
+  if (byUid) return { uid: user.uid, ...byUid };
+
+  const byEmail = await findProfileByField('app_users', 'email', user.email || '');
+  if (byEmail) return { uid: user.uid, ...byEmail };
+
+  const employeeByEmail = await findProfileByField('employees', 'email', user.email || '');
+  if (employeeByEmail) return { uid: user.uid, ...employeeByEmail };
 
   return {
     uid: user.uid,
@@ -298,8 +407,28 @@ async function loadCurrentProfile(user) {
 }
 
 function isManagerProfile(profile) {
-  const role = norm(profile && profile.role);
-  return role === 'admin' || role === 'supervisor' || profile?.superAdmin === true;
+  if (!profile) return false;
+  if (profile.superAdmin === true || profile.isAdmin === true || profile.isSupervisor === true || profile.canManagePlans === true || profile.canManageVacation === true) return true;
+
+  const roleValues = [
+    profile.role,
+    profile.userRole,
+    profile.accessLevel,
+    profile.jobTitle,
+    profile.position,
+    profile.designation
+  ].map(norm).filter(Boolean);
+
+  const directRoles = new Set(['admin', 'administrator', 'supervisor', 'manager', 'team leader', 'teamleader']);
+  if (roleValues.some(role => directRoles.has(role))) return true;
+  if (roleValues.some(role => role.includes('supervisor') || role.includes('manager') || role.includes('administrator'))) return true;
+
+  const permissions = Array.isArray(profile.permissions)
+    ? profile.permissions
+    : Array.isArray(profile.access)
+      ? profile.access
+      : [];
+  return permissions.map(norm).some(permission => ['vacation.manage', 'vacations.manage', 'manage_vacations', 'managevacations'].includes(permission));
 }
 
 function employeeMatchesCurrentUser(emp) {
@@ -313,21 +442,14 @@ function employeeMatchesCurrentUser(emp) {
     profile.technicianId,
     profile.empNum,
     profile.employeeId,
-    profile.name
+    profile.employeeNumber,
+    profile.staffId,
+    profile.name,
+    profile.fullName,
+    currentUser.displayName
   ].map(norm).filter(Boolean);
 
-  const empValues = [
-    emp.id,
-    emp.fireId,
-    emp.uid,
-    emp.email,
-    emp.empNum,
-    emp.technicianId,
-    emp.employeeId,
-    emp.name
-  ].map(norm).filter(Boolean);
-
-  return empValues.some(value => candidates.includes(value));
+  return employeeAliases(emp).some(value => candidates.includes(value));
 }
 
 function getCurrentUserKeys() {
@@ -341,7 +463,11 @@ function getCurrentUserKeys() {
     profile.technicianId,
     profile.empNum,
     profile.employeeId,
+    profile.employeeNumber,
+    profile.staffId,
     profile.name,
+    profile.fullName,
+    currentUser?.displayName,
     fallbackEmployee?.id,
     fallbackEmployee?.empNum,
     fallbackEmployee?.email,
@@ -368,45 +494,154 @@ function planMatchesCurrentUser(plan) {
 function getFallbackCurrentEmployee() {
   if (!currentUser) return null;
   const profile = currentProfile || {};
-  const id = profile.employeeId || profile.technicianId || profile.empNum || profile.uid || currentUser.uid;
+  const id = firstValue(
+    profile.employeeDocId,
+    profile.id,
+    profile.employeeId,
+    profile.technicianId,
+    profile.empNum,
+    profile.employeeNumber,
+    profile.staffId,
+    profile.uid,
+    currentUser.uid
+  );
   if (!id) return null;
 
   return {
     id,
-    empNum: profile.technicianId || profile.empNum || profile.employeeId || id,
-    name: profile.name || currentUser.displayName || currentUser.email || 'Employee',
-    dept: profile.dept || profile.department || '',
-    jobTitle: profile.jobTitle || profile.role || 'Employee',
-    email: profile.email || currentUser.email || '',
-    active: true
+    fireId: firstValue(profile.id, profile.uid, currentUser.uid),
+    uid: firstValue(profile.uid, currentUser.uid),
+    empNum: firstValue(profile.technicianId, profile.empNum, profile.employeeId, profile.employeeNumber, profile.staffId, id),
+    employeeId: firstValue(profile.employeeId, profile.empNum, profile.employeeNumber, profile.staffId),
+    technicianId: firstValue(profile.technicianId, profile.empNum),
+    name: firstValue(profile.name, profile.fullName, profile.displayName, currentUser.displayName, currentUser.email, 'Employee'),
+    dept: firstValue(profile.dept, profile.department, profile.departmentName),
+    jobTitle: firstValue(profile.jobTitle, profile.position, profile.designation, profile.role, 'Employee'),
+    role: firstValue(profile.role, profile.userRole),
+    email: firstValue(profile.email, currentUser.email),
+    active: true,
+    source: 'current-profile'
   };
 }
 
 function getVisibleEmployees() {
   const activeEmployees = employees.filter(emp => emp.active !== false);
-  if (canManagePlans) return activeEmployees;
+  const fallbackEmployee = getFallbackCurrentEmployee();
+
+  if (canManagePlans) {
+    if (!fallbackEmployee) return activeEmployees;
+    const selfAlreadyIncluded = activeEmployees.some(employeeMatchesCurrentUser);
+    return selfAlreadyIncluded ? activeEmployees : [fallbackEmployee, ...activeEmployees];
+  }
+
   const matchedEmployees = activeEmployees.filter(employeeMatchesCurrentUser);
   if (matchedEmployees.length) return matchedEmployees;
-  const fallbackEmployee = getFallbackCurrentEmployee();
   return fallbackEmployee ? [fallbackEmployee] : [];
 }
 
 function applyRoleUi() {
   $('planListCard').classList.remove('hidden');
-  $('pEmp').disabled = !canManagePlans;
+  $('pEmp').disabled = !canManagePlans || Boolean(editingPlanId);
+}
+
+function employeeOptionLabel(emp) {
+  const parts = [emp.name || emp.empNum || emp.email || emp.id];
+  if (emp.empNum && norm(emp.empNum) !== norm(parts[0])) parts.push(emp.empNum);
+  if (emp.dept) parts.push(emp.dept);
+  return parts.filter(Boolean).join(' — ');
 }
 
 function renderEmployees() {
   const currentValue = $('pEmp').value;
   const visibleEmployees = getVisibleEmployees();
   const options = visibleEmployees
-    .map(emp => `<option value="${escapeHtml(emp.id)}">${escapeHtml(emp.name || emp.id)}</option>`)
+    .map(emp => `<option value="${escapeHtml(emp.id)}">${escapeHtml(employeeOptionLabel(emp))}</option>`)
     .join('');
 
   $('pEmp').innerHTML = `<option value="">اختر الموظف...</option>${options}`;
-  if (visibleEmployees.some(emp => String(emp.id) === String(currentValue))) $('pEmp').value = currentValue;
-  else if (!canManagePlans && visibleEmployees.length === 1) $('pEmp').value = visibleEmployees[0].id;
+  if (editingPlanId) {
+    const plan = planList.find(item => item.id === editingPlanId);
+    const planAliases = [plan?.employeeDocId, plan?.fireId, plan?.empId, plan?.employeeId, plan?.email, plan?.name].map(norm).filter(Boolean);
+    const matched = visibleEmployees.find(emp => employeeAliases(emp).some(alias => planAliases.includes(alias)));
+    if (matched) $('pEmp').value = matched.id;
+  } else if (visibleEmployees.some(emp => String(emp.id) === String(currentValue))) {
+    $('pEmp').value = currentValue;
+  } else if (!canManagePlans && visibleEmployees.length === 1) {
+    $('pEmp').value = visibleEmployees[0].id;
+  }
+  applyRoleUi();
 }
+
+function dateValueToDate(value) {
+  if (!value) return null;
+  if (typeof value?.toDate === 'function') return value.toDate();
+  if (typeof value === 'object' && typeof value.seconds === 'number') return new Date(value.seconds * 1000);
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDateTime(value) {
+  const date = dateValueToDate(value);
+  if (!date) return '';
+  return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
+    timeZone: 'Asia/Riyadh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  }).format(date);
+}
+
+function activityCell(label, value, userLabel, emptyLabel = 'غير مسجل') {
+  const formatted = formatDateTime(value);
+  if (!formatted) return `<span class="activity-time" style="color:var(--muted)">${escapeHtml(emptyLabel)}</span>`;
+  return `
+    <span class="activity-label">${escapeHtml(label)}</span>
+    <span class="activity-time">${escapeHtml(formatted)}</span>
+    ${userLabel ? `<span class="activity-user" title="${escapeHtml(userLabel)}">${escapeHtml(userLabel)}</span>` : ''}
+  `;
+}
+
+function canEditPlan(plan) {
+  if (!plan) return false;
+  const status = String(plan.status || 'pending');
+  if (status === 'cancelled') return false;
+  if (canManagePlans) return true;
+  return status === 'pending' && planMatchesCurrentUser(plan);
+}
+
+function resetPlanForm() {
+  editingPlanId = null;
+  $('pStart').value = '';
+  $('pEnd').value = '';
+  $('btnAddPlan').textContent = 'إضافة الخطة';
+  $('btnCancelEdit').classList.add('hidden');
+  $('editNote').classList.add('hidden');
+  $('editNote').textContent = '';
+  renderEmployees();
+}
+
+window.startEditPlan = id => {
+  const plan = planList.find(item => item.id === id);
+  if (!plan || !canEditPlan(plan)) {
+    alert('لا تملك صلاحية تعديل هذه الخطة');
+    return;
+  }
+
+  editingPlanId = id;
+  $('pStart').value = plan.from || '';
+  $('pEnd').value = plan.to || '';
+  $('btnAddPlan').textContent = 'حفظ التعديل';
+  $('btnCancelEdit').classList.remove('hidden');
+  $('editNote').textContent = `تعديل موعد إجازة: ${plan.name || plan.empId || ''}`;
+  $('editNote').classList.remove('hidden');
+  renderEmployees();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.cancelEditPlan = () => resetPlanForm();
 
 function statusLabel(status) {
   const value = String(status || 'pending');
@@ -427,7 +662,7 @@ function renderPlanList() {
   $('planCount').textContent = `${sortedPlans.length} خطة`;
 
   if (!sortedPlans.length) {
-    $('planningBody').innerHTML = '<tr><td class="empty" colspan="5">لا توجد خطط إجازات حالياً</td></tr>';
+    $('planningBody').innerHTML = '<tr><td class="empty" colspan="7">لا توجد خطط إجازات حالياً</td></tr>';
     return;
   }
 
@@ -437,9 +672,15 @@ function renderPlanList() {
       ? `<button class="btn2" type="button" onclick="window.setPlanStatus('${plan.id}', 'approved')">اعتماد</button>
          <button class="btn" type="button" onclick="window.setPlanStatus('${plan.id}', 'cancelled')">إلغاء</button>`
       : '';
+    const editButton = canEditPlan(plan)
+      ? `<button class="btn" type="button" onclick="window.startEditPlan('${plan.id}')">تعديل الموعد</button>`
+      : '';
     const deleteButton = canManagePlans
       ? `<button class="danger-btn" type="button" onclick="window.deletePlan('${plan.id}')">حذف</button>`
-      : '<span class="count-pill">للعرض فقط</span>';
+      : (!editButton ? '<span class="count-pill">للعرض فقط</span>' : '');
+
+    const createdBy = plan.createdByName || plan.createdByEmail || '';
+    const updatedBy = plan.updatedByName || plan.updatedByEmail || '';
 
     return `
       <tr>
@@ -447,9 +688,12 @@ function renderPlanList() {
         <td>${escapeHtml(plan.from || '')}</td>
         <td>${escapeHtml(plan.to || '')}</td>
         <td><span class="status ${statusClass(status)}">${statusLabel(status)}</span></td>
+        <td class="activity-cell">${activityCell('تمت الإضافة', plan.createdAt, createdBy, 'خطة قديمة - الوقت غير مسجل')}</td>
+        <td class="activity-cell">${activityCell('تم تعديل الموعد', plan.updatedAt, updatedBy, 'لم يتم تعديل الموعد')}</td>
         <td>
           <div class="actions">
             ${decisionButtons}
+            ${editButton}
             ${deleteButton}
           </div>
         </td>
@@ -473,33 +717,62 @@ window.addVacationPlan = async () => {
     return;
   }
 
+  await waitForSignedInUser();
+
+  if (editingPlanId) {
+    const plan = planList.find(item => item.id === editingPlanId);
+    if (!plan || !canEditPlan(plan)) {
+      alert('لا تملك صلاحية تعديل هذه الخطة');
+      resetPlanForm();
+      return;
+    }
+
+    await updateDoc(doc(db, 'vacations', editingPlanId), {
+      from,
+      to,
+      updatedAt: new Date().toISOString(),
+      updatedByUid: currentUser?.uid || '',
+      updatedByEmail: currentUser?.email || currentProfile?.email || '',
+      updatedByName: firstValue(currentProfile?.name, currentProfile?.fullName, currentUser?.displayName, currentUser?.email),
+      editCount: Number(plan.editCount || 0) + 1
+    });
+
+    resetPlanForm();
+    return;
+  }
+
   const emp = getVisibleEmployees().find(item => String(item.id) === String(empId));
   if (!emp) {
     alert(canManagePlans ? 'لم يتم العثور على الموظف المحدد' : 'لا يمكنك إضافة خطة إلا باسمك فقط');
     return;
   }
 
-  await waitForSignedInUser();
   await addDoc(collection(db, 'vacations'), {
-    empId: emp.empNum || emp.id,
-    employeeId: emp.empNum || emp.id,
+    empId: emp.empNum || emp.employeeId || emp.id,
+    employeeId: emp.employeeId || emp.empNum || emp.id,
     employeeDocId: emp.id || '',
-    fireId: emp.id || '',
+    fireId: emp.fireId || emp.id || '',
+    email: emp.email || '',
     name: emp.name || '',
     dept: emp.dept || '',
-    role: emp.jobTitle || 'Employee',
+    role: emp.jobTitle || emp.role || 'Employee',
     from,
     to,
     status: 'pending',
     createdByUid: currentUser?.uid || '',
     createdByEmail: currentUser?.email || currentProfile?.email || '',
+    createdByName: firstValue(currentProfile?.name, currentProfile?.fullName, currentUser?.displayName, currentUser?.email),
     createdAt: new Date().toISOString(),
+    updatedAt: '',
+    updatedByUid: '',
+    updatedByEmail: '',
+    updatedByName: '',
+    editCount: 0,
     actionBy: '',
     actionAt: ''
   });
 
-  $('pStart').value = '';
-  $('pEnd').value = '';
+  resetPlanForm();
 };
 
 window.setPlanStatus = async (id, status) => {
@@ -510,7 +783,8 @@ window.setPlanStatus = async (id, status) => {
   await waitForSignedInUser();
   await updateDoc(doc(db, 'vacations', id), {
     status,
-    actionAt: new Date().toISOString()
+    actionAt: new Date().toISOString(),
+    actionBy: firstValue(currentProfile?.name, currentProfile?.fullName, currentUser?.displayName, currentUser?.email)
   });
 };
 
@@ -529,31 +803,51 @@ async function bindSnapshots() {
   currentProfile = await loadCurrentProfile(currentUser);
   canManagePlans = isManagerProfile(currentProfile);
   applyRoleUi();
-  renderEmployees();
+  refreshEmployeeSources();
 
-  if (canManagePlans) {
-    onSnapshot(collection(db, 'employees'), snap => {
-      employeeRecords = snap.docs.map(item => ({ id: item.id, ...item.data() }));
+  const bindEmployeeCollection = (collectionName, targetSetter, errorLabel) => {
+    onSnapshot(collection(db, collectionName), snap => {
+      const records = snap.docs.map(item => ({ id: item.id, source: collectionName, ...item.data() }));
+      targetSetter(records);
       refreshEmployeeSources();
     }, error => {
-      logFirebaseError('Vacation plan employees collection listener failed', error);
-      employeeRecords = [];
+      logFirebaseError(errorLabel, error);
+      targetSetter([]);
       refreshEmployeeSources();
     });
+  };
+
+  if (canManagePlans) {
+    bindEmployeeCollection(
+      'employees',
+      records => { employeeRecords = records; },
+      'Vacation plan employees collection listener failed'
+    );
+    bindEmployeeCollection(
+      'app_users',
+      records => { appUserRecords = records; },
+      'Vacation plan app_users collection listener failed'
+    );
+  } else {
+    // The current user's profile is always used as a fallback, even when the employees collection is not readable.
+    refreshEmployeeSources();
   }
 
   onSnapshot(collection(db, 'vacations'), snap => {
     planList = snap.docs.map(item => ({ id: item.id, ...item.data() }));
     renderPlanList();
+    if (editingPlanId && !planList.some(item => item.id === editingPlanId)) resetPlanForm();
   }, error => logFirebaseError('Vacation plan list listener failed', error));
 }
 
 $('btnAddPlan').addEventListener('click', () => {
-  window.addVacationPlan().catch(error => logFirebaseError('Add vacation plan failed', error));
+  window.addVacationPlan().catch(error => logFirebaseError(editingPlanId ? 'Update vacation plan failed' : 'Add vacation plan failed', error));
 });
 
+$('btnCancelEdit').addEventListener('click', () => window.cancelEditPlan());
+
 $('refreshBtn').addEventListener('click', () => {
-  renderEmployees();
+  refreshEmployeeSources();
   renderPlanList();
 });
 
