@@ -19,8 +19,12 @@
     .stat-val{font-size:36px;font-weight:900;color:var(--primary);margin:8px 0}
     .card{background:var(--surface2);border:1px solid rgba(15,23,42,.08);border-radius:18px;padding:20px;box-shadow:0 10px 24px rgba(0,0,0,.05)}
     .row{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
-    .gantt-bar-db{position:absolute;height:28px;top:50%;transform:translateY(-50%);border-radius:14px;color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 10px;z-index:5}
-    .gname-db{padding:0 15px;font-weight:800;color:var(--primary);font-size:11px;border-left:1px solid #f1f5f9;height:100%;display:flex;align-items:center;justify-content:flex-end;background:#fafbfc}
+    .gantt-bar-db{position:absolute;height:28px;top:50%;transform:translateY(-50%);border-radius:14px;color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 10px;z-index:5;cursor:help;box-shadow:0 3px 10px rgba(15,23,42,.12)}
+    .gantt-bar-db:hover{filter:brightness(1.08);transform:translateY(-50%) scale(1.02);z-index:8}
+    .gname-db{padding:0 15px;font-weight:800;color:var(--primary);font-size:11px;border-left:1px solid #f1f5f9;height:100%;display:flex;align-items:center;justify-content:flex-end;gap:7px;background:#fafbfc}
+    .new-plan-badge{display:inline-flex;align-items:center;justify-content:center;min-width:42px;padding:4px 7px;border-radius:999px;background:#dc2626;color:#fff;font-size:9px;font-weight:900;line-height:1;box-shadow:0 3px 10px rgba(220,38,38,.22);animation:newPulse 1.8s infinite}
+    .new-year-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 7px;border-radius:999px;background:#7c3aed;color:#fff;font-size:9px;font-weight:900;line-height:1}
+    @keyframes newPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
   </style>
 </head>
 <body>
@@ -41,17 +45,21 @@
         </div>
 
         <div class="stat-grid" id="dashboardStats"></div>
+        <div id="newPlanNotice" style="display:none;margin:-8px 0 18px;padding:12px 16px;border:1px solid #fecaca;background:#fff1f2;color:#991b1b;border-radius:14px;font-weight:900;font-size:12px"></div>
 
         <div class="card">
             <div class="row" style="justify-content:space-between">
                 <h3 id="dbGanttTitle" style="margin:0;color:var(--primary)">📉 المخطط الزمني الذكي</h3>
-                <select id="dbViewRange" onchange="window.refreshDashboard()" class="btn">
-                    <option value="year">Full Year</option>
-                    <option value="q1">Q1</option>
-                    <option value="q2">Q2</option>
-                    <option value="q3">Q3</option>
-                    <option value="q4">Q4</option>
-                </select>
+                <div class="row" style="margin:0">
+                    <select id="dbYear" onchange="window.refreshDashboard()" class="btn" aria-label="Year"></select>
+                    <select id="dbViewRange" onchange="window.refreshDashboard()" class="btn">
+                        <option value="year">Full Year</option>
+                        <option value="q1">Q1</option>
+                        <option value="q2">Q2</option>
+                        <option value="q3">Q3</option>
+                        <option value="q4">Q4</option>
+                    </select>
+                </div>
             </div>
             <center>
                 <div id="rangeIndicator" style="border:2px solid #ef4444;color:#ef4444;padding:5px 30px;border-radius:10px;font-weight:900;margin:10px 0">السنة كاملة</div>
@@ -67,45 +75,162 @@ import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js
 import { doc, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { brand:'المجدوعي للسيارات', dbSub:'تقرير إحصائيات الإجازات السنوية', ganttTitle:'📉 المخطط الزمني الذكي', total:'إجمالي الإجازات', active:'نشطة اليوم', pending:'طلبات معلقة', employee:'الموظف', months:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'], year:'السنة كاملة' },
-    en: { brand:'Almajdouie Motors', dbSub:'Annual Leave Statistics Report', ganttTitle:'📉 Smart Timeline', total:'Total Leaves', active:'Active Today', pending:'Pending', employee:'Employee', months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], year:'Full Year' }
+    ar: {
+        brand:'المجدوعي للسيارات', dbSub:'تقرير إحصائيات الإجازات السنوية', ganttTitle:'📉 المخطط الزمني الذكي',
+        total:'إجمالي الإجازات', active:'نشطة اليوم', pending:'طلبات معلقة', newPlans:'خطط جديدة', employee:'الموظف',
+        months:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'],
+        year:'السنة كاملة', newBadge:'جديد', newYearBadge:'سنة جديدة', from:'من', to:'إلى', status:'الحالة', added:'تمت الإضافة'
+    },
+    en: {
+        brand:'Almajdouie Motors', dbSub:'Annual Leave Statistics Report', ganttTitle:'📉 Smart Timeline',
+        total:'Total Leaves', active:'Active Today', pending:'Pending', newPlans:'New Plans', employee:'Employee',
+        months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+        year:'Full Year', newBadge:'NEW', newYearBadge:'NEW YEAR', from:'From', to:'To', status:'Status', added:'Added'
+    }
 };
 
 let employees=[], planList=[], currentLang=localStorage.getItem('lang')||'ar';
 const $=id=>document.getElementById(id), tr=()=>i18n[currentLang];
 
+// يبقى ثابتاً طوال جلسة فتح اللوحة، حتى تظل علامة "جديد" ظاهرة أثناء المراجعة.
+const dashboardPreviousSeenAt = localStorage.getItem('vacationDashboardLastSeenAt') || '';
+const dashboardOpenedAt = new Date().toISOString();
+
+function escapeHtml(value){
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function validDate(value){
+    const d = value ? new Date(value) : null;
+    return d && !Number.isNaN(d.getTime()) ? d : null;
+}
+
+function getPlanYear(plan){
+    const d = validDate(plan?.from);
+    return d ? d.getFullYear() : null;
+}
+
+function isPlanNew(plan){
+    const created = validDate(plan?.createdAt);
+    if(!created) return false;
+    if(!dashboardPreviousSeenAt) {
+        // أول استخدام للميزة: نعتبر الإضافات خلال آخر 14 يوماً جديدة فقط.
+        return (Date.now() - created.getTime()) <= 14 * 24 * 60 * 60 * 1000;
+    }
+    const seen = validDate(dashboardPreviousSeenAt);
+    return !!seen && created > seen;
+}
+
+function updateYearOptions(){
+    const yearSelect = $('dbYear');
+    if(!yearSelect) return;
+    const currentYear = new Date().getFullYear();
+    const years = [...new Set(planList.map(getPlanYear).filter(Boolean))].sort((a,b)=>b-a);
+    if(!years.includes(currentYear)) years.push(currentYear);
+    years.sort((a,b)=>b-a);
+
+    const oldValue = Number(yearSelect.value);
+    const newestUnseenYear = [...new Set(planList.filter(isPlanNew).map(getPlanYear).filter(Boolean))].sort((a,b)=>b-a)[0];
+    yearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    if(years.includes(oldValue)) yearSelect.value = String(oldValue);
+    else if(newestUnseenYear && years.includes(newestUnseenYear)) yearSelect.value = String(newestUnseenYear);
+    else if(years.includes(currentYear)) yearSelect.value = String(currentYear);
+    else if(years.length) yearSelect.value = String(years[0]);
+}
+
+function statusText(status){
+    const s = String(status || 'pending').toLowerCase();
+    if(currentLang === 'ar') {
+        if(s === 'approved') return 'معتمدة';
+        if(s === 'cancelled') return 'ملغاة';
+        return 'معلقة';
+    }
+    if(s === 'approved') return 'Approved';
+    if(s === 'cancelled') return 'Cancelled';
+    return 'Pending';
+}
+
 window.refreshDashboard = () => {
-    const t = tr(); const range = $('dbViewRange').value;
+    const t = tr();
+    updateYearOptions();
+    const selectedYear = Number($('dbYear')?.value || new Date().getFullYear());
+    const range = $('dbViewRange').value;
     const rangeMap = { 'year':[0,11,t.year], 'q1':[0,2,'Q1'], 'q2':[3,5,'Q2'], 'q3':[6,8,'Q3'], 'q4':[9,11,'Q4'] };
-    const [sm, em, txt] = rangeMap[range]; $('rangeIndicator').innerText = txt;
-    const filtered = planList.filter(p => { const m = new Date(p.from).getMonth(); return m>=sm && m<=em; });
+    const [sm, em, txt] = rangeMap[range];
+    $('rangeIndicator').innerText = `${txt} - ${selectedYear}`;
+
+    const yearPlans = planList.filter(p => getPlanYear(p) === selectedYear);
+    const filtered = yearPlans.filter(p => {
+        const d = validDate(p.from);
+        const m = d ? d.getMonth() : -1;
+        return m>=sm && m<=em;
+    });
+    const newPlans = filtered.filter(isPlanNew);
+    const allNewPlans = planList.filter(isPlanNew);
+    const notice = $('newPlanNotice');
+    if(notice){
+        if(allNewPlans.length){
+            const people = [...new Set(allNewPlans.map(p => `${p.name || p.empId || p.employeeId || 'Employee'} (${getPlanYear(p) || '-'})`))];
+            notice.style.display = 'block';
+            notice.innerHTML = `🆕 ${currentLang==='ar'?'يوجد خطط إجازة جديدة':'New vacation plans'}: ${escapeHtml(people.join('، '))}`;
+        } else {
+            notice.style.display = 'none';
+            notice.innerHTML = '';
+        }
+    }
 
     $('dashboardStats').innerHTML = `
         <div class="stat-card" style="border-color:#1e40af"><div style="font-size:11px;font-weight:800;color:var(--muted)">${t.total}</div><div class="stat-val">${filtered.length}</div></div>
-        <div class="stat-card" style="border-color:#10b981"><div style="font-size:11px;font-weight:800;color:var(--muted)">${t.active}</div><div class="stat-val">${planList.filter(p=>new Date()>=new Date(p.from)&&new Date()<=new Date(p.to)).length}</div></div>
-        <div class="stat-card" style="border-color:#f59e0b"><div style="font-size:11px;font-weight:800;color:var(--muted)">${t.pending}</div><div class="stat-val">${planList.filter(p=>p.status==='pending').length}</div></div>`;
+        <div class="stat-card" style="border-color:#10b981"><div style="font-size:11px;font-weight:800;color:var(--muted)">${t.active}</div><div class="stat-val">${yearPlans.filter(p=>{const f=validDate(p.from),to=validDate(p.to),now=new Date();return f&&to&&now>=f&&now<=to;}).length}</div></div>
+        <div class="stat-card" style="border-color:#f59e0b"><div style="font-size:11px;font-weight:800;color:var(--muted)">${t.pending}</div><div class="stat-val">${yearPlans.filter(p=>p.status==='pending').length}</div></div>
+        <div class="stat-card" style="border-color:#dc2626"><div style="font-size:11px;font-weight:800;color:var(--muted)">🆕 ${t.newPlans}</div><div class="stat-val">${newPlans.length}</div></div>`;
 
-    let html = `<div style="display:grid;grid-template-columns:200px 1fr;background:var(--primary);color:#fff;font-weight:800;font-size:11px"><div style="padding:12px;text-align:center">${t.employee}</div><div style="display:grid;grid-template-columns:repeat(${em-sm+1},1fr)">`;
+    let html = `<div style="display:grid;grid-template-columns:220px 1fr;background:var(--primary);color:#fff;font-weight:800;font-size:11px"><div style="padding:12px;text-align:center">${t.employee}</div><div style="display:grid;grid-template-columns:repeat(${em-sm+1},1fr)">`;
     for(let i=sm; i<=em; i++) html += `<div style="padding:12px;text-align:center;border-left:1px solid rgba(255,255,255,0.1)">${t.months[i]}</div>`;
     html += `</div></div>`;
-    
-    const grouped = {}; planList.forEach(p => { const m = new Date(p.from).getMonth(); if(m>=sm && m<=em) { if(!grouped[p.name]) grouped[p.name] = []; grouped[p.name].push(p); } });
-    Object.keys(grouped).forEach(name => {
-        html += `<div style="display:grid;grid-template-columns:200px 1fr;border-bottom:1px solid #f1f5f9;min-height:55px;align-items:center"><div class="gname-db">${name}</div><div style="display:grid;grid-template-columns:repeat(${em-sm+1},1fr);position:relative">`;
-        grouped[name].forEach((p, idx) => {
-            const d1 = new Date(p.from); const sM = Math.max(d1.getMonth(), sm);
-            const mWidth = 100 / (em-sm+1); const colors = ['#1e40af', '#0f766e', '#6d28d9'];
-            html += `<div class="gantt-bar-db" style="${currentLang==='ar'?'right':'left'}:${(sM-sm)*mWidth}%; width:${mWidth-0.5}%; background:${colors[idx%3]}">${p.from}</div>`;
+
+    const grouped = {};
+    filtered.forEach(p => {
+        const key = p.name || p.empId || p.employeeId || 'Employee';
+        if(!grouped[key]) grouped[key] = [];
+        grouped[key].push(p);
+    });
+
+    Object.keys(grouped).sort((a,b)=>a.localeCompare(b, currentLang==='ar'?'ar':'en')).forEach(name => {
+        const personPlans = grouped[name];
+        const hasNew = personPlans.some(isPlanNew);
+        const hasFutureYearPlan = selectedYear > new Date().getFullYear();
+        const badges = `${hasNew ? `<span class="new-plan-badge" title="${escapeHtml(t.newPlans)}">🆕 ${escapeHtml(t.newBadge)}</span>` : ''}${hasFutureYearPlan ? `<span class="new-year-badge">${escapeHtml(t.newYearBadge)}</span>` : ''}`;
+
+        html += `<div style="display:grid;grid-template-columns:220px 1fr;border-bottom:1px solid #f1f5f9;min-height:58px;align-items:center"><div class="gname-db">${escapeHtml(name)} ${badges}</div><div style="display:grid;grid-template-columns:repeat(${em-sm+1},1fr);position:relative;min-height:58px">`;
+        personPlans.forEach((p, idx) => {
+            const d1 = validDate(p.from);
+            const d2 = validDate(p.to);
+            if(!d1 || !d2) return;
+            const sM = Math.max(d1.getMonth(), sm);
+            const eM = Math.min(d2.getMonth(), em);
+            const mWidth = 100 / (em-sm+1);
+            const leftIndex = (sM-sm)*mWidth;
+            const spanMonths = Math.max(1, eM-sM+1);
+            const barWidth = Math.max(mWidth-0.5, spanMonths*mWidth-0.5);
+            const colors = ['#1e40af', '#0f766e', '#6d28d9'];
+            const tooltip = `${t.from}: ${p.from || '-'}  |  ${t.to}: ${p.to || '-'}  |  ${t.status}: ${statusText(p.status)}${p.createdAt ? `  |  ${t.added}: ${new Date(p.createdAt).toLocaleString(currentLang==='ar'?'ar-SA':'en-GB')}` : ''}`;
+            html += `<div class="gantt-bar-db" title="${escapeHtml(tooltip)}" style="${currentLang==='ar'?'right':'left'}:${leftIndex}%; width:${barWidth}%; background:${colors[idx%3]}">${escapeHtml(p.from || '')}${isPlanNew(p)?' 🆕':''}</div>`;
         });
         html += `</div></div>`;
     });
+
+    if(!Object.keys(grouped).length){
+        html += `<div style="padding:28px;text-align:center;color:var(--muted);font-weight:800">${currentLang==='ar'?'لا توجد خطط إجازة في هذه الفترة':'No vacation plans in this period'}</div>`;
+    }
+
     $('dbGanttArea').innerHTML = html;
 };
 
 async function bindSnapshots(){
     await waitForSignedInUser();
     onSnapshot(collection(db,'employees'), s=>{ employees=s.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.active!==false && String(e.status||'active').toLowerCase()!=='inactive'); window.refreshDashboard(); }, e=>logFirebaseError('Employees dashboard listener failed', e));
-    onSnapshot(collection(db,'vacations'), s=>{ planList=s.docs.map(d=>({id:d.id,...d.data()})); window.refreshDashboard(); }, e=>logFirebaseError('Schedule dashboard vacations listener failed', e));
+    onSnapshot(collection(db,'vacations'), s=>{ planList=s.docs.map(d=>({id:d.id,...d.data()})); window.refreshDashboard(); localStorage.setItem('vacationDashboardLastSeenAt', dashboardOpenedAt); }, e=>logFirebaseError('Schedule dashboard vacations listener failed', e));
 }
 
 $('btnLang').addEventListener('click', ()=>{ currentLang=currentLang==='ar'?'en':'ar'; localStorage.setItem('lang',currentLang); location.reload(); });
