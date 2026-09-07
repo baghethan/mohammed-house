@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Annual Leave Management v1.3.0 - Delay Time Report - Almajdouie Motors</title>
+  <title>Annual Leave Management v1.3.1 - Flexible Delay Start - Almajdouie Motors</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root{--primary:#0d2149;--primary2:#1b4fa3;--text:#1f2937;--muted:#64748b;--surface:rgba(255,255,255,.94);--surface2:#fff;--shadow:0 18px 50px rgba(13,33,73,.16);--danger:#d32f2f}
@@ -82,7 +82,7 @@
         <div style="display:flex; align-items:center; gap:15px">
             <img src="LOGO-almajdouie.png" style="height:55px" />
             <div>
-                <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:22px"><span id="title">إدارة الإجازات السنوية</span><span class="version-badge">v1.3.0</span></h2>
+                <h2 style="margin:0; color:var(--primary); font-weight:900; font-size:22px"><span id="title">إدارة الإجازات السنوية</span><span class="version-badge">v1.3.1</span></h2>
                 <p id="subtitle" style="margin:0; color:var(--muted); font-size:12px; font-weight:700">تخطيط وتوثيق الإجازات - المجدوعي للسيارات</p>
             </div>
         </div>
@@ -102,6 +102,10 @@
             <input type="date" id="aStart" style="flex:1" />
             <input type="date" id="aEnd" style="flex:1" />
             <div id="delayFields" class="delay-fields">
+                <div class="delay-field">
+                    <label id="scheduledStartLabel" for="aScheduledStart">بداية الدوام</label>
+                    <input type="time" id="aScheduledStart" value="07:30" step="60" />
+                </div>
                 <div class="delay-field">
                     <label id="attendanceLabel" for="aAttendance">وقت الحضور</label>
                     <input type="time" id="aAttendance" step="60" />
@@ -195,6 +199,7 @@
                     <th id="reportThDate">التاريخ</th>
                     <th id="reportThDay">اليوم</th>
                     <th id="reportThType">النوع</th>
+                    <th id="reportThScheduledStart">بداية الدوام</th>
                     <th id="reportThAttendance">وقت الحضور</th>
                     <th id="reportThDuration">مدة التأخير / الغياب</th>
                 </tr></thead>
@@ -242,10 +247,12 @@ function timeToMinutes(value) {
     return Number(match[1]) * 60 + Number(match[2]);
 }
 
-function delayMinutesFromAttendance(value) {
+function delayMinutesFromAttendance(value, scheduledStart = WORK_START) {
     const arrival = timeToMinutes(value);
-    if (arrival === null) return 0;
-    return Math.max(0, Math.min(FULL_WORKDAY_MINUTES, arrival - WORK_START_MINUTES));
+    const start = timeToMinutes(scheduledStart);
+    if (arrival === null || start === null) return 0;
+    const maxDelay = Math.max(0, WORK_END_MINUTES - start);
+    return Math.max(0, Math.min(maxDelay, arrival - start));
 }
 
 function formatMinutes(totalMinutes) {
@@ -283,8 +290,9 @@ function dateStringsBetween(startValue, endValue) {
 }
 
 function updateDelayPreview() {
+    const scheduledStart = $('aScheduledStart')?.value || WORK_START;
     const attendance = $('aAttendance')?.value || '';
-    if ($('aDelayDuration')) $('aDelayDuration').value = formatMinutes(delayMinutesFromAttendance(attendance));
+    if ($('aDelayDuration')) $('aDelayDuration').value = formatMinutes(delayMinutesFromAttendance(attendance, scheduledStart));
 }
 
 function updateDelayFields() {
@@ -294,8 +302,10 @@ function updateDelayFields() {
         $('aEnd').disabled = isDelay;
         if (isDelay && $('aStart').value) $('aEnd').value = $('aStart').value;
     }
+    if (isDelay && $('aScheduledStart') && !$('aScheduledStart').value) $('aScheduledStart').value = WORK_START;
     if (!isDelay && $('aAttendance')) {
         $('aAttendance').value = '';
+        if ($('aScheduledStart')) $('aScheduledStart').value = WORK_START;
         if ($('aDelayDuration')) $('aDelayDuration').value = formatMinutes(0);
     }
     updateDelayPreview();
@@ -377,8 +387,9 @@ window.addAnnualLeave = async () => {
     const leaveType = $('aType').value;
     const start = $('aStart').value;
     const end = leaveType === 'delay' ? start : $('aEnd').value;
+    const scheduledStart = leaveType === 'delay' ? ($('aScheduledStart').value || WORK_START) : WORK_START;
     const attendanceTime = leaveType === 'delay' ? $('aAttendance').value : '';
-    const delayMinutes = leaveType === 'delay' ? delayMinutesFromAttendance(attendanceTime) : 0;
+    const delayMinutes = leaveType === 'delay' ? delayMinutesFromAttendance(attendanceTime, scheduledStart) : 0;
 
     if(!empId || !leaveType || !start || !end) {
         alert(currentLang==='ar'?'يرجى إكمال جميع الحقول':'Please complete all fields');
@@ -388,8 +399,8 @@ window.addAnnualLeave = async () => {
         alert(tr().dateError);
         return;
     }
-    if (leaveType === 'delay' && !attendanceTime) {
-        alert(currentLang === 'ar' ? 'يرجى إدخال وقت حضور الموظف.' : 'Please enter the employee arrival time.');
+    if (leaveType === 'delay' && (!scheduledStart || !attendanceTime)) {
+        alert(currentLang === 'ar' ? 'يرجى إدخال بداية الدوام ووقت حضور الموظف.' : 'Please enter the scheduled start and employee arrival time.');
         return;
     }
 
@@ -409,7 +420,7 @@ window.addAnnualLeave = async () => {
         leaveTypeLabel: leaveTypes[leaveType]?.en || leaveType,
         attendanceTime,
         delayMinutes,
-        scheduledStart: WORK_START,
+        scheduledStart,
         scheduledEnd: WORK_END,
         status: 'approved',
         createdAt: now,
@@ -459,6 +470,7 @@ window.editVacation = (id) => {
     $('aType').value = normalizeLeaveType(record.leaveType || record.type);
     $('aStart').value = record.start || record.from || '';
     $('aEnd').value = record.end || record.to || '';
+    $('aScheduledStart').value = record.scheduledStart || WORK_START;
     $('aAttendance').value = record.attendanceTime || '';
     updateDelayFields();
     renderEditState();
@@ -531,7 +543,7 @@ function renderUI() {
         return `
             <tr>
                 <td class="emp-name-cell">${escapeHtml(emp ? emp.name : getVacationEmployeeLabel(v))}</td>
-                <td>${escapeHtml(getLeaveTypeLabel(v))}${normalizeLeaveType(v.leaveType || v.type) === 'delay' ? `<div class="delay-note">${escapeHtml(v.attendanceTime || '-')} · ${escapeHtml(formatMinutes(v.delayMinutes ?? delayMinutesFromAttendance(v.attendanceTime)))}</div>` : ''}</td>
+                <td>${escapeHtml(getLeaveTypeLabel(v))}${normalizeLeaveType(v.leaveType || v.type) === 'delay' ? `<div class="delay-note">${currentLang === 'ar' ? 'بداية' : 'Start'} ${escapeHtml(v.scheduledStart || WORK_START)} · ${currentLang === 'ar' ? 'حضور' : 'Arrival'} ${escapeHtml(v.attendanceTime || '-')} · ${escapeHtml(formatMinutes(v.delayMinutes ?? delayMinutesFromAttendance(v.attendanceTime, v.scheduledStart || WORK_START)))}</div>` : ''}</td>
                 <td>${escapeHtml(v.start || v.from || '')}</td>
                 <td>${escapeHtml(v.end || v.to || '')}</td>
                 <td>
@@ -659,6 +671,7 @@ function resetLeaveForm() {
     $('aStart').value = '';
     $('aEnd').value = '';
     $('aType').value = '';
+    $('aScheduledStart').value = WORK_START;
     $('aAttendance').value = '';
     $('aEnd').disabled = false;
     updateDelayFields();
@@ -712,7 +725,7 @@ function migrationVacationRecord(record, index) {
         leaveType: normalized.leaveType,
         leaveTypeLabel: leaveTypes[normalized.leaveType]?.en || normalized.leaveType,
         attendanceTime: record?.attendanceTime || record?.arrivalTime || '',
-        delayMinutes: Number(record?.delayMinutes) || delayMinutesFromAttendance(record?.attendanceTime || record?.arrivalTime || ''),
+        delayMinutes: Number(record?.delayMinutes) || delayMinutesFromAttendance(record?.attendanceTime || record?.arrivalTime || '', record?.scheduledStart || WORK_START),
         scheduledStart: record?.scheduledStart || WORK_START,
         scheduledEnd: record?.scheduledEnd || WORK_END,
         status: record?.status || 'approved',
@@ -783,13 +796,14 @@ function reportDailyRows(records, from = '', to = '') {
             if (fromDate && date < fromDate) return;
             if (toDate && date > toDate) return;
             const durationMinutes = type === 'delay'
-                ? Number(record.delayMinutes ?? delayMinutesFromAttendance(record.attendanceTime))
+                ? Number(record.delayMinutes ?? delayMinutesFromAttendance(record.attendanceTime, record.scheduledStart || WORK_START))
                 : type === 'absence' ? FULL_WORKDAY_MINUTES : null;
             rows.push({
                 record,
                 date: dateString,
                 day: dayNameForDate(dateString),
                 type,
+                scheduledStart: (type === 'delay' || type === 'absence') ? (record.scheduledStart || WORK_START) : '',
                 attendanceTime: type === 'delay' ? (record.attendanceTime || '') : '',
                 durationMinutes
             });
@@ -800,8 +814,8 @@ function reportDailyRows(records, from = '', to = '') {
 
 function reportPeriodText(from, to) {
     const schedule = currentLang === 'ar'
-        ? `الدوام المرجعي: ${WORK_START} - ${WORK_END}`
-        : `Reference schedule: ${WORK_START} - ${WORK_END}`;
+        ? `الدوام الافتراضي: ${WORK_START} - ${WORK_END}، والتأخير يُحسب حسب بداية الدوام المحفوظة لكل سجل`
+        : `Default schedule: ${WORK_START} - ${WORK_END}; delay uses the scheduled start saved for each record`;
     let period;
     if (from && to) period = currentLang === 'ar' ? `الفترة: ${from} إلى ${to}` : `Period: ${from} to ${to}`;
     else if (from) period = currentLang === 'ar' ? `من: ${from}` : `From: ${from}`;
@@ -863,10 +877,11 @@ window.buildEmployeeReport = () => {
             <td>${escapeHtml(row.date)}</td>
             <td><strong>${escapeHtml(row.day)}</strong></td>
             <td><strong>${escapeHtml(leaveTypes[row.type]?.[currentLang] || row.type)}</strong></td>
+            <td>${escapeHtml(row.scheduledStart || '-')}</td>
             <td>${escapeHtml(row.attendanceTime || '-')}</td>
             <td class="${durationClass}">${escapeHtml(durationText)}</td>
         </tr>`;
-    }).join('') : `<tr><td colspan="6" class="report-empty">${t.noRecords}</td></tr>`;
+    }).join('') : `<tr><td colspan="7" class="report-empty">${t.noRecords}</td></tr>`;
 
     $('employeeReport').style.display = 'block';
     return true;
@@ -969,6 +984,7 @@ window.addEventListener('DOMContentLoaded', () => {
     $('aStart').addEventListener('change', () => {
         if ($('aType').value === 'delay') $('aEnd').value = $('aStart').value;
     });
+    $('aScheduledStart').addEventListener('input', updateDelayPreview);
     $('aAttendance').addEventListener('input', updateDelayPreview);
     updateDelayFields();
 
@@ -985,8 +1001,10 @@ window.addEventListener('DOMContentLoaded', () => {
     $('reportThDate').innerText = currentLang === 'ar' ? 'التاريخ' : 'Date';
     $('reportThDay').innerText = currentLang === 'ar' ? 'اليوم' : 'Day';
     $('reportThType').innerText = t.type;
+    $('reportThScheduledStart').innerText = currentLang === 'ar' ? 'بداية الدوام' : 'Scheduled Start';
     $('reportThAttendance').innerText = currentLang === 'ar' ? 'وقت الحضور' : 'Arrival Time';
     $('reportThDuration').innerText = currentLang === 'ar' ? 'مدة التأخير / الغياب' : 'Delay / Absence Duration';
+    $('scheduledStartLabel').innerText = currentLang === 'ar' ? 'بداية الدوام' : 'Scheduled Start';
     $('attendanceLabel').innerText = currentLang === 'ar' ? 'وقت الحضور' : 'Arrival Time';
     $('delayDurationLabel').innerText = currentLang === 'ar' ? 'مدة التأخير' : 'Delay Duration';
     $('btnPrintReport').innerText = t.print;
