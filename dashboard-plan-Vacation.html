@@ -74,57 +74,6 @@ const i18n = {
 let employees=[], planList=[], currentLang=localStorage.getItem('lang')||'ar';
 const $=id=>document.getElementById(id), tr=()=>i18n[currentLang];
 
-function escapeHtml(value) {
-    return String(value ?? '').replace(/[&<>\"']/g, char => ({
-        '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
-    })[char]);
-}
-
-function normalizeEmployeeKey(value) {
-    return String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-function employeeIdentityKeys(emp) {
-    return [
-        emp?.id, emp?.empId, emp?.empNum, emp?.employeeId, emp?.employeeDocId,
-        emp?.technicianId, emp?.fireId, emp?.email, emp?.name, emp?.fullName
-    ].filter(Boolean).map(normalizeEmployeeKey);
-}
-
-function planEmployeeKeys(plan) {
-    return [
-        plan?.empId, plan?.empNum, plan?.employeeId, plan?.employeeDocId,
-        plan?.technicianId, plan?.fireId, plan?.email, plan?.employeeName, plan?.name
-    ].filter(Boolean).map(normalizeEmployeeKey);
-}
-
-function findPlanEmployee(plan) {
-    const keys = new Set(planEmployeeKeys(plan));
-    if (!keys.size) return null;
-    return employees.find(emp => employeeIdentityKeys(emp).some(key => keys.has(key))) || null;
-}
-
-function looksLikeEmployeeNumber(value) {
-    return /^\d+$/.test(String(value ?? '').trim());
-}
-
-function resolveEmployeeName(plan) {
-    const emp = findPlanEmployee(plan);
-    if (emp) return emp.name || emp.fullName || emp.empNum || emp.empId || emp.id || '';
-
-    const labels = [plan?.employeeName, plan?.name].filter(Boolean);
-    const readable = labels.find(value => !looksLikeEmployeeNumber(value));
-    if (readable) return String(readable).trim();
-
-    return String(labels[0] || plan?.empNum || plan?.empId || plan?.employeeId || plan?.employeeDocId || '—').trim();
-}
-
-function resolveEmployeeGroupKey(plan) {
-    const emp = findPlanEmployee(plan);
-    if (emp) return normalizeEmployeeKey(emp.id || emp.empNum || emp.empId || emp.email || emp.name);
-    return planEmployeeKeys(plan)[0] || `plan:${plan?.id || Math.random()}`;
-}
-
 window.refreshDashboard = () => {
     const t = tr(); const range = $('dbViewRange').value;
     const rangeMap = { 'year':[0,11,t.year], 'q1':[0,2,'Q1'], 'q2':[3,5,'Q2'], 'q3':[6,8,'Q3'], 'q4':[9,11,'Q4'] };
@@ -140,23 +89,10 @@ window.refreshDashboard = () => {
     for(let i=sm; i<=em; i++) html += `<div style="padding:12px;text-align:center;border-left:1px solid rgba(255,255,255,0.1)">${t.months[i]}</div>`;
     html += `</div></div>`;
     
-    const grouped = {};
-    planList.forEach(p => {
-        const m = new Date(p.from).getMonth();
-        if(m < sm || m > em) return;
-        const key = resolveEmployeeGroupKey(p);
-        if(!grouped[key]) grouped[key] = { name: resolveEmployeeName(p), plans: [] };
-        // Prefer the resolved master employee name whenever it becomes available.
-        const resolvedName = resolveEmployeeName(p);
-        if (resolvedName && !looksLikeEmployeeNumber(resolvedName)) grouped[key].name = resolvedName;
-        grouped[key].plans.push(p);
-    });
-
-    Object.values(grouped)
-      .sort((a,b) => String(a.name).localeCompare(String(b.name), currentLang==='ar' ? 'ar' : 'en', {numeric:true, sensitivity:'base'}))
-      .forEach(group => {
-        html += `<div style="display:grid;grid-template-columns:200px 1fr;border-bottom:1px solid #f1f5f9;min-height:55px;align-items:center"><div class="gname-db">${escapeHtml(group.name)}</div><div style="display:grid;grid-template-columns:repeat(${em-sm+1},1fr);position:relative">`;
-        group.plans.forEach((p, idx) => {
+    const grouped = {}; planList.forEach(p => { const m = new Date(p.from).getMonth(); if(m>=sm && m<=em) { if(!grouped[p.name]) grouped[p.name] = []; grouped[p.name].push(p); } });
+    Object.keys(grouped).forEach(name => {
+        html += `<div style="display:grid;grid-template-columns:200px 1fr;border-bottom:1px solid #f1f5f9;min-height:55px;align-items:center"><div class="gname-db">${name}</div><div style="display:grid;grid-template-columns:repeat(${em-sm+1},1fr);position:relative">`;
+        grouped[name].forEach((p, idx) => {
             const d1 = new Date(p.from); const sM = Math.max(d1.getMonth(), sm);
             const mWidth = 100 / (em-sm+1); const colors = ['#1e40af', '#0f766e', '#6d28d9'];
             html += `<div class="gantt-bar-db" style="${currentLang==='ar'?'right':'left'}:${(sM-sm)*mWidth}%; width:${mWidth-0.5}%; background:${colors[idx%3]}">${p.from}</div>`;
@@ -168,9 +104,7 @@ window.refreshDashboard = () => {
 
 async function bindSnapshots(){
     await waitForSignedInUser();
-    // Keep all employee master records available for historical name resolution,
-    // including inactive employees who may still have older vacation plans.
-    onSnapshot(collection(db,'employees'), s=>{ employees=s.docs.map(d=>({id:d.id,...d.data()})); window.refreshDashboard(); }, e=>logFirebaseError('Employees dashboard listener failed', e));
+    onSnapshot(collection(db,'employees'), s=>{ employees=s.docs.map(d=>({id:d.id,...d.data()})).filter(e=>e.active!==false && String(e.status||'active').toLowerCase()!=='inactive'); window.refreshDashboard(); }, e=>logFirebaseError('Employees dashboard listener failed', e));
     onSnapshot(collection(db,'vacations'), s=>{ planList=s.docs.map(d=>({id:d.id,...d.data()})); window.refreshDashboard(); }, e=>logFirebaseError('Schedule dashboard vacations listener failed', e));
 }
 
