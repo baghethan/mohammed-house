@@ -19,8 +19,29 @@
     .stat-val{font-size:36px;font-weight:900;color:var(--primary);margin:8px 0}
     .card{background:var(--surface2);border:1px solid rgba(15,23,42,.08);border-radius:18px;padding:20px;box-shadow:0 10px 24px rgba(0,0,0,.05)}
     .row{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
-    .gantt-bar-db{position:absolute;height:28px;top:50%;transform:translateY(-50%);border-radius:14px;color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 10px;z-index:5}
+    .gantt-bar-db{position:absolute;height:28px;top:50%;transform:translateY(-50%);border-radius:14px;color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 10px;z-index:5;border:none;cursor:pointer;font-family:inherit}
+    .gantt-bar-db:hover{filter:brightness(1.08);box-shadow:0 4px 12px rgba(13,33,73,.20)}
+    .gantt-bar-db:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
     .gname-db{padding:0 15px;font-weight:800;color:var(--primary);font-size:11px;border-left:1px solid #f1f5f9;height:100%;display:flex;align-items:center;justify-content:flex-end;background:#fafbfc}
+    .plan-modal-overlay{position:fixed;inset:0;background:rgba(2,6,23,.48);display:none;align-items:center;justify-content:center;padding:18px;z-index:9999}
+    .plan-modal-overlay.show{display:flex}
+    .plan-modal{width:min(620px,96vw);max-height:88vh;overflow:auto;background:#fff;border-radius:22px;box-shadow:0 28px 80px rgba(0,0,0,.26);border:1px solid #e2e8f0}
+    .plan-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc;position:sticky;top:0;z-index:2}
+    .plan-modal-title{font-size:18px;font-weight:900;color:var(--primary)}
+    .plan-modal-close{border:none;background:#fff;border:1px solid #e2e8f0;width:38px;height:38px;border-radius:10px;cursor:pointer;font-size:18px;color:#475569}
+    .plan-modal-body{padding:20px}
+    .plan-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .plan-detail{background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:12px;min-width:0}
+    .plan-detail-label{font-size:10px;font-weight:900;color:#64748b;margin-bottom:5px}
+    .plan-detail-value{font-size:13px;font-weight:900;color:#0f172a;word-break:break-word}
+    .plan-detail.full{grid-column:1/-1}
+    .plan-change-badge{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:900}
+    .plan-change-badge.changed{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa}
+    .plan-change-badge.unchanged{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+    .plan-history{margin-top:16px;border-top:1px solid #e2e8f0;padding-top:14px}
+    .plan-history-title{font-size:13px;font-weight:900;color:var(--primary);margin-bottom:8px}
+    .plan-history-item{padding:10px 12px;border-radius:12px;background:#f8fafc;border:1px solid #e5e7eb;margin-top:7px;font-size:11px;color:#334155;line-height:1.6}
+    @media(max-width:560px){.plan-detail-grid{grid-template-columns:1fr}.plan-detail.full{grid-column:auto}}
   </style>
 </head>
 <body>
@@ -65,13 +86,23 @@
   </div>
 </div>
 
+<div class="plan-modal-overlay" id="planDetailsOverlay" role="dialog" aria-modal="true" aria-labelledby="planDetailsTitle">
+  <div class="plan-modal">
+    <div class="plan-modal-head">
+      <div class="plan-modal-title" id="planDetailsTitle">تفاصيل خطة الإجازة</div>
+      <button type="button" class="plan-modal-close" id="planDetailsClose" aria-label="إغلاق">×</button>
+    </div>
+    <div class="plan-modal-body" id="planDetailsBody"></div>
+  </div>
+</div>
+
 <script type="module">
 import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
 import { doc, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { brand:'المجدوعي للسيارات', dbSub:'تقرير إحصائيات الإجازات السنوية', ganttTitle:'📉 المخطط الزمني الذكي', total:'إجمالي الإجازات', active:'نشطة اليوم', pending:'طلبات معلقة', employee:'الموظف', months:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'], year:'السنة كاملة', yearLabel:'السنة' },
-    en: { brand:'Almajdouie Motors', dbSub:'Annual Leave Statistics Report', ganttTitle:'📉 Smart Timeline', total:'Total Leaves', active:'Active Today', pending:'Pending', employee:'Employee', months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], year:'Full Year', yearLabel:'Year' }
+    ar: { brand:'المجدوعي للسيارات', dbSub:'تقرير إحصائيات الإجازات السنوية', ganttTitle:'📉 المخطط الزمني الذكي', total:'إجمالي الإجازات', active:'نشطة اليوم', pending:'طلبات معلقة', employee:'الموظف', months:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'], year:'السنة كاملة', yearLabel:'السنة', detailsTitle:'تفاصيل خطة الإجازة', from:'من', to:'إلى', days:'عدد الأيام', status:'الحالة', createdAt:'تم إنشاء الخطة', updatedAt:'آخر تحديث', changed:'تم التعديل', yes:'نعم', no:'لا', notRecorded:'غير مسجل', history:'سجل التغييرات', createdBy:'أضيف بواسطة', updatedBy:'آخر تعديل بواسطة' },
+    en: { brand:'Almajdouie Motors', dbSub:'Annual Leave Statistics Report', ganttTitle:'📉 Smart Timeline', total:'Total Leaves', active:'Active Today', pending:'Pending', employee:'Employee', months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], year:'Full Year', yearLabel:'Year', detailsTitle:'Vacation Plan Details', from:'From', to:'To', days:'Days', status:'Status', createdAt:'Plan Created', updatedAt:'Last Updated', changed:'Modified', yes:'Yes', no:'No', notRecorded:'Not recorded', history:'Change History', createdBy:'Created By', updatedBy:'Last Updated By' }
 };
 
 let employees=[], planList=[], currentLang=localStorage.getItem('lang')||'ar';
@@ -176,6 +207,145 @@ function planStartMonthForYear(plan, year) {
     return start.getFullYear() < Number(year) ? 0 : start.getMonth();
 }
 
+function inclusiveDays(fromValue, toValue) {
+    const from = parseDateOnly(fromValue);
+    const to = parseDateOnly(toValue) || from;
+    if (!from || !to) return 0;
+    const a = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
+    const b = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
+    return Math.max(1, Math.floor((b - a) / 86400000) + 1);
+}
+
+function timestampToDate(value) {
+    if (!value) return null;
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+    if (typeof value?.toDate === 'function') {
+        const date = value.toDate();
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+    const seconds = value?.seconds ?? value?._seconds;
+    if (seconds !== undefined && seconds !== null && Number.isFinite(Number(seconds))) {
+        return new Date(Number(seconds) * 1000);
+    }
+    if (typeof value === 'number') {
+        const millis = value < 100000000000 ? value * 1000 : value;
+        const date = new Date(millis);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+    if (typeof value === 'string') {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+    return null;
+}
+
+function formatTimestamp(value) {
+    const date = timestampToDate(value);
+    if (!date) return tr().notRecorded;
+    return date.toLocaleString(currentLang === 'ar' ? 'ar-SA' : 'en-GB', {
+        year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
+    });
+}
+
+function planCreatedValue(plan) {
+    return plan?.createdAt || plan?.created_at || plan?.addedAt || plan?.addDate || plan?.createdDate || plan?.dateAdded || null;
+}
+
+function planUpdatedValue(plan) {
+    return plan?.updatedAt || plan?.updated_at || plan?.modifiedAt || plan?.modified_at || plan?.lastUpdatedAt || plan?.lastModified || null;
+}
+
+function planHistoryEntries(plan) {
+    const candidates = [plan?.editHistory, plan?.history, plan?.changeHistory, plan?.changes, plan?.updateHistory];
+    return candidates.find(Array.isArray) || [];
+}
+
+function planWasChanged(plan) {
+    const history = planHistoryEntries(plan);
+    if (history.length) return true;
+    const created = timestampToDate(planCreatedValue(plan));
+    const updated = timestampToDate(planUpdatedValue(plan));
+    if (!created || !updated) return false;
+    return Math.abs(updated.getTime() - created.getTime()) > 60000;
+}
+
+function planActor(plan, kind) {
+    const values = kind === 'created'
+        ? [plan?.createdByName, plan?.createdBy, plan?.addedByName, plan?.addedBy, plan?.creatorName, plan?.creatorEmail]
+        : [plan?.updatedByName, plan?.updatedBy, plan?.modifiedByName, plan?.modifiedBy, plan?.editorName, plan?.editorEmail];
+    return values.find(Boolean) || '';
+}
+
+function planStatusLabel(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '—';
+    const key = raw.toLowerCase();
+    if (currentLang === 'ar') {
+        if (key === 'approved') return 'معتمد';
+        if (key === 'pending') return 'معلق';
+        if (key === 'rejected') return 'مرفوض';
+        if (key === 'cancelled' || key === 'canceled') return 'ملغي';
+    }
+    return raw;
+}
+
+function historyEntryText(entry, index) {
+    if (typeof entry === 'string') return entry;
+    if (!entry || typeof entry !== 'object') return `${currentLang === 'ar' ? 'تعديل' : 'Change'} ${index + 1}`;
+    const when = entry.updatedAt || entry.modifiedAt || entry.changedAt || entry.at || entry.date || entry.timestamp;
+    const from = entry.from || entry.start || entry.oldFrom || entry.previousFrom;
+    const to = entry.to || entry.end || entry.oldTo || entry.previousTo;
+    const newFrom = entry.newFrom || entry.fromNew || entry.afterFrom;
+    const newTo = entry.newTo || entry.toNew || entry.afterTo;
+    const actor = entry.updatedByName || entry.updatedBy || entry.modifiedByName || entry.modifiedBy || entry.by || '';
+    const parts = [];
+    if (when) parts.push(formatTimestamp(when));
+    if (from || to) parts.push(`${currentLang === 'ar' ? 'السابق' : 'Previous'}: ${from || '—'} → ${to || '—'}`);
+    if (newFrom || newTo) parts.push(`${currentLang === 'ar' ? 'الجديد' : 'New'}: ${newFrom || '—'} → ${newTo || '—'}`);
+    if (actor) parts.push(`${currentLang === 'ar' ? 'بواسطة' : 'By'}: ${actor}`);
+    return parts.join(' | ') || `${currentLang === 'ar' ? 'تعديل' : 'Change'} ${index + 1}`;
+}
+
+window.openPlanDetails = planId => {
+    const plan = planList.find(item => String(item.id) === String(planId));
+    if (!plan) return;
+    const t = tr();
+    const employeeName = resolveEmployeeName(plan);
+    const from = plan.from || plan.start || '—';
+    const to = plan.to || plan.end || from;
+    const days = inclusiveDays(from, to);
+    const created = planCreatedValue(plan);
+    const updated = planUpdatedValue(plan);
+    const changed = planWasChanged(plan);
+    const createdBy = planActor(plan, 'created');
+    const updatedBy = planActor(plan, 'updated');
+    const history = planHistoryEntries(plan);
+    const historyHtml = history.length ? `
+        <div class="plan-history">
+            <div class="plan-history-title">${escapeHtml(t.history)}</div>
+            ${history.map((entry, index) => `<div class="plan-history-item">${escapeHtml(historyEntryText(entry, index))}</div>`).join('')}
+        </div>` : '';
+
+    $('planDetailsTitle').textContent = t.detailsTitle;
+    $('planDetailsBody').innerHTML = `
+        <div class="plan-detail-grid">
+            <div class="plan-detail full"><div class="plan-detail-label">${escapeHtml(t.employee)}</div><div class="plan-detail-value">${escapeHtml(employeeName)}</div></div>
+            <div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.from)}</div><div class="plan-detail-value">${escapeHtml(from)}</div></div>
+            <div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.to)}</div><div class="plan-detail-value">${escapeHtml(to)}</div></div>
+            <div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.days)}</div><div class="plan-detail-value">${days}</div></div>
+            <div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.status)}</div><div class="plan-detail-value">${escapeHtml(planStatusLabel(plan.status))}</div></div>
+            <div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.createdAt)}</div><div class="plan-detail-value">${escapeHtml(formatTimestamp(created))}</div></div>
+            <div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.updatedAt)}</div><div class="plan-detail-value">${escapeHtml(formatTimestamp(updated))}</div></div>
+            <div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.changed)}</div><div class="plan-detail-value"><span class="plan-change-badge ${changed ? 'changed' : 'unchanged'}">${changed ? t.yes : t.no}</span></div></div>
+            ${createdBy ? `<div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.createdBy)}</div><div class="plan-detail-value">${escapeHtml(createdBy)}</div></div>` : ''}
+            ${updatedBy ? `<div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.updatedBy)}</div><div class="plan-detail-value">${escapeHtml(updatedBy)}</div></div>` : ''}
+        </div>
+        ${historyHtml}`;
+    $('planDetailsOverlay').classList.add('show');
+};
+
+window.closePlanDetails = () => $('planDetailsOverlay').classList.remove('show');
+
 window.refreshDashboard = () => {
     const t = tr();
     const selectedYear = syncYearOptions();
@@ -226,11 +396,14 @@ window.refreshDashboard = () => {
         group.plans.forEach((p, idx) => {
             const sM = Math.max(planStartMonthForYear(p, selectedYear), sm);
             const mWidth = 100 / (em-sm+1); const colors = ['#1e40af', '#0f766e', '#6d28d9'];
-            html += `<div class="gantt-bar-db" style="${currentLang==='ar'?'right':'left'}:${(sM-sm)*mWidth}%; width:${mWidth-0.5}%; background:${colors[idx%3]}">${p.from}</div>`;
+            html += `<button type="button" class="gantt-bar-db" data-plan-id="${escapeHtml(String(p.id))}" title="${escapeHtml(currentLang==='ar' ? 'اضغط لعرض تفاصيل الخطة' : 'Click to view plan details')}" style="${currentLang==='ar'?'right':'left'}:${(sM-sm)*mWidth}%; width:${mWidth-0.5}%; background:${colors[idx%3]}">${escapeHtml(p.from || p.start || '')}</button>`;
         });
         html += `</div></div>`;
     });
     $('dbGanttArea').innerHTML = html;
+    $('dbGanttArea').querySelectorAll('[data-plan-id]').forEach(button => {
+        button.addEventListener('click', () => window.openPlanDetails(button.dataset.planId));
+    });
 };
 
 async function bindSnapshots(){
@@ -247,10 +420,19 @@ $('copyDashboardBtn').addEventListener('click', async () => {
     canvas.toBlob(async b => { await navigator.clipboard.write([new ClipboardItem({"image/png":b})]); alert("✅ تم النسخ!"); });
 });
 
+$('planDetailsClose').addEventListener('click', window.closePlanDetails);
+$('planDetailsOverlay').addEventListener('click', event => {
+    if (event.target === $('planDetailsOverlay')) window.closePlanDetails();
+});
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && $('planDetailsOverlay').classList.contains('show')) window.closePlanDetails();
+});
+
 window.addEventListener('DOMContentLoaded', () => { 
     if(currentLang==='en') { $('mainHtml').dir='ltr'; $('mainHtml').lang='en'; }
     $('dbBrand').innerText = tr().brand; $('dbSub').innerText = tr().dbSub; $('dbGanttTitle').innerText = tr().ganttTitle;
     $('dbYear').setAttribute('aria-label', tr().yearLabel);
+    $('planDetailsTitle').textContent = tr().detailsTitle;
     syncYearOptions();
     bindSnapshots().catch(e=>logFirebaseError('Schedule dashboard startup failed', e));
 });
