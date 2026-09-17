@@ -406,12 +406,25 @@ window.refreshDashboard = () => {
     });
 };
 
+function isVacationPlanRecord(record) {
+    const source = String(record?.source || '').trim().toLowerCase();
+    // Records created from Annual Leave Management are official leave records,
+    // not vacation plans, so they must not appear in this dashboard.
+    if (source === 'annual-leave' || source === 'annual_leave' || source === 'annual leave') return false;
+    return true;
+}
+
 async function bindSnapshots(){
     await waitForSignedInUser();
     // Keep all employee master records available for historical name resolution,
     // including inactive employees who may still have older vacation plans.
     onSnapshot(collection(db,'employees'), s=>{ employees=s.docs.map(d=>({id:d.id,...d.data()})); window.refreshDashboard(); }, e=>logFirebaseError('Employees dashboard listener failed', e));
-    onSnapshot(collection(db,'vacations'), s=>{ planList=s.docs.map(d=>({id:d.id,...d.data()})); window.refreshDashboard(); }, e=>logFirebaseError('Schedule dashboard vacations listener failed', e));
+    onSnapshot(collection(db,'vacations'), s=>{
+        planList = s.docs
+            .map(d=>({id:d.id,...d.data()}))
+            .filter(isVacationPlanRecord);
+        window.refreshDashboard();
+    }, e=>logFirebaseError('Vacation plan dashboard listener failed', e));
 }
 
 $('btnLang').addEventListener('click', ()=>{ currentLang=currentLang==='ar'?'en':'ar'; localStorage.setItem('lang',currentLang); location.reload(); });
