@@ -298,18 +298,30 @@ function isApprovedPlan(plan) {
 
 function isPendingPlan(plan) {
     const key = normalizedPlanStatus(plan?.status);
-    return ['pending','waiting','معلق','منتظر','انتظار'].includes(key);
+    // Vacation Plan treats a missing/old status as pending by default.
+    // Keep the dashboard consistent so legacy/new-year plans are not missed.
+    if (!key) return true;
+    if (['pending','waiting','wait','new','draft','requested','under review','under_review','معلق','منتظر','انتظار','قيد الانتظار','قيد المراجعة'].includes(key)) return true;
+    if (['approved','approve','accepted','active','معتمد','موافق','مقبول'].includes(key)) return false;
+    if (['cancelled','canceled','cancel','rejected','declined','ملغي','ملغى','مرفوض'].includes(key)) return false;
+    // Unknown historical plan statuses follow the Vacation Plan page default: pending.
+    return true;
 }
 
 function planStatusLabel(value) {
     const raw = String(value || '').trim();
-    if (!raw) return '—';
     const key = raw.toLowerCase();
+    if (!key) return currentLang === 'ar' ? 'معلق' : 'Pending';
     if (currentLang === 'ar') {
-        if (key === 'approved') return 'معتمد';
-        if (key === 'pending') return 'معلق';
-        if (key === 'rejected') return 'مرفوض';
-        if (key === 'cancelled' || key === 'canceled') return 'ملغي';
+        if (['approved','approve','accepted','active'].includes(key)) return 'معتمد';
+        if (['pending','waiting','wait','new','draft','requested','under review','under_review'].includes(key)) return 'معلق';
+        if (['rejected','declined'].includes(key)) return 'مرفوض';
+        if (['cancelled','canceled','cancel'].includes(key)) return 'ملغي';
+    } else {
+        if (['approved','approve','accepted','active'].includes(key)) return 'Approved';
+        if (['pending','waiting','wait','new','draft','requested','under review','under_review'].includes(key)) return 'Pending';
+        if (['rejected','declined'].includes(key)) return 'Rejected';
+        if (['cancelled','canceled','cancel'].includes(key)) return 'Cancelled';
     }
     return raw;
 }
