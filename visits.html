@@ -27,6 +27,7 @@
     .lang-wrap{display:none !important;gap:8px;flex-wrap:wrap;margin-bottom:14px}
     .lang-wrap .btn,.lang-wrap .badge{display:none !important}
     .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+    .version-chip{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:#eef5ff;color:#295fa5;font-size:11px;font-weight:800;border:1px solid #d7e7fb}
     .badge{display:none !important;padding:4px 8px;border-radius:999px;background:#eef5ff;color:#295fa5;font-size:12px;font-weight:700}
     .stats{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:14px;margin-bottom:18px}
     .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
@@ -66,14 +67,14 @@
     <button class="btn small" id="langArBtn" type="button">AR</button>
     <button class="btn small" id="langEnBtn" type="button">EN</button>
     <span class="badge">visits</span>
-    <span class="badge">v1.1.2</span>
+    <span class="badge">v1.1.3</span>
   </div>
 
   <div id="sessionNotice" class="session-note hidden">الرجاء تسجيل الدخول من الصفحة الرئيسية أولًا، ثم افتح صفحة الزيارات من داخل النظام.</div>
 
   <div id="appRoot" class="hidden">
     <div class="toolbar">
-      <div class="badge" id="appTitle">إدارة زيارات الفروع / Branch Visits</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><div class="badge" id="appTitle">إدارة زيارات الفروع / Branch Visits</div><span class="version-chip">v1.1.3</span></div>
       <div class="note" id="pageNote" style="margin:0">عند اختيار الفني سيتم فلترة قائمة الفروع حسب نطاق الفني، وسيتم حفظ الزيارة على براند الفرع المختار فقط.</div>
     </div>
 
@@ -141,8 +142,8 @@
 <script>
 (function(){
   var permissionRoleDefaults = { admin:['visit','visits'], supervisor:['visit','visits'], technician:['visit','visits'], user:[] };
-  var state = { branches:[], technicians:[], visits:[], currentUser:null, currentUserProfile:null, currentLang:'ar' };
-  var unsub = { branches:null, technicians:null, visits:null };
+  var state = { branches:[], technicians:[], employeeTechnicians:[], technicianScopes:[], visits:[], currentUser:null, currentUserProfile:null, currentLang:'ar' };
+  var unsub = { branches:null, technicianEmployees:null, technicianScopes:null, visits:null };
   var listenersBound = false;
 
   var I18N = {
@@ -241,12 +242,22 @@
         return false;
       });
       if (idx > -1) {
+        var scopeFields = ['region','allowedRegion','city','brand','department','departmentKey','assignedBranchId','assignedBranchName','branch','allowedBranchIds'];
         Object.keys(row).forEach(function(key){
+          // A record from the technicians collection is authoritative for visit scope.
+          // Blank scope fields mean “All”, so employee HR fields must not fill them back in.
+          if (row._scopeAuthoritative && scopeFields.indexOf(key) > -1) {
+            merged[idx][key] = Array.isArray(row[key]) ? row[key].slice() : (row[key] == null ? '' : row[key]);
+            return;
+          }
           if (merged[idx][key] === undefined || merged[idx][key] === null || merged[idx][key] === '') merged[idx][key] = row[key];
         });
-        var existingAllowed = Array.isArray(merged[idx].allowedBranchIds) ? merged[idx].allowedBranchIds : [];
-        var incomingAllowed = Array.isArray(row.allowedBranchIds) ? row.allowedBranchIds : [];
-        merged[idx].allowedBranchIds = Array.from(new Set(existingAllowed.concat(incomingAllowed).filter(Boolean)));
+        if (!row._scopeAuthoritative) {
+          var existingAllowed = Array.isArray(merged[idx].allowedBranchIds) ? merged[idx].allowedBranchIds : [];
+          var incomingAllowed = Array.isArray(row.allowedBranchIds) ? row.allowedBranchIds : [];
+          merged[idx].allowedBranchIds = Array.from(new Set(existingAllowed.concat(incomingAllowed).filter(Boolean)));
+        }
+        if (row._scopeAuthoritative) merged[idx]._scopeAuthoritative = true;
         technicianDedupeKeys(merged[idx]).forEach(function(key){ owner[key] = idx; });
         return;
       }
@@ -276,6 +287,32 @@
       department: data.department || data.departmentName || ''
     };
   }
+  function normalizeTechnicianScope(data, docId){
+    var row = normalizeEmployeeAsTechnician(data, docId);
+    row._scopeAuthoritative = true;
+    row._source = 'technicians';
+    // In the technicians collection, blank scope values intentionally mean “All”.
+    row.region = data.region || data.allowedRegion || '';
+    row.allowedRegion = data.allowedRegion || data.region || '';
+    row.city = data.city || '';
+    row.brand = data.brand || '';
+    row.department = data.department || '';
+    row.departmentKey = data.departmentKey || '';
+    row.assignedBranchId = data.assignedBranchId || '';
+    row.assignedBranchName = data.assignedBranchName || data.branch || '';
+    row.branch = data.branch || data.assignedBranchName || '';
+    row.allowedBranchIds = Array.isArray(data.allowedBranchIds) ? data.allowedBranchIds : [];
+    return row;
+  }
+
+  function refreshTechnicianSources(){
+    var rows = (state.employeeTechnicians || []).concat(state.technicianScopes || []);
+    state.technicians = mergeTechnicianRows(rows)
+      .filter(function(row){ return isTechnicianEmployee(row) && row.status !== 'inactive' && hasTechnicianVisitScope(row); });
+    renderTechnicianSelectors();
+    renderBranchSelectors();
+  }
+
   function isTechnicianEmployee(row){
     var type = normalizeMatchValue(row.employeeType || row.type);
     var title = normalizeMatchValue(row.jobTitle || row.title || row.position || row.role);
@@ -344,11 +381,15 @@
 
   function isBranchVisibleForTechnician(branch, tech){
     if (!tech) return true;
-    if (Array.isArray(tech.allowedBranchIds) && tech.allowedBranchIds.length && tech.allowedBranchIds.map(String).indexOf(String(branch.id)) === -1) return false;
     if (tech.assignedBranchId && String(branch.id) !== String(tech.assignedBranchId)) return false;
+    // Use a legacy fixed Branch ID list only when no dynamic scope was configured.
+    // If Region/City/Brand/Department exists, those fields define the live scope.
+    var hasDynamicScope = [tech.region || tech.allowedRegion, tech.city, tech.brand, tech.department].some(function(v){ return String(v || '').trim(); });
+    if (!hasDynamicScope && Array.isArray(tech.allowedBranchIds) && tech.allowedBranchIds.length && tech.allowedBranchIds.map(String).indexOf(String(branch.id)) === -1) return false;
     if (tech.brand && normalizeMatchValue(branch.brand) !== normalizeMatchValue(tech.brand)) return false;
     if (tech.department && normalizeMatchValue(getBranchDepartment(branch)) !== normalizeMatchValue(tech.department)) return false;
-    if (tech.region && normalizeMatchValue(branch.region) !== normalizeMatchValue(tech.region)) return false;
+    var techRegion = tech.region || tech.allowedRegion || '';
+    if (techRegion && normalizeMatchValue(branch.region) !== normalizeMatchValue(techRegion)) return false;
     var branchCity = normalizeMatchValue(branch.city || branch.location);
     if (tech.city && branchCity !== normalizeMatchValue(tech.city)) return false;
     if (tech.assignedBranchName && !tech.assignedBranchId && normalizeMatchValue(branch.branchName) !== normalizeMatchValue(tech.assignedBranchName)) return false;
@@ -567,13 +608,25 @@
   }
 
   function listenTechnicians(){
-    if (unsub.technicians) unsub.technicians();
+    if (unsub.technicianEmployees) unsub.technicianEmployees();
+    if (unsub.technicianScopes) unsub.technicianScopes();
     var db = window.parent.appDb;
-    unsub.technicians = db.collection('employees').orderBy('name').onSnapshot(function(snap){
-      state.technicians = mergeTechnicianRows(snap.docs.map(function(d){ return normalizeEmployeeAsTechnician(d.data() || {}, d.id); }).filter(function(row){ return isTechnicianEmployee(row) && row.status !== 'inactive'; }));
-      renderTechnicianSelectors();
-      renderBranchSelectors();
+
+    // Employees supplies identity/general data only.
+    unsub.technicianEmployees = db.collection('employees').orderBy('name').onSnapshot(function(snap){
+      state.employeeTechnicians = snap.docs
+        .map(function(d){ return normalizeEmployeeAsTechnician(d.data() || {}, d.id); })
+        .filter(function(row){ return isTechnicianEmployee(row) && row.status !== 'inactive'; });
+      refreshTechnicianSources();
     }, function(err){ setAlert('visitError', 'employees: ' + err.message); });
+
+    // technicians is the authoritative source for visit scope.
+    unsub.technicianScopes = db.collection('technicians').onSnapshot(function(snap){
+      state.technicianScopes = snap.docs
+        .map(function(d){ return normalizeTechnicianScope(d.data() || {}, d.id); })
+        .filter(function(row){ return row.status !== 'inactive'; });
+      refreshTechnicianSources();
+    }, function(err){ setAlert('visitError', 'technicians: ' + err.message); });
   }
 
   function listenVisits(){
@@ -607,6 +660,8 @@
     state.currentUserProfile = null;
     state.branches = [];
     state.technicians = [];
+    state.employeeTechnicians = [];
+    state.technicianScopes = [];
     state.visits = [];
     $('appRoot').classList.add('hidden');
     $('sessionNotice').classList.remove('hidden');
