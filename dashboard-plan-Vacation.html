@@ -49,6 +49,12 @@
     .stat-plan-item{width:100%;text-align:inherit;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px;cursor:pointer;font-family:inherit}
     .stat-plan-item:hover{border-color:#93c5fd;background:#eff6ff}
     .stat-plan-item:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
+    .stat-plan-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:stretch}
+    .stat-plan-row .stat-plan-item{height:100%}
+    .approve-plan-btn{border:none;border-radius:12px;padding:10px 16px;min-width:92px;background:#10b981;color:#fff;font-weight:900;cursor:pointer;font-family:inherit;align-self:stretch}
+    .approve-plan-btn:hover{background:#059669}
+    .approve-plan-btn:disabled{opacity:.6;cursor:wait}
+    .plan-action-box{margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
     .stat-plan-name{font-size:13px;font-weight:900;color:#0f172a;margin-bottom:5px}
     .stat-plan-meta{font-size:11px;font-weight:700;color:#64748b;line-height:1.7}
     .stat-empty{padding:24px;text-align:center;color:#64748b;font-weight:800;background:#f8fafc;border-radius:14px}
@@ -109,14 +115,14 @@
 
 <script type="module">
 import { db, waitForSignedInUser, logFirebaseError } from './firebase-session.js';
-import { doc, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { doc, collection, onSnapshot, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 const i18n = {
-    ar: { brand:'المجدوعي للسيارات', dbSub:'تقرير إحصائيات الإجازات السنوية', ganttTitle:'📉 المخطط الزمني الذكي', total:'إجمالي الإجازات', active:'نشطة اليوم', pending:'طلبات معلقة', employee:'الموظف', months:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'], year:'السنة كاملة', yearLabel:'السنة', detailsTitle:'تفاصيل خطة الإجازة', from:'من', to:'إلى', days:'عدد الأيام', status:'الحالة', createdAt:'تم إنشاء الخطة', updatedAt:'آخر تحديث', changed:'تم التعديل', yes:'نعم', no:'لا', notRecorded:'غير مسجل', history:'سجل التغييرات', createdBy:'أضيف بواسطة', updatedBy:'آخر تعديل بواسطة', activeListTitle:'الموظفون في إجازة اليوم', pendingListTitle:'طلبات خطة الإجازة المعلقة', clickNames:'اضغط لمعرفة الأسماء', noRecords:'لا توجد سجلات', approved:'معتمد' },
-    en: { brand:'Almajdouie Motors', dbSub:'Annual Leave Statistics Report', ganttTitle:'📉 Smart Timeline', total:'Total Leaves', active:'Active Today', pending:'Pending', employee:'Employee', months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], year:'Full Year', yearLabel:'Year', detailsTitle:'Vacation Plan Details', from:'From', to:'To', days:'Days', status:'Status', createdAt:'Plan Created', updatedAt:'Last Updated', changed:'Modified', yes:'Yes', no:'No', notRecorded:'Not recorded', history:'Change History', createdBy:'Created By', updatedBy:'Last Updated By', activeListTitle:'Employees on Leave Today', pendingListTitle:'Pending Vacation Plans', clickNames:'Click to view names', noRecords:'No records', approved:'Approved' }
+    ar: { brand:'المجدوعي للسيارات', dbSub:'تقرير إحصائيات الإجازات السنوية', ganttTitle:'📉 المخطط الزمني الذكي', total:'إجمالي الإجازات', active:'نشطة اليوم', pending:'طلبات معلقة', employee:'الموظف', months:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'], year:'السنة كاملة', yearLabel:'السنة', detailsTitle:'تفاصيل خطة الإجازة', from:'من', to:'إلى', days:'عدد الأيام', status:'الحالة', createdAt:'تم إنشاء الخطة', updatedAt:'آخر تحديث', changed:'تم التعديل', yes:'نعم', no:'لا', notRecorded:'غير مسجل', history:'سجل التغييرات', createdBy:'أضيف بواسطة', updatedBy:'آخر تعديل بواسطة', activeListTitle:'الموظفون في إجازة اليوم', pendingListTitle:'طلبات خطة الإجازة المعلقة', clickNames:'اضغط لمعرفة الأسماء', noRecords:'لا توجد سجلات', approved:'معتمد', approve:'موافقة', approving:'جارٍ الاعتماد...', approveConfirm:'هل تريد اعتماد خطة الإجازة لهذا الموظف؟', approveSuccess:'تم اعتماد خطة الإجازة', approveFailed:'تعذر اعتماد خطة الإجازة', approvedBy:'اعتمد بواسطة', approvedAt:'وقت الاعتماد' },
+    en: { brand:'Almajdouie Motors', dbSub:'Annual Leave Statistics Report', ganttTitle:'📉 Smart Timeline', total:'Total Leaves', active:'Active Today', pending:'Pending', employee:'Employee', months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], year:'Full Year', yearLabel:'Year', detailsTitle:'Vacation Plan Details', from:'From', to:'To', days:'Days', status:'Status', createdAt:'Plan Created', updatedAt:'Last Updated', changed:'Modified', yes:'Yes', no:'No', notRecorded:'Not recorded', history:'Change History', createdBy:'Created By', updatedBy:'Last Updated By', activeListTitle:'Employees on Leave Today', pendingListTitle:'Pending Vacation Plans', clickNames:'Click to view names', noRecords:'No records', approved:'Approved', approve:'Approve', approving:'Approving...', approveConfirm:'Approve this vacation plan?', approveSuccess:'Vacation plan approved', approveFailed:'Could not approve vacation plan', approvedBy:'Approved By', approvedAt:'Approved At' }
 };
 
-let employees=[], planList=[], currentLang=localStorage.getItem('lang')||'ar';
+let employees=[], planList=[], currentLang=localStorage.getItem('lang')||'ar', dashboardUser=null;
 const $=id=>document.getElementById(id), tr=()=>i18n[currentLang];
 
 function escapeHtml(value) {
@@ -343,6 +349,37 @@ function historyEntryText(entry, index) {
     return parts.join(' | ') || `${currentLang === 'ar' ? 'تعديل' : 'Change'} ${index + 1}`;
 }
 
+window.approveVacationPlan = async (planId, returnToPending = false) => {
+    const plan = planList.find(item => String(item.id) === String(planId));
+    if (!plan || !isPendingPlan(plan)) return;
+    const t = tr();
+    if (!confirm(t.approveConfirm)) return;
+
+    const buttons = document.querySelectorAll(`[data-approve-plan-id="${CSS.escape(String(planId))}"]`);
+    buttons.forEach(button => { button.disabled = true; button.textContent = t.approving; });
+
+    const actionAt = new Date().toISOString();
+    const actionBy = dashboardUser?.displayName || dashboardUser?.email || '';
+    try {
+        await updateDoc(doc(db, 'vacations', String(planId)), {
+            status: 'approved',
+            actionAt,
+            actionBy
+        });
+        plan.status = 'approved';
+        plan.actionAt = actionAt;
+        plan.actionBy = actionBy;
+        window.refreshDashboard();
+        alert(t.approveSuccess);
+        if (returnToPending) window.openStatPlanList('pending');
+        else window.openPlanDetails(planId);
+    } catch (error) {
+        logFirebaseError('Vacation plan approval failed', error);
+        alert(`${t.approveFailed}: ${error?.code || error?.message || error}`);
+        buttons.forEach(button => { button.disabled = false; button.textContent = t.approve; });
+    }
+};
+
 window.openStatPlanList = kind => {
     const t = tr();
     const selectedYear = Number($('dbYear')?.value || new Date().getFullYear());
@@ -373,16 +410,27 @@ window.openStatPlanList = kind => {
                 const from = plan.from || plan.start || '—';
                 const to = plan.to || plan.end || from;
                 const createdBy = planActor(plan, 'created') || t.notRecorded;
-                return `<button type="button" class="stat-plan-item" data-stat-plan-id="${escapeHtml(String(plan.id))}">
-                    <div class="stat-plan-name">${escapeHtml(resolveEmployeeName(plan))}</div>
-                    <div class="stat-plan-meta">${escapeHtml(t.from)}: ${escapeHtml(from)} &nbsp; • &nbsp; ${escapeHtml(t.to)}: ${escapeHtml(to)} &nbsp; • &nbsp; ${escapeHtml(t.days)}: ${inclusiveDays(from,to)}<br>${escapeHtml(t.status)}: ${escapeHtml(planStatusLabel(plan.status))}<br><strong>${escapeHtml(t.createdBy)}:</strong> ${escapeHtml(createdBy)}</div>
-                </button>`;
+                const createdAt = formatTimestamp(planCreatedValue(plan));
+                const approveButton = kind === 'pending' ? `<button type="button" class="approve-plan-btn" data-approve-plan-id="${escapeHtml(String(plan.id))}">${escapeHtml(t.approve)}</button>` : '';
+                return `<div class="stat-plan-row">
+                    <button type="button" class="stat-plan-item" data-stat-plan-id="${escapeHtml(String(plan.id))}">
+                        <div class="stat-plan-name">${escapeHtml(resolveEmployeeName(plan))}</div>
+                        <div class="stat-plan-meta">${escapeHtml(t.from)}: ${escapeHtml(from)} &nbsp; • &nbsp; ${escapeHtml(t.to)}: ${escapeHtml(to)} &nbsp; • &nbsp; ${escapeHtml(t.days)}: ${inclusiveDays(from,to)}<br>${escapeHtml(t.status)}: ${escapeHtml(planStatusLabel(plan.status))}<br><strong>${escapeHtml(t.createdBy)}:</strong> ${escapeHtml(createdBy)}<br><strong>${escapeHtml(t.createdAt)}:</strong> ${escapeHtml(createdAt)}</div>
+                    </button>
+                    ${approveButton}
+                </div>`;
             }).join('')}
         </div>` : `<div class="stat-empty">${escapeHtml(t.noRecords)}</div>`;
 
     $('planDetailsOverlay').classList.add('show');
     $('planDetailsBody').querySelectorAll('[data-stat-plan-id]').forEach(button => {
         button.addEventListener('click', () => window.openPlanDetails(button.dataset.statPlanId));
+    });
+    $('planDetailsBody').querySelectorAll('[data-approve-plan-id]').forEach(button => {
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            window.approveVacationPlan(button.dataset.approvePlanId, true);
+        });
     });
 };
 
@@ -399,6 +447,8 @@ window.openPlanDetails = planId => {
     const changed = planWasChanged(plan);
     const createdBy = planActor(plan, 'created');
     const updatedBy = planActor(plan, 'updated');
+    const approvedBy = plan.actionBy || '';
+    const approvedAt = plan.actionAt || '';
     const history = planHistoryEntries(plan);
     const historyHtml = history.length ? `
         <div class="plan-history">
@@ -419,9 +469,15 @@ window.openPlanDetails = planId => {
             <div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.changed)}</div><div class="plan-detail-value"><span class="plan-change-badge ${changed ? 'changed' : 'unchanged'}">${changed ? t.yes : t.no}</span></div></div>
             <div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.createdBy)}</div><div class="plan-detail-value">${escapeHtml(createdBy || t.notRecorded)}</div></div>
             ${updatedBy ? `<div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.updatedBy)}</div><div class="plan-detail-value">${escapeHtml(updatedBy)}</div></div>` : ''}
+            ${approvedBy ? `<div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.approvedBy)}</div><div class="plan-detail-value">${escapeHtml(approvedBy)}</div></div>` : ''}
+            ${approvedAt ? `<div class="plan-detail"><div class="plan-detail-label">${escapeHtml(t.approvedAt)}</div><div class="plan-detail-value">${escapeHtml(formatTimestamp(approvedAt))}</div></div>` : ''}
         </div>
-        ${historyHtml}`;
+        ${historyHtml}
+        ${isPendingPlan(plan) ? `<div class="plan-action-box"><button type="button" class="approve-plan-btn" data-approve-plan-id="${escapeHtml(String(plan.id))}">${escapeHtml(t.approve)}</button></div>` : ''}`;
     $('planDetailsOverlay').classList.add('show');
+    $('planDetailsBody').querySelectorAll('[data-approve-plan-id]').forEach(button => {
+        button.addEventListener('click', () => window.approveVacationPlan(button.dataset.approvePlanId, false));
+    });
 };
 
 window.closePlanDetails = () => $('planDetailsOverlay').classList.remove('show');
@@ -500,7 +556,7 @@ function isVacationPlanRecord(record) {
 }
 
 async function bindSnapshots(){
-    await waitForSignedInUser();
+    dashboardUser = await waitForSignedInUser();
     // Keep all employee master records available for historical name resolution,
     // including inactive employees who may still have older vacation plans.
     onSnapshot(collection(db,'employees'), s=>{ employees=s.docs.map(d=>({id:d.id,...d.data()})); window.refreshDashboard(); }, e=>logFirebaseError('Employees dashboard listener failed', e));
