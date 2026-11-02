@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.20 - VISITS TECHNICIAN DEDUPE -->
+<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.29 - SELF SERVICE PROFILE PASSWORD -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
@@ -132,6 +132,32 @@
             background: var(--role-color);
             box-shadow: 0 0 0 2px rgba(255,255,255,.85);
         }
+
+
+        .header-actions { display:flex; align-items:center; gap:8px; }
+        .profile-btn { background:#fff; color:var(--dark); border:none; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:800; transition:.2s; }
+        .profile-btn:hover { transform:translateY(-1px); background:#f8fafc; }
+        .profile-overlay { position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(2,6,23,.58); z-index:10000; }
+        .profile-overlay.show { display:flex; }
+        .profile-modal { width:min(460px,96vw); background:#fff; border-radius:18px; box-shadow:0 28px 80px rgba(0,0,0,.28); overflow:hidden; color:#0f172a; }
+        .profile-head { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:16px 18px; background:#f8fafc; border-bottom:1px solid #e2e8f0; }
+        .profile-title { font-size:18px; font-weight:900; color:var(--dark); }
+        .profile-close { width:36px; height:36px; border:1px solid #e2e8f0; border-radius:10px; background:#fff; cursor:pointer; font-size:18px; }
+        .profile-body { padding:18px; }
+        .profile-user { padding:11px 12px; background:#eff6ff; border:1px solid #dbeafe; border-radius:12px; margin-bottom:14px; font-size:12px; color:#1e3a8a; font-weight:800; line-height:1.6; }
+        .profile-field { margin-bottom:12px; }
+        .profile-field label { display:block; margin-bottom:6px; color:#334155; font-size:12px; font-weight:900; }
+        .profile-field input { width:100%; box-sizing:border-box; padding:11px 12px; border:1px solid #cbd5e1; border-radius:10px; font:inherit; outline:none; }
+        .profile-field input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.10); }
+        .profile-help { font-size:11px; color:#64748b; line-height:1.6; margin-top:4px; }
+        .profile-status { min-height:22px; margin:8px 0 4px; font-size:12px; font-weight:800; }
+        .profile-status.ok { color:#15803d; }
+        .profile-status.error { color:#b91c1c; }
+        .profile-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+        .profile-save { background:#0d4b73; color:#fff; border:none; padding:10px 16px; border-radius:10px; cursor:pointer; font-weight:900; }
+        .profile-cancel { background:#fff; color:#475569; border:1px solid #cbd5e1; padding:10px 16px; border-radius:10px; cursor:pointer; font-weight:900; }
+        .profile-save:disabled { opacity:.55; cursor:not-allowed; }
+
     </style>
 </head>
 <body>
@@ -140,8 +166,11 @@
             <img src="LOGO-almajdouie.png" height="35" alt="MMC">
             <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">Authenticating...</div>
         </div>
-        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.28</div>
-        <button onclick="handleLogout()" style="background:#ef4444; color:white; border:none; padding:8px 18px; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s;">Logout</button>
+        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.29</div>
+        <div class="header-actions">
+            <button type="button" class="profile-btn" onclick="openProfile()">👤 Profile</button>
+            <button onclick="handleLogout()" style="background:#ef4444; color:white; border:none; padding:8px 18px; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s;">Logout</button>
+        </div>
     </header>
 
     <nav class="tab-bar" id="mainTabsBox"></nav>
@@ -150,6 +179,37 @@
     <main class="main-container">
         <div id="viewFrameBox"><iframe id="contentFrame"></iframe></div>
     </main>
+
+    <div class="profile-overlay" id="profileOverlay" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+        <div class="profile-modal">
+            <div class="profile-head">
+                <div class="profile-title" id="profileTitle">👤 User Profile</div>
+                <button type="button" class="profile-close" onclick="closeProfile()" aria-label="Close">×</button>
+            </div>
+            <div class="profile-body">
+                <div class="profile-user" id="profileUserInfo">Loading user...</div>
+                <div class="profile-field">
+                    <label for="currentPassword">Current Password</label>
+                    <input id="currentPassword" type="password" autocomplete="current-password" placeholder="Enter current password" />
+                </div>
+                <div class="profile-field">
+                    <label for="newPassword">New Password</label>
+                    <input id="newPassword" type="password" autocomplete="new-password" placeholder="Minimum 8 characters" />
+                </div>
+                <div class="profile-field">
+                    <label for="confirmPassword">Confirm New Password</label>
+                    <input id="confirmPassword" type="password" autocomplete="new-password" placeholder="Re-enter new password" />
+                    <div class="profile-help">The password is changed only for the currently signed-in Firebase account.</div>
+                </div>
+                <div class="profile-status" id="profileStatus"></div>
+                <div class="profile-actions">
+                    <button type="button" class="profile-cancel" onclick="closeProfile()">Cancel</button>
+                    <button type="button" class="profile-save" id="changePasswordBtn" onclick="changeOwnPassword()">Change Password</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -474,7 +534,7 @@
             const params = new URLSearchParams({
                 auth: 'active',
                 lang: getPortalLanguage(),
-                build: 'v2.0.28'
+                build: 'v2.0.29'
             });
 
             if (window.currentUser && window.currentUser.uid) {
@@ -919,6 +979,108 @@
             } catch (error) {
                 console.warn('Checklist visit type hotfix failed', error);
             }
+        });
+
+
+
+        function setProfileStatus(message, type = '') {
+            const box = document.getElementById('profileStatus');
+            if (!box) return;
+            box.textContent = message || '';
+            box.className = `profile-status ${type}`.trim();
+        }
+
+        function clearProfilePasswordFields() {
+            ['currentPassword', 'newPassword', 'confirmPassword'].forEach(id => {
+                const input = document.getElementById(id);
+                if (input) input.value = '';
+            });
+        }
+
+        function openProfile() {
+            const user = auth.currentUser;
+            if (!user) {
+                alert('No signed-in user was found.');
+                return;
+            }
+            clearProfilePasswordFields();
+            setProfileStatus('');
+            const name = window.currentUserData?.name || user.displayName || 'User';
+            const email = user.email || window.currentUserData?.email || '';
+            document.getElementById('profileUserInfo').innerHTML = `User: <b>${escapeHtml(name)}</b><br>Email: <b>${escapeHtml(email)}</b>`;
+            document.getElementById('profileOverlay').classList.add('show');
+            setTimeout(() => document.getElementById('currentPassword')?.focus(), 50);
+        }
+
+        function closeProfile() {
+            document.getElementById('profileOverlay')?.classList.remove('show');
+            clearProfilePasswordFields();
+            setProfileStatus('');
+        }
+
+        async function changeOwnPassword() {
+            const user = auth.currentUser;
+            if (!user || !user.email) {
+                setProfileStatus('Unable to identify the signed-in email account.', 'error');
+                return;
+            }
+
+            const passwordProvider = (user.providerData || []).some(item => item?.providerId === 'password');
+            if (!passwordProvider) {
+                setProfileStatus('This account does not use Email/Password sign-in. Change the password with its sign-in provider.', 'error');
+                return;
+            }
+
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const button = document.getElementById('changePasswordBtn');
+
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                setProfileStatus('Please complete all password fields.', 'error');
+                return;
+            }
+            if (newPassword.length < 8) {
+                setProfileStatus('New password must be at least 8 characters.', 'error');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                setProfileStatus('New password and confirmation do not match.', 'error');
+                return;
+            }
+            if (currentPassword === newPassword) {
+                setProfileStatus('New password must be different from the current password.', 'error');
+                return;
+            }
+
+            button.disabled = true;
+            setProfileStatus('Verifying current password...', '');
+            try {
+                const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
+                await user.reauthenticateWithCredential(credential);
+                setProfileStatus('Updating password...', '');
+                await user.updatePassword(newPassword);
+                clearProfilePasswordFields();
+                setProfileStatus('Password changed successfully.', 'ok');
+            } catch (error) {
+                console.error('Change password failed', error);
+                const code = String(error?.code || '');
+                let message = error?.message || 'Unable to change password.';
+                if (code.includes('wrong-password') || code.includes('invalid-credential')) message = 'Current password is incorrect.';
+                else if (code.includes('weak-password')) message = 'The new password is too weak.';
+                else if (code.includes('too-many-requests')) message = 'Too many attempts. Please try again later.';
+                else if (code.includes('user-disabled')) message = 'This user account is disabled.';
+                setProfileStatus(message, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        document.getElementById('profileOverlay').addEventListener('click', event => {
+            if (event.target.id === 'profileOverlay') closeProfile();
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && document.getElementById('profileOverlay')?.classList.contains('show')) closeProfile();
         });
 
         async function handleLogout() {
