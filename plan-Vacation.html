@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vacation Plan - Almajdouie Motors</title>
+  <title>Vacation Plan v1.1.0 - Year Archive - Almajdouie Motors</title>
   <style>
     :root{
       --primary:#0d2149;
@@ -97,6 +97,10 @@
     .btn:hover,.btn2:hover,.danger-btn:hover{transform:translateY(-1px)}
     .list-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
     .count-pill{background:#f8fafc;color:var(--primary);border:1px solid #e2e8f0;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:900}
+    .year-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .year-select{min-width:170px;width:auto;min-height:38px;padding:8px 12px;border-radius:10px;border:1px solid #d8dee8;background:#fff;color:var(--primary);font-weight:900}
+    .archive-note{font-size:11px;font-weight:800;color:var(--muted)}
+    .version-badge{display:inline-flex;align-items:center;margin-top:6px;padding:4px 9px;border-radius:999px;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;font-size:10px;font-weight:900}
     .table-wrap{overflow-x:auto}
     table{
       width:100%;
@@ -163,6 +167,7 @@
         <div>
           <h2 class="title">خطة الإجازات</h2>
           <p class="subtitle">Vacation Plan - Almajdouie Motors</p>
+          <span class="version-badge">Version 1.1.0 • Year Archive</span>
         </div>
       </div>
       <button class="btn" id="refreshBtn" type="button">تحديث</button>
@@ -195,7 +200,11 @@
     <div class="card" id="planListCard">
       <div class="list-head">
         <h3 style="color:var(--primary);font-size:20px;font-weight:900">📋 Plan List</h3>
-        <div class="count-pill" id="planCount">0 خطة</div>
+        <div class="year-tools">
+          <span class="archive-note" id="archiveLabel">السنة الحالية</span>
+          <select id="planYearFilter" class="year-select" aria-label="اختر السنة"></select>
+          <div class="count-pill" id="planCount">0 خطة</div>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -243,6 +252,7 @@ let currentUser = null;
 let currentProfile = null;
 let canManagePlans = false;
 let editingPlanId = null;
+let selectedPlanYear = new Date().getFullYear();
 const $ = id => document.getElementById(id);
 
 function escapeHtml(value) {
@@ -643,6 +653,61 @@ window.startEditPlan = id => {
 
 window.cancelEditPlan = () => resetPlanForm();
 
+function parsePlanDate(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function planYears(plan) {
+  const start = parsePlanDate(plan?.from || plan?.start);
+  const end = parsePlanDate(plan?.to || plan?.end) || start;
+  if (!start) return [];
+  const first = Math.min(start.getFullYear(), end?.getFullYear() || start.getFullYear());
+  const last = Math.max(start.getFullYear(), end?.getFullYear() || start.getFullYear());
+  const years = [];
+  for (let year = first; year <= last; year += 1) years.push(year);
+  return years;
+}
+
+function availablePlanYears() {
+  const currentYear = new Date().getFullYear();
+  const years = new Set([currentYear]);
+  planList.filter(planMatchesCurrentUser).forEach(plan => {
+    planYears(plan).forEach(year => years.add(year));
+  });
+  return Array.from(years).sort((a, b) => b - a);
+}
+
+function yearOptionLabel(year) {
+  const currentYear = new Date().getFullYear();
+  if (year < currentYear) return `${year} — أرشيف`;
+  if (year === currentYear) return `${year} — السنة الحالية`;
+  return `${year} — سنة مستقبلية`;
+}
+
+function syncPlanYearFilter() {
+  const select = $('planYearFilter');
+  if (!select) return selectedPlanYear;
+  const years = availablePlanYears();
+  if (!years.includes(Number(selectedPlanYear))) selectedPlanYear = new Date().getFullYear();
+  if (!years.includes(Number(selectedPlanYear))) selectedPlanYear = years[0];
+  select.innerHTML = years.map(year => `<option value="${year}">${escapeHtml(yearOptionLabel(year))}</option>`).join('');
+  select.value = String(selectedPlanYear);
+  const currentYear = new Date().getFullYear();
+  $('archiveLabel').textContent = Number(selectedPlanYear) < currentYear
+    ? `📦 أرشيف ${selectedPlanYear}`
+    : Number(selectedPlanYear) === currentYear
+      ? `🗓️ السنة الحالية ${selectedPlanYear}`
+      : `📅 سنة مستقبلية ${selectedPlanYear}`;
+  return Number(selectedPlanYear);
+}
+
+function planBelongsToYear(plan, year) {
+  return planYears(plan).includes(Number(year));
+}
+
 function statusLabel(status) {
   const value = String(status || 'pending');
   if (value === 'approved') return 'معتمدة';
@@ -658,11 +723,15 @@ function statusClass(status) {
 }
 
 function renderPlanList() {
-  const sortedPlans = planList.filter(planMatchesCurrentUser).sort(byDate);
-  $('planCount').textContent = `${sortedPlans.length} خطة`;
+  const year = syncPlanYearFilter();
+  const sortedPlans = planList
+    .filter(planMatchesCurrentUser)
+    .filter(plan => planBelongsToYear(plan, year))
+    .sort(byDate);
+  $('planCount').textContent = `${sortedPlans.length} خطة • ${year}`;
 
   if (!sortedPlans.length) {
-    $('planningBody').innerHTML = '<tr><td class="empty" colspan="7">لا توجد خطط إجازات حالياً</td></tr>';
+    $('planningBody').innerHTML = `<tr><td class="empty" colspan="7">لا توجد خطط إجازات في سنة ${year}</td></tr>`;
     return;
   }
 
@@ -846,12 +915,19 @@ $('btnAddPlan').addEventListener('click', () => {
 
 $('btnCancelEdit').addEventListener('click', () => window.cancelEditPlan());
 
+$('planYearFilter').addEventListener('change', event => {
+  selectedPlanYear = Number(event.target.value) || new Date().getFullYear();
+  renderPlanList();
+});
+
 $('refreshBtn').addEventListener('click', () => {
   refreshEmployeeSources();
   renderPlanList();
 });
 
 window.addEventListener('DOMContentLoaded', () => {
+  selectedPlanYear = new Date().getFullYear();
+  syncPlanYearFilter();
   bindSnapshots().catch(error => logFirebaseError('Vacation plan startup failed', error));
 });
 </script>
