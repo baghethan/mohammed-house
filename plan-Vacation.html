@@ -101,6 +101,11 @@
     .year-select{min-width:170px;width:auto;min-height:38px;padding:8px 12px;border-radius:10px;border:1px solid #d8dee8;background:#fff;color:var(--primary);font-weight:900}
     .archive-note{font-size:11px;font-weight:800;color:var(--muted)}
     .version-badge{display:inline-flex;align-items:center;margin-top:6px;padding:4px 9px;border-radius:999px;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;font-size:10px;font-weight:900}
+    .manager-search{margin-bottom:9px;padding:9px 10px;border:1px solid #dbeafe;background:#f8fbff;border-radius:12px}
+    .manager-search label{margin-bottom:5px;color:#1d4ed8}
+    .manager-search input{min-height:40px;padding:9px 11px;border-color:#bfdbfe}
+    .search-hint{font-size:10px;color:var(--muted);font-weight:700;margin-top:5px}
+    .plan-search{min-width:230px;width:min(300px,72vw);min-height:38px;padding:8px 12px;border-radius:10px;border:1px solid #d8dee8;background:#fff;color:var(--primary);font-weight:800}
     .table-wrap{overflow-x:auto}
     table{
       width:100%;
@@ -167,7 +172,7 @@
         <div>
           <h2 class="title">خطة الإجازات</h2>
           <p class="subtitle">Vacation Plan - Almajdouie Motors</p>
-          <span class="version-badge">Version 1.1.0 • Year Archive</span>
+          <span class="version-badge">Version 1.2.0 • Manager Search</span>
         </div>
       </div>
       <button class="btn" id="refreshBtn" type="button">تحديث</button>
@@ -176,6 +181,11 @@
     <div class="card">
       <div class="form-box">
         <div>
+          <div id="managerEmployeeSearchBox" class="manager-search hidden">
+            <label for="employeeSearch">🔎 بحث عن موظف</label>
+            <input type="search" id="employeeSearch" placeholder="اكتب الاسم أو رقم الموظف أو البريد..." autocomplete="off" />
+            <div class="search-hint" id="employeeSearchHint">ابدأ الكتابة لتصفية قائمة الموظفين</div>
+          </div>
           <label for="pEmp">الموظف</label>
           <select id="pEmp">
             <option value="">اختر الموظف...</option>
@@ -201,6 +211,7 @@
       <div class="list-head">
         <h3 style="color:var(--primary);font-size:20px;font-weight:900">📋 Plan List</h3>
         <div class="year-tools">
+          <input type="search" id="planListSearch" class="plan-search hidden" placeholder="🔎 بحث باسم أو رقم الموظف..." autocomplete="off" aria-label="بحث في الخطط" />
           <span class="archive-note" id="archiveLabel">السنة الحالية</span>
           <select id="planYearFilter" class="year-select" aria-label="اختر السنة"></select>
           <div class="count-pill" id="planCount">0 خطة</div>
@@ -549,9 +560,41 @@ function getVisibleEmployees() {
   return fallbackEmployee ? [fallbackEmployee] : [];
 }
 
+function employeeMatchesManagerSearch(emp, searchTerm) {
+  const term = norm(searchTerm);
+  if (!term) return true;
+  const haystack = [
+    emp?.name, emp?.fullName, emp?.empNum, emp?.employeeId, emp?.technicianId,
+    emp?.email, emp?.dept, emp?.jobTitle, emp?.id
+  ].map(norm).filter(Boolean).join(' ');
+  return haystack.includes(term);
+}
+
+function findEmployeeForPlan(plan) {
+  const planAliases = [
+    plan?.employeeDocId, plan?.fireId, plan?.empId, plan?.empNum,
+    plan?.employeeId, plan?.technicianId, plan?.email, plan?.name
+  ].map(norm).filter(Boolean);
+  if (!planAliases.length) return null;
+  return employees.find(emp => employeeAliases(emp).some(alias => planAliases.includes(alias))) || null;
+}
+
+function planMatchesManagerSearch(plan, searchTerm) {
+  const term = norm(searchTerm);
+  if (!term) return true;
+  const emp = findEmployeeForPlan(plan);
+  const haystack = [
+    plan?.name, plan?.empId, plan?.empNum, plan?.employeeId, plan?.employeeDocId,
+    plan?.email, plan?.dept, emp?.name, emp?.empNum, emp?.employeeId, emp?.email, emp?.dept
+  ].map(norm).filter(Boolean).join(' ');
+  return haystack.includes(term);
+}
+
 function applyRoleUi() {
   $('planListCard').classList.remove('hidden');
   $('pEmp').disabled = !canManagePlans || Boolean(editingPlanId);
+  $('managerEmployeeSearchBox')?.classList.toggle('hidden', !canManagePlans || Boolean(editingPlanId));
+  $('planListSearch')?.classList.toggle('hidden', !canManagePlans);
 }
 
 function employeeOptionLabel(emp) {
@@ -563,10 +606,18 @@ function employeeOptionLabel(emp) {
 
 function renderEmployees() {
   const currentValue = $('pEmp').value;
-  const visibleEmployees = getVisibleEmployees();
+  const allVisibleEmployees = getVisibleEmployees();
+  const searchTerm = canManagePlans && !editingPlanId ? ($('employeeSearch')?.value || '') : '';
+  const visibleEmployees = allVisibleEmployees.filter(emp => employeeMatchesManagerSearch(emp, searchTerm));
   const options = visibleEmployees
     .map(emp => `<option value="${escapeHtml(emp.id)}">${escapeHtml(employeeOptionLabel(emp))}</option>`)
     .join('');
+
+  if ($('employeeSearchHint') && canManagePlans && !editingPlanId) {
+    $('employeeSearchHint').textContent = searchTerm
+      ? `النتائج: ${visibleEmployees.length} من ${allVisibleEmployees.length} موظف`
+      : `إجمالي الموظفين: ${allVisibleEmployees.length} — اكتب جزءًا من الاسم أو الرقم`;
+  }
 
   $('pEmp').innerHTML = `<option value="">اختر الموظف...</option>${options}`;
   if (editingPlanId) {
@@ -724,14 +775,22 @@ function statusClass(status) {
 
 function renderPlanList() {
   const year = syncPlanYearFilter();
-  const sortedPlans = planList
+  const planSearchTerm = canManagePlans ? ($('planListSearch')?.value || '') : '';
+  const yearPlans = planList
     .filter(planMatchesCurrentUser)
-    .filter(plan => planBelongsToYear(plan, year))
+    .filter(plan => planBelongsToYear(plan, year));
+  const sortedPlans = yearPlans
+    .filter(plan => planMatchesManagerSearch(plan, planSearchTerm))
     .sort(byDate);
-  $('planCount').textContent = `${sortedPlans.length} خطة • ${year}`;
+  $('planCount').textContent = planSearchTerm
+    ? `${sortedPlans.length} نتيجة من ${yearPlans.length} خطة • ${year}`
+    : `${sortedPlans.length} خطة • ${year}`;
 
   if (!sortedPlans.length) {
-    $('planningBody').innerHTML = `<tr><td class="empty" colspan="7">لا توجد خطط إجازات في سنة ${year}</td></tr>`;
+    const message = planSearchTerm
+      ? `لا توجد نتائج للبحث «${escapeHtml(planSearchTerm)}» في سنة ${year}`
+      : `لا توجد خطط إجازات في سنة ${year}`;
+    $('planningBody').innerHTML = `<tr><td class="empty" colspan="7">${message}</td></tr>`;
     return;
   }
 
@@ -914,6 +973,16 @@ $('btnAddPlan').addEventListener('click', () => {
 });
 
 $('btnCancelEdit').addEventListener('click', () => window.cancelEditPlan());
+
+$('employeeSearch').addEventListener('input', () => {
+  if (!canManagePlans || editingPlanId) return;
+  renderEmployees();
+});
+
+$('planListSearch').addEventListener('input', () => {
+  if (!canManagePlans) return;
+  renderPlanList();
+});
 
 $('planYearFilter').addEventListener('change', event => {
   selectedPlanYear = Number(event.target.value) || new Date().getFullYear();
