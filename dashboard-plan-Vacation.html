@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vacation Dashboard - Almajdouie Motors</title>
+  <title>Vacation Dashboard v2.0.0 - Almajdouie Motors</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     :root{--primary:#0d2149;--primary2:#1b4fa3;--text:#1f2937;--muted:#64748b;--surface:rgba(255,255,255,.94);--surface2:#fff;--shadow:0 18px 50px rgba(13,33,73,.16);
@@ -23,6 +23,7 @@
     .stat-val{font-size:36px;font-weight:900;color:var(--primary);margin:8px 0}
     .card{background:var(--surface2);border:1px solid rgba(15,23,42,.08);border-radius:18px;padding:20px;box-shadow:0 10px 24px rgba(0,0,0,.05)}
     .row{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+    .version-badge{display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;background:#e0e7ff;color:#1e3a8a;border:1px solid #c7d2fe;font-size:10px;font-weight:900;margin-top:6px;letter-spacing:.2px}
     .gantt-bar-db{position:absolute;height:28px;top:50%;transform:translateY(-50%);border-radius:14px;color:#fff;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 10px;z-index:5;border:none;cursor:pointer;font-family:inherit}
     .gantt-bar-db:hover{filter:brightness(1.08);box-shadow:0 4px 12px rgba(13,33,73,.20)}
     .gantt-bar-db:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
@@ -75,6 +76,7 @@
             <div>
                 <h2 id="dbBrand" style="margin:0;font-weight:900;color:var(--primary)">المجدوعي للسيارات</h2>
                 <p id="dbSub" style="margin:0;color:var(--muted);font-weight:700">تقرير إحصائيات الإجازات السنوية</p>
+                <span class="version-badge" id="versionBadge">Version 2.1.0</span>
             </div>
         </div>
 
@@ -196,9 +198,19 @@ function planYears(plan) {
 
 function availablePlanYears() {
     const years = new Set();
+    const currentYear = new Date().getFullYear();
+
+    // Always keep the current calendar year available, even before the first plan is added.
+    years.add(currentYear);
     planList.forEach(plan => planYears(plan).forEach(year => years.add(year)));
-    if (!years.size) years.add(new Date().getFullYear());
-    return Array.from(years).sort((a, b) => a - b);
+
+    // Keep the selector continuous between the oldest and newest relevant years.
+    const listed = Array.from(years).filter(Number.isFinite).sort((a, b) => a - b);
+    const first = listed[0] ?? currentYear;
+    const last = listed[listed.length - 1] ?? currentYear;
+    const result = [];
+    for (let year = first; year <= last; year++) result.push(year);
+    return result;
 }
 
 function syncYearOptions() {
