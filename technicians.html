@@ -60,7 +60,7 @@
     <button class="btn small" id="langArBtn" type="button">AR</button>
     <button class="btn small" id="langEnBtn" type="button">EN</button>
     <span class="badge">technicians</span>
-    <span class="badge">v1.1.3</span>
+    <span class="badge">v1.1.5</span>
   </div>
 
   <div id="sessionNotice" class="session-note hidden">
@@ -591,13 +591,9 @@
 
   function getAllowedBranchIds(){
     var directBranchId = $('techAssignBranch').value || '';
-    if (directBranchId) return [directBranchId];
-    return getTechnicianScopedBranches({
-      region: $('techAssignRegion').value || '',
-      city: $('techAssignCity').value || '',
-      brand: $('techAssignBrand').value || '',
-      department: $('techAssignDepartment').value || ''
-    }).map(function(b){ return b.id; });
+    // Only a specifically selected branch is stored as a fixed ID.
+    // Region/City/Brand/Department scopes stay dynamic so new matching branches appear automatically.
+    return directBranchId ? [directBranchId] : [];
   }
 
   async function saveTechnician(){
@@ -634,7 +630,17 @@
       if (!exists) payload.createdAt = fv.serverTimestamp();
 
       await db.collection('technicians').doc(docId).set(payload, { merge:true });
-      await db.collection('employees').doc(docId).set(payload, { merge:true });
+
+      // Keep employee master data separate from visit-scope fields.
+      // Only technician identity flags are mirrored to employees; Region/City/Brand/Department/Branch stay in technicians.
+      var employeeMarker = buildParentPlainObject();
+      employeeMarker.employeeType = 'technician';
+      employeeMarker.isTechnician = true;
+      employeeMarker.technicianId = docId;
+      employeeMarker.technicianCode = payload.technicianCode || docId;
+      if (payload.authUid) employeeMarker.authUid = payload.authUid;
+      employeeMarker.updatedAt = fv.serverTimestamp();
+      await db.collection('employees').doc(docId).set(employeeMarker, { merge:true });
       setMessage(t('saved'));
       setAlert('', 'ok');
       clearTechnicianForm();
