@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Employee Management v1.8.0 - Shift History</title>
+  <title>Employee Management v1.9.0 - Login UID Link</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root{
@@ -89,7 +89,7 @@
     <div class="brand">
       <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
       <div>
-        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.8.0</span></h2>
+        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.9.0</span></h2>
         <p class="subtitle" id="pageSubtitle">إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات</p>
       </div>
     </div>
@@ -264,7 +264,7 @@ const JOB_TITLE_LABELS = {
 };
 const I18N = {
   ar: {
-    documentTitle: 'إدارة الموظفين v1.8.0 - سجل تاريخ الدوام',
+    documentTitle: 'إدارة الموظفين v1.9.0 - ربط Login UID',
     pageTitle: 'إدارة سجل الموظفين (مزامنة تلقائية)',
     pageSubtitle: 'إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات',
     reload: 'تحديث',
@@ -339,7 +339,7 @@ const I18N = {
     confirmDelete: 'هل تريد حذف هذا الموظف؟'
   },
   en: {
-    documentTitle: 'Employee Management v1.8.0 - Shift History',
+    documentTitle: 'Employee Management v1.9.0 - Login UID Link',
     pageTitle: 'Employee Management (Auto Sync)',
     pageSubtitle: 'Add and update employees linked to the schedule and vacation plan',
     reload: 'Refresh',
@@ -1042,6 +1042,7 @@ function normalizeEmployee(emp) {
     jobTitle: jobTitleFromRecord(emp, 'الفني'),
     email: emp.email || '',
     phone: emp.phone || emp.mobile || '',
+    loginUid: emp.loginUid || emp.authUid || emp.linkedAppUserUid || '',
     active: activeFromRecord(emp, true),
     fixed: fixedFromRecord(emp),
     rotation: rot,
@@ -1066,6 +1067,7 @@ function normalizeExternalEmployee(record, source) {
     jobTitle: jobTitleFromRecord(record, 'الفني'),
     email: record.email || '',
     phone: record.phone || record.mobile || '',
+    loginUid: record.loginUid || record.authUid || record.linkedAppUserUid || (source === 'app_users' ? id : ''),
     active: activeFromRecord(record, true),
     fixed: fixedFromRecord(record),
     rotation: rot,
@@ -1191,6 +1193,11 @@ function employeeRecordPayload(emp, options = {}) {
     email: normalized.email || '',
     mobile: normalized.phone || '',
     phone: normalized.phone || '',
+    ...(normalized.loginUid ? {
+      loginUid: normalized.loginUid,
+      authUid: normalized.loginUid,
+      linkedAppUserUid: normalized.loginUid
+    } : {}),
     fixed: normalized.fixed === true,
     shiftType: normalized.fixed === true ? 'night' : 'morning',
     rotation: normalized.rotation || normalized.rotType || 'none',
@@ -1273,6 +1280,7 @@ function buildEmployeePayload(existing) {
     jobTitle,
     email: $('empEmail').value.trim(),
     phone: $('empPhone').value.trim(),
+    loginUid: existing?.loginUid || existing?.authUid || existing?.linkedAppUserUid || '',
     fixed: nextFixed,
     shiftType: nextFixed ? 'night' : 'morning',
     shiftHistory,
@@ -1303,6 +1311,7 @@ function employeeToExcelRow(emp) {
         rotation: 'الروتيشن',
         status: 'الحالة',
         weeklyOrder: 'ترتيب الجدول',
+        loginUid: 'Login UID',
         source: 'المصدر'
       }
     : {
@@ -1317,6 +1326,7 @@ function employeeToExcelRow(emp) {
         rotation: 'Rotation',
         status: 'Status',
         weeklyOrder: 'Schedule Order',
+        loginUid: 'Login UID',
         source: 'Source'
       };
   return {
@@ -1326,6 +1336,7 @@ function employeeToExcelRow(emp) {
     [headers.dept]: normalized.dept || '',
     [headers.jobTitle]: jobTitleLabel(normalized.jobTitle) || '',
     [headers.email]: normalized.email || '',
+    [headers.loginUid]: normalized.loginUid || '',
     [headers.phone]: normalized.phone || '',
     [headers.shift]: shiftLabel(normalized),
     [headers.rotation]: rotationLabel(normalized.rotType || normalized.rotation),
@@ -1507,7 +1518,7 @@ function render() {
       <tr data-id="${escapeHtml(emp.id)}">
         <td class="emp-name">
           ${escapeHtml(emp.name)}
-          <div class="muted">${escapeHtml(emp.id)}</div>
+          <div class="muted">Login UID: ${escapeHtml(emp.loginUid || '-')}</div>
         </td>
         <td>${escapeHtml(emp.empNum || '-')}</td>
         <td>${escapeHtml(emp.dept || '-')}</td>
@@ -1613,7 +1624,7 @@ async function migrateLegacyScheduleEmployees() {
         completed: true,
         completedAt: new Date().toISOString(),
         migratedCount: missingEmployees.length,
-        source: 'employee-Schedule-v1.8.0'
+        source: 'employee-Schedule-v1.9.0'
       }
     }, { merge: true });
   } catch (error) {
@@ -1701,7 +1712,7 @@ async function migrateLegacyEmployeeShiftHistory() {
         completed: true,
         completedAt: new Date().toISOString(),
         updatedEmployees: updates.length,
-        source: 'employee-Schedule-v1.8.0'
+        source: 'employee-Schedule-v1.9.0'
       }
     }, { merge: true });
   } catch (error) {
