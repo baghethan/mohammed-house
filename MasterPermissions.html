@@ -470,14 +470,14 @@
         <p class="eyebrow">MMC IT Service Delivery</p>
         <h1>Unified Security & Permissions</h1>
       </div>
-      <span class="version-pill">v3.4.0</span>
+      <span class="version-pill">v3.5.0</span>
     </header>
 
     <div class="workspace">
       <section class="surface pending-section">
         <div class="table-title">
           <h2>Pending Access Requests</h2>
-          <span class="pending-pill" id="pendingCount">0 pending</span>
+          <div class="action-group"><button class="btn-mini" id="refreshPendingBtn" type="button">Refresh Requests</button><span class="pending-pill" id="pendingCount">0 pending</span></div>
         </div>
         <div class="pending-grid" id="pendingRequests">
           <div class="empty-state">Loading access requests...</div>
@@ -611,7 +611,7 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getFirestore, doc, setDoc, getDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getFirestore, doc, setDoc, getDoc, getDocs, collection, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
     import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
     const config = {
@@ -671,6 +671,8 @@
     const saveBtn = document.getElementById('saveBtn');
     const pendingRequests = document.getElementById('pendingRequests');
     const pendingCount = document.getElementById('pendingCount');
+    const refreshPendingBtn = document.getElementById('refreshPendingBtn');
+    let pendingRefreshTimer = null;
     let selectedPendingUid = '';
     let currentAdminUser = null;
     let currentAdminProfile = null;
@@ -699,6 +701,135 @@
         '"': '&quot;',
         "'": '&#039;'
       }[char]));
+    }
+
+
+    function normalizeLinkValue(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
+    function employeeIdFromRecord(record) {
+      return String(
+        record?.employeeId ||
+        record?.technicianId ||
+        record?.empId ||
+        record?.empNum ||
+        ''
+      ).trim();
+    }
+
+    function safeEmployeeDocumentId(value) {
+      return String(value || '').trim().replace(/[\/\\#?\[\]]+/g, '_');
+    }
+
+    function employeeMatchesAccount(employee, account) {
+      const accountEmployeeId = normalizeLinkValue(employeeIdFromRecord(account));
+      const employeeEmployeeId = normalizeLinkValue(employeeIdFromRecord(employee));
+      const accountEmail = normalizeLinkValue(account?.email);
+      const employeeEmail = normalizeLinkValue(employee?.email);
+
+      if (accountEmployeeId && employeeEmployeeId && accountEmployeeId === employeeEmployeeId) return true;
+      if (accountEmail && employeeEmail && accountEmail === employeeEmail) return true;
+      return false;
+    }
+
+    async function linkEmployeeToLoginAccount(uid, accountData, options = {}) {
+      const employeeId = employeeIdFromRecord(accountData);
+      const email = String(accountData?.email || '').trim();
+      if (!uid || (!employeeId && !email)) return { linked:false, reason:'missing_identity' };
+
+      const employeesSnap = options.employeesSnap || await getDocs(collection(db, 'employees'));
+      const matches = employeesSnap.docs
+        .map(d => ({ id:d.id, ...d.data() }))
+        .filter(emp => employeeMatchesAccount(emp, { ...accountData, employeeId }));
+
+      if (!matches.length) return { linked:false, reason:'employee_not_found' };
+
+      // Prefer exact Employee ID, then an already-canonical document.
+      matches.sort((a,b) => {
+        const aExact = employeeId && normalizeLinkValue(employeeIdFromRecord(a)) === normalizeLinkValue(employeeId) ? 1 : 0;
+        const bExact = employeeId && normalizeLinkValue(employeeIdFromRecord(b)) === normalizeLinkValue(employeeId) ? 1 : 0;
+        if (aExact !== bExact) return bExact - aExact;
+        const aCanonical = employeeId && normalizeLinkValue(a.id) === normalizeLinkValue(employeeId) ? 1 : 0;
+        const bCanonical = employeeId && normalizeLinkValue(b.id) === normalizeLinkValue(employeeId) ? 1 : 0;
+        return bCanonical - aCanonical;
+      });
+
+      const sourceEmployee = matches[0];
+      const canonicalId = safeEmployeeDocumentId(employeeId || sourceEmployee.id);
+      const targetRef = doc(db, 'employees', canonicalId);
+      const targetSnap = await getDoc(targetRef);
+      const targetData = targetSnap.exists() ? targetSnap.data() : {};
+
+      // Preserve the richer Employee Master data. Registration name/email are only fallbacks.
+      const merged = {
+        ...sourceEmployee,
+        ...targetData,
+        empId: employeeId || employeeIdFromRecord(targetData) || employeeIdFromRecord(sourceEmployee),
+        employeeId: employeeId || employeeIdFromRecord(targetData) || employeeIdFromRecord(sourceEmployee),
+        name: targetData.name || sourceEmployee.name || accountData.name || '',
+        email: targetData.email || sourceEmployee.email || email,
+        loginUid: uid,
+        authUid: uid,
+        linkedAppUserUid: uid,
+        linkedAt: new Date().toISOString(),
+        linkedByUid: currentAdminUser?.uid || '',
+        linkedByEmail: currentAdminUser?.email || '',
+        loginLinkSource: 'MasterPermissions-v3.5.0'
+      };
+
+      // Do not persist the old Firestore document id as a field.
+      delete merged.id;
+      await setDoc(targetRef, merged, { merge:true });
+
+      const removed = [];
+      // When Employee ID exists, all documents with the same Employee ID are duplicates.
+      if (employeeId) {
+        for (const old of matches) {
+          if (old.id === canonicalId) continue;
+          const sameEmployeeId =
+            normalizeLinkValue(employeeIdFromRecord(old)) === normalizeLinkValue(employeeId);
+          if (!sameEmployeeId) continue;
+          await deleteDoc(doc(db, 'employees', old.id));
+          removed.push(old.id);
+        }
+      }
+
+      return {
+        linked:true,
+        employeeId: employeeId || employeeIdFromRecord(sourceEmployee),
+        canonicalId,
+        loginUid: uid,
+        removed
+      };
+    }
+
+    let approvedEmployeeSyncStarted = false;
+    async function syncApprovedUsersToEmployees() {
+      if (approvedEmployeeSyncStarted) return;
+      approvedEmployeeSyncStarted = true;
+      try {
+        const [usersSnap, employeesSnap] = await Promise.all([
+          getDocs(collection(db, 'app_users')),
+          getDocs(collection(db, 'employees'))
+        ]);
+
+        let linked = 0;
+        let migrated = 0;
+        for (const userDoc of usersSnap.docs) {
+          const account = { id:userDoc.id, ...userDoc.data() };
+          const approval = String(account.approvalStatus || 'approved').toLowerCase();
+          if (approval !== 'approved' || account.active === false) continue;
+          const result = await linkEmployeeToLoginAccount(userDoc.id, account, { employeesSnap });
+          if (result.linked) {
+            linked++;
+            migrated += result.removed.length;
+          }
+        }
+        console.info(`Employee login link sync completed: ${linked} linked, ${migrated} legacy employee document(s) removed.`);
+      } catch (error) {
+        console.warn('Employee login link sync failed', error);
+      }
     }
 
     function normalizeMainTabs(user) {
@@ -769,6 +900,15 @@
         pendingCount.textContent = 'Error';
         pendingRequests.innerHTML = `<div class="empty-state" style="color:var(--danger)">Unable to load access_requests: ${escapeHtml(error.message)}</div>`;
       }
+    }
+
+    if (refreshPendingBtn) {
+      refreshPendingBtn.addEventListener('click', async () => {
+        refreshPendingBtn.disabled = true;
+        refreshPendingBtn.textContent = 'Refreshing...';
+        try { await loadPendingRequests(); }
+        finally { refreshPendingBtn.disabled = false; refreshPendingBtn.textContent = 'Refresh Requests'; }
+      });
     }
 
     function applyRequestedChecks(request) {
@@ -925,7 +1065,10 @@
 
       try {
         await setDoc(doc(db, 'app_users', uid), data, { merge: true });
+        let employeeLinkResult = null;
         if (isApproval) {
+          employeeLinkResult = await linkEmployeeToLoginAccount(uid, data);
+
           await setDoc(doc(db, 'access_requests', uid), {
             status:'approved', approvalStatus:'approved', approvedAt:new Date().toISOString(),
             approvedByUid:currentAdminUser?.uid || '', approvedByEmail:currentAdminUser?.email || '', approvedByName:actorName,
@@ -935,7 +1078,10 @@
             approvedPermissionsSiteVisit:siteVisitPermissions
           }, { merge:true });
           selectedPendingUid = '';
-          alert('Access request approved and account activated.');
+          const employeeLinkText = employeeLinkResult?.linked
+            ? ` Employee ${employeeLinkResult.employeeId || ''} linked to Login UID ${uid}.${employeeLinkResult.removed.length ? ` Old employee document removed: ${employeeLinkResult.removed.join(', ')}` : ''}`
+            : ' Employee Master record was not found; account approval still succeeded.';
+          alert('Access request approved and account activated.' + employeeLinkText);
           await loadPendingRequests();
         } else {
           alert('Permissions updated successfully.');
@@ -968,6 +1114,8 @@
           return;
         }
         await Promise.all([loadTable(), loadPendingRequests()]);
+        await syncApprovedUsersToEmployees();
+        if (!pendingRefreshTimer) pendingRefreshTimer = setInterval(loadPendingRequests, 15000);
       } catch (error) {
         userCount.textContent = 'Error';
         pendingRequests.innerHTML = `<div class="empty-state" style="color:var(--danger)">${escapeHtml(error.message)}</div>`;
