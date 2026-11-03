@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MMC IT Vacation Plan - v1.2.0 Isolated Firebase Storage</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <style>
+    :root { --primary:#0d2149; --primary2:#1b4fa3; --bg:#eef3f8; --card:#fff; --text:#1f2937; --muted:#64748b; --ok-bg:#dcfce7; --ok:#166534; --warn-bg:#fff7ed; --warn:#9a3412; --bad-bg:#fee2e2; --bad:#991b1b; --border:#e2e8f0; --shadow:0 14px 38px rgba(13,33,73,.12); }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:'Segoe UI',Tahoma,Arial,sans-serif; background:var(--bg); color:var(--text); }
+    header { background:var(--primary); color:#fff; min-height:64px; display:flex; align-items:center; justify-content:space-between; padding:12px 22px; gap:14px; flex-wrap:wrap; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .logo { height:38px; background:#fff; border-radius:8px; padding:3px; }
+    .app-title { font-weight:900; letter-spacing:.5px; font-size:18px; }
+    .tabs { display:flex; gap:0; background:#fff; border-bottom:1px solid var(--border); overflow:auto; }
+    .tab { border:0; background:#fff; color:#475569; padding:18px 28px; font-weight:900; cursor:pointer; border-bottom:4px solid transparent; white-space:nowrap; }
+    .tab.active { color:#003f66; background:#f8fafc; border-bottom-color:#003f66; }
+    main { max-width:1400px; margin:18px auto; padding:0 16px 40px; }
+    .panel { display:none; } .panel.active { display:block; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:22px; box-shadow:var(--shadow); padding:20px; margin-bottom:18px; }
+    .topline { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+    h2,h3,p { margin:0; } h2 { color:var(--primary); font-size:24px; font-weight:900; }
+    .sub { color:var(--muted); font-size:13px; font-weight:700; margin-top:4px; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(160px,1fr)); gap:12px; align-items:end; }
+    .plan-grid { display:grid; grid-template-columns:1fr 1.5fr 1fr 1fr auto; gap:12px; align-items:end; }
+    .lookup-note { min-height:20px; margin-top:6px; font-size:12px; font-weight:800; color:var(--muted); }
+    .lookup-note.ok { color:var(--ok); }
+    .lookup-note.bad { color:var(--bad); }
+    .filter-grid { display:grid; grid-template-columns:2fr 1.4fr 1.2fr 1fr auto; gap:12px; align-items:end; }
+    label { display:block; font-size:12px; color:var(--primary); font-weight:900; margin-bottom:6px; }
+    input,select { width:100%; min-height:43px; border:1px solid #cbd5e1; border-radius:12px; padding:10px 12px; font:inherit; background:#fff; }
+    .btn { border:1px solid var(--border); background:#fff; color:var(--primary); border-radius:12px; min-height:43px; padding:10px 15px; font-weight:900; cursor:pointer; }
+    .btn2 { border:0; background:linear-gradient(135deg,var(--primary),var(--primary2)); color:#fff; border-radius:12px; min-height:43px; padding:10px 16px; font-weight:900; cursor:pointer; }
+    .danger { border:0; background:#dc2626; color:#fff; border-radius:12px; min-height:38px; padding:8px 12px; font-weight:900; cursor:pointer; }
+    .muted-btn { border:1px dashed #cbd5e1; background:#f8fafc; color:#475569; }
+    .btn:hover,.btn2:hover,.danger:hover { transform:translateY(-1px); }
+    .tools { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .count-pill { background:#f8fafc; border:1px solid var(--border); color:var(--primary); border-radius:999px; padding:8px 12px; font-size:12px; font-weight:900; }
+    .firebase-pill { display:inline-flex; align-items:center; gap:7px; border-radius:999px; padding:8px 12px; font-size:11px; font-weight:900; border:1px solid rgba(255,255,255,.28); background:rgba(255,255,255,.12); color:#fff; }
+    .firebase-pill::before { content:""; width:8px; height:8px; border-radius:50%; background:#fbbf24; }
+    .firebase-pill.ok::before { background:#34d399; }
+    .firebase-pill.bad::before { background:#f87171; }
+    .table-wrap { overflow:auto; border:1px solid var(--border); border-radius:16px; background:#fff; }
+    table { width:100%; border-collapse:collapse; min-width:980px; }
+    th,td { padding:12px; border-bottom:1px solid #edf2f7; text-align:center; font-size:13px; vertical-align:middle; }
+    th { background:#f8fafc; color:var(--primary); font-weight:900; position:sticky; top:0; z-index:1; }
+    td.name { text-align:left; font-weight:900; color:var(--primary); }
+    .muted { color:var(--muted); font-size:11px; font-weight:700; margin-top:3px; }
+    .badge { display:inline-flex; justify-content:center; align-items:center; border-radius:999px; padding:6px 10px; font-size:11px; font-weight:900; background:#eef6ff; color:#0d4b73; }
+    .status { display:inline-flex; min-width:90px; justify-content:center; border-radius:999px; padding:6px 10px; font-size:12px; font-weight:900; }
+    .pending { background:var(--warn-bg); color:var(--warn); } .approved { background:var(--ok-bg); color:var(--ok); } .cancelled { background:var(--bad-bg); color:var(--bad); }
+    .stat-grid { display:grid; grid-template-columns:repeat(5,minmax(150px,1fr)); gap:14px; margin-bottom:16px; }
+    .stat-card { background:#fff; border:1px solid var(--border); border-radius:20px; padding:20px; text-align:center; box-shadow:0 8px 20px rgba(15,23,42,.04); position:relative; overflow:hidden; }
+    .stat-card::before { content:""; position:absolute; inset:0 0 auto 0; height:6px; background:var(--primary); }
+    .stat-card.total::before { background:linear-gradient(90deg,#1d4ed8,#60a5fa); }
+    .stat-card.active::before { background:linear-gradient(90deg,#059669,#34d399); }
+    .stat-card.pending-stat::before { background:linear-gradient(90deg,#d97706,#fbbf24); }
+    .stat-card.finished::before { background:linear-gradient(90deg,#6d28d9,#a78bfa); }
+    .stat-card.employees-stat::before { background:linear-gradient(90deg,#0f766e,#5eead4); }
+    .stat-label { color:var(--muted); font-size:12px; font-weight:900; } .stat-val { color:var(--primary); font-size:34px; font-weight:900; margin-top:7px; }
+    .capture { background:#f8fafc; border-radius:24px; padding:20px; }
+    .report-head { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; border-bottom:2px solid #e5e7eb; padding-bottom:14px; margin-bottom:16px; }
+    .report-brand { display:flex; align-items:center; gap:12px; }
+    .timeline { min-width:1000px; background:#fff; border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+    .timeline-row,.timeline-head { display:grid; grid-template-columns:150px 190px 1fr; min-height:50px; }
+    .timeline-head { background:var(--primary); color:#fff; font-size:12px; font-weight:900; }
+    .timeline-name { padding:10px; border-right:1px solid #edf2f7; display:flex; align-items:center; justify-content:flex-start; font-weight:900; color:var(--primary); background:#fafbfc; font-size:11px; line-height:1.25; }
+    .timeline-employee { font-size:10px; }
+    .timeline-department { padding:10px; border-right:1px solid #edf2f7; display:flex; align-items:center; justify-content:flex-start; font-weight:800; color:#475569; background:#fff; font-size:11px; line-height:1.25; }
+    .timeline-months { display:grid; grid-template-columns:repeat(12,1fr); position:relative; min-height:50px; }
+    .timeline-head .timeline-name, .timeline-head .timeline-department { color:#fff; background:var(--primary); justify-content:center; border-right:1px solid rgba(255,255,255,.16); }
+    .month { display:flex; align-items:center; justify-content:center; border-left:1px solid rgba(255,255,255,.13); padding:8px; }
+    .timeline-row { border-bottom:1px solid #edf2f7; }
+    .bar { position:absolute; top:50%; transform:translateY(-50%); height:26px; border-radius:999px; background:#1b4fa3; color:#fff; font-size:10px; font-weight:900; display:flex; align-items:center; justify-content:center; padding:0 8px; overflow:hidden; white-space:nowrap; }
+    .department-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; margin:0 0 16px; }
+    .department-card { background:#fff; border:1px solid var(--border); border-radius:18px; padding:16px; box-shadow:0 10px 24px rgba(15,23,42,.06); position:relative; overflow:hidden; }
+    .department-card::before { content:""; position:absolute; inset:0 0 auto 0; height:7px; background:linear-gradient(90deg,#1d4ed8,#60a5fa); }
+    .department-card:nth-child(2n)::before { background:linear-gradient(90deg,#059669,#34d399); }
+    .department-card:nth-child(3n)::before { background:linear-gradient(90deg,#7c3aed,#c4b5fd); }
+    .department-card:nth-child(4n)::before { background:linear-gradient(90deg,#ea580c,#fdba74); }
+    .department-card .dept-name { color:var(--primary); font-weight:900; font-size:14px; margin-bottom:8px; padding-top:3px; }
+    .department-card .dept-count { color:#0f172a; font-size:30px; font-weight:900; line-height:1; }
+    .department-card .dept-sub { color:var(--muted); font-size:11px; font-weight:800; margin-top:7px; display:flex; gap:8px; flex-wrap:wrap; }
+    .mini-pill { display:inline-flex; align-items:center; gap:4px; border-radius:999px; padding:5px 8px; font-size:10px; font-weight:900; background:#f1f5f9; color:#334155; }
+    .mini-pill.finished-pill { background:#f3e8ff; color:#6d28d9; }
+    .mini-pill.active-pill { background:#dcfce7; color:#166534; }
+    .mini-pill.pending-pill { background:#fff7ed; color:#9a3412; }
+    .empty { padding:28px; text-align:center; color:var(--muted); font-weight:900; }
+    @media(max-width:1000px) { .grid,.plan-grid,.stat-grid,.filter-grid { grid-template-columns:1fr; } main { padding:0 10px; } .tab { padding:14px 18px; } }
+  </style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <img class="logo" src="LOGO-almajdouie.png" alt="Almajdouie" onerror="this.style.display='none'" />
+    <div><div class="app-title">MMC IT</div><div style="font-size:11px;opacity:.82;font-weight:800">v1.2.0 · Isolated Firebase</div></div>
+  </div>
+  <div class="tools"><span id="firebaseStatus" class="firebase-pill">Connecting Firebase...</span><button class="btn" onclick="downloadBackup()">Download Backup</button></div>
+</header>
+<nav class="tabs">
+  <button class="tab active" data-panel="dashboard">Vacation Dashboard</button>
+  <button class="tab" data-panel="plan">Vacation Plan</button>
+  <button class="tab" data-panel="employeesPanel">Employees</button>
+</nav>
+<main>
+  <section id="dashboard" class="panel active">
+    <div class="topline"><div><h2>Vacation Dashboard</h2><p class="sub">Live data from the isolated MMC Vacation Firebase area.</p></div><div class="tools"><select id="dashRange" onchange="renderDashboard()"><option value="year">Full Year</option><option value="q1">Q1</option><option value="q2">Q2</option><option value="q3">Q3</option><option value="q4">Q4</option></select><button class="btn2" onclick="copyDashboardImage()">Copy Report Image</button></div></div>
+    <div id="dashboardCapture" class="capture"><div class="report-head"><div class="report-brand"><img src="LOGO-almajdouie.png" style="height:52px;background:#fff;border-radius:10px;padding:4px" alt="logo" onerror="this.style.display='none'" /><div><h2>Almajdouie Motors</h2><p class="sub">Annual Leave Statistics Report</p></div></div><div class="count-pill" id="rangeText">Full Year</div></div><div class="stat-grid" id="stats"></div><div class="card" style="margin-bottom:16px"><div class="topline"><h3 style="color:var(--primary)">Department Summary</h3></div><div id="departmentSummary" class="department-summary"></div></div><div class="card" style="margin:0"><div class="topline"><h3 style="color:var(--primary)">Smart Timeline</h3></div><div class="table-wrap"><div id="timeline" class="timeline"></div></div></div></div>
+  </section>
+
+  <section id="plan" class="panel">
+    <div class="card"><div class="topline"><div><h2>Vacation Plan</h2><p class="sub">Firebase storage is isolated from the existing portal collections. Upload your own Excel/CSV employee list.</p></div><div class="tools"><input id="employeeFile" type="file" accept=".xlsx,.xls,.csv" hidden /><button class="btn" onclick="document.getElementById('employeeFile').click()">Upload Employee Excel</button><button class="btn muted-btn" onclick="clearEmployees()">Clear Employees</button></div></div><div class="plan-grid"><div><label>Employee ID</label><input id="empIdInput" list="employeeIdList" placeholder="Enter employee ID" autocomplete="off" oninput="handleEmployeeIdInput()" /><datalist id="employeeIdList"></datalist><div id="empLookupNote" class="lookup-note">Enter the employee ID to show the name.</div></div><div><label>Employee Name</label><input id="empNameDisplay" placeholder="Employee name will appear here" readonly /></div><div><label>From Date</label><input type="date" id="fromDate" /></div><div><label>To Date</label><input type="date" id="toDate" /></div><button class="btn2" onclick="addPlan()">Add Plan</button></div></div>
+    <div class="card"><div class="topline"><h3 style="color:var(--primary)">Vacation Plan List</h3><div class="tools"><input id="planFile" type="file" accept=".xlsx,.xls,.csv" hidden /><span class="count-pill" id="planCount">0 Plans</span><button class="btn" onclick="document.getElementById('planFile').click()">Upload Vacation Excel</button><button class="btn" onclick="downloadPlanTemplate()">Download Template</button><button class="btn" onclick="exportPlansCsv()">Export CSV</button><button class="danger" onclick="clearPlans()">Clear All Plans</button></div></div><div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Action</th></tr></thead><tbody id="plansBody"></tbody></table></div></div>
+  </section>
+
+  <section id="employeesPanel" class="panel">
+    <div class="card">
+      <div class="topline">
+        <div><h2>Employees</h2><p class="sub">Employees are stored only under the isolated MMC Vacation Firebase area. Upload your own Excel/CSV file.</p></div>
+        <div class="tools"><input id="employeeFileEmployees" type="file" accept=".xlsx,.xls,.csv" hidden /><button class="btn" onclick="document.getElementById('employeeFileEmployees').click()">Upload Excel</button><button class="btn" onclick="exportEmployeesCsv()">Export Employees CSV</button><button class="btn muted-btn" onclick="clearEmployees()">Clear Employees</button></div>
+      </div>
+      <div class="stat-grid" id="employeeStats"></div>
+      <div class="filter-grid">
+        <div><label>Search</label><input id="employeeSearch" placeholder="Search by name, ID, email..." oninput="renderEmployeePage()" /></div>
+        <div><label>Department</label><select id="departmentFilter" onchange="renderEmployeePage()"></select></div>
+        <div><label>Job Title Group</label><select id="jobFilter" onchange="renderEmployeePage()"></select></div>
+        <div><label>Region</label><select id="regionFilter" onchange="renderEmployeePage()"></select></div>
+        <button class="btn" onclick="clearEmployeeFilters()">Clear</button>
+      </div>
+    </div>
+    <div class="card"><div class="topline"><h3 style="color:var(--primary)">Employee List</h3><span class="count-pill" id="employeeCount">0 Employees</span></div><div class="table-wrap"><table><thead><tr><th>Employee</th><th>ID</th><th>Email</th><th>Department</th><th>Job Group</th><th>Position</th><th>Supervisor</th><th>Region</th><th>Status</th></tr></thead><tbody id="employeesBody"></tbody></table></div></div>
+  </section>
+</main>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBsvbEEHEgBuw9pDml-Om90mm8MLDw8gWs",
+  authDomain: "baghethan-ba325.firebaseapp.com",
+  projectId: "baghethan-ba325"
+};
+
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ISOLATED FIREBASE NAMESPACE.
+// This page NEVER reads/writes the existing top-level employees or vacations collections.
+const VACATION_ROOT = db.collection('mmc_vacation_app').doc('main');
+const EMPLOYEES_REF = VACATION_ROOT.collection('employees');
+const PLANS_REF = VACATION_ROOT.collection('plans');
+
+const $ = id => document.getElementById(id);
+let employees = [];
+let plans = [];
+let employeesUnsubscribe = null;
+let plansUnsubscribe = null;
+
+function setFirebaseStatus(text, state='') {
+  const el = $('firebaseStatus');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'firebase-pill' + (state ? ' ' + state : '');
+}
+
+function requireFirebaseUser() {
+  if (auth.currentUser) return true;
+  alert('Please sign in through login.html first. Firebase data is protected by your portal account.');
+  return false;
+}
+
+function safeDocId(value) {
+  return String(value || '').trim().replaceAll('/', '_') || ('doc_' + Date.now());
+}
+
+async function deleteCollectionDocs(ref) {
+  while (true) {
+    const snap = await ref.limit(400).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    snap.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    if (snap.size < 400) break;
+  }
+}
+
+async function writeRows(ref, rows, idGetter) {
+  for (let start = 0; start < rows.length; start += 400) {
+    const batch = db.batch();
+    rows.slice(start, start + 400).forEach((row, i) => {
+      const id = safeDocId(idGetter(row, start + i));
+      batch.set(ref.doc(id), row, { merge: false });
+    });
+    await batch.commit();
+  }
+}
+
+async function replaceRows(ref, rows, idGetter) {
+  await deleteCollectionDocs(ref);
+  if (rows.length) await writeRows(ref, rows, idGetter);
+}
+
+function startFirebaseSync() {
+  if (employeesUnsubscribe) employeesUnsubscribe();
+  if (plansUnsubscribe) plansUnsubscribe();
+
+  setFirebaseStatus('Firebase Connected', 'ok');
+
+  employeesUnsubscribe = EMPLOYEES_REF.onSnapshot(
+    snap => {
+      employees = snap.docs.map(d => ({ ...d.data(), _firebaseId: d.id }));
+      renderAll();
+    },
+    err => {
+      console.error('Employees Firebase listener failed', err);
+      setFirebaseStatus('Firebase Error', 'bad');
+    }
+  );
+
+  plansUnsubscribe = PLANS_REF.onSnapshot(
+    snap => {
+      plans = snap.docs.map(d => ({ ...d.data(), id: d.data().id || d.id, _firebaseId: d.id }));
+      renderAll();
+    },
+    err => {
+      console.error('Plans Firebase listener failed', err);
+      setFirebaseStatus('Firebase Error', 'bad');
+    }
+  );
+}
+
+auth.onAuthStateChanged(user => {
+  if (!user) {
+    setFirebaseStatus('Not Signed In', 'bad');
+    employees = [];
+    plans = [];
+    renderAll();
+    return;
+  }
+  startFirebaseSync();
+});
+function esc(v){ return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function norm(v){ return String(v ?? '').trim().toLowerCase(); }
+function daysBetween(from,to){ const a=new Date(from), b=new Date(to); return Math.floor((b-a)/86400000)+1; }
+function getEmployee(id){ const key=norm(id); return employees.find(e => norm(e.empId) === key); }
+function statusAr(s){ return s==='approved'?'Approved':s==='cancelled'?'Cancelled':'Pending'; }
+function statusClass(s){ return s==='approved'?'approved':s==='cancelled'?'cancelled':'pending'; }
+function jobRank(job){ const order={Technician:1,Supervisor:2,Tamheer:3,Trainee:4,Manager:5}; return order[String(job||'').trim()] || 99; }
+function switchPanel(panel){ document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.panel===panel)); document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id===panel)); renderAll(); }
+document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => switchPanel(btn.dataset.panel)));
+function sortedEmployees(list=employees){ return [...list].sort((a,b)=>jobRank(a.jobTitleGroup)-jobRank(b.jobTitleGroup) || String(a.departmentName).localeCompare(String(b.departmentName)) || String(a.name).localeCompare(String(b.name))); }
+function renderEmployees(){ const list=$('employeeIdList'); if(list) list.innerHTML = sortedEmployees().map(e => `<option value="${esc(e.empId)}">${esc(e.name)} - ${esc(e.jobTitleGroup||'')}</option>`).join(''); if($('empIdInput')) updateEmployeeLookup(false); }
+function updateEmployeeLookup(showMissing=true){ const input=$('empIdInput'); const nameBox=$('empNameDisplay'); const note=$('empLookupNote'); if(!input || !nameBox || !note) return null; const empId=String(input.value||'').trim(); const emp=empId ? getEmployee(empId) : null; nameBox.value = emp ? emp.name : ''; note.className = 'lookup-note' + (emp ? ' ok' : (empId && showMissing ? ' bad' : '')); note.textContent = emp ? `${emp.name} — ${emp.departmentName || 'No department'} — ${emp.jobTitleGroup || 'Employee'}` : (empId && showMissing ? 'Employee ID not found. Please check the number or upload the correct Excel file.' : 'Enter the employee ID to show the name.'); return emp; }
+function handleEmployeeIdInput(){ updateEmployeeLookup(true); }
+async function addPlan(){
+  if(!requireFirebaseUser()) return;
+  const empId=String($('empIdInput').value||'').trim(), from=$('fromDate').value, to=$('toDate').value;
+  if(!empId || !from || !to) return alert('Please enter an employee ID and both dates');
+  if(new Date(from)>new Date(to)) return alert('The end date must be after the start date');
+  const emp=getEmployee(empId);
+  if(!emp) return alert('Employee not found');
+  const plan={
+    id:'p_'+Date.now(),
+    empId,
+    name:emp.name,
+    departmentName:emp.departmentName||'',
+    jobTitleGroup:emp.jobTitleGroup||'',
+    from,
+    to,
+    status:'pending',
+    createdAt:new Date().toISOString(),
+    createdByUid:auth.currentUser.uid,
+    createdByEmail:auth.currentUser.email || ''
+  };
+  try {
+    await PLANS_REF.doc(safeDocId(plan.id)).set(plan);
+    $('empIdInput').value='';
+    $('empNameDisplay').value='';
+    updateEmployeeLookup(false);
+    $('fromDate').value='';
+    $('toDate').value='';
+  } catch(err) {
+    alert('Could not save plan to Firebase: '+err.message);
+  }
+}
+async function setStatus(id,status){
+  if(!requireFirebaseUser()) return;
+  const plan=plans.find(p=>p.id===id);
+  if(!plan) return;
+  try {
+    await PLANS_REF.doc(plan._firebaseId || safeDocId(id)).update({
+      status,
+      updatedAt:new Date().toISOString(),
+      updatedByUid:auth.currentUser.uid,
+      updatedByEmail:auth.currentUser.email || ''
+    });
+  } catch(err) { alert('Could not update Firebase: '+err.message); }
+}
+async function deletePlan(id){
+  if(!requireFirebaseUser()) return;
+  if(!confirm('Delete this plan?')) return;
+  const plan=plans.find(p=>p.id===id);
+  if(!plan) return;
+  try { await PLANS_REF.doc(plan._firebaseId || safeDocId(id)).delete(); }
+  catch(err) { alert('Could not delete from Firebase: '+err.message); }
+}
+async function clearPlans(){
+  if(!requireFirebaseUser()) return;
+  if(!confirm('Clear all vacation plans from the isolated Firebase area?')) return;
+  try { await deleteCollectionDocs(PLANS_REF); }
+  catch(err) { alert('Could not clear Firebase plans: '+err.message); }
+}
+function renderPlans(){ $('planCount').textContent = `${plans.length} Plan${plans.length === 1 ? '' : 's'}`; if(!plans.length){ $('plansBody').innerHTML = '<tr><td class="empty" colspan="7">No vacation plans yet</td></tr>'; return; } const sorted=[...plans].sort((a,b)=>String(a.from).localeCompare(String(b.from)) || String(a.name).localeCompare(String(b.name))); $('plansBody').innerHTML = sorted.map(p => `<tr><td class="name">${esc(p.name)}</td><td>${esc(p.departmentName || '')}</td><td>${esc(p.from)}</td><td>${esc(p.to)}</td><td>${daysBetween(p.from,p.to)}</td><td><span class="status ${statusClass(p.status)}">${statusAr(p.status)}</span></td><td><button class="btn" onclick="setStatus('${p.id}','approved')">Approve</button> <button class="btn" onclick="setStatus('${p.id}','cancelled')">Cancel</button> <button class="danger" onclick="deletePlan('${p.id}')">Delete</button></td></tr>`).join(''); }
+function rangeMonths(){ const r=$('dashRange').value; const map={year:[0,11,'Full Year'],q1:[0,2,'Q1'],q2:[3,5,'Q2'],q3:[6,8,'Q3'],q4:[9,11,'Q4']}; return map[r] || map.year; }
+function renderDashboard(){
+  const [sm,em,label]=rangeMonths();
+  $('rangeText').textContent=label;
+  const filtered=plans.filter(p=>{ const m=new Date(p.from).getMonth(); return m>=sm && m<=em; });
+  const today=new Date();
+  today.setHours(0,0,0,0);
+  const isActive = p => { const from=new Date(p.from); const to=new Date(p.to); from.setHours(0,0,0,0); to.setHours(0,0,0,0); return today>=from && today<=to; };
+  const isFinished = p => { const to=new Date(p.to); to.setHours(0,0,0,0); return to < today; };
+  const finishedCount = filtered.filter(isFinished).length;
+  const activeTodayCount = plans.filter(isActive).length;
+  const pendingCount = filtered.filter(p=>p.status==='pending').length;
+  $('stats').innerHTML = `<div class="stat-card total"><div class="stat-label">Total Leaves</div><div class="stat-val">${filtered.length}</div></div><div class="stat-card active"><div class="stat-label">Active Today</div><div class="stat-val">${activeTodayCount}</div></div><div class="stat-card pending-stat"><div class="stat-label">Pending</div><div class="stat-val">${pendingCount}</div></div><div class="stat-card finished"><div class="stat-label">Finished Leaves</div><div class="stat-val">${finishedCount}</div></div><div class="stat-card employees-stat"><div class="stat-label">Employees</div><div class="stat-val">${new Set(filtered.map(p=>p.empId)).size}</div></div>`;
+
+  const deptCounts={};
+  filtered.forEach(p=>{
+    const dept=(p.departmentName || 'No Department').trim() || 'No Department';
+    if(!deptCounts[dept]) deptCounts[dept]={leaves:0, finished:0, active:0, pending:0, employees:new Set()};
+    deptCounts[dept].leaves++;
+    if(isFinished(p)) deptCounts[dept].finished++;
+    if(isActive(p)) deptCounts[dept].active++;
+    if(p.status === 'pending') deptCounts[dept].pending++;
+    if(p.empId) deptCounts[dept].employees.add(p.empId);
+  });
+  const deptNames=Object.keys(deptCounts).sort((a,b)=>deptCounts[b].leaves-deptCounts[a].leaves || a.localeCompare(b));
+  $('departmentSummary').innerHTML = deptNames.length
+    ? deptNames.map(dept=>`<div class="department-card"><div class="dept-name">${esc(dept)}</div><div class="dept-count">${deptCounts[dept].leaves}</div><div class="dept-sub"><span class="mini-pill">${deptCounts[dept].employees.size} employee(s)</span><span class="mini-pill active-pill">${deptCounts[dept].active} active</span><span class="mini-pill pending-pill">${deptCounts[dept].pending} pending</span><span class="mini-pill finished-pill">${deptCounts[dept].finished} finished</span></div></div>`).join('')
+    : '<div class="empty" style="grid-column:1/-1">No department data in this range</div>';
+
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let html=`<div class="timeline-head"><div class="timeline-name timeline-employee">Employee</div><div class="timeline-department">Department</div><div class="timeline-months" style="grid-template-columns:repeat(${em-sm+1},1fr)">`;
+  for(let i=sm;i<=em;i++) html += `<div class="month">${months[i]}</div>`;
+  html += `</div></div>`;
+  const grouped={};
+  filtered.forEach(p=>{ const key=p.empId || p.name; if(!grouped[key]) grouped[key]={name:p.name, departmentName:p.departmentName || '', plans:[]}; grouped[key].plans.push(p); });
+  const span=em-sm+1;
+  Object.values(grouped).sort((a,b)=>(a.departmentName||'').localeCompare(b.departmentName||'') || (a.name||'').localeCompare(b.name||'')).forEach(group=>{
+    html += `<div class="timeline-row"><div class="timeline-name timeline-employee">${esc(group.name)}</div><div class="timeline-department">${esc(group.departmentName || '-')}</div><div class="timeline-months" style="grid-template-columns:repeat(${span},1fr)">`;
+    group.plans.forEach((p,idx)=>{
+      const s=new Date(p.from), e=new Date(p.to);
+      const sM=Math.max(s.getMonth(),sm), eM=Math.min(e.getMonth(),em);
+      const left=((sM-sm)/span)*100;
+      const width=Math.max(((eM-sM+1)/span)*100, 8);
+      const colors=['#1b4fa3','#0f766e','#7e22ce','#b45309'];
+      html += `<div class="bar" style="left:${left}%;width:${width}%;background:${colors[idx%colors.length]}">${esc(p.from)} → ${esc(p.to)}</div>`;
+    });
+    html += `</div></div>`;
+  });
+  if(!Object.keys(grouped).length) html += '<div class="empty">No data in this range</div>';
+  $('timeline').innerHTML=html;
+}
+function uniqueValues(key){ return [...new Set(employees.map(e=>String(e[key]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b)); }
+function fillFilter(id, values, label){ const current=$(id).value; $(id).innerHTML = `<option value="">${label}</option>` + values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join(''); if(values.includes(current)) $(id).value=current; }
+function renderEmployeeFilters(){ fillFilter('departmentFilter', uniqueValues('departmentName'), 'All Departments'); fillFilter('jobFilter', uniqueValues('jobTitleGroup'), 'All Job Groups'); fillFilter('regionFilter', uniqueValues('region'), 'All Regions'); }
+function getFilteredEmployees(){ const q=norm($('employeeSearch')?.value||''); const dep=$('departmentFilter')?.value||''; const job=$('jobFilter')?.value||''; const reg=$('regionFilter')?.value||''; return sortedEmployees().filter(e=>{ const text=norm([e.empId,e.name,e.email,e.departmentName,e.jobTitleGroup,e.positionTitle,e.supervisorName,e.region].join(' ')); return (!q || text.includes(q)) && (!dep || e.departmentName===dep) && (!job || e.jobTitleGroup===job) && (!reg || e.region===reg); }); }
+function renderEmployeePage(){ if(!$('employeesBody')) return; renderEmployeeFilters(); const rows=getFilteredEmployees(); $('employeeCount').textContent = `${rows.length} / ${employees.length} Employees`; const departments=uniqueValues('departmentName').length; const technicians=employees.filter(e=>e.jobTitleGroup==='Technician').length; const managers=employees.filter(e=>e.jobTitleGroup==='Manager').length; $('employeeStats').innerHTML = `<div class="stat-card"><div class="stat-label">Employees</div><div class="stat-val">${employees.length}</div></div><div class="stat-card"><div class="stat-label">Departments</div><div class="stat-val">${departments}</div></div><div class="stat-card"><div class="stat-label">Technicians</div><div class="stat-val">${technicians}</div></div><div class="stat-card"><div class="stat-label">Managers</div><div class="stat-val">${managers}</div></div>`; if(!rows.length){ $('employeesBody').innerHTML='<tr><td class="empty" colspan="9">No employees loaded. Use Upload Excel to add your employee list.</td></tr>'; return; } $('employeesBody').innerHTML = rows.map(e=>`<tr><td class="name">${esc(e.name)}<div class="muted">${esc(e.positionTitle||'')}</div></td><td>${esc(e.empId)}</td><td>${esc(e.email||'-')}</td><td>${esc(e.departmentName||'-')}<div class="muted">${esc(e.departmentPath||'')}</div></td><td><span class="badge">${esc(e.jobTitleGroup||'-')}</span></td><td>${esc(e.positionTitle||'-')}</td><td>${esc(e.supervisorName||'-')}<div class="muted">${esc(e.supervisorEmpId||'')}</div></td><td>${esc(e.region||'-')}</td><td><span class="status ${e.active!==false?'approved':'cancelled'}">${e.active!==false?'Active':'Inactive'}</span></td></tr>`).join(''); }
+function clearEmployeeFilters(){ $('employeeSearch').value=''; $('departmentFilter').value=''; $('jobFilter').value=''; $('regionFilter').value=''; renderEmployeePage(); }
+function mapEmployeeRow(r){ const get=(...keys)=>{ for(const k of keys) if(r[k]!==undefined && String(r[k]).trim()!=='') return String(r[k]).trim(); return ''; }; return { empId:get('empId','Employee ID','Assignment Number','id'), name:get('name','Person Full Name','Employee Name'), email:get('email','Employee Email Address','Email'), phone:get('phone','mobile','Mobile'), positionTitle:get('positionTitle','Position Name','Position'), jobTitleGroup:get('jobTitleGroup','jobTitle','Job Title Group','Job Title') || 'Employee', jobTitle:get('jobTitle','Job Title') || get('jobTitleGroup') || 'Employee', employeeType:get('employeeType','Employee Type'), departmentId:get('departmentId','Department ID'), departmentName:get('departmentName','Department Name','department','Department'), departmentPath:get('departmentPath','Department Path'), parentDepartmentId:get('parentDepartmentId','Parent Department ID'), supervisorEmpId:get('supervisorEmpId','Supervisor Employee Number','Supervisor ID'), supervisorName:get('supervisorName','Supervisor Display Name','Supervisor Name'), region:get('region','Location Source State Code','Region'), shiftType:get('shiftType','Shift Type') || 'morning', rotation:get('rotation') || 'none', active: !['false','inactive','no','0'].includes(norm(get('active','status')||'true')) }; }
+async function handleEmployeeUpload(ev){
+  const file=ev.target.files[0];
+  if(!file) return;
+  if(!requireFirebaseUser()) { ev.target.value=''; return; }
+  try {
+    const buffer=await file.arrayBuffer();
+    const wb=XLSX.read(buffer, {type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws, {defval:''});
+    const mapped=rows.map(mapEmployeeRow).filter(e=>e.empId && e.name);
+    if(!mapped.length) return alert('No valid employees were found. Make sure the file contains empId and name.');
+    if(!confirm(`Upload ${mapped.length} employees to the isolated Firebase area? This will replace the current employee list in this Vacation app only.`)) return;
+    setFirebaseStatus('Uploading Employees...');
+    await replaceRows(
+      EMPLOYEES_REF,
+      mapped.map(e=>({...e, updatedAt:new Date().toISOString(), updatedByUid:auth.currentUser.uid, updatedByEmail:auth.currentUser.email||''})),
+      e=>e.empId
+    );
+    setFirebaseStatus('Firebase Connected', 'ok');
+    alert(`${mapped.length} employees uploaded to Firebase successfully`);
+  } catch(err) {
+    setFirebaseStatus('Firebase Error', 'bad');
+    alert('Could not upload employees to Firebase: '+err.message);
+  } finally { ev.target.value=''; }
+}
+$('employeeFile').addEventListener('change', handleEmployeeUpload);
+$('employeeFileEmployees').addEventListener('change', handleEmployeeUpload);
+function excelDateToIso(value){
+  if(value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0,10);
+  if(typeof value === 'number'){
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if(parsed) return `${parsed.y}-${String(parsed.m).padStart(2,'0')}-${String(parsed.d).padStart(2,'0')}`;
+  }
+  const raw = String(value || '').trim();
+  if(!raw) return '';
+  const iso = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if(iso) return `${iso[1]}-${iso[2].padStart(2,'0')}-${iso[3].padStart(2,'0')}`;
+  const us = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if(us) return `${us[3]}-${us[1].padStart(2,'0')}-${us[2].padStart(2,'0')}`;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? raw : d.toISOString().slice(0,10);
+}
+function mapPlanRow(r, index){
+  const get=(...keys)=>{ for(const k of keys){ if(r[k]!==undefined && String(r[k]).trim()!=='') return r[k]; } return ''; };
+  const empId = String(get('empId','Employee ID','EmployeeID','Employee Number','Assignment Number','ID')).trim();
+  const from = excelDateToIso(get('from','From','From Date','Start Date','Start','dateFrom'));
+  const to = excelDateToIso(get('to','To','To Date','End Date','End','dateTo'));
+  if(!empId || !from || !to) return null;
+  const emp = getEmployee(empId);
+  const statusRaw = norm(get('status','Status'));
+  const status = ['approved','approve','accepted'].includes(statusRaw) ? 'approved' : ['cancelled','canceled','cancel','rejected'].includes(statusRaw) ? 'cancelled' : 'pending';
+  return {
+    id:'p_excel_'+Date.now()+'_'+index,
+    empId,
+    name: emp?.name || String(get('name','Employee Name','Employee')).trim() || empId,
+    departmentName: emp?.departmentName || String(get('departmentName','Department','Department Name')).trim(),
+    jobTitleGroup: emp?.jobTitleGroup || String(get('jobTitleGroup','Job Title Group','Job Title')).trim(),
+    from,
+    to,
+    status,
+    createdAt:new Date().toISOString()
+  };
+}
+async function handlePlanUpload(ev){
+  const file=ev.target.files[0];
+  if(!file) return;
+  if(!requireFirebaseUser()) { ev.target.value=''; return; }
+  try {
+    const buffer=await file.arrayBuffer();
+    const wb=XLSX.read(buffer, {type:'array', cellDates:true});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws, {defval:''});
+    const imported=rows.map(mapPlanRow).filter(Boolean).filter(p=>new Date(p.from) <= new Date(p.to));
+    if(!imported.length) return alert('No valid vacation plans were found. Required columns: empId, from, to.');
+    const replace = confirm(`Found ${imported.length} vacation plan(s). Press OK to replace current Firebase plans, or Cancel to add them.`);
+    const enriched=imported.map(p=>({
+      ...p,
+      updatedAt:new Date().toISOString(),
+      updatedByUid:auth.currentUser.uid,
+      updatedByEmail:auth.currentUser.email||''
+    }));
+    setFirebaseStatus('Uploading Plans...');
+    if(replace) await replaceRows(PLANS_REF, enriched, p=>p.id);
+    else await writeRows(PLANS_REF, enriched, p=>p.id);
+    setFirebaseStatus('Firebase Connected', 'ok');
+    alert(`${imported.length} vacation plan(s) uploaded to Firebase successfully`);
+  } catch(err) {
+    setFirebaseStatus('Firebase Error', 'bad');
+    alert('Could not upload vacation plans to Firebase: '+err.message);
+  } finally { ev.target.value=''; }
+}
+$('planFile').addEventListener('change', handlePlanUpload);
+function downloadPlanTemplate(){
+  const rows=[['empId','from','to','status'],['71133','2026-04-12','2026-04-18','pending']];
+  downloadText('vacation_plan_template.csv', csvString(rows));
+}
+async function clearEmployees(){
+  if(!requireFirebaseUser()) return;
+  if(!confirm('Clear all employees from the isolated Firebase Vacation area? Vacation plans will not be deleted.')) return;
+  try { await deleteCollectionDocs(EMPLOYEES_REF); }
+  catch(err) { alert('Could not clear Firebase employees: '+err.message); }
+}
+function exportPlansCsv(){ const headers=['empId','name','departmentName','from','to','days','status']; const rows=plans.map(p=>[p.empId,p.name,p.departmentName,p.from,p.to,daysBetween(p.from,p.to),p.status]); downloadText('vacation_plans.csv', csvString([headers,...rows])); }
+function exportEmployeesCsv(){ const headers=['empId','name','email','positionTitle','jobTitleGroup','employeeType','departmentId','departmentName','departmentPath','supervisorEmpId','supervisorName','region','active']; const rows=sortedEmployees().map(e=>headers.map(h=>e[h]??'')); downloadText('employees_mmc_it.csv', csvString([headers,...rows])); }
+function csvString(rows){ return rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\n'); }
+function downloadBackup(){ downloadText('mmc_it_vacation_backup.json', JSON.stringify({firebaseNamespace:'mmc_vacation_app/main',employees,plans,exportedAt:new Date().toISOString()}, null, 2)); }
+function downloadText(filename,text){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'})); a.download=filename; a.click(); URL.revokeObjectURL(a.href); }
+async function copyDashboardImage(){ const canvas=await html2canvas($('dashboardCapture'), {scale:2, backgroundColor:'#f8fafc', useCORS:true}); canvas.toBlob(async blob=>{ try { await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]); alert('Report image copied'); } catch(e) { const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='vacation-dashboard.png'; a.click(); } }); }
+function renderAll(){ renderEmployees(); renderPlans(); renderDashboard(); renderEmployeePage(); }
+renderAll();
+</script>
+</body>
+</html>
