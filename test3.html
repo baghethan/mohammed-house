@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MMC IT SERVICE DELIVERY - VERSION 2.0.29 - SELF SERVICE PROFILE PASSWORD -->
+<!-- MMC IT SERVICE DELIVERY - VERSION 2.1.0 - SELF REGISTRATION APPROVAL GATE -->
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
@@ -166,7 +166,7 @@
             <img src="LOGO-almajdouie.png" height="35" alt="MMC">
             <div id="uDisplay" style="font-size:13px; border-left:1px solid #fff3; padding-left:15px">Authenticating...</div>
         </div>
-        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.0.29</div>
+        <div style="font-weight:900; letter-spacing:1px; text-transform: uppercase;">MMC IT Service Delivery v2.1.0</div>
         <div class="header-actions">
             <button type="button" class="profile-btn" onclick="openProfile()">👤 Profile</button>
             <button onclick="handleLogout()" style="background:#ef4444; color:white; border:none; padding:8px 18px; border-radius:8px; cursor:pointer; font-weight:bold; transition:0.2s;">Logout</button>
@@ -280,9 +280,48 @@
             }
 
             const snap = await db.collection('app_users').doc(user.uid).get();
-            if (!snap.exists) return;
+            if (!snap.exists) {
+                let accessState = 'missing';
+                try {
+                    const requestSnap = await db.collection('access_requests').doc(user.uid).get();
+                    if (requestSnap.exists) {
+                        const requestData = requestSnap.data() || {};
+                        const requestStatus = String(requestData.status || requestData.approvalStatus || 'pending').toLowerCase();
+                        accessState = requestStatus === 'rejected' ? 'rejected' : 'pending';
+                    }
+                } catch (error) {
+                    console.warn('Unable to read access request state', error);
+                }
+                await auth.signOut();
+                window.location.replace(`login.html?access=${encodeURIComponent(accessState)}`);
+                return;
+            }
 
             const userData = snap.data();
+            const approvalStatus = String(userData.approvalStatus || 'approved').trim().toLowerCase();
+            const selfServiceAccount = userData.selfRegistered === true || userData.registrationSource === 'self_service';
+            if (selfServiceAccount && user.emailVerified === false) {
+                try { await user.sendEmailVerification(); } catch (error) {}
+                await auth.signOut();
+                window.location.replace('login.html?access=verify');
+                return;
+            }
+            if (approvalStatus === 'pending') {
+                await auth.signOut();
+                window.location.replace('login.html?access=pending');
+                return;
+            }
+            if (approvalStatus === 'rejected') {
+                await auth.signOut();
+                window.location.replace('login.html?access=rejected');
+                return;
+            }
+            if (userData.active === false) {
+                await auth.signOut();
+                window.location.replace('login.html?access=inactive');
+                return;
+            }
+
             window.currentUser = user;
             window.currentUserData = {
                 ...userData,
@@ -534,7 +573,7 @@
             const params = new URLSearchParams({
                 auth: 'active',
                 lang: getPortalLanguage(),
-                build: 'v2.0.29'
+                build: 'v2.1.0'
             });
 
             if (window.currentUser && window.currentUser.uid) {
