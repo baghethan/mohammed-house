@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Employee Management v1.9.1 - Login UID Link</title>
+  <title>Employee Management v1.9.2 - Login UID Link</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root{
@@ -80,6 +80,16 @@
       .form-grid{grid-template-columns:1fr}
       .header{align-items:flex-start}
     }
+    .employee-group { --group-ink:#34445b; --group-bg:#eef2f6; }
+    .group-admin { --group-ink:#5d3894; --group-bg:#f1eafb; }
+    .group-supervisor { --group-ink:#184b91; --group-bg:#e9f2ff; }
+    .group-technician { --group-ink:#146047; --group-bg:#e5f5ee; }
+    .group-tamheer { --group-ink:#884600; --group-bg:#fff1dd; }
+    .group-trainee { --group-ink:#086172; --group-bg:#e5f6fa; }
+    .group-inactive { --group-ink:#475569; --group-bg:#e9edf2; }
+    .employee-group-heading th { text-align:start; background:var(--group-bg); color:var(--group-ink); padding:10px 14px; position:static; }
+    .employee-group-count { display:inline-block; margin-inline-start:9px; padding:2px 8px; border-radius:999px; background:#fff; color:var(--group-ink); }
+    .employee-group-row .emp-name { border-inline-start:4px solid var(--group-ink); }
   </style>
 </head>
 <body>
@@ -89,7 +99,7 @@
     <div class="brand">
       <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
       <div>
-        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.9.1</span></h2>
+        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.9.2</span></h2>
         <p class="subtitle" id="pageSubtitle">إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات</p>
       </div>
     </div>
@@ -269,7 +279,7 @@ const JOB_TITLE_LABELS = {
 };
 const I18N = {
   ar: {
-    documentTitle: 'إدارة الموظفين v1.9.1 - ربط Login UID',
+    documentTitle: 'إدارة الموظفين v1.9.2 - ربط Login UID',
     pageTitle: 'إدارة سجل الموظفين (مزامنة تلقائية)',
     pageSubtitle: 'إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات',
     reload: 'تحديث',
@@ -308,7 +318,8 @@ const I18N = {
     rotationNote: 'معنى الروتيشن: خيار الخميس والجمعة يجعل شخصاً واحداً كل أسبوع أوف الخميس والجمعة ويعمل السبت. خيار الجمعة أون كول يجعل شخصاً واحداً كل أسبوع أون كول يوم الجمعة وأوف السبت. إذا كان الشخص في إجازة أو تم تحديده غائباً، ينتقل الدور تلقائياً للشخص التالي.',
     listTitle: 'قائمة الموظفين (تحدث تلقائياً)',
     sortBy: 'ترتيب حسب',
-    sortJob: 'المسمى الوظيفي',
+    sortJob: 'مجموعات حسب المسمى الوظيفي',
+    groupAdmin: 'المدير / الأدمن', groupInactive: 'غير النشطين', groupActive: 'الموظفون النشطون', groupOther: 'مسميات أخرى',
     sortName: 'اسم الموظف',
     exportExcel: 'تنزيل Excel',
     importExcel: 'رفع Excel',
@@ -347,7 +358,7 @@ const I18N = {
     confirmDelete: 'هل تريد حذف هذا الموظف؟'
   },
   en: {
-    documentTitle: 'Employee Management v1.9.1 - Login UID Link',
+    documentTitle: 'Employee Management v1.9.2 - Login UID Link',
     pageTitle: 'Employee Management (Auto Sync)',
     pageSubtitle: 'Add and update employees linked to the schedule and vacation plan',
     reload: 'Refresh',
@@ -386,7 +397,8 @@ const I18N = {
     rotationNote: 'Rotation meaning: the Thu/Fri option gives one person every week off on Thursday and Friday while working Saturday. The Friday on-call option gives one person every week on call Friday and off Saturday. If that person is on leave or marked absent, the turn moves automatically to the next person.',
     listTitle: 'Employee List (Auto Updated)',
     sortBy: 'Sort by',
-    sortJob: 'Job Title',
+    sortJob: 'Groups by Job Title',
+    groupAdmin: 'Manager / Admin', groupInactive: 'Inactive Employees', groupActive: 'Active Employees', groupOther: 'Other Job Titles',
     sortName: 'Employee Name',
     exportExcel: 'Download Excel',
     importExcel: 'Upload Excel',
@@ -717,7 +729,7 @@ function normalizeJobTitle(value, fallback = '') {
   const key = raw.toLowerCase().replace(/\s+/g, '');
   if (!key) return fallback;
   if (EMPLOYEE_JOB_TITLES.includes(raw)) return raw;
-  if (['manager', 'admin', 'administrator', 'مدير', 'المدير'].includes(key)) return 'المدير';
+  if (['manager', 'admin', 'administrator', 'مدير', 'المدير', 'ادمن', 'أدمن', 'الادمن', 'الأدمن'].includes(key)) return 'المدير';
   if (['supervisor', 'lead', 'مشرف', 'المشرف'].includes(key)) return 'المشرف';
   if (['technician', 'tech', 'employee', 'user', 'فني', 'الفني', 'موظف'].includes(key)) return 'الفني';
   if (['tamheer', 'تمهير', 'التمهير'].includes(key)) return 'التمهير';
@@ -1517,17 +1529,33 @@ async function handleExcelImport(event) {
 
 $('employeeListSort').addEventListener('change', render);
 
+const employeeGroupByTitle = new Map([
+  ['المدير', 'admin'], ['المشرف', 'supervisor'], ['الفني', 'technician'],
+  ['التمهير', 'tamheer'], ['المتدرب', 'trainee']
+]);
+const employeeGroupOrder = ['admin', 'supervisor', 'technician', 'tamheer', 'trainee', 'other', 'inactive'];
+
+function employeeGroup(employee) {
+  return employee.active === false ? 'inactive' : employeeGroupByTitle.get(employee.jobTitle) || 'other';
+}
+
+function employeeGroupLabel(group) {
+  const specialLabels = { admin: 'groupAdmin', inactive: 'groupInactive', active: 'groupActive', other: 'groupOther' };
+  if (specialLabels[group]) return t(specialLabels[group]);
+  const title = [...employeeGroupByTitle].find(([, key]) => key === group)?.[0];
+  return jobTitleLabel(title);
+}
+
 function render() {
   const tbody = $('empTableBody');
   const byJob = $('employeeListSort').value === 'job';
   const collator = new Intl.Collator(currentLang, { sensitivity: 'base', numeric: true });
-  const rows = emps.map(normalizeEmployee).sort((a, b) => {
-    if (byJob) {
-      const byTitle = collator.compare(jobTitleLabel(a.jobTitle), jobTitleLabel(b.jobTitle));
-      if (byTitle) return byTitle;
-    }
-    return collator.compare(a.name || '', b.name || '');
-  });
+  const groupForDisplay = employee => byJob || employee.active === false ? employeeGroup(employee) : 'active';
+  const groupOrder = byJob ? employeeGroupOrder : ['active', 'inactive'];
+  const rows = emps.map(normalizeEmployee).sort((a, b) =>
+    groupOrder.indexOf(groupForDisplay(a)) - groupOrder.indexOf(groupForDisplay(b)) ||
+    collator.compare(a.name || '', b.name || '')
+  );
   renderedEmployeeRows = rows;
   $('empCount').textContent = employeeCountLabel(rows.length);
 
@@ -1536,10 +1564,20 @@ function render() {
     return;
   }
 
+  const groupCounts = new Map();
+  for (const employee of rows) {
+    const group = groupForDisplay(employee);
+    groupCounts.set(group, (groupCounts.get(group) || 0) + 1);
+  }
   tbody.innerHTML = rows.map((emp, rowIndex) => {
+    const group = groupForDisplay(emp);
+    const groupHeading = rowIndex === 0 || groupForDisplay(rows[rowIndex - 1]) !== group
+      ? `<tr class="employee-group employee-group-heading group-${group}"><th colspan="12">${escapeHtml(employeeGroupLabel(group))}<span class="employee-group-count">${groupCounts.get(group)}</span></th></tr>`
+      : '';
     const source = employeeSource(emp);
     return `
-      <tr data-id="${escapeHtml(emp.id)}">
+      ${groupHeading}
+      <tr class="employee-group employee-group-row group-${employeeGroup(emp)}" data-id="${escapeHtml(emp.id)}">
         <td class="emp-name">
           ${escapeHtml(emp.name)}
           <div class="muted">Login UID: ${escapeHtml(emp.loginUid || '-')}</div>
