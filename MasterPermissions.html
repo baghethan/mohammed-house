@@ -424,18 +424,6 @@
       cursor: default;
     }
 
-    .pending-section { overflow: hidden; }
-    .pending-grid { display:grid; gap:10px; padding:14px; }
-    .pending-card { border:1px solid #fed7aa; background:#fffaf3; border-radius:9px; padding:13px; display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; }
-    .pending-name { color:var(--primary-strong); font-size:14px; font-weight:900; margin-bottom:4px; }
-    .pending-meta { color:#475569; font-size:11px; line-height:1.6; }
-    .pending-requested { margin-top:7px; color:#7c2d12; font-size:11px; font-weight:800; line-height:1.5; }
-    .pending-actions { display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end; }
-    .approve-btn,.reject-btn { border:0; border-radius:7px; min-height:34px; padding:7px 11px; font:inherit; font-size:11px; font-weight:900; cursor:pointer; }
-    .approve-btn { background:#15803d; color:#fff; }
-    .reject-btn { background:#fff; color:#b91c1c; border:1px solid #fecaca; }
-    .pending-pill { display:inline-flex; align-items:center; min-height:24px; padding:4px 8px; border-radius:999px; background:#fff7ed; color:#9a3412; font-size:11px; font-weight:900; }
-
     @media (max-width: 900px) {
       .permissions-shell {
         padding: 16px;
@@ -470,21 +458,11 @@
         <p class="eyebrow">MMC IT Service Delivery</p>
         <h1>Unified Security & Permissions</h1>
       </div>
-      <span class="version-pill">v3.5.0</span>
+      <span class="version-pill">v3.3.7</span>
     </header>
 
     <div class="workspace">
-      <section class="surface pending-section">
-        <div class="table-title">
-          <h2>Pending Access Requests</h2>
-          <div class="action-group"><button class="btn-mini" id="refreshPendingBtn" type="button">Refresh Requests</button><span class="pending-pill" id="pendingCount">0 pending</span></div>
-        </div>
-        <div class="pending-grid" id="pendingRequests">
-          <div class="empty-state">Loading access requests...</div>
-        </div>
-      </section>
-
-      <section class="surface editor" id="accessEditor">
+      <section class="surface editor">
         <div class="section-bar">
           <h2>User Access Profile</h2>
           <span class="selected-hint" id="selectedHint">No user selected</span>
@@ -523,6 +501,13 @@
       </section>
 
       <section class="permission-layout">
+        <div class="surface permission-panel">
+          <div class="panel-title"><h2>Meeting Attendance</h2></div>
+          <label class="toggle-field" for="uMeetingAttendance">
+            <input type="checkbox" id="uMeetingAttendance">
+            <span>Show Meeting_Attendance tab</span>
+          </label>
+        </div>
         <div class="surface permission-panel">
           <div class="panel-title">
             <h2>Diagnostics</h2>
@@ -611,7 +596,7 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getFirestore, doc, setDoc, getDoc, getDocs, collection, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import { getFirestore, doc, setDoc, getDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
     import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
     const config = {
@@ -653,10 +638,9 @@
       dashboard: "Dashboard",
       checklist: "Check-List",
       brands: "Brands",
-      branches: "Branches",
-      technicians: "Technicians",
-      visit: "Visits Entry",
       upgrade: "Upgrade Windows",
+      visit: "Visits Entry",
+      branches: "Branches",
       checklist_admin: "Checklist Admin",
       reports: "Reports windows"
     };
@@ -669,13 +653,6 @@
     const userCount = document.getElementById('userCount');
     const selectedHint = document.getElementById('selectedHint');
     const saveBtn = document.getElementById('saveBtn');
-    const pendingRequests = document.getElementById('pendingRequests');
-    const pendingCount = document.getElementById('pendingCount');
-    const refreshPendingBtn = document.getElementById('refreshPendingBtn');
-    let pendingRefreshTimer = null;
-    let selectedPendingUid = '';
-    let currentAdminUser = null;
-    let currentAdminProfile = null;
 
     document.getElementById('diagGrid').innerHTML = renderPermissionItems(DIAG, 'diag-c');
     document.getElementById('schGrid').innerHTML = renderPermissionItems(SCH, 'sch-c');
@@ -703,135 +680,6 @@
       }[char]));
     }
 
-
-    function normalizeLinkValue(value) {
-      return String(value || '').trim().toLowerCase();
-    }
-
-    function employeeIdFromRecord(record) {
-      return String(
-        record?.employeeId ||
-        record?.technicianId ||
-        record?.empId ||
-        record?.empNum ||
-        ''
-      ).trim();
-    }
-
-    function safeEmployeeDocumentId(value) {
-      return String(value || '').trim().replace(/[\/\\#?\[\]]+/g, '_');
-    }
-
-    function employeeMatchesAccount(employee, account) {
-      const accountEmployeeId = normalizeLinkValue(employeeIdFromRecord(account));
-      const employeeEmployeeId = normalizeLinkValue(employeeIdFromRecord(employee));
-      const accountEmail = normalizeLinkValue(account?.email);
-      const employeeEmail = normalizeLinkValue(employee?.email);
-
-      if (accountEmployeeId && employeeEmployeeId && accountEmployeeId === employeeEmployeeId) return true;
-      if (accountEmail && employeeEmail && accountEmail === employeeEmail) return true;
-      return false;
-    }
-
-    async function linkEmployeeToLoginAccount(uid, accountData, options = {}) {
-      const employeeId = employeeIdFromRecord(accountData);
-      const email = String(accountData?.email || '').trim();
-      if (!uid || (!employeeId && !email)) return { linked:false, reason:'missing_identity' };
-
-      const employeesSnap = options.employeesSnap || await getDocs(collection(db, 'employees'));
-      const matches = employeesSnap.docs
-        .map(d => ({ id:d.id, ...d.data() }))
-        .filter(emp => employeeMatchesAccount(emp, { ...accountData, employeeId }));
-
-      if (!matches.length) return { linked:false, reason:'employee_not_found' };
-
-      // Prefer exact Employee ID, then an already-canonical document.
-      matches.sort((a,b) => {
-        const aExact = employeeId && normalizeLinkValue(employeeIdFromRecord(a)) === normalizeLinkValue(employeeId) ? 1 : 0;
-        const bExact = employeeId && normalizeLinkValue(employeeIdFromRecord(b)) === normalizeLinkValue(employeeId) ? 1 : 0;
-        if (aExact !== bExact) return bExact - aExact;
-        const aCanonical = employeeId && normalizeLinkValue(a.id) === normalizeLinkValue(employeeId) ? 1 : 0;
-        const bCanonical = employeeId && normalizeLinkValue(b.id) === normalizeLinkValue(employeeId) ? 1 : 0;
-        return bCanonical - aCanonical;
-      });
-
-      const sourceEmployee = matches[0];
-      const canonicalId = safeEmployeeDocumentId(employeeId || sourceEmployee.id);
-      const targetRef = doc(db, 'employees', canonicalId);
-      const targetSnap = await getDoc(targetRef);
-      const targetData = targetSnap.exists() ? targetSnap.data() : {};
-
-      // Preserve the richer Employee Master data. Registration name/email are only fallbacks.
-      const merged = {
-        ...sourceEmployee,
-        ...targetData,
-        empId: employeeId || employeeIdFromRecord(targetData) || employeeIdFromRecord(sourceEmployee),
-        employeeId: employeeId || employeeIdFromRecord(targetData) || employeeIdFromRecord(sourceEmployee),
-        name: targetData.name || sourceEmployee.name || accountData.name || '',
-        email: targetData.email || sourceEmployee.email || email,
-        loginUid: uid,
-        authUid: uid,
-        linkedAppUserUid: uid,
-        linkedAt: new Date().toISOString(),
-        linkedByUid: currentAdminUser?.uid || '',
-        linkedByEmail: currentAdminUser?.email || '',
-        loginLinkSource: 'MasterPermissions-v3.5.0'
-      };
-
-      // Do not persist the old Firestore document id as a field.
-      delete merged.id;
-      await setDoc(targetRef, merged, { merge:true });
-
-      const removed = [];
-      // When Employee ID exists, all documents with the same Employee ID are duplicates.
-      if (employeeId) {
-        for (const old of matches) {
-          if (old.id === canonicalId) continue;
-          const sameEmployeeId =
-            normalizeLinkValue(employeeIdFromRecord(old)) === normalizeLinkValue(employeeId);
-          if (!sameEmployeeId) continue;
-          await deleteDoc(doc(db, 'employees', old.id));
-          removed.push(old.id);
-        }
-      }
-
-      return {
-        linked:true,
-        employeeId: employeeId || employeeIdFromRecord(sourceEmployee),
-        canonicalId,
-        loginUid: uid,
-        removed
-      };
-    }
-
-    let approvedEmployeeSyncStarted = false;
-    async function syncApprovedUsersToEmployees() {
-      if (approvedEmployeeSyncStarted) return;
-      approvedEmployeeSyncStarted = true;
-      try {
-        const [usersSnap, employeesSnap] = await Promise.all([
-          getDocs(collection(db, 'app_users')),
-          getDocs(collection(db, 'employees'))
-        ]);
-
-        let linked = 0;
-        let migrated = 0;
-        for (const userDoc of usersSnap.docs) {
-          const account = { id:userDoc.id, ...userDoc.data() };
-          const approval = String(account.approvalStatus || 'approved').toLowerCase();
-          if (approval !== 'approved' || account.active === false) continue;
-          const result = await linkEmployeeToLoginAccount(userDoc.id, account, { employeesSnap });
-          if (result.linked) {
-            linked++;
-            migrated += result.removed.length;
-          }
-        }
-        console.info(`Employee login link sync completed: ${linked} linked, ${migrated} legacy employee document(s) removed.`);
-      } catch (error) {
-        console.warn('Employee login link sync failed', error);
-      }
-    }
-
     function normalizeMainTabs(user) {
       const hasExplicitMainTabs = Array.isArray(user.permissions_main_tabs);
       const mainTabs = new Set((hasExplicitMainTabs ? user.permissions_main_tabs : [])
@@ -853,108 +701,6 @@
       return Array.from(mainTabs);
     }
 
-    function formatRequestTime(value, fallback) {
-      try {
-        if (value && typeof value.toDate === 'function') return value.toDate().toLocaleString();
-        if (value && value.seconds) return new Date(value.seconds * 1000).toLocaleString();
-        if (fallback) return new Date(fallback).toLocaleString();
-      } catch (error) {}
-      return 'Not recorded';
-    }
-
-    function requestedText(request) {
-      const parts = [];
-      const diag = request.requestedPermissionsDiagnostics || [];
-      const sch = request.requestedPermissionsSchedule || [];
-      const sv = request.requestedPermissionsSiteVisit || [];
-      if (diag.length) parts.push('Diagnostics: ' + diag.map(x => DIAG[x] || x).join(', '));
-      if (sch.length) parts.push('Schedule: ' + sch.map(x => SCH[x] || x).join(', '));
-      if (sv.length) parts.push('Site Visit: ' + sv.map(x => SV[x] || x).join(', '));
-      return parts.join(' | ') || 'No pages requested';
-    }
-
-    async function loadPendingRequests() {
-      try {
-        const snap = await getDocs(collection(db, 'access_requests'));
-        const rows = snap.docs.map(d => ({ id:d.id, ...d.data() }))
-          .filter(r => String(r.status || r.approvalStatus || 'pending').toLowerCase() === 'pending')
-          .sort((a,b) => String(a.requestedAtIso || '').localeCompare(String(b.requestedAtIso || '')));
-        pendingCount.textContent = `${rows.length} pending`;
-        if (!rows.length) {
-          pendingRequests.innerHTML = '<div class="empty-state">No pending access requests.</div>';
-          return;
-        }
-        pendingRequests.innerHTML = rows.map(r => `
-          <div class="pending-card">
-            <div>
-              <div class="pending-name">${escapeHtml(r.name || r.email || r.id)}</div>
-              <div class="pending-meta">Employee ID: <b>${escapeHtml(r.employeeId || r.technicianId || '-')}</b> &nbsp; | &nbsp; Email: ${escapeHtml(r.email || '-')}<br>Department: ${escapeHtml(r.department || '-')} &nbsp; | &nbsp; Requested: ${escapeHtml(formatRequestTime(r.requestedAt, r.requestedAtIso))}${r.reason ? `<br>Reason: ${escapeHtml(r.reason)}` : ''}</div>
-              <div class="pending-requested">${escapeHtml(requestedText(r))}</div>
-            </div>
-            <div class="pending-actions">
-              <button class="approve-btn" type="button" onclick="reviewAccessRequest('${escapeHtml(r.id)}')">Review & Approve</button>
-              <button class="reject-btn" type="button" onclick="rejectAccessRequest('${escapeHtml(r.id)}')">Reject</button>
-            </div>
-          </div>`).join('');
-      } catch (error) {
-        pendingCount.textContent = 'Error';
-        pendingRequests.innerHTML = `<div class="empty-state" style="color:var(--danger)">Unable to load access_requests: ${escapeHtml(error.message)}</div>`;
-      }
-    }
-
-    if (refreshPendingBtn) {
-      refreshPendingBtn.addEventListener('click', async () => {
-        refreshPendingBtn.disabled = true;
-        refreshPendingBtn.textContent = 'Refreshing...';
-        try { await loadPendingRequests(); }
-        finally { refreshPendingBtn.disabled = false; refreshPendingBtn.textContent = 'Refresh Requests'; }
-      });
-    }
-
-    function applyRequestedChecks(request) {
-      const diag = request.requestedPermissionsDiagnostics || [];
-      const sch = request.requestedPermissionsSchedule || [];
-      const sv = request.requestedPermissionsSiteVisit || [];
-      document.querySelectorAll('.diag-c').forEach(i => i.checked = diag.includes(i.dataset.id));
-      document.querySelectorAll('.sch-c').forEach(i => i.checked = sch.includes(i.dataset.id));
-      document.querySelectorAll('.sv-c').forEach(i => i.checked = sv.includes(i.dataset.id));
-      document.querySelectorAll('.emp-act-c').forEach(i => i.checked = false);
-      document.querySelectorAll('.perm-c').forEach(i => i.checked = false);
-    }
-
-    window.reviewAccessRequest = async uid => {
-      const reqSnap = await getDoc(doc(db, 'access_requests', uid));
-      if (!reqSnap.exists()) return alert('Access request not found.');
-      const request = reqSnap.data();
-      selectedPendingUid = uid;
-      document.getElementById('uId').value = uid;
-      document.getElementById('uName').value = request.name || '';
-      document.getElementById('uEmail').value = request.email || '';
-      document.getElementById('uTechId').value = request.employeeId || request.technicianId || '';
-      document.getElementById('uRole').value = 'technician';
-      document.getElementById('uActive').checked = true;
-      applyRequestedChecks(request);
-      selectedHint.textContent = `Pending request: ${request.name || request.email || uid}`;
-      saveBtn.textContent = 'Approve & Activate';
-      userList.querySelectorAll('tr[data-uid]').forEach(row => row.classList.remove('selected'));
-      document.getElementById('accessEditor').scrollIntoView({behavior:'smooth', block:'start'});
-    };
-
-    window.rejectAccessRequest = async uid => {
-      if (!confirm('Reject this access request?')) return;
-      const actor = currentAdminProfile?.name || currentAdminUser?.displayName || currentAdminUser?.email || '';
-      await setDoc(doc(db, 'access_requests', uid), {
-        status:'rejected', approvalStatus:'rejected', rejectedAt:new Date().toISOString(),
-        rejectedByUid:currentAdminUser?.uid || '', rejectedByEmail:currentAdminUser?.email || '', rejectedByName:actor
-      }, { merge:true });
-      if (selectedPendingUid === uid) {
-        selectedPendingUid = '';
-        selectedHint.textContent = 'No user selected';
-        saveBtn.textContent = 'Deploy Security Policies';
-      }
-      await loadPendingRequests();
-    };
-
     async function loadTable() {
       try {
         const snap = await getDocs(collection(db, 'app_users'));
@@ -968,13 +714,12 @@
         userList.innerHTML = snap.docs.map(documentSnapshot => {
           const user = documentSnapshot.data();
           const active = user.active !== false;
-          const approval = String(user.approvalStatus || 'approved').toLowerCase();
 
           return `<tr data-uid="${escapeHtml(documentSnapshot.id)}">
             <td><strong>${escapeHtml(user.technicianId || '-')}</strong></td>
             <td>${escapeHtml(user.name || 'Unknown')}</td>
             <td>${escapeHtml((user.role || 'technician').toUpperCase())}</td>
-            <td><span class="status-pill ${active && approval === 'approved' ? 'is-active' : 'is-inactive'}">${approval === 'pending' ? 'Pending' : (approval === 'rejected' ? 'Rejected' : (active ? 'Active' : 'Inactive'))}</span></td>
+            <td><span class="status-pill ${active ? 'is-active' : 'is-inactive'}">${active ? 'Active' : 'Inactive'}</span></td>
             <td class="uid-cell">${escapeHtml(documentSnapshot.id)}</td>
           </tr>`;
         }).join('');
@@ -993,8 +738,6 @@
       if (!userDoc.exists()) return;
 
       const user = userDoc.data();
-      selectedPendingUid = '';
-      saveBtn.textContent = 'Deploy Security Policies';
       document.getElementById('uId').value = id;
       document.getElementById('uName').value = user.name || "";
       document.getElementById('uEmail').value = user.email || "";
@@ -1002,6 +745,7 @@
       document.getElementById('uRole').value = (user.role || "technician").toLowerCase();
       document.getElementById('uActive').checked = user.active !== false;
       const mainTabs = normalizeMainTabs(user);
+      document.getElementById('uMeetingAttendance').checked = mainTabs.includes('meeting_attendance');
       document.querySelectorAll('.diag-c').forEach(input => input.checked = mainTabs.includes(input.dataset.id));
       document.querySelectorAll('.perm-c').forEach(input => input.checked = mainTabs.includes(input.dataset.id));
       document.querySelectorAll('.sch-c').forEach(input => input.checked = (user.permissions_schedule || []).includes(input.dataset.id));
@@ -1019,7 +763,7 @@
 
     saveBtn.onclick = async () => {
       const uid = document.getElementById('uId').value;
-      if (!uid) return alert("Select user or pending request first.");
+      if (!uid) return alert("Select user first.");
 
       const diagnosticsPermissions = Array.from(document.querySelectorAll('.diag-c:checked')).map(input => input.dataset.id);
       const schedulePermissions = Array.from(document.querySelectorAll('.sch-c:checked')).map(input => input.dataset.id);
@@ -1030,15 +774,13 @@
       if (diagnosticsPermissions.includes('diagnostics')) mainTabs.push('diagnostics');
       if (schedulePermissions.length) mainTabs.push('schedule');
       if (siteVisitPermissions.length) mainTabs.push('site_visit');
+      if (document.getElementById('uMeetingAttendance').checked) mainTabs.push('meeting_attendance');
       if (permissionsPermissions.includes('permissions')) mainTabs.push('permissions');
 
-      const isApproval = selectedPendingUid === uid;
-      const actorName = currentAdminProfile?.name || currentAdminUser?.displayName || currentAdminUser?.email || '';
       const data = {
         technicianId: document.getElementById('uTechId').value,
-        employeeId: document.getElementById('uTechId').value,
         role: document.getElementById('uRole').value.toLowerCase(),
-        active: isApproval ? true : document.getElementById('uActive').checked,
+        active: document.getElementById('uActive').checked,
         permissions_diagnostics: diagnosticsPermissions,
         permissions_schedule: schedulePermissions,
         permissions_employee_actions: employeeActionPermissions,
@@ -1048,44 +790,12 @@
         updatedAt: new Date().toISOString()
       };
 
-      if (isApproval) {
-        data.name = document.getElementById('uName').value;
-        data.email = document.getElementById('uEmail').value;
-        data.approvalStatus = 'approved';
-        data.selfRegistered = true;
-        data.registrationSource = 'self_service';
-        data.approvedAt = new Date().toISOString();
-        data.approvedByUid = currentAdminUser?.uid || '';
-        data.approvedByEmail = currentAdminUser?.email || '';
-        data.approvedByName = actorName;
-      }
-
       saveBtn.disabled = true;
-      saveBtn.textContent = isApproval ? 'Approving...' : 'Saving...';
+      saveBtn.textContent = 'Saving...';
 
       try {
         await setDoc(doc(db, 'app_users', uid), data, { merge: true });
-        let employeeLinkResult = null;
-        if (isApproval) {
-          employeeLinkResult = await linkEmployeeToLoginAccount(uid, data);
-
-          await setDoc(doc(db, 'access_requests', uid), {
-            status:'approved', approvalStatus:'approved', approvedAt:new Date().toISOString(),
-            approvedByUid:currentAdminUser?.uid || '', approvedByEmail:currentAdminUser?.email || '', approvedByName:actorName,
-            approvedRole:data.role,
-            approvedPermissionsDiagnostics:diagnosticsPermissions,
-            approvedPermissionsSchedule:schedulePermissions,
-            approvedPermissionsSiteVisit:siteVisitPermissions
-          }, { merge:true });
-          selectedPendingUid = '';
-          const employeeLinkText = employeeLinkResult?.linked
-            ? ` Employee ${employeeLinkResult.employeeId || ''} linked to Login UID ${uid}.${employeeLinkResult.removed.length ? ` Old employee document removed: ${employeeLinkResult.removed.join(', ')}` : ''}`
-            : ' Employee Master record was not found; account approval still succeeded.';
-          alert('Access request approved and account activated.' + employeeLinkText);
-          await loadPendingRequests();
-        } else {
-          alert('Permissions updated successfully.');
-        }
+        alert("Permissions updated successfully.");
         await loadTable();
         await window.fetchUser(uid);
       } finally {
@@ -1094,31 +804,11 @@
       }
     };
 
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
+    onAuthStateChanged(auth, (user) => {
+      if (user) loadTable();
+      else {
         userCount.textContent = 'Waiting';
         userList.innerHTML = `<tr><td colspan="5" class="empty-state">Waiting for session...</td></tr>`;
-        return;
-      }
-      currentAdminUser = user;
-      try {
-        const adminSnap = await getDoc(doc(db, 'app_users', user.uid));
-        currentAdminProfile = adminSnap.exists() ? adminSnap.data() : {};
-        const owner = String(user.email || '').toLowerCase() === 'baghethanmh@almajdouie.com';
-        const role = String(currentAdminProfile.role || '').toLowerCase();
-        const canManage = owner || currentAdminProfile.superAdmin === true || role === 'admin' || (currentAdminProfile.permissions_permissions || []).includes('permissions');
-        if (!canManage) {
-          userCount.textContent = 'Access denied';
-          userList.innerHTML = `<tr><td colspan="5" class="empty-state" style="color:var(--danger)">You do not have permission to manage access.</td></tr>`;
-          pendingRequests.innerHTML = '<div class="empty-state">Access denied.</div>';
-          return;
-        }
-        await Promise.all([loadTable(), loadPendingRequests()]);
-        await syncApprovedUsersToEmployees();
-        if (!pendingRefreshTimer) pendingRefreshTimer = setInterval(loadPendingRequests, 15000);
-      } catch (error) {
-        userCount.textContent = 'Error';
-        pendingRequests.innerHTML = `<div class="empty-state" style="color:var(--danger)">${escapeHtml(error.message)}</div>`;
       }
     });
   </script>
