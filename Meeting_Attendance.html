@@ -84,6 +84,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 .employee-choice:has(input:disabled) { color: #526781; cursor: default; }
 #workloadPicker { margin-block: 16px; }
 #workloadAddSelected { margin-top: 8px; }
+#followupForm textarea { width: min(300px, 75vw); }
+#meetingPanel .add-action-point { justify-self: start; }
+#meetingItems ul { margin-block: 4px 10px; }
 </style>
 </head>
 <body>
@@ -193,14 +196,17 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     </div>
     <h3>متابعة البنود بالتفصيل</h3>
     <p id="meetingCounts"></p>
+    <p>اكتب كل نقطة في سطر مستقل أو اضغط «إضافة نقطة».</p>
     <form id="followupForm">
       <label>النوع <select name="kind"><option value="طلب">طلب</option><option value="مهمة">مهمة</option></select></label>
       <label>الرقم المرجعي <input name="reference" maxlength="50"></label>
-      <label>وصف البند <input name="description" required maxlength="200"></label>
+      <label>وصف البند <textarea name="description" rows="3" required maxlength="1500" dir="auto"></textarea>
+        <button type="button" class="add-action-point" data-point-field="description">إضافة نقطة</button></label>
       <label>المسؤول <input name="owner" required maxlength="120"></label>
       <label>موعد الإغلاق المستهدف <input name="due" type="date"></label>
       <label>سبب عدم الإغلاق <input name="blocker" maxlength="250"></label>
-      <label>الإجراء التالي <input name="action" maxlength="250"></label>
+      <label>الإجراء التالي <textarea name="action" rows="3" maxlength="1500" dir="auto"></textarea>
+        <button type="button" class="add-action-point" data-point-field="action">إضافة نقطة</button></label>
       <button type="submit">حفظ البند</button>
       <button type="button" id="cancelFollowup" hidden>إلغاء التعديل</button>
     </form>
@@ -266,6 +272,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 (() => {
     const get = id => document.getElementById(id);
     const english = {
+    "إضافة نقطة": "Add bullet",
+    "اكتب كل نقطة في سطر مستقل أو اضغط «إضافة نقطة».": "Enter each point on its own line or select Add bullet.",
     "اختيار الموظفين لإدخال الأعداد": "Select employees to enter counts",
     "تظهر الأسماء بعد تحميل قائمة الموظفين من البوابة أو إضافة أسماء يدويًا.": "Names appear after loading the portal employee directory or adding names manually.",
     "أدخل أعداد كل موظف ثم اعتمد الجدول.": "Enter the counts for each employee, then apply the table.",
@@ -465,7 +473,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.4.0';
+    get('meetingVersion').textContent = 'v1.4.1';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -561,6 +569,34 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         );
     }
 
+    function actionPoints(value) {
+        const lines = String(value ?? '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+        const marker = /^(?:[•●▪]|[-*](?=\s|$)|\d+[.)](?=\s))\s*/u;
+        return {
+            list: lines.length > 1 || lines.some(line => marker.test(line)),
+            lines: lines.map(line => line.replace(marker, '').trim()).filter(Boolean)
+        };
+    }
+
+    function memoActionPoints(value) {
+        const { list, lines } = actionPoints(value);
+        if (!list || !lines.length) return escapeMemo(lines[0] || '');
+        return '<ul style="margin:4px 0;padding-inline-start:20px;">' +
+            lines.map(line => '<li dir="auto">' + escapeMemo(line) + '</li>').join('') + '</ul>';
+    }
+
+    function showActionPoints(parent, value) {
+        const { list, lines } = actionPoints(value);
+        if (!lines.length) return;
+        if (!list) {
+            parent.append(node('p', lines[0]));
+            return;
+        }
+        const bullets = node('ul', '');
+        bullets.append(...lines.map(line => node('li', line)));
+        parent.append(bullets);
+    }
+
     function buildMemo(date, people, items, details) {
         const name = details.name || defaultMeetingName;
         subject.value = 'Minutes of Meeting | ' + name + ' | ' + date;
@@ -581,9 +617,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             const status = item.closed === date ? 'Closed' : item.due && item.due < date ? 'Overdue' : 'Open';
             const kind = item.kind === 'طلب' ? 'Request' : 'Task';
             const meta = [kind, item.reference, status].filter(Boolean).map(escapeMemo).join(' · ');
-            const action = escapeMemo(item.description) + '<br><span style="color:#526781;font-size:12px;">' + meta + '</span>' +
+            const action = memoActionPoints(item.description) + '<br><span style="color:#526781;font-size:12px;">' + meta + '</span>' +
                 (item.blocker ? '<br><strong>Blocker:</strong> ' + escapeMemo(item.blocker) : '') +
-                (item.action ? '<br><strong>Next action:</strong> ' + escapeMemo(item.action) : '');
+                (item.action ? '<br><strong>Next action:</strong> ' + memoActionPoints(item.action) : '');
             return `<tr>${cell(index + 1, 'text-align:center;')}${cell(action, 'width:59%;')}${cell(escapeMemo(item.owner), 'width:21%;')}${cell(escapeMemo(item.due || '—'), 'width:15%;')}</tr>`;
         }).join('');
         preview.innerHTML = `
@@ -1303,14 +1339,18 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             const closed = item.closed === date;
             const row = node('article', '');
             row.append(
-                node('strong', [tr(item.kind), item.reference, item.description].filter(Boolean).join(' · ')),
+                node('strong', [tr(item.kind), item.reference].filter(Boolean).join(' · ')),
                 node('p', tr('المسؤول: ') + item.owner + tr(' | الحالة: ') +
                     (closed ? tr('مغلق') : item.due && item.due < date ? tr('مفتوح ومتأخر') : tr('مفتوح')) +
                     (item.due ? tr(' | موعد الإغلاق المستهدف: ') + item.due : '') +
                     tr(' | تاريخ التسجيل: ') + item.date)
             );
+            showActionPoints(row, item.description);
             if (item.blocker) row.append(node('p', tr('سبب عدم الإغلاق: ') + item.blocker));
-            if (item.action) row.append(node('p', tr('الإجراء التالي: ') + item.action));
+            if (actionPoints(item.action).lines.length) {
+                row.append(node('strong', tr('الإجراء التالي')));
+                showActionPoints(row, item.action);
+            }
 
             if (item.closed && item.closed > date) {
                 row.append(node('p', tr('أُغلق في اجتماع لاحق بتاريخ ') + item.closed));
@@ -1535,10 +1575,20 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         if (saveAttendance(person, status, excuseReason)) resetAttendance();
     };
 
+    for (const control of document.querySelectorAll('[data-point-field]')) {
+        control.onclick = () => {
+            const field = followup.elements[control.dataset.pointField];
+            const value = field.value.trimEnd();
+            const next = /(?:^|\n)•$/u.test(value) ? value + ' ' : (value ? value + '\n' : '') + '• ';
+            if (next.length <= field.maxLength) field.value = next;
+            field.focus();
+        };
+    }
+
     followup.onsubmit = event => {
         event.preventDefault();
         const fields = Object.fromEntries([...new FormData(followup)].map(([key, value]) => [key, value.trim()]));
-        if (!fields.description || !fields.owner) {
+        if (!actionPoints(fields.description).lines.length || !fields.owner) {
             feedback.textContent = tr('أدخل وصف البند واسم المسؤول.');
             return;
         }
@@ -1573,8 +1623,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 
     const translationButtons = [...document.querySelectorAll(
         '#rosterForm input[name="employee"], #attendanceForm input[name="excuseReason"], ' +
-        '#workloadForm input[name="employee"], #followupForm input[name="description"], ' +
-        '#followupForm input[name="owner"], #followupForm input[name="blocker"], #followupForm input[name="action"], ' +
+        '#workloadForm input[name="employee"], #followupForm textarea[name="description"], ' +
+        '#followupForm input[name="owner"], #followupForm input[name="blocker"], #followupForm textarea[name="action"], ' +
         '#memoDetails input[name="meetingName"], #memoDetails input[name="venue"]'
     )].map(field => {
         field.dir = 'auto';
@@ -1646,7 +1696,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 
     applyTranslation.onclick = () => {
         if (!translationField) return;
-        const value = formattedText(resultText.value).replace(/\n+/g, ' ');
+        const formatted = formattedText(resultText.value);
+        const value = translationField.tagName === 'TEXTAREA' ? formatted : formatted.replace(/\n+/g, ' ');
         if (!value) return;
         if (translationField.maxLength >= 0 && value.length > translationField.maxLength) {
             translationFeedback.textContent = tr('الترجمة أطول من الحد المسموح لهذا الحقل.');
