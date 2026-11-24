@@ -69,6 +69,19 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 #translationDialog::backdrop { background: #14284999; }
 #translationDialog label { display: grid; margin-block: 8px; }
 #meetingPanel .translate-field { display: block; font-size: 12px; padding: 4px 8px; margin: 0; justify-self: start; }
+#workloadImageImport { margin-block: 16px; padding: 12px; border: 1px solid #dbe4ef; border-radius: 8px; }
+#workloadImageImport summary { cursor: pointer; font-weight: 700; }
+.ocr-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+#workloadImageTable { width: 100%; min-width: 545px; border-collapse: collapse; }
+#workloadImageTable th, #workloadImageTable td { border-bottom: 1px solid #dbe4ef; padding: 6px; }
+#workloadImageTable input { width: 100%; }
+#workloadImageTable input[type="number"] { min-width: 78px; }
+#directoryPickerLabel { flex: 1 0 100%; min-width: 0; box-sizing: border-box; border: 1px solid #dbe4ef; border-radius: 8px; padding: 10px; }
+.directory-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.employee-checkboxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 265px), 1fr)); gap: 5px 12px; max-height: 300px; overflow: auto; }
+#meetingPanel .employee-choice { display: flex; gap: 6px; align-items: center; padding: 5px; cursor: pointer; overflow-wrap: anywhere; }
+.employee-choice input { width: 17px; height: 17px; flex-shrink: 0; }
+.employee-choice:has(input:disabled) { color: #526781; cursor: default; }
 </style>
 </head>
 <body>
@@ -90,13 +103,19 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
   <section id="attendancePanel">
     <h2>حضور الاجتماع</h2>
     <form id="rosterForm">
-      <label id="directoryPickerLabel">اختيار موظف من قائمة Employee Management
-        <select name="directoryEmployee" required disabled><option value="">اختر اسم الموظف</option></select>
-      </label>
+      <fieldset id="directoryPickerLabel" hidden>
+        <legend>اختر الموظفين من Employee Management</legend>
+        <div class="directory-tools">
+          <button id="selectAllEmployees" type="button">تحديد الكل</button>
+          <button id="clearSelectedEmployees" type="button">إلغاء التحديد</button>
+          <span id="selectedEmployeeCount" role="status"></span>
+        </div>
+        <div id="employeeCheckboxes" class="employee-checkboxes"></div>
+      </fieldset>
       <label id="manualEmployeeLabel" hidden>اسم الموظف
         <input name="employee" maxlength="120" dir="auto" disabled>
       </label>
-      <button id="addRosterEmployee" type="submit" disabled>إضافة الموظف</button>
+      <button id="addRosterEmployee" type="submit" disabled>إضافة المحددين</button>
     </form>
     <p id="employeeDirectoryStatus" role="status">جارٍ تحميل قائمة الموظفين…</p>
     <p>تظهر قائمة الموظفين من تاريخ إضافتهم في الاجتماعات التالية. اختر الحالة الفعلية لكل موظف.</p>
@@ -126,6 +145,25 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
       <label>Overdue <input name="overdue" type="number" min="0" max="999999999" step="1" value="0" required></label>
       <button type="submit">حفظ الأعداد</button>
     </form>
+    <details id="workloadImageImport">
+      <summary>استيراد جدول من صورة</summary>
+      <p>اختر نوع البنود أعلاه، وارفع لقطة واضحة تتضمن أسماء الموظفين وعناوين Open وOn Hold وOverdue.</p>
+      <div class="ocr-controls">
+        <label>صورة الجدول <input id="workloadImage" type="file" accept="image/png,image/jpeg,image/webp,image/bmp"></label>
+        <label>لغة الأسماء <select id="workloadImageLanguage"><option value="eng">الإنجليزية</option><option value="ara">العربية والإنجليزية</option></select></label>
+        <button type="button" id="readWorkloadImage">قراءة الصورة</button>
+      </div>
+      <p id="workloadImageStatus" role="status"></p>
+      <div id="workloadImagePreview" hidden>
+        <div class="workload-table-wrap">
+          <table id="workloadImageTable" dir="ltr">
+            <thead><tr><th scope="col">Employee</th><th scope="col">Open</th><th scope="col">On Hold</th><th scope="col">Overdue</th><th scope="col">Review</th></tr></thead>
+            <tbody id="workloadImageRows"></tbody>
+          </table>
+        </div>
+        <button type="button" id="saveWorkloadImage">اعتماد الأعداد وتحديث الجدول</button>
+      </div>
+    </details>
     <div class="workload-table-wrap">
       <table id="workloadTable" dir="ltr">
         <caption id="workloadCaption"></caption>
@@ -211,6 +249,29 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 (() => {
     const get = id => document.getElementById(id);
     const english = {
+    "اختر الموظفين من Employee Management": "Select employees from Employee Management",
+    "تحديد الكل": "Select all",
+    "إلغاء التحديد": "Clear selection",
+    "إضافة المحددين": "Add selected employees",
+    "تمت الإضافة": "Added",
+    "المحددون: ": "Selected: ",
+    "اختر موظفًا واحدًا على الأقل.": "Select at least one employee.",
+    "استيراد جدول من صورة": "Import a table from an image",
+    "اختر نوع البنود أعلاه، وارفع لقطة واضحة تتضمن أسماء الموظفين وعناوين Open وOn Hold وOverdue.": "Select the item category above and upload a clear screenshot with employee names and the Open, On Hold, and Overdue headers.",
+    "صورة الجدول": "Table image",
+    "لغة الأسماء": "Name language",
+    "الإنجليزية": "English",
+    "العربية والإنجليزية": "Arabic and English",
+    "قراءة الصورة": "Read image",
+    "اعتماد الأعداد وتحديث الجدول": "Apply counts to table",
+    "استبعاد": "Exclude",
+    "اختر تاريخ الاجتماع وصورة لا يتجاوز حجمها 15 ميغابايت.": "Select a meeting date and an image no larger than 15 MB.",
+    "جارٍ قراءة الصورة…": "Reading the image…",
+    "لم يُتعرّف على الجدول. قصّ الصورة حول أعمدة الموظف وOpen وOn Hold وOverdue ثم أعد المحاولة.": "The table was not recognized. Crop to the Employee, Open, On Hold, and Overdue columns and retry.",
+    "راجع الأسماء والأعداد وأكمل الخانات الفارغة قبل اعتماد الجدول.": "Review names and counts and fill in any empty cells before applying the table.",
+    "تعذّرت قراءة الصورة. تحقق من الصورة والاتصال بمكتبة القراءة ثم أعد المحاولة.": "Could not read the image. Check the image and whether the OCR library can load, then try again.",
+    "أكمل الأسماء والأعداد الصحيحة وتأكد أن أسماء الموظفين غير مكررة.": "Enter a unique employee name and valid counts for each row.",
+    "تم اعتماد الأعداد وتحديث جدول الموظفين.": "Counts applied and the employee table updated.",
     "إدارة الاجتماعات والمتابعة": "Meeting Attendance and Follow-up",
     "تاريخ الاجتماع": "Meeting date",
     "تُحفظ السجلات في هذا المتصفح. تُسجّل الطلبات والمهام يدويًا.": "Records are stored in this browser. Requests and tasks are entered manually.",
@@ -379,7 +440,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.1.0';
+    get('meetingVersion').textContent = 'v1.3.0';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -766,6 +827,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     }
 
     workloadFields.bucket.onchange = () => {
+        clearWorkloadImage();
         resetWorkloadInputs();
         render();
     };
@@ -798,6 +860,199 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         })) resetWorkloadInputs();
     };
 
+    function readWorkloadTsv(tsv) {
+        const words = tsv.split(/\r?\n/).flatMap(line => {
+            const fields = line.split('\t');
+            if (fields[0] !== '5' || !fields[11]?.trim()) return [];
+            const [left, top, width, height] = fields.slice(6, 10).map(Number);
+            return [{ left, x: left + width / 2, y: top + height / 2, height, text: fields[11].trim() }];
+        });
+        const heights = words.map(word => word.height).sort((a, b) => a - b);
+        const tolerance = Math.max(4, (heights[Math.floor(heights.length / 2)] || 10) * 0.65);
+        const lines = [];
+        for (const word of [...words].sort((a, b) => a.y - b.y)) {
+            const last = lines.at(-1);
+            if (last && word.y - last.y <= tolerance) last.words.push(word);
+            else lines.push({ y: word.y, words: [word] });
+        }
+        const normalize = text => text.toLowerCase().replace(/[^a-z]/g, '');
+        for (const line of lines) line.words.sort((a, b) => a.left - b.left);
+        const header = lines.find(line => {
+            const text = normalize(line.words.map(word => word.text).join(' '));
+            return text.includes('open') && text.includes('onhold') && text.includes('overdue');
+        });
+        if (!header) return [];
+        const columns = [];
+        for (let i = 0; i < header.words.length; i++) {
+            const word = header.words[i];
+            const next = header.words[i + 1];
+            const one = normalize(word.text);
+            const pair = next && one + normalize(next.text);
+            const key = ({ open: 'open', onhold: 'onHold', overdue: 'overdue' })[one] ||
+                ({ onhold: 'onHold', overdue: 'overdue' })[pair];
+            if (!key) continue;
+            const joined = one === 'on' || one === 'over';
+            columns.push({ key, x: joined ? (word.x + next.x) / 2 : word.x });
+            if (joined) i++;
+        }
+        if (new Set(columns.map(col => col.key)).size !== 3 || columns.length !== 3) return [];
+        const spacing = Math.min(columns[1].x - columns[0].x, columns[2].x - columns[1].x);
+        const firstBoundary = columns[0].x - spacing / 2;
+        const parseNumber = value => {
+            const clean = value.replace(/[٠-٩]/g, char => String(char.charCodeAt(0) - 0x660))
+                .replace(/[۰-۹]/g, char => String(char.charCodeAt(0) - 0x6f0)).trim();
+            if (/^[oO○]$/.test(clean)) return '0';
+            return /^\d{1,9}$/.test(clean) ? clean : '';
+        };
+        return lines.filter(line => line.y > header.y).flatMap(line => {
+            const employee = line.words.filter(word => word.x < firstBoundary).map(word => word.text).join(' ');
+            if (!employee || /^(total|grand\s*total|الإجمالي|المجموع)$/i.test(employee)) return [];
+            const groups = Object.fromEntries(countKeys.map(key => [key, []]));
+            for (const word of line.words.filter(word => word.x >= firstBoundary)) {
+                const closest = columns.reduce((a, b) => Math.abs(a.x - word.x) < Math.abs(b.x - word.x) ? a : b);
+                groups[closest.key].push(word.text);
+            }
+            return [{ employee, ...Object.fromEntries(countKeys.map(key => [key, parseNumber(groups[key].join(' '))])) }];
+        });
+    }
+
+    const ocrFile = get('workloadImage');
+    const ocrRead = get('readWorkloadImage');
+    const ocrSave = get('saveWorkloadImage');
+    const ocrStatus = get('workloadImageStatus');
+    const ocrPreview = get('workloadImagePreview');
+    const ocrRows = get('workloadImageRows');
+    let ocrScript;
+    let ocrSource = null;
+    let ocrRun = 0;
+
+    function loadOcrLibrary() {
+        if (globalThis.Tesseract) return Promise.resolve(globalThis.Tesseract);
+        ocrScript ??= new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js';
+            script.onload = () => globalThis.Tesseract ? resolve(globalThis.Tesseract) : reject(new Error('OCR unavailable'));
+            script.onerror = () => { script.remove(); reject(new Error('OCR download failed')); };
+            document.head.append(script);
+        }).catch(error => { ocrScript = null; throw error; });
+        return ocrScript;
+    }
+
+    async function prepareWorkloadImage(file) {
+        const image = await createImageBitmap(file);
+        try {
+            const scale = Math.min(2, 3200 / Math.max(image.width, image.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#fff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            return canvas;
+        } finally {
+            image.close();
+        }
+    }
+
+    function clearWorkloadImage() {
+        ocrRun++;
+        ocrSource = null;
+        ocrRows.replaceChildren();
+        ocrPreview.hidden = true;
+        ocrStatus.textContent = '';
+        ocrRead.disabled = false;
+    }
+
+    function showOcrRows(records) {
+        for (const [index, record] of records.entries()) {
+            const row = node('tr', '');
+            const labels = { employee: 'Employee', open: 'Open', onHold: 'On Hold', overdue: 'Overdue' };
+            for (const key of ['employee', ...countKeys]) {
+                const cell = node('td', '');
+                const input = node('input', '');
+                input.setAttribute('aria-label', labels[key] + ' ' + (index + 1));
+                input.dataset.column = key;
+                input.value = record[key];
+                if (key === 'employee') { input.maxLength = 120; input.dir = 'auto'; }
+                else { input.type = 'number'; input.min = '0'; input.max = '999999999'; input.step = '1'; }
+                cell.append(input);
+                row.append(cell);
+            }
+            const removeCell = node('td', '');
+            removeCell.append(button(tr('استبعاد'), () => {
+                row.remove();
+                if (!ocrRows.children.length) ocrPreview.hidden = true;
+            }));
+            row.append(removeCell);
+            ocrRows.append(row);
+        }
+        ocrPreview.hidden = false;
+    }
+
+    ocrFile.onchange = clearWorkloadImage;
+    ocrRead.onclick = async () => {
+        clearWorkloadImage();
+        const file = ocrFile.files[0];
+        if (!file || !dateInput.value || file.size > 15000000) {
+            ocrStatus.textContent = tr('اختر تاريخ الاجتماع وصورة لا يتجاوز حجمها 15 ميغابايت.');
+            return;
+        }
+        const run = ocrRun;
+        const source = { date: dateInput.value, bucket: workloadFields.bucket.value };
+        ocrRead.disabled = true;
+        ocrStatus.textContent = tr('جارٍ قراءة الصورة…');
+        let worker;
+        try {
+            const image = await prepareWorkloadImage(file);
+            const api = await loadOcrLibrary();
+            if (run !== ocrRun) return;
+            worker = await api.createWorker(get('workloadImageLanguage').value === 'ara' ? ['eng', 'ara'] : 'eng', 1);
+            await worker.setParameters({ tessedit_pageseg_mode: '6' });
+            const { data } = await worker.recognize(image, {}, { tsv: true });
+            if (run !== ocrRun) return;
+            const records = readWorkloadTsv(data.tsv || '');
+            if (!records.length) {
+                ocrStatus.textContent = tr('لم يُتعرّف على الجدول. قصّ الصورة حول أعمدة الموظف وOpen وOn Hold وOverdue ثم أعد المحاولة.');
+                return;
+            }
+            ocrSource = source;
+            showOcrRows(records);
+            ocrStatus.textContent = tr('راجع الأسماء والأعداد وأكمل الخانات الفارغة قبل اعتماد الجدول.');
+        } catch {
+            if (run === ocrRun) ocrStatus.textContent = tr('تعذّرت قراءة الصورة. تحقق من الصورة والاتصال بمكتبة القراءة ثم أعد المحاولة.');
+        } finally {
+            if (worker) await worker.terminate().catch(() => {});
+            if (run === ocrRun) ocrRead.disabled = false;
+        }
+    };
+
+    ocrSave.onclick = () => {
+        if (!ocrSource || ocrSource.date !== dateInput.value || ocrSource.bucket !== workloadFields.bucket.value) return;
+        const imported = [...ocrRows.children].map(row => {
+            const fields = [...row.querySelectorAll('input')];
+            return { employee: fields[0].value.trim(), ...Object.fromEntries(fields.slice(1).map(field => [field.dataset.column, field.valueAsNumber])) };
+        });
+        const names = new Set(imported.map(row => employeeKey(row.employee)));
+        if (!imported.length || names.size !== imported.length || imported.some(row =>
+            !row.employee || countKeys.some(key => !Number.isSafeInteger(row[key]) || row[key] < 0 || row[key] > 999999999))) {
+            ocrStatus.textContent = tr('أكمل الأسماء والأعداد الصحيحة وتأكد أن أسماء الموظفين غير مكررة.');
+            return;
+        }
+        const bucket = ocrSource.bucket;
+        if (update((data, date) => {
+            data.workload ??= {};
+            data.workload[date] ??= { requests: [], tasks: [] };
+            const rows = new Map(data.workload[date][bucket].map(row => [employeeKey(row.employee), row]));
+            for (const row of imported) rows.set(employeeKey(row.employee), row);
+            data.workload[date][bucket] = [...rows.values()];
+        })) {
+            clearWorkloadImage();
+            ocrFile.value = '';
+            ocrStatus.textContent = tr('تم اعتماد الأعداد وتحديث جدول الموظفين.');
+        }
+    };
+
     function render() {
         const attendanceList = get('attendanceList');
         const itemsList = get('meetingItems');
@@ -813,6 +1068,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         absenceDraft.hidden = true;
         const date = dateInput.value;
         if (!date) {
+            syncDirectoryChoices();
             renderWorkload({ attendance: [], items: [] }, '');
             return;
         }
@@ -835,7 +1091,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         const roster = new Map((data.roster ?? [])
             .filter(entry => entry.from <= date)
             .map(entry => [employeeKey(entry.person), { person: entry.person }]));
+        rosterNamesForDate = new Set(roster.keys());
         for (const record of people) roster.set(employeeKey(record.person), record);
+        syncDirectoryChoices();
 
         for (const entry of [...roster.values()].sort((a, b) => a.person.localeCompare(b.person))) {
             const row = node('li', entry.person + ' · ' + tr(entry.status || 'لم يُسجّل') +
@@ -916,6 +1174,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     chartMonth.onchange = render;
     get('cancelFollowup').onclick = resetFollowup;
     dateInput.onchange = () => {
+        for (const { input } of directoryChoices) input.checked = false;
+        clearWorkloadImage();
         resetWorkloadInputs();
         chartMonth.value = dateInput.value.slice(0, 7);
         resetAttendance();
@@ -928,20 +1188,22 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     syncExcuseReason();
 
     const rosterForm = get('rosterForm');
-    const directorySelect = rosterForm.elements.directoryEmployee;
+    const employeeCheckboxes = get('employeeCheckboxes');
+    let directoryChoices = [];
+    let rosterNamesForDate = new Set();
     const manualEmployee = rosterForm.elements.employee;
     const directoryStatus = get('employeeDirectoryStatus');
     const addRosterEmployee = get('addRosterEmployee');
-    let employeeDirectory = new Map();
     let latestEmployeeSnapshot = null;
     let manualDirectoryMessage = '';
 
     function useManualRoster(message) {
-        employeeDirectory.clear();
         latestEmployeeSnapshot = null;
         manualDirectoryMessage = message;
         directoryStatus.textContent = tr(message);
-        directorySelect.disabled = true;
+        directoryChoices = [];
+        employeeCheckboxes.replaceChildren();
+        addRosterEmployee.textContent = tr('إضافة الموظف');
         get('directoryPickerLabel').hidden = true;
         get('manualEmployeeLabel').hidden = false;
         manualEmployee.disabled = false;
@@ -951,7 +1213,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 
     function populateEmployeeDirectory(snapshot) {
         latestEmployeeSnapshot = snapshot;
-        const selected = directorySelect.value;
+        const selected = new Set(directoryChoices.filter(({ input }) => input.checked).map(({ input }) => input.value));
         const entries = new Map();
         snapshot.forEach(doc => {
             const record = doc.data();
@@ -964,27 +1226,59 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             entries.set(doc.id, { name, code });
         });
 
-        employeeDirectory = entries;
-        const placeholder = node('option', tr('اختر اسم الموظف'));
-        placeholder.value = '';
-        directorySelect.replaceChildren(placeholder);
+        employeeCheckboxes.replaceChildren();
         const ordered = [...entries].sort(([, a], [, b]) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code));
-        for (const [id, employee] of ordered) {
-            const option = node('option', employee.name + (employee.code ? ' — ' + employee.code : ''));
-            option.value = id;
-            directorySelect.append(option);
-        }
-        if (entries.has(selected)) directorySelect.value = selected;
+        directoryChoices = ordered.map(([id, employee]) => {
+            const label = node('label', '');
+            label.className = 'employee-choice';
+            const input = node('input', '');
+            input.type = 'checkbox';
+            input.value = id;
+            input.checked = selected.has(id);
+            input.onchange = syncDirectoryChoices;
+            const caption = node('span', employee.name + (employee.code ? ' — ' + employee.code : ''));
+            caption.dir = 'auto';
+            const addedBadge = node('small', tr('تمت الإضافة'));
+            label.append(input, caption, addedBadge);
+            employeeCheckboxes.append(label);
+            return { input, addedBadge, name: employee.name };
+        });
         get('directoryPickerLabel').hidden = false;
-        directorySelect.disabled = !entries.size;
         get('manualEmployeeLabel').hidden = true;
         manualEmployee.disabled = true;
         manualEmployee.required = false;
-        addRosterEmployee.disabled = !entries.size;
+        addRosterEmployee.textContent = tr('إضافة المحددين');
+        syncDirectoryChoices();
         directoryStatus.textContent = entries.size
             ? tr('الموظفون النشطون في Employee Management: ') + entries.size
             : tr('لا يوجد موظفون نشطون في Employee Management.');
     }
+
+    function syncDirectoryChoices() {
+        if (!manualEmployee.disabled) return;
+        let selectedCount = 0;
+        let availableCount = 0;
+        for (const { input, addedBadge, name } of directoryChoices) {
+            input.disabled = !dateInput.value || rosterNamesForDate.has(employeeKey(name));
+            if (input.disabled) input.checked = false;
+            if (!input.disabled) availableCount++;
+            if (input.checked) selectedCount++;
+            addedBadge.hidden = !rosterNamesForDate.has(employeeKey(name));
+        }
+        get('selectedEmployeeCount').textContent = tr('المحددون: ') + selectedCount;
+        get('selectAllEmployees').disabled = availableCount === selectedCount;
+        get('clearSelectedEmployees').disabled = !selectedCount;
+        addRosterEmployee.disabled = !selectedCount;
+    }
+
+    get('selectAllEmployees').onclick = () => {
+        for (const { input } of directoryChoices) input.checked = !input.disabled;
+        syncDirectoryChoices();
+    };
+    get('clearSelectedEmployees').onclick = () => {
+        for (const { input } of directoryChoices) input.checked = false;
+        syncDirectoryChoices();
+    };
 
     function connectEmployeeDirectory() {
         let portal;
@@ -1009,18 +1303,27 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 
     rosterForm.onsubmit = event => {
         event.preventDefault();
-        const selectedEmployee = employeeDirectory.get(directorySelect.value);
-        const person = manualEmployee.disabled ? selectedEmployee?.name : manualEmployee.value.trim();
-        if (!person) {
-            feedback.textContent = tr('أدخل اسم الموظف.');
+        const people = manualEmployee.disabled
+            ? directoryChoices.filter(({ input }) => input.checked && !input.disabled).map(({ name }) => name)
+            : [manualEmployee.value.trim()].filter(Boolean);
+        if (!people.length) {
+            feedback.textContent = tr(manualEmployee.disabled ? 'اختر موظفًا واحدًا على الأقل.' : 'أدخل اسم الموظف.');
             return;
         }
         if (update((data, date) => {
             data.roster ??= [];
-            const existing = data.roster.find(entry => employeeKey(entry.person) === employeeKey(person));
-            if (!existing) data.roster.push({ person, from: date });
-            else if (date < existing.from) existing.from = date;
-        })) rosterForm.reset();
+            const roster = new Map(data.roster.map(entry => [employeeKey(entry.person), entry]));
+            for (const person of people) {
+                const key = employeeKey(person);
+                const existing = roster.get(key);
+                if (!existing) roster.set(key, { person, from: date });
+                else if (date < existing.from) existing.from = date;
+            }
+            data.roster = [...roster.values()];
+        })) {
+            rosterForm.reset();
+            syncDirectoryChoices();
+        }
     };
 
     function saveAttendance(person, status, excuseReason) {
@@ -1181,8 +1484,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         const pending = [meetingName, meetingTime, venue].map(input => ({ input, value: input.value }));
         renderLanguage();
         for (const control of translationButtons) control.textContent = tr('ترجم');
+        for (const control of ocrRows.querySelectorAll('button')) control.textContent = tr('استبعاد');
         if (latestEmployeeSnapshot) populateEmployeeDirectory(latestEmployeeSnapshot);
-        else if (manualDirectoryMessage) directoryStatus.textContent = tr(manualDirectoryMessage);
+        else if (manualDirectoryMessage) useManualRoster(manualDirectoryMessage);
         feedback.textContent = '';
         render();
         for (const { input, value } of pending) input.value = value;
