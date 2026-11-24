@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Employee Management v1.9.0 - Login UID Link</title>
+  <title>Employee Management v1.9.1 - Login UID Link</title>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <style>
     :root{
@@ -89,7 +89,7 @@
     <div class="brand">
       <img src="LOGO-almajdouie.png" alt="Almajdouie Motors" />
       <div>
-        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.9.0</span></h2>
+        <h2 class="title"><span id="pageTitle">إدارة سجل الموظفين (مزامنة تلقائية)</span><span class="version-badge">v1.9.1</span></h2>
         <p class="subtitle" id="pageSubtitle">إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات</p>
       </div>
     </div>
@@ -178,6 +178,11 @@
     <div class="list-head">
       <h3 id="listTitle" style="color:var(--primary)">قائمة الموظفين (تحدث تلقائياً)</h3>
       <div class="list-tools">
+        <label for="employeeListSort" id="employeeListSortLabel">ترتيب حسب</label>
+        <select id="employeeListSort" class="compact-select">
+          <option value="job" id="employeeSortByJob">المسمى الوظيفي</option>
+          <option value="name" id="employeeSortByName">اسم الموظف</option>
+        </select>
         <button class="soft-btn" id="exportExcelBtn" type="button">تنزيل Excel</button>
         <button class="btn" id="importExcelBtn" type="button">رفع Excel</button>
         <input id="importExcelInput" type="file" accept=".xlsx,.xls,.csv" hidden />
@@ -264,7 +269,7 @@ const JOB_TITLE_LABELS = {
 };
 const I18N = {
   ar: {
-    documentTitle: 'إدارة الموظفين v1.9.0 - ربط Login UID',
+    documentTitle: 'إدارة الموظفين v1.9.1 - ربط Login UID',
     pageTitle: 'إدارة سجل الموظفين (مزامنة تلقائية)',
     pageSubtitle: 'إضافة وتحديث بيانات الموظفين وربطها مع الجدول وخطة الإجازات',
     reload: 'تحديث',
@@ -302,6 +307,9 @@ const I18N = {
     editingPrefix: 'جاري تعديل',
     rotationNote: 'معنى الروتيشن: خيار الخميس والجمعة يجعل شخصاً واحداً كل أسبوع أوف الخميس والجمعة ويعمل السبت. خيار الجمعة أون كول يجعل شخصاً واحداً كل أسبوع أون كول يوم الجمعة وأوف السبت. إذا كان الشخص في إجازة أو تم تحديده غائباً، ينتقل الدور تلقائياً للشخص التالي.',
     listTitle: 'قائمة الموظفين (تحدث تلقائياً)',
+    sortBy: 'ترتيب حسب',
+    sortJob: 'المسمى الوظيفي',
+    sortName: 'اسم الموظف',
     exportExcel: 'تنزيل Excel',
     importExcel: 'رفع Excel',
     employeeUnit: 'موظف',
@@ -339,7 +347,7 @@ const I18N = {
     confirmDelete: 'هل تريد حذف هذا الموظف؟'
   },
   en: {
-    documentTitle: 'Employee Management v1.9.0 - Login UID Link',
+    documentTitle: 'Employee Management v1.9.1 - Login UID Link',
     pageTitle: 'Employee Management (Auto Sync)',
     pageSubtitle: 'Add and update employees linked to the schedule and vacation plan',
     reload: 'Refresh',
@@ -377,6 +385,9 @@ const I18N = {
     editingPrefix: 'Editing',
     rotationNote: 'Rotation meaning: the Thu/Fri option gives one person every week off on Thursday and Friday while working Saturday. The Friday on-call option gives one person every week on call Friday and off Saturday. If that person is on leave or marked absent, the turn moves automatically to the next person.',
     listTitle: 'Employee List (Auto Updated)',
+    sortBy: 'Sort by',
+    sortJob: 'Job Title',
+    sortName: 'Employee Name',
     exportExcel: 'Download Excel',
     importExcel: 'Upload Excel',
     employeeUnit: 'employee',
@@ -653,6 +664,9 @@ function applyLanguage({ rerender = false } = {}) {
   setText('clearFormBtn', 'clearForm');
   setText('rotationNote', 'rotationNote');
   setText('listTitle', 'listTitle');
+  setText('employeeListSortLabel', 'sortBy');
+  setText('employeeSortByJob', 'sortJob');
+  setText('employeeSortByName', 'sortName');
   setText('exportExcelBtn', 'exportExcel');
   setText('importExcelBtn', 'importExcel');
   setLabel('empNum', 'labelEmpNum');
@@ -1501,9 +1515,19 @@ async function handleExcelImport(event) {
   }
 }
 
+$('employeeListSort').addEventListener('change', render);
+
 function render() {
   const tbody = $('empTableBody');
-  const rows = emps.map(normalizeEmployee).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), currentLang));
+  const byJob = $('employeeListSort').value === 'job';
+  const collator = new Intl.Collator(currentLang, { sensitivity: 'base', numeric: true });
+  const rows = emps.map(normalizeEmployee).sort((a, b) => {
+    if (byJob) {
+      const byTitle = collator.compare(jobTitleLabel(a.jobTitle), jobTitleLabel(b.jobTitle));
+      if (byTitle) return byTitle;
+    }
+    return collator.compare(a.name || '', b.name || '');
+  });
   renderedEmployeeRows = rows;
   $('empCount').textContent = employeeCountLabel(rows.length);
 
