@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>إدارة الاجتماعات والمتابعة</title>
+<style>
+.meeting-nav, #meetingPanel { max-width: 1120px; margin: 12px auto; }
+.meeting-nav { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+.meeting-nav [aria-pressed="true"] { background: var(--primary2); color: white; }
+#meetingPanel { color: var(--primary); }
+#meetingPanel header, #meetingPanel section { background: #fff; padding: 18px; border: 1px solid #dbe4ef; border-radius: 12px; margin-bottom: 12px; }
+#meetingPanel h1, #meetingPanel h2 { margin: 0 0 12px; }
+#meetingPanel h1 { font-size: 24px; }
+#meetingPanel h2 { font-size: 18px; }
+#meetingPanel p, #meetingPanel li { line-height: 1.55; overflow-wrap: anywhere; }
+#meetingPanel form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+#meetingPanel label { display: inline-grid; gap: 5px; font-size: 14px; font-weight: 600; }
+#meetingPanel input, #meetingPanel select, #meetingPanel textarea { box-sizing: border-box; max-width: 100%; padding: 8px; border: 1px solid #a8b8cd; border-radius: 6px; font: inherit; }
+#meetingPanel textarea { width: 100%; resize: vertical; }
+#meetingSubject { margin-bottom: 8px; }
+#meetingMemo { margin-top: 16px; border: 1px solid #dbe4ef; padding: clamp(12px, 4vw, 42px); background: #fff; overflow-x: auto; }
+#memoDetails { margin-bottom: 12px; }
+#meetingPanel label:has(#meetingSubject) { display: grid; }
+#meetingPanel button { padding: 8px 12px; border: 1px solid #a8b8cd; border-radius: 6px; color: var(--primary); background: #eef4fc; cursor: pointer; margin-inline-end: 4px; }
+#meetingPanel button[type="submit"], #openMeetingMail { background: var(--primary2); color: #fff; }
+#meetingPanel article { padding: 10px 0; border-bottom: 1px solid #dbe4ef; }
+#meetingPanel article p { margin: 4px 0; }
+#meetingFeedback:empty { display: none; }
+
+:root { --primary: #142849; --primary2: #2356a4; }
+body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe UI", Tahoma, sans-serif; }
+#meetingPanel header { background: var(--primary); color: #fff; }
+#meetingPanel header p { margin-bottom: 0; }
+#meetingPanel .meeting-nav [aria-pressed="true"] { background: var(--primary2); color: white; }
+#meetingPanel input[type="date"] { min-width: 140px; }
+#meetingPanel label[hidden] { display: none; }
+#attendanceList { padding-inline-start: 24px; }
+#attendanceList li, #meetingItems article { padding-block: 8px; }
+#meetingCounts { padding: 10px 14px; background: #eef4fc; border-radius: 6px; font-weight: 600; }
+#absenceDraft[hidden] { display: none; }
+#absenceDraft { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; margin-top: 20px; padding: 14px; background: #f1f5fa; border-radius: 8px; }
+#absenceDraft h3, #absenceFeedback { margin: 0; }
+#absenceFeedback:empty { display: none; }
+#absenceDraft input, #absenceDraft textarea { width: 100%; }
+.stats-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 0; list-style: none; }
+.stats-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.stats-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+.stats-present { background: #187653; }
+.stats-absent { background: #b63d46; }
+.stats-excused { background: #315ea4; }
+.stats-bar { display: flex; height: 14px; overflow: hidden; border-radius: 4px; background: #e6eef7; margin-block: 7px; }
+.stats-bar span { display: block; height: 100%; }
+.workload-table-wrap { overflow-x: auto; margin-block: 14px 24px; }
+#workloadTable { width: 100%; min-width: 500px; border-collapse: collapse; font-size: 14px; }
+#workloadTable caption { padding: 8px 0; text-align: left; font-weight: 600; }
+#workloadTable th, #workloadTable td { border-bottom: 1px solid #dbe4ef; padding: 8px; text-align: center; }
+#workloadTable thead, #workloadTable tfoot { background: #f1f5fa; }
+#workloadTable th:first-child, #workloadTable td:first-child { text-align: start; overflow-wrap: anywhere; }
+#workloadTable .workload-overdue { color: #a52334; font-weight: 600; }
+#workloadForm input[type="number"] { width: 92px; }
+#attendanceForm[hidden] { display: none; }
+#attendanceList li { border-bottom: 1px solid #dbe4ef; }
+#attendanceList button { margin: 3px; }
+</style>
+</head>
+<body>
+<main id="meetingPanel">
+  <header><h1>إدارة الاجتماعات والمتابعة</h1>
+    <label>تاريخ الاجتماع <input id="meetingDate" type="date" required></label>
+    <p>تُحفظ السجلات في هذا المتصفح. تُسجّل الطلبات والمهام يدويًا.</p>
+    <p id="meetingFeedback" role="status"></p>
+  </header>
+  <nav class="meeting-nav" aria-label="أقسام الاجتماع">
+    <button type="button" aria-controls="attendancePanel" aria-pressed="true">الحضور</button>
+    <button type="button" aria-controls="followupPanel" aria-pressed="false">الطلبات والمهام</button>
+    <button type="button" aria-controls="memoPanel" aria-pressed="false">ميمو البريد</button>
+    <button type="button" aria-controls="absencePanel" aria-pressed="false">تنبيهات الغياب</button>
+    <button type="button" aria-controls="attendanceStatsPanel" aria-pressed="false">الرسم البياني</button>
+  </nav>
+  <section id="attendancePanel">
+    <h2>حضور الاجتماع</h2>
+    <form id="rosterForm">
+      <label>إضافة موظف إلى قائمة الاجتماع <input name="employee" required maxlength="120" dir="auto"></label>
+      <button type="submit">إضافة الموظف</button>
+    </form>
+    <p>تظهر قائمة الموظفين من تاريخ إضافتهم في الاجتماعات التالية. اختر الحالة الفعلية لكل موظف.</p>
+    <ul id="attendanceList"></ul>
+    <form id="attendanceForm" hidden>
+      <label>اسم الموظف <input name="person" required maxlength="120" readonly></label>
+      <label>الحالة <select name="status"><option>حاضر</option><option>غائب</option><option>معتذر</option></select></label>
+      <label id="excuseReasonLabel" hidden>سبب الاعتذار <input name="excuseReason" maxlength="250" disabled></label>
+      <button type="submit">حفظ الحضور</button>
+    </form>
+  </section>
+  <section id="followupPanel" hidden>
+    <h2>متابعة الطلبات والمهام</h2>
+    <h3>جدول الأعداد حسب الموظف</h3>
+    <p>أدخل الأعداد لكل حالة حسب تاريخ الاجتماع المحدد أعلاه. إدخال اسم الموظف نفسه مرة أخرى يحدّث صفه في النوع المختار.</p>
+    <form id="workloadForm">
+      <label>نوع البنود
+        <select name="bucket"><option value="requests">الطلبات</option><option value="tasks">المهام</option></select>
+      </label>
+      <label>اسم الموظف
+        <input name="employee" list="workloadEmployees" maxlength="120" required dir="auto">
+        <datalist id="workloadEmployees"></datalist>
+      </label>
+      <button id="workloadUnassigned" type="button">غير مسند</button>
+      <label>Open <input name="open" type="number" min="0" max="999999999" step="1" value="0" required></label>
+      <label>On Hold <input name="onHold" type="number" min="0" max="999999999" step="1" value="0" required></label>
+      <label>Overdue <input name="overdue" type="number" min="0" max="999999999" step="1" value="0" required></label>
+      <button type="submit">حفظ الأعداد</button>
+    </form>
+    <div class="workload-table-wrap">
+      <table id="workloadTable" dir="ltr">
+        <caption id="workloadCaption"></caption>
+        <thead>
+          <tr><th scope="col">Employee</th><th scope="col">Open</th><th scope="col">On Hold</th><th scope="col" class="workload-overdue">Overdue</th><th scope="col">Edit</th></tr>
+        </thead>
+        <tbody id="workloadRows"></tbody>
+        <tfoot id="workloadTotals"></tfoot>
+      </table>
+    </div>
+    <h3>متابعة البنود بالتفصيل</h3>
+    <p id="meetingCounts"></p>
+    <form id="followupForm">
+      <label>النوع <select name="kind"><option>طلب</option><option>مهمة</option></select></label>
+      <label>الرقم المرجعي <input name="reference" maxlength="50"></label>
+      <label>وصف البند <input name="description" required maxlength="200"></label>
+      <label>المسؤول <input name="owner" required maxlength="120"></label>
+      <label>موعد الإغلاق المستهدف <input name="due" type="date"></label>
+      <label>سبب عدم الإغلاق <input name="blocker" maxlength="250"></label>
+      <label>الإجراء التالي <input name="action" maxlength="250"></label>
+      <button type="submit">حفظ البند</button>
+      <button type="button" id="cancelFollowup" hidden>إلغاء التعديل</button>
+    </form>
+    <div id="meetingItems"></div>
+  </section>
+  <section id="memoPanel" hidden>
+    <h2>ميمو الاجتماع</h2>
+    <form id="memoDetails">
+      <label>اسم الاجتماع <input name="meetingName" maxlength="120" required dir="auto"></label>
+      <label>الوقت <input name="meetingTime" type="time"></label>
+      <label>المكان <input name="venue" maxlength="120" dir="auto"></label>
+      <button type="submit">حفظ معلومات الاجتماع</button>
+    </form>
+    <label>موضوع البريد <input id="meetingSubject" dir="ltr" readonly></label>
+    <p>انسخ المحضر المنسّق، ثم افتح مسودة البريد والصقه في نص الرسالة.</p>
+    <button id="copyMeetingMemo" type="button">نسخ المحضر المنسّق</button>
+    <button id="openMeetingMail" type="button">فتح مسودة البريد</button>
+    <button id="downloadMeetingMemo" type="button">تنزيل المحضر بتنسيق HTML</button>
+    <div id="meetingMemo" dir="ltr" aria-label="معاينة محضر الاجتماع"></div>
+  </section>
+  <section id="absencePanel" hidden>
+    <h2>تنبيهات الغياب</h2>
+    <p>اختر اجتماعًا من خانة التاريخ أعلاه. يظهر الغائبون عن ذلك الاجتماع، وتظهر أهلية الإنذار عند تسجيل ثلاث غيابات دون عذر أو أكثر في شهر الاجتماع.</p>
+    <p id="absencePeriod"></p>
+    <h3>غابوا عن الاجتماع المحدد</h3>
+    <div id="absenceNotices"></div>
+    <h3>بلغوا حد الإنذار في الشهر</h3>
+    <div id="absenceWarnings"></div>
+    <form id="absenceDraft" hidden>
+      <h3 id="absenceDraftTitle">مسودة البريد</h3>
+      <label>بريد الموظف <input name="recipient" type="email" dir="ltr" maxlength="254" placeholder="اختياري"></label>
+      <label>الموضوع <input name="mailSubject" readonly dir="ltr"></label>
+      <label>نص الرسالة <textarea name="mailBody" rows="17" readonly dir="ltr"></textarea></label>
+      <div>
+        <button type="button" id="copyAbsenceDraft">نسخ الموضوع والنص</button>
+        <button type="submit">فتح المسودة في البريد</button>
+      </div>
+      <p id="absenceFeedback" role="status"></p>
+    </form>
+  </section>
+  <section id="attendanceStatsPanel" hidden>
+    <h2>الرسم البياني للحضور</h2>
+    <label>الشهر الميلادي <input id="attendanceMonth" type="month" required></label>
+    <p>تُحسب الحالات المسجّلة لكل موظف. الاجتماع الذي لا يوجد فيه سجل للموظف لا يدخل في العدّ.</p>
+    <ul class="stats-legend" aria-label="مفتاح الرسم البياني">
+      <li><span class="stats-swatch stats-present"></span>حاضر</li>
+      <li><span class="stats-swatch stats-absent"></span>غائب دون عذر</li>
+      <li><span class="stats-swatch stats-excused"></span>معتذر</li>
+    </ul>
+    <div id="attendanceChart"></div>
+  </section>
+</main>
+<script>
+(() => {
+    const get = id => document.getElementById(id);
+    const storageKey = 'mmc-weekly-meetings-v1';
+    const dateInput = get('meetingDate');
+    const attendance = get('attendanceForm');
+    const excuseReasonInput = attendance.elements.excuseReason;
+    const followup = get('followupForm');
+    const subject = get('meetingSubject');
+    const feedback = get('meetingFeedback');
+    const statusEnglish = { حاضر: 'Present', غائب: 'Absent', معتذر: 'Excused' };
+    let editingId = null;
+
+    function syncExcuseReason() {
+        const excused = attendance.elements.status.value === 'معتذر';
+        get('excuseReasonLabel').hidden = !excused;
+        excuseReasonInput.disabled = !excused;
+        excuseReasonInput.required = excused;
+    }
+
+    function resetAttendance() {
+        attendance.reset();
+        attendance.hidden = true;
+        syncExcuseReason();
+    }
+
+    function today() {
+        const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit'
+        }).formatToParts(new Date());
+        return ['year', 'month', 'day'].map(type => parts.find(part => part.type === type).value).join('-');
+    }
+
+    function load() {
+        const raw = localStorage.getItem(storageKey);
+        return raw ? JSON.parse(raw) : { attendance: [], items: [] };
+    }
+
+    function onDate(data, date) {
+        return {
+            details: data.details?.[date] ?? {},
+            people: data.attendance.filter(person => person.date === date),
+            items: data.items.filter(item => item.date <= date && (!item.closed || item.closed >= date))
+        };
+    }
+
+    function node(tag, content) {
+        const element = document.createElement(tag);
+        element.textContent = content;
+        return element;
+    }
+
+    function button(label, action) {
+        const element = node('button', label);
+        element.type = 'button';
+        element.addEventListener('click', action);
+        return element;
+    }
+
+    function resetFollowup() {
+        editingId = null;
+        followup.reset();
+        get('cancelFollowup').hidden = true;
+    }
+
+    function update(change) {
+        const date = dateInput.value;
+        if (!date) {
+            dateInput.reportValidity();
+            return false;
+        }
+        try {
+            const data = load();
+            change(data, date);
+            localStorage.setItem(storageKey, JSON.stringify(data));
+            feedback.textContent = 'تم الحفظ.';
+        } catch {
+            feedback.textContent = 'تعذر حفظ السجل في هذا المتصفح.';
+            return false;
+        }
+        render();
+        return true;
+    }
+
+    const defaultMeetingName = 'Service Delivery Weekly Meeting';
+    const preview = get('meetingMemo');
+    const memoDetails = get('memoDetails');
+    const logos = {
+        service: 'data:image/png;base64,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',
+        company: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJQAAAAvCAYAAAAFMeNiAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGYktHRAD/AP8A/6C9p5MAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAHdElNRQfqCxgGKTofsebOAAAh30lEQVR42u2ceXgV5dn/P8/MnHOSc5KTE7KQQAiEsAmEHWQT0Cq41X1X3OrPvVZcWmm1detiq9UqYsWqtVr17at1ZxWUHULYlwQSSEjIvicnZ52Z5/fHhCzkBILir7/rffleFxe55sw863fu577v5/uMkFJKTuM0ThG0/3QDTqN7NDT7+dH8xew8EgJT/08354TQP5+L8p9uxGn8z8JpQp3GKcVpQp3GKcVpQp3GKcVpp/x/LUSHv09doH/aQv1vg6IhhIYQElXB4pVy6mhw2kL9b4GiIZAMSlA4b1wqEzI9JMVFk1vSwN9WHuZAZfiUpCZOE+p/OoQCQmVIksK9F2RyzayhJPeKafv5gikwc1RfLnn2WyqbVZDG96ruNKF+YITCBi2BECCIddpRFEFjSxBpSpwOjSiH7YerXNFwaQZ3/CiVh64cRd/keADqGn1szi2nwevnsrOGMH5YHy4Yl8Lf11R+b3fqNKF+YHyzrZi7XlmLMzqadx48k9QkN1c8vYyyBp0nrhnOXZeM/W4FC4HlAB3jXEsJAoRi44zeKi/cPonzJmUCUN/Ywj++3s8bywrYXxki2qYwrF8vxg7tQ3qSy3r2e+I0oX5geEM6R5pVHH6DgC4J6yZH6k2q/HYa/MdfXtqmVwhQVFqZgpAGitSJsoFdEwgk0hToEgJh0E2TK8Ym8Kc7J5OeYlmlL9bn8+T7O9lVGkRy1BuXRDssCviDZnvFogNRpcnJoBOhDh6pJTuvkuagTt8EF1OGp9LL7ez24RZ/kJy8SgoqmtB1ExDYNcFlUzOIj3NFfGZ/cQ1bD1TTEtTpl+hi0rAUesV1raO8uolNuRVUNvpJiotm4pDepKfEdZ0wf4CyGi81DX50QxIfaycj1UOMM+q4Ha+q87L1QBUF5U3Ex9g4a2Qf+qfG92jQmluCZOeWUVTlJdphY2R/DyMH9kZRRJd7BQKkYf3fShFFSJBGj0JswxSgBxnY28XwNBej+rsZnZlMUnwMTofArljlSakQMiW+oIlumEwckkiMM4pQOMzT72bzwudFhBUHmAA6KCoZSTb6pXisua9oRqg2pKmgyjBRNhPdgKDUwDTp6VrYRqj3v97HI29tp9qvIk2TBKdk2ZOzuiVUUVkd97+6nmV7mlpNpUQqNlw2GDPQ04VQpmnyyr+38ux/76chqFoRhWJjfLrGGz+bTlZmStu9y7MLePCNbeTXmkg9DIqdNDc8f3sWV80a3nbfzgOlPPhGDpsO1KKLKBACzQwyfaiHp24ay9RR/bu02+cP8taSvSz48gAH6wVSWFM9wL2bN+dNY8bofscdsEOlddz98jq+yWu2BlmoRCs6836cyeM3TcRmO3U+kV1TuPO8AaT2cjFrTF/i42JOugwhFKaPSMamaXyZXcKuEgND2BCKxrmjU3FF2SmrbmRnYSNxtiBXTOnLrKwU0no58AUNPlpfxLtrKjBk+wtxQkJt2lPCA29spzEgePTHacwckUTYkIwZ2jfiQ6GwziNvbGbZ/jDjBkTx7A0j2ZRXy9OfHEYIgRIhr/Hl+nx+/m4emqbw1JUDmDwskec/zWV5Xoi7Fmxg8VNz8LhdFJbVcffCLZQ0qVx/Zjx3zB7MV5uLeXFZOfcv2kFmqoexQ/sAkBDnpKYxwNRhSYwcmIw/GGbljlK+Oahz6MWNLHvGxaC0xLY2lFY1cM8r61myp4WEaLhxWhJOu8qnm8sobNK4d+Fmlj8bS58kT8R+B4NBHnpjE98UhBnfP4qnbsjiUIWXX32Qy+8/K6R/7xhuv3DUKSOUK9rBvZeP61B/iOLKRoqqWiip9tLgM/AFDbyBMMNSndx47hnYbBqmKSmraiDe7cTldHD+mYM5/0x45OoxrN1ZwptfH2T17irOn2DNb1lNMxePT+Dui0cxOD2xUxvOmzgQVVnDW6vLkT2wVBrAWysKaNCjmTlU48mbz8RuP/5btiW3jC+21aBIk2fnzuS8CQOoD+SDOHz0vejyzOtLCzA0F5eMdvLLuVMASEqIJeeJtWw56GXVtsNcMWs4H357kOJmG4MTTZ77yWRSE+OYNqo/24uWsio/wD9WHWojVN/keL56ejaJcU6c0Q4ANuw6zJV/WMfhRjvvfX2AJ29tH6DaJh85BXWcPcTNn++czMjM3gD8aPV+5r6Yzf5KG+8s38/8G8+M2O/1e8pZsq0aTVH5/S1TOXv8QAAOlLfwytdVLFpRyNzZw7FpkV1TIQQni7pGH1v2V7Akp4SNeXWU1Qeo84YJSQ2paAhFY2AvyaJ7xreSyeSlj3JYsKQIj8vO6PRoLpw0gKkjUuibFMf5kwdx9rj+FJTWk9nXWuJHZfZmzOBUNE3F6wuQnVfJ7kPVTM/qw/ihfbjp7Az+ua6MgDwhnyxCfZVdDNLJjJFpJyQTwPrcagzFwcAEGNbP8msMo3sHs6isltwyLxhw5rD2CT4jPZH5l2XQL9nNjNHW27J6TxUIhdEZHlITrbJVVWX6iCRW5Zew6UANTV4/7phohKDN6TyKKVnpjMqIZ2Wen7xSb6ffRg3qw/LfziHZE0VyL3fb9cvPGszMZQWsyPPz8aZS7rq4hV4RfMCcgloMzUW/OJNxw9Lark8a2huxpIiCSjsFR+o5Y0BSxHE4WS2j1x/kjj+v4osdTUihts6mBHk0X6Qwpq/g3YenM2xAMmFd58l/ZPP8Z4UYQqG43s+uI37e3VDLgHiVC8ancvM5mYwZksKIjOS2eux2G/5AmE/W5rPgyzw2HfRiKlHcPzvE+KF9GJASh02VBPQTL3sKQJUXkJIkT3SPOlpWHwQEbmcU7gjO77FvYn2LTmNLCKRBb0/7/ZqmMe/qCVw1cwiJHhc+f4AGvxX6epydiZ3siQYpqWkOE9C775QQArtNgBCEza73jRyY3IlMAIqiMPec/ggjyM5iH6t3lUYsu7S2BQTEx2ioavv1+BgbNgUCQZ2y2paTIs3xEA6bFNaEkEIBMwRmGEzDirxUjVF9Nd59eBrDBiQTCASZt3ANf/zsEAZYPmrbP4OiOoO/rizjrF9+zZ8/zO5S10ff5nLLgm1sOBTCMEEaIeJj7AB4/WGkVOiJD2U5O8K6WVV6ZpLDugQhcNht2GzWyB59UkqJYXYONQ1TYpgCISIthu0wpcQ0JULKLn6YprU2VWiccAtSHo2mer5HdcGkTLLSopFqFG8uL+i+31KgqUqnsdVUBaEIdN0gGDp1ykohWiPCYydSsTG2n50PfzGLYQOSaWxu4Z6XV/P6qnIkInKoL02kNJidlcBV5wwDIBQO0+T1A3DV2Wfw5NWDiFaDCEVFSIMJmR4A8krqCeqyR4GeAuB2mCAUahv9Pepoe3jcTg9PrAOpBwgZJg3NncvxuGy4XXYkggZfuNtyXVEOXA7LujR5A50nM3xy+ZCTRbw7muum9wczzNrcOtbvKu5yj2id3AZfmGONX3fLmei0Spy8D9UFio2svjbef2QGQ9ITafL6uecvq3lvYy3SlJHJJBRUVfDTc/vw7s/PIbNPPDX1Xh54dR0/fnIFG3YXE+2w8fPrJvHGvRNw2yUpcSoThlo+5obcGsJooNpAtbfmxLppHsDUob1AKOTkV/eoT4FQuH0QWztwRloc6UkxhE2F3UWNne7PSPUwJNUFio3tBbXdlisUpe2tKKhoobHZ12Fiem5tji65Sg8t7lFcOyuD1FhBi+ngg9WHuvzuD+ogTcrqghRX1LcPomKZXiEsK9wRhtHedtv33dVXbAxOUnn7wSkMTk/C2+Ln/lfW8K+cRqRhENGECAWbMHjqmsE8f88M4mKdHCiu4erfruTN1ZWsP+jnit+v5V+rcq0xOOcMXrtnHLfNSie5Vyx1TT7W7askwwNXjXNzzQQP6XHW/mAkaAA/mTOU5Xuy+XpPgPdX7GbOpIEIoXR56wSS7Qcq+GZXJQiN9F4KzmjLJ+qf2osLxybz+re1vL2qiKnDkxiUlohhSqLsGueMiOfbvCYWb6vkszX7mDF2AEdXRolEUwSeWCdXn5XB31YWs7XQ5M3F+7h5zjCi7Br1Tc1dBiwQCNESbF9ihBBghgkGwiAlXl+AJm8Luqmc0CEWQuB2OZg5LJYPt7bw8cZSfjK7lIF9EwjrOlvzyli5qwpQ8ek2nvvXDp69ZQKJnhjqGluQUiIlNDQH8PqChHSD6jov739bgNSiSIjRyUh10xz4jkuiotEnVvL6fRMZM7gP/kCAB19by/uba7tPPCoqTs3kD3NHcu+lVvphzfZC7lq4mfxqLJ8MqPFp3PnadirrvNx/5QSumjmUH0+xIlhdN3j6hizGD+tLvNvysUsqG7h3wTqW7vF2USgIKaU0TZNfvbmBlxYXoQiFFI8dVe3KQNM0Ka/zE0JjeG+Ndx+ZzqhB7QnJipombn9xHV/vbSLGbpIYFwUIhBAEQ2GONBogNOzST98EZ9ubG9RNZmfF89oDM9A0jQWfbOc3H+TSHII+Hg2H3UZ9k586PwxMjmbdny4g2RPFv77J5fH39yGl0mYZpDQprw8QMG1EqwYpHnuPrZsAGnxBan0CgSDRaRIXE4WuG5TX+wlJlcGJKropKawzSXQK4lxRNHj91PitBiQ6Ic7lQEpJXaOfRt2OWwvy/G2jue2CLPIOV3PO46uo8tt59sp+PHb9hG7b03bqpdQg3h7m7z+byEVTh6DrBg+/vpaFy0tb3cUIy5yi4bYZvHzHGG6aMxKAT1bncd+ibVS1iK5SFaFgVyTPXjeEeddMjJjiqG9qQdNUYp1R7Cyo4LwnVlLnE20KBf3zuZaFUhSFZ26bwsxRfVi9u5Ij1U3YbQoOTSWomygC7DaVYMggLrY3Z6R5OH9CGmm9PZ0qTEl08/5js/hs42Gy8yqpb/ZZUZemoqoKWusSZJge/KEwILCpCropGZPhaevE/ZePZcKQJJbmHOFQeSNSSvaX6tQd0TEMA9m6zKbGRzMpw4kp6bTUaKobRRFICWG9e58NwKaqqIogpJuY0kRRnG3tDBsSKU0URSExLpkRAxK4eGJffEGDTzcWs7ewGn9Ix2Fz4mgNTnRDYrZawyh7PBmpHmZlJTHxDCvN4ImJ4trJyVQ3BhnV382JYEpQDD8v3D6Bi6YOAeDZf2bz6vLSth2KrmRScdsNFt07katmDQXgveV7+OnfdtIcUiLrnqRJiCgWLjnIpdMyyEyzUh+GYbJhTzEfrC5kfW4tEzLdvPnIbIameRiUEkt2oa+T5EV0d9Bz6/5SKmt9nDcxg7KaJrblVzFjVF8SPLEnHIS2wWhd0yKx/Wi1HX87XuJv3sJveWVlDaNSBCv/cAHxsc5OdXwXCCHYd6iSg+VN/Ghcf1xOR7flRcr+W8tc136cqD8dx+V4fa5r9nP2o19w6aQ+PH37dAAWfLyVR9/NJSy7ieYUlRibyev3jufas88AYNHn2/j5e3l4Q1hphy4NtXyiCf0dvHjHRKZktefY6hpbmPPLxewot6g7IU1j/UuXYug6P/rlUjYe9IFhvbRtFupYFJXVccNzazlUE2ThHU0s21nL59vr+OnsGl64e3qPJ0w5jhN6oqxxTYOPwrI6oqNsbNpXzvvryhDYmDUiuY1MJ6rjRGjwBpj7wlp2l+n8/to6Hrl+8kmVdyJCfJdx6QjTlNw1ZyC3XmBt53z8zT4e/zCXsFQiC+EUFaeq85fbRreR6dVPtvLYP/Pw66JbMqmK4IbJCTx35xSS42MIBMMs3VzA9Kx+JMbH8NDlI7j15RwMNZrBqU5URaGuJUhDS7iL5CUioVRFwWFTUQRoqkBgIk0ThR82dO+IT9cVcN+i7QgMDNWFlDBzSBTzrjx1e2VIKxhAGqinUFd9qpDgjubuS8ehKArrdx/mZ2/uxBtWQUZYsoSChs7zt4zilgtHA/DXz7bxi/fyrAx3JAIKlWhN8qurBvHQVWOx22yU1zTyq7/n8N7aMn5+WT3P3jaVa88Zxscbivlsh5dZoy3rdbjKS3FVi5W174CIhOqX4uGDX8ygoq6FWWP7M2eSl1sLKpg+8vg78acSA/u4uX5GOr5AmPjYaEb3d3PtrEwSPCe/494dPLHRfDD/bA6VNjBjTPr/s771FEct4JGqRu5/PYcKb2vGvAsUhDR58rqh3HnJGAD+uXwPv3gvl4DRDZkUGx6HwfO3ZXHr+dZLmpNbyn0LN7KtREcKjb8uLeSyyelMOCON+y8Zzq6ijUwZZvlW2XmVtJh2kJ19VPH/88cypJSYphkx4vS2+NE0lSiH/T/dTADCukEgECQ2xvn9C+sAnz/I3D+u4rPtjW1hficIgRAKD1/Un9/9ZAqKovDp2v3c8epWGvxEJpNqIzVW8vrdE7lw6iAA/r06lwcWbaOipYPTrtq5bpKH9+bPIawbfLhiFzfOGY0QgtmPfck3+1s6tanbbxvohoHPHyCsR86ZmKaJLxDEFwi2RTQ/BIQQEcm0eW8ZZ/9iCbc+v5JmX+C4ZdQ0eCkqq6O6vvkHa2cwFOael9cw49HFrNxaeMrKlVLyzHvZfL69IfIyBwihctPUZH4zdwKKorBiyyHueS2HhgARySRUG/098O6DU7hw6iBM0+S1z7Zx+6vHkAnANFiyvYbNe0uwaSpzLxiLoihs3FNCTmFTxPIjEuqpdzZy4RPLuPW5r6lt8Hb5fe/BCq58agUXP76ErQcqf7CJ6g7Z+yvYWaXx1bY6ahqOvxn74MI1ZN37bx7+6wZM4/ud6OgOlbVNLN9dz95aO+v3nrrxqG/2s2R7Vev+XKT0gJ1zhrv5891TiY5ysPNAOXctyKbap0Z0wIViY4BH8t7D05g1bgDhcJhn393IQ3/fhzcYIZ0gDRrDGh+u6fySvLuqgOawGjHK7OJDVdQ08s7qUsq8GiK/haumF3P5zOGd7qn3hli1vwUThcr6nu3/nUpcPi2Tw9UBBvfJIP2YXFiXSfELArYk6vzipOUjPUV6agK/uWoQu0uaufm8oaesXEVRUDUVCEb4UWNYb4UF95xJvNtJSWUDdy/cTHETkZdG1c6AePjHvKlMGdmPUFjnibc38uJXRZio3VpATIPPNpcz/9pmknvFsrewmo82lNNdfNaFUN/sKqe8PoQmm9FVF0u3VXUhlKIIhNRBClS1s5Hz+gLUNAYIhHRURZDsiSauNcwPh3XK67z4Ajpul43UBHeXsLumwcvhqhaa/QaaqpDktjGor6fT0hcVZeOyaf2xqSoh3SS6w2+maVJW46WqMYDTLvAFQq2a7s5kklJSVF5PcY0fRVHolxDFgA6acikl5bXNNHoDuJ0O+iZb2izdMDlcUU8oZJCSEEO820korDN6cApD+iVi07rqycqqmyiq9hHWTZLj7AxO62UpFr4z01SSXPDX+85kcL9EGppbuG/BOrYUBbohk43+Hsk786YyJSudYCjMY4vWs2BFiXVg4XgHEaRJcZ3O8pwibpqdRX2Tj+Zg98qDToSSUrJ8Wxmodq4Y7+FfWxpYm1dDRW0jKQlxHA9Vdc08/9EuNuyvo6iqmWZfGE1VGJTq5uZZ6QxMjeGvSwrIOVhPsy9MSryT2WOSmX/tmLbJWpF9kJ8t2sqhmgAG1imPXk64dGJvnp47gZRWwd3ynCJuWbADpybZ8sIchrTKVmsbffzug+18vLGEyoYAUSoEDIFUOuu8gqEQf/5oJ68tyae80Voa+nhs3HthJvOuGIPdbiOsmzz8+ga+yC7jisl9+Mf88wGorPdxxdMrKar28+yNI/npleOpaWjm2ufWUFxv8JsrMnj8pkmAJTpc9MUuXvoin0NVfhCCmCiFa6b04ZlbJnTRZfUIQsEhTH534yimj0rHMAwef3sLS3Z7I2fAFZVUl8nbP5vG1Kx0gqEQj/1tIwtWHDkxmSxWgGrnmz1V3DTb0pNlJNrJr9Yj+lCdCFVe08Sy7RX0ioKbzxvOhvyt5FcE2FFQw/knINT+I/UsXFpIUNoZmxbF9OkZVDX4+DKnkofe2YcwdTwxNuaMTSWsGyzeXsXr31ZT2bCBD+afh6ZpxMVG49BMrj8rnbQEJ5UNPj7NruDtdfWEjS28/ci5gLUdIYWGYYTaggJfIMhPXlzNV7taGBCv8utrhpPssfP8Z/kU1FhW8Kg1fPWznTzxX/l4ogXzLx+IYUoWrSzl8Q/zsauCeVdPsPbifAZBLZ56f/ugm1JQG1BoETH424R+wjqdcoxL+s6yfTzw1h6SYjWevm4YriiNt1YW8ta6egwzm9cfPDti0HF8PqnceW4Kt7Vq1xd+voM3vm61NF10U5Yle/OBM5kxpj+GafLE25tYsLQEKUQPyNTOqR2HGmhoasHjdjFuUC/ya2stKcXxCLVmVynVPpVZw1ycPSaNCYMOcmSnl6+2HOH8MzNPVKe1rBhBHrh4GDfNsTr83Ic5/OqDPATw+7kjuO0CK+k2f9Fa/rS4lNX76tlbWMPowSmMG9Kblc9djCfW2ZZNPvPLndz1xl6W7qhhb2FVB+lq58H7cFU+X+1oIM4Bf7tvMjPHZQDwaXYFBbWWDEZRFKrrvby6+BBC1Xj00gH84nrLmkTZNvLUp0dYtLyIG84ZSqLHZamXpIl6zLJsHYOSnejTfovVrtqGFl76fD8oKn/5P2O4epaVuc7K6MVFz6zlv9b7eeDS6k6b6yeEYmPWUBdP3WJp3ldkF/DkB7kYIsIRcqHiVE1e+sl4Zk/KxDRNnn5nAy9+dfjkyAQgdQ5WhKhsCOJxuxjRPx6xuSbiqtfplfpqazlCUZg1IgmHw8G04Umgh1i5u4b6xp6H3VqHt27kAA+akCgCEjscyRo7KAEhw3j9YRr9ettzveJiME2TkqpGsvMqaPSFsAmT6sYgpfVdUwRHNU9f5FhL9ZShnjYyQeu+WZseULAlr4LiujAuJcg5Y9uTmRdNzkCEWyioCpJX0tDFNzxZ7C2qJbc8TGaiyvSR7aeHRg5IIDMlhoC0k7O/oucFKir9PPDCHRNxx0Rz8EgND761jaZQJDIpaMLgtzcM49pzLCK//PFWnvv8sCUnPtngREpadJWiigYAMnq7Qbdk4F3m/ugfR6oa2bS/DqH7uXSqNSFnZ/Um1r6PA2UBNuyr5KIpPdsY7theU5oIYUl7O+asjlogRQg66uDWbC9k4VcHWJdbi1+XuKMEhpQIAabZtQOKENQ3tVBY0QxSMijFxfFwoNwS/Me6BB5Xu4H2xEbjcih4DTtFVc3MPLkh74KiyiakqhHUDd5ZkYer9VSO1xegyacjpaTGG+5ZYULBRphnbhzFqEEp+AJBHn1zC/srZQS/SUEAD/94IPdfMR6A95bt5vEP89DN7/4xDClUDlc2AZAa7yDaoeEL0/1e3pb9VRTVGaTFaRw4Uk9Vo58WX4BYO3j1GL7eXspFUwZ9z2Hu0MAIb8nijQXc8pdsmgMGD108kLnnDiYQCjNj/jcEdEu33WWshUA3JIGwAYi2o9XdIRC07lOEgtJhKVOEYu3nmeD7riK4jvWELKe1pC7MEx/kdb1BqD23FELj5rOSuek8S9f0yqc7+HxbbeRIS1G4elIvHr9hPEIIlmwqYN7bOwno3//LKjVN1raP26lityn4wsfJQ32ysQiJoKRe59o/rmu9KkGxI0WY5TuraGoJ4HZF9ajyk8FRZ/m5j/ZSH47i3h8l8Ls7pgFQWFrL8dTxUkqi7Cpupx1qdWqaQ8etKzneaWl/wqYlvG9FWDcIhHSEsJEY5+jUru+iKEiKiwYELs3klTvH0S85Ft04KnWxuDQ4Le6E5eg6DEkweXKuJcT7dnsRf/h3Ppa3cgxBFBtnDXHx8r3TiI6OYvuBMu59LYf6wHHyTD2dIynb1KYxTgcOzUak/JgGVjJzXV49mCHuP78f4wb3RtcNbKogJ7+GhcuKOVRlsHFPKXNO4Jx/p8YKQTAY5HBdAGGajBzYfnbvRFs7hmkS64oms7eL7Uea2VlUj8/nx+mMfCRs9IBe2FVJbbNOcWUTwwdYde0vriaIHbsMMCTNykdpqoJEEuoQzSjKUYIdv11D+/UimiA+Q8Pp0Dh73ICTHhdDgtNm8si1o0hNdFNd18T8d3bQHNK6bMqiaPSLg5fvnEiiJ4by6ibuW5hNSZOInJs6+VlqeyHUNu18BBcEYM3uckpqgqS4VR67diw3zx7O7RdmMXfOSB64LIvUeAe6sLFka2n39cmT/+nodSklDoeD3rF2UOxs2FNKOBymY5M7ltHRYhzl29VT0yDUwrZDzbzyyY625w3dbPvKjWwl65RBbkxbLK99lUt1bQM19U0s/DIXFAczhicxLM0DQHqiE4TC9kMNrNtRZAUL5XUEguFOdXfsj2xt8eA0DxeOT0aqUfz6/d2syD5IfUMzdQ1e1uw4zDfbu56qORZ6WOeGaSlcMm0wAH/6aBdbinxdCSIUolWD528bTdagFALBIPMWbWDL4QAYoRPW01O0nmRDN01MM7JaVAP4fHMJ0uFm2tAoUhI9nW7ITEtgRLqb8rwAq3ZV09DkQxHCynsItbVgq2gTAYrSqRpr0BXkMblqKa2NTVMabWU8eOlQ7ng1h39uDJL/6BcMSY0lv6IJv2lDkTpKa6hrmq0k6fCCXHrWEObtr+KlJcU88d+FvLvmCFE2lbyKAIhopNQxTROH3cZvbhjF3D9vYPEenfHzliClpKJFIy3G4NfXTcLRqmC4fmZ//r3xCFWBKH782/X0dm+m3mdSFxAIRaDQvoyYCITQrKNMgM1m47e3TqSo6lu2HRFc9txmklwgUahs0hnS287qPyYSH9e9OiHR4+SOS8Zj01QWbzrIq0sPW75XpwDU0qs9eslArmxNTTz1jy18nFNvjb1ycnmu7iBVjdjWw7dNLSEChmmVLTtbKQ2gsqaREQmS62acEbGwqyanUlGXj12RlNd6iY+1M76/g0DIaDtdGhutMbKPDX/YJM7Z3om4aBsjU+0Yhok7qv26x6UxvLeKTVFwOawRuu6cM0jt5eLDNYXsONTAtsNNxDhUbpkWx6ysVM4cauWgdMMEIVCFbNNyq6rKM7dOYerwVP61pog9xfX4AwZTB8cxLjOeq87KQG395sCMMf357AkHry/JY0NuNQLBFZN7c8ecIWQN6t3Wxumj+vPv+SpvfX2ArQV1+AIGab1snNcvjhkjU7hokqUPs2sq49Kjia9sJj25PcoclJbAp78+l/dW5bM4+wiVDX6cDo0ZIxI5f1wfnNHHl96oikJ0lINgMMAH3+wnLcGBQ+uczggbJpMzY3n0GiuiW7fjEEu3lTO0t4OTPEV2XIR0g8GtEbRuGAxM1AiE6RTYQKseyjBNlBPIWY/qp4+Kvo7VUkspWw8QSFRVbUsLHL1+dNKPvf/Y68fWGen6/DfW8qellQyOD7PpxcuJi+0aKHQs+3g4qu8+kSzXNE1MKa00x3dUdxqGgaIoJ+3km6YkGA5j07r2RUqJqihtbQqF9dY5OLUKVNM00Vrn1TAMzAhzo6mqZaF6In89Vj99bGFCCLQIXx052evH3nMscg+V81/rSxDYuWxyv4hkghMT6Sh6Sg5FUb73N7hPdpulvW5BdA+FhHbbD/RRwg5tV1WV7nryfwHiAIye5yRisgAAACV0RVh0ZGF0ZTpjcmVhdGUAMjAyNi0xMS0yNFQwNjo0MTo0MyswMDowMIa5iCoAAAAldEVYdGRhdGU6bW9kaWZ5ADIwMjYtMTEtMjRUMDY6NDE6NDMrMDA6MDD35DCWAAAAKHRFWHRkYXRlOnRpbWVzdGFtcAAyMDI2LTExLTI0VDA2OjQxOjU4KzAwOjAwblxFLQAAAABJRU5ErkJggg=='
+    };
+
+    function escapeMemo(value) {
+        return String(value ?? '').replace(/[&<>"']/g, character =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]
+        );
+    }
+
+    function buildMemo(date, people, items, details) {
+        const name = details.name || defaultMeetingName;
+        subject.value = 'Minutes of Meeting | ' + name + ' | ' + date;
+        const attendees = people.filter(person => person.status === 'حاضر');
+        const attendanceList = attendees.length ? attendees.map((person, index) =>
+            (index + 1) + '. ' + escapeMemo(person.person)).join('<br>') : '—';
+        const others = people.filter(person => person.status !== 'حاضر').map(person =>
+            escapeMemo(person.person) + ' — ' + escapeMemo(statusEnglish[person.status]) +
+            (person.status === 'معتذر' && person.excuseReason ? ' | Reason: ' + escapeMemo(person.excuseReason) : '')
+        ).join('<br>');
+        const tableStyle = 'width:100%;border-collapse:collapse;font-size:14px;line-height:1.4;';
+        const cellStyle = 'padding:6px 9px;border:1px solid #cdd9e8;overflow-wrap:anywhere;';
+        const cell = (content, options = '') => `<td style="${cellStyle}${options}">${content}</td>`;
+        const bar = (content, span) => `<tr><th colspan="${span}" bgcolor="#123966" style="${cellStyle}background:#123966;color:#fff;text-align:left;">${content}</th></tr>`;
+        const info = (label, value) => `<tr>${cell(label, 'width:21%;background:#e3edf7;color:#004b96;font-weight:bold;')}${cell(value)}</tr>`;
+        const heading = label => `<th scope="col" bgcolor="#cfdeef" style="${cellStyle}background:#cfdeef;text-align:left;">${label}</th>`;
+        const rows = items.map((item, index) => {
+            const status = item.closed === date ? 'Closed' : item.due && item.due < date ? 'Overdue' : 'Open';
+            const kind = item.kind === 'طلب' ? 'Request' : 'Task';
+            const meta = [kind, item.reference, status].filter(Boolean).map(escapeMemo).join(' · ');
+            const action = escapeMemo(item.description) + '<br><span style="color:#526781;font-size:12px;">' + meta + '</span>' +
+                (item.blocker ? '<br><strong>Blocker:</strong> ' + escapeMemo(item.blocker) : '') +
+                (item.action ? '<br><strong>Next action:</strong> ' + escapeMemo(item.action) : '');
+            return `<tr>${cell(index + 1, 'text-align:center;')}${cell(action, 'width:59%;')}${cell(escapeMemo(item.owner), 'width:21%;')}${cell(escapeMemo(item.due || '—'), 'width:15%;')}</tr>`;
+        }).join('');
+        preview.innerHTML = `
+            <div dir="ltr" lang="en" style="max-width:794px;margin:auto;font-family:Arial,sans-serif;color:#13223a;text-align:left;">
+                <table role="presentation" style="width:100%;border-collapse:collapse;"><tr>
+                    <td align="left"><img src="${logos.service}" alt="Fe Khedmatekom" width="124" height="50" style="display:block;border:0;"></td>
+                    <td align="right"><img src="${logos.company}" alt="Almajdouie" width="148" height="47" style="display:block;border:0;"></td>
+                </tr></table>
+                <h2 style="margin:12px 0 15px;padding-bottom:22px;border-bottom:1px solid #0052a4;text-align:center;color:#123966;font-size:21px;">MINUTES OF MEETING</h2>
+                <table style="${tableStyle}">
+                    ${bar('MEETING INFORMATION', 2)}
+                    ${info('Meeting', escapeMemo(name))}
+                    ${info('Date / Time', escapeMemo(date + (details.time ? ' / ' + details.time : '')))}
+                    ${info('Venue', escapeMemo(details.venue || '—'))}
+                    ${info('Attendees (' + attendees.length + ')', attendanceList)}
+                    ${others ? info('Absences / Apologies', others) : ''}
+                </table>
+                <p style="margin:0;height:32px;line-height:32px;">&nbsp;</p>
+                <table style="${tableStyle}">
+                    ${bar('1. Meeting Points', 4)}
+                    <tr><th colspan="4" style="${cellStyle}background:#f0f4f8;color:#004b96;text-align:left;">ACTION ITEMS</th></tr>
+                    <tr>${['#', 'Action Item', 'Owner', 'Due Date'].map(heading).join('')}</tr>
+                    ${rows || '<tr><td colspan="4" style="' + cellStyle + '">No action items recorded.</td></tr>'}
+                </table>
+                <p style="border-top:1px solid #e0e8f2;margin:38px 0 0;padding-top:12px;color:#526781;font-size:13px;">REFERENCE &nbsp;—&nbsp; Minutes of Meeting &nbsp;—&nbsp; MMC IT</p>
+                <p style="margin:5px 0 0;color:#65788e;font-size:13px;font-style:italic;">Please send any feedback within three business days.</p>
+            </div>`;
+    }
+
+    function memoHtml() {
+        return '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>' +
+            escapeMemo(subject.value) + '</title></head><body>' + preview.innerHTML + '</body></html>';
+    }
+
+    get('copyMeetingMemo').onclick = async () => {
+        if (!subject.value) return;
+        try {
+            await navigator.clipboard.write([new ClipboardItem({
+                'text/html': new Blob([memoHtml()], { type: 'text/html' }),
+                'text/plain': new Blob([preview.innerText], { type: 'text/plain' })
+            })]);
+            feedback.textContent = 'تم نسخ المحضر المنسّق. الصقه في نص رسالة البريد.';
+        } catch {
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(preview);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            feedback.textContent = 'تم تحديد المحضر. اضغط Ctrl+C لنسخه ثم الصقه في البريد.';
+        }
+    };
+
+    get('downloadMeetingMemo').onclick = () => {
+        if (!subject.value) return;
+        const url = URL.createObjectURL(new Blob([memoHtml()], { type: 'text/html' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'Minutes_of_Meeting_' + dateInput.value + '.html';
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+
+    get('openMeetingMail').onclick = () => {
+        if (subject.value) window.location.href = 'mailto:?subject=' + encodeURIComponent(subject.value);
+    };
+
+    const warningThreshold = 3;
+    const chartMonth = get('attendanceMonth');
+    const absenceDraft = get('absenceDraft');
+    const absenceFeedback = get('absenceFeedback');
+
+    function monthlyStats(records, month) {
+        const byEmployee = new Map();
+        for (const record of records) {
+            if (record.date.slice(0, 7) !== month) continue;
+            const key = record.person.trim().toLowerCase();
+            if (!byEmployee.has(key)) {
+                byEmployee.set(key, { person: record.person, present: 0, absent: [], excused: 0 });
+            }
+            const entry = byEmployee.get(key);
+            if (record.status === 'حاضر') entry.present++;
+            if (record.status === 'غائب') entry.absent.push(record.date);
+            if (record.status === 'معتذر') entry.excused++;
+        }
+        const summaries = [...byEmployee.values()];
+        for (const summary of summaries) summary.absent.sort();
+        return summaries.sort((a, b) => a.person.localeCompare(b.person));
+    }
+
+    function countLabel(summary) {
+        return 'حضر: ' + summary.present + ' | لم يحضر: ' + (summary.absent.length + summary.excused) +
+            ' (دون عذر: ' + summary.absent.length + '، معتذر: ' + summary.excused + ')';
+    }
+
+    function drawAttendanceChart(records) {
+        const chart = get('attendanceChart');
+        chart.replaceChildren();
+        const summaries = monthlyStats(records, chartMonth.value);
+        if (!summaries.length) {
+            chart.append(node('p', 'لا توجد سجلات حضور للشهر المختار.'));
+            return;
+        }
+        const max = Math.max(...summaries.map(entry => entry.present + entry.absent.length + entry.excused));
+        for (const entry of summaries) {
+            const row = node('article', '');
+            const bar = node('div', '');
+            bar.className = 'stats-bar';
+            bar.setAttribute('aria-hidden', 'true');
+            for (const [status, count] of [['present', entry.present], ['absent', entry.absent.length], ['excused', entry.excused]]) {
+                if (!count) continue;
+                const segment = node('span', '');
+                segment.className = 'stats-' + status;
+                segment.style.width = (100 * count / max) + '%';
+                bar.append(segment);
+            }
+            row.append(node('strong', entry.person), bar, node('p', countLabel(entry)));
+            chart.append(row);
+        }
+    }
+
+    function prepareAbsenceDraft(summary, date, month, warning, meetingName) {
+        absenceDraft.reset();
+        absenceFeedback.textContent = '';
+        get('absenceDraftTitle').textContent = (warning ? 'مسودة إنذار غياب — ' : 'مسودة تنبيه غياب — ') + summary.person;
+        const fields = absenceDraft.elements;
+        fields.mailSubject.value = (warning ? 'Attendance Warning' : 'Meeting Attendance Reminder') +
+            ' | ' + summary.person + ' | ' + (warning ? month : date);
+        fields.mailBody.value = [
+            'Dear ' + summary.person + ',', '',
+            warning
+                ? 'This is a formal attendance warning. Your meeting attendance record for ' + month +
+                  ' shows ' + summary.absent.length + ' absences without an excuse. The monthly warning threshold is ' +
+                  warningThreshold + ' unexcused absences.'
+                : 'You were recorded as absent without an excuse for the ' + meetingName + ' on ' + date + '.',
+            '', 'Monthly attendance summary (' + month + ')',
+            'Meetings attended: ' + summary.present,
+            'Meetings missed: ' + (summary.absent.length + summary.excused),
+            '  Without an excuse: ' + summary.absent.length,
+            '  Excused: ' + summary.excused,
+            'Dates absent without an excuse: ' + summary.absent.join(', '), '',
+            'Please confirm receipt and let me know if any record needs correction. If you cannot attend a future meeting, please notify me in advance when possible.',
+            '', 'Regards,', 'Mohammed Baghethan', 'Service Operations Manager'
+        ].join('\n');
+        absenceDraft.hidden = false;
+        fields.recipient.focus();
+    }
+
+    function renderAbsenceNotices(records, date, details) {
+        const notices = get('absenceNotices');
+        const warnings = get('absenceWarnings');
+        notices.replaceChildren();
+        warnings.replaceChildren();
+        const month = date.slice(0, 7);
+        get('absencePeriod').textContent = 'الاجتماع: ' + date + ' | شهر الاحتساب: ' + month;
+        const summaries = monthlyStats(records, month);
+        for (const summary of summaries) {
+            const warning = summary.absent.length >= warningThreshold;
+            const addRow = (container, isWarning) => {
+                const row = node('article', '');
+                row.append(node('strong', summary.person), node('p', countLabel(summary)),
+                    button(isWarning ? 'تجهيز مسودة إنذار' : 'تجهيز مسودة تنبيه', () =>
+                        prepareAbsenceDraft(summary, date, month, isWarning, details.name || defaultMeetingName)));
+                container.append(row);
+            };
+            if (summary.absent.includes(date)) addRow(notices, warning);
+            if (warning) addRow(warnings, true);
+        }
+        if (!notices.childElementCount) notices.append(node('p', 'لا يوجد غياب دون عذر مسجّل لهذا الاجتماع.'));
+        if (!warnings.childElementCount) warnings.append(node('p', 'لم يبلغ أي موظف حد الإنذار في هذا الشهر.'));
+    }
+
+    get('copyAbsenceDraft').onclick = async () => {
+        const { mailSubject, mailBody } = absenceDraft.elements;
+        try {
+            await navigator.clipboard.writeText(mailSubject.value + '\n\n' + mailBody.value);
+            absenceFeedback.textContent = 'تم نسخ موضوع الرسالة ونصها.';
+        } catch {
+            mailBody.select();
+            absenceFeedback.textContent = 'تم تحديد نص الرسالة. اضغط Ctrl+C لنسخه.';
+        }
+    };
+
+    absenceDraft.onsubmit = event => {
+        event.preventDefault();
+        const { recipient, mailSubject, mailBody } = absenceDraft.elements;
+        const url = 'mailto:' + encodeURIComponent(recipient.value.trim()).replace('%40', '@') +
+            '?subject=' + encodeURIComponent(mailSubject.value) +
+            '&body=' + encodeURIComponent(mailBody.value.replaceAll('\n', '\r\n'));
+        if (url.length > 1900) {
+            absenceFeedback.textContent = 'الرسالة طويلة. انسخ الموضوع والنص والصقهما في برنامج البريد.';
+            return;
+        }
+        window.location.href = url;
+    };
+
+    const workloadForm = get('workloadForm');
+    const workloadFields = workloadForm.elements;
+    const countKeys = ['open', 'onHold', 'overdue'];
+    const employeeKey = name => name.trim().toLowerCase();
+
+    function resetWorkloadInputs() {
+        workloadFields.employee.value = '';
+        for (const key of countKeys) workloadFields[key].value = '0';
+    }
+
+    function renderWorkload(data, date) {
+        const body = get('workloadRows');
+        const footer = get('workloadTotals');
+        const employees = get('workloadEmployees');
+        const bucket = workloadFields.bucket.value;
+        const label = bucket === 'tasks' ? 'Tasks' : 'Requests';
+        get('workloadCaption').textContent = label + (date ? ' | ' + date : '');
+        body.replaceChildren();
+        footer.replaceChildren();
+        employees.replaceChildren();
+        const rows = data.workload?.[date]?.[bucket] ?? [];
+        const names = new Map();
+        for (const entry of [...(data.roster ?? []).map(row => row.person), ...data.attendance.map(row => row.person), ...data.items.map(row => row.owner), ...rows.map(row => row.employee)]) {
+            if (entry) names.set(employeeKey(entry), entry);
+        }
+        for (const name of [...names.values()].sort((a, b) => a.localeCompare(b))) {
+            const option = node('option', '');
+            option.value = name;
+            employees.append(option);
+        }
+
+        const countCells = entry => countKeys.map(key => {
+            const value = node('td', String(entry[key]));
+            if (key === 'overdue') value.className = 'workload-overdue';
+            return value;
+        });
+        const totals = { open: 0, onHold: 0, overdue: 0 };
+        const orderedRows = [...rows].sort((a, b) => {
+            const aUnassigned = employeeKey(a.employee) === 'unassigned';
+            const bUnassigned = employeeKey(b.employee) === 'unassigned';
+            return Number(aUnassigned) - Number(bUnassigned) || a.employee.localeCompare(b.employee);
+        });
+        for (const entry of orderedRows) {
+            const row = node('tr', '');
+            const name = node('th', entry.employee);
+            name.scope = 'row';
+            name.dir = 'auto';
+            const actions = node('td', '');
+            actions.append(button('تعديل الأعداد', () => {
+                workloadFields.employee.value = entry.employee;
+                for (const key of countKeys) workloadFields[key].value = entry[key];
+                workloadFields.open.focus();
+            }));
+            row.append(name, ...countCells(entry), actions);
+            body.append(row);
+            for (const key of countKeys) totals[key] += entry[key];
+        }
+        if (!rows.length) {
+            const empty = node('td', date ? 'لا توجد أعداد مسجّلة لهذا النوع في التاريخ المحدد.' : 'اختر تاريخ الاجتماع.');
+            empty.colSpan = 5;
+            empty.dir = 'rtl';
+            const row = node('tr', '');
+            row.append(empty);
+            body.append(row);
+        }
+        const totalRow = node('tr', '');
+        const totalLabel = node('th', 'Total');
+        totalLabel.scope = 'row';
+        totalRow.append(totalLabel, ...countCells(totals), node('td', ''));
+        footer.append(totalRow);
+    }
+
+    workloadFields.bucket.onchange = () => {
+        resetWorkloadInputs();
+        render();
+    };
+
+    get('workloadUnassigned').onclick = () => {
+        workloadFields.employee.value = 'Unassigned';
+        workloadFields.open.focus();
+    };
+
+    workloadForm.onsubmit = event => {
+        event.preventDefault();
+        const employee = workloadFields.employee.value.trim();
+        if (!employee) {
+            feedback.textContent = 'أدخل اسم الموظف أو اختر «غير مسند».';
+            workloadFields.employee.focus();
+            return;
+        }
+        const counts = Object.fromEntries(countKeys.map(key => [key, workloadFields[key].valueAsNumber]));
+        if (Object.values(counts).some(value => !Number.isSafeInteger(value) || value < 0 || value > 999999999)) {
+            feedback.textContent = 'أدخل عددًا صحيحًا من صفر إلى 999999999 لكل حالة.';
+            return;
+        }
+        if (update((data, date) => {
+            data.workload ??= {};
+            data.workload[date] ??= { requests: [], tasks: [] };
+            const rows = data.workload[date][workloadFields.bucket.value];
+            const existing = rows.find(row => employeeKey(row.employee) === employeeKey(employee));
+            if (existing) Object.assign(existing, counts);
+            else rows.push({ employee, ...counts });
+        })) resetWorkloadInputs();
+    };
+
+    function render() {
+        const attendanceList = get('attendanceList');
+        const itemsList = get('meetingItems');
+        attendanceList.replaceChildren();
+        itemsList.replaceChildren();
+        get('meetingCounts').textContent = '';
+        subject.value = '';
+        preview.replaceChildren();
+        get('absenceNotices').replaceChildren();
+        get('absenceWarnings').replaceChildren();
+        get('absencePeriod').textContent = '';
+        get('attendanceChart').replaceChildren();
+        absenceDraft.hidden = true;
+        const date = dateInput.value;
+        if (!date) {
+            renderWorkload({ attendance: [], items: [] }, '');
+            return;
+        }
+
+        let data;
+        try {
+            data = load();
+        } catch {
+            renderWorkload({ attendance: [], items: [] }, date);
+            feedback.textContent = 'تعذر قراءة السجل المحفوظ في هذا المتصفح.';
+            return;
+        }
+        const { people, items, details } = onDate(data, date);
+        renderWorkload(data, date);
+        renderAbsenceNotices(data.attendance, date, details);
+        drawAttendanceChart(data.attendance);
+        memoDetails.elements.meetingName.value = details.name || defaultMeetingName;
+        memoDetails.elements.meetingTime.value = details.time || '';
+        memoDetails.elements.venue.value = details.venue || '';
+        const roster = new Map((data.roster ?? [])
+            .filter(entry => entry.from <= date)
+            .map(entry => [employeeKey(entry.person), { person: entry.person }]));
+        for (const record of people) roster.set(employeeKey(record.person), record);
+
+        for (const entry of [...roster.values()].sort((a, b) => a.person.localeCompare(b.person))) {
+            const row = node('li', entry.person + ' · ' + (entry.status || 'لم يُسجّل') +
+                (entry.status === 'معتذر' && entry.excuseReason ? ' · سبب الاعتذار: ' + entry.excuseReason : '') + ' ');
+            row.append(...['حاضر', 'غائب'].map(status => button('تسجيل ' + status, () => {
+                if (saveAttendance(entry.person, status, '')) resetAttendance();
+            })), button(entry.status === 'معتذر' ? 'تعديل الاعتذار' : 'تسجيل معتذر', () => {
+                attendance.hidden = false;
+                attendance.elements.person.value = entry.person;
+                attendance.elements.status.value = 'معتذر';
+                excuseReasonInput.value = entry.excuseReason ?? '';
+                syncExcuseReason();
+                excuseReasonInput.focus();
+            }));
+            attendanceList.append(row);
+        }
+        if (!roster.size) attendanceList.append(node('li', 'أضف الموظفين لعرض قائمة الحضور لهذا الاجتماع.'));
+
+        const open = items.filter(item => !item.closed || item.closed > date);
+        const requests = open.filter(item => item.kind === 'طلب').length;
+        const overdue = open.filter(item => item.due && item.due < date).length;
+        get('meetingCounts').textContent = 'الطلبات المفتوحة: ' + requests +
+            ' | المهام المفتوحة: ' + (open.length - requests) + ' | المتأخرة: ' + overdue;
+
+        for (const item of items) {
+            const closed = item.closed === date;
+            const row = node('article', '');
+            row.append(
+                node('strong', [item.kind, item.reference, item.description].filter(Boolean).join(' · ')),
+                node('p', 'المسؤول: ' + item.owner + ' | الحالة: ' +
+                    (closed ? 'مغلق' : item.due && item.due < date ? 'مفتوح ومتأخر' : 'مفتوح') +
+                    (item.due ? ' | موعد الإغلاق المستهدف: ' + item.due : '') +
+                    ' | تاريخ التسجيل: ' + item.date)
+            );
+            if (item.blocker) row.append(node('p', 'سبب عدم الإغلاق: ' + item.blocker));
+            if (item.action) row.append(node('p', 'الإجراء التالي: ' + item.action));
+
+            if (item.closed && item.closed > date) {
+                row.append(node('p', 'أُغلق في اجتماع لاحق بتاريخ ' + item.closed));
+            } else {
+                row.append(button('تعديل', () => {
+                    editingId = item.id;
+                    for (const field of ['kind', 'reference', 'description', 'owner', 'due', 'blocker', 'action']) {
+                        followup.elements[field].value = item[field];
+                    }
+                    get('cancelFollowup').hidden = false;
+                    followup.elements.description.focus();
+                }), button(closed ? 'إعادة فتح' : 'إغلاق', () => {
+                    update((data, selectedDate) => {
+                        const record = data.items.find(entry => entry.id === item.id);
+                        if (record && (!record.closed || record.closed === selectedDate)) {
+                            record.closed = record.closed ? '' : selectedDate;
+                        }
+                    });
+                }));
+            }
+            itemsList.append(row);
+        }
+        if (!items.length) itemsList.append(node('p', 'لا توجد بنود متابعة مسجلة حتى تاريخ الاجتماع.'));
+        buildMemo(date, people, items, details);
+    }
+
+    const tabs = document.querySelectorAll('.meeting-nav button');
+    for (const tab of tabs) {
+        tab.onclick = () => {
+            for (const current of tabs) {
+                const active = current === tab;
+                current.setAttribute('aria-pressed', String(active));
+                get(current.getAttribute('aria-controls')).hidden = !active;
+            }
+            feedback.textContent = '';
+            render();
+        };
+    }
+
+    dateInput.value = today();
+    chartMonth.value = dateInput.value.slice(0, 7);
+    chartMonth.onchange = render;
+    get('cancelFollowup').onclick = resetFollowup;
+    dateInput.onchange = () => {
+        resetWorkloadInputs();
+        chartMonth.value = dateInput.value.slice(0, 7);
+        resetAttendance();
+        resetFollowup();
+        feedback.textContent = '';
+        render();
+    };
+
+    attendance.elements.status.onchange = syncExcuseReason;
+    syncExcuseReason();
+
+    const rosterForm = get('rosterForm');
+    rosterForm.onsubmit = event => {
+        event.preventDefault();
+        const person = rosterForm.elements.employee.value.trim();
+        if (!person) {
+            feedback.textContent = 'أدخل اسم الموظف.';
+            return;
+        }
+        if (update((data, date) => {
+            data.roster ??= [];
+            const existing = data.roster.find(entry => employeeKey(entry.person) === employeeKey(person));
+            if (!existing) data.roster.push({ person, from: date });
+            else if (date < existing.from) existing.from = date;
+        })) rosterForm.reset();
+    };
+
+    function saveAttendance(person, status, excuseReason) {
+        return update((data, date) => {
+            const entry = data.attendance.find(row => row.date === date && employeeKey(row.person) === employeeKey(person));
+            if (entry) Object.assign(entry, { status, excuseReason });
+            else data.attendance.push({ date, person, status, excuseReason });
+        });
+    }
+
+    attendance.onsubmit = event => {
+        event.preventDefault();
+        const person = attendance.elements.person.value.trim();
+        if (!person) {
+            feedback.textContent = 'أدخل اسم الموظف.';
+            return;
+        }
+        const status = attendance.elements.status.value;
+        const excuseReason = status === 'معتذر' ? excuseReasonInput.value.trim() : '';
+        if (status === 'معتذر' && !excuseReason) {
+            feedback.textContent = 'أدخل سبب الاعتذار.';
+            excuseReasonInput.focus();
+            return;
+        }
+        if (saveAttendance(person, status, excuseReason)) resetAttendance();
+    };
+
+    followup.onsubmit = event => {
+        event.preventDefault();
+        const fields = Object.fromEntries([...new FormData(followup)].map(([key, value]) => [key, value.trim()]));
+        if (!fields.description || !fields.owner) {
+            feedback.textContent = 'أدخل وصف البند واسم المسؤول.';
+            return;
+        }
+        if (update((data, date) => {
+            const entry = data.items.find(row => row.id === editingId);
+            if (entry) Object.assign(entry, fields);
+            else data.items.push({ ...fields, date, closed: '', id: globalThis.crypto?.randomUUID?.() ?? Date.now() + '-' + Math.random() });
+        })) resetFollowup();
+    };
+
+    memoDetails.onsubmit = event => {
+        event.preventDefault();
+        const { meetingName, meetingTime, venue } = memoDetails.elements;
+        update((data, date) => {
+            data.details ??= {};
+            data.details[date] = {
+                name: meetingName.value.trim() || defaultMeetingName,
+                time: meetingTime.value,
+                venue: venue.value.trim()
+            };
+        });
+    };
+
+    render();
+    window.addEventListener('storage', event => {
+        if (event.key === storageKey) render();
+    });
+})();
+</script>
+</body>
+</html>
