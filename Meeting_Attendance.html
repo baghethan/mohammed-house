@@ -124,6 +124,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
   .attendance-bar-row { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; }
   .attendance-bar-row .stats-bar { grid-column: 1 / -1; grid-row: 2; }
 }
+.attendance-export { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-block: 12px; }
+.attendance-export button:disabled { opacity: .55; cursor: default; }
 </style>
 </head>
 <body>
@@ -300,6 +302,11 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         <select id="attendancePageSize"><option value="6">6</option><option value="10">10</option><option value="20">20</option></select>
       </label>
     </div>
+    <div class="attendance-export">
+      <button type="button" id="copyAttendanceChart" disabled>نسخ الرسم كصورة</button>
+      <button type="button" id="downloadAttendanceChart" disabled>تنزيل PNG</button>
+      <span id="attendanceExportStatus" role="status"></span>
+    </div>
     <div id="attendanceMetrics" class="attendance-metrics"></div>
     <p>تُحسب الحالات المسجّلة لكل موظف. الاجتماع الذي لا يوجد فيه سجل للموظف لا يدخل في العدّ.</p>
     <ul class="stats-legend" aria-label="مفتاح الرسم البياني">
@@ -328,6 +335,12 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 (() => {
     const get = id => document.getElementById(id);
     const english = {
+    "نسخ الرسم كصورة": "Copy chart as image",
+    "تنزيل PNG": "Download PNG",
+    "تعذّر النسخ. استخدم زر تنزيل PNG.": "Could not copy. Use Download PNG.",
+    "تم نسخ الرسم كصورة.": "Chart copied as an image.",
+    "تم تجهيز صورة الرسم للتنزيل.": "Chart image prepared for download.",
+    "تعذّر إنشاء صورة الرسم.": "Could not create a chart image.",
     "طريقة العرض": "View",
     "مقارنة الموظفين": "Employee comparison",
     "ملخص دائري": "Donut summary",
@@ -542,7 +555,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.6.0';
+    get('meetingVersion').textContent = 'v1.6.1';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -816,6 +829,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         pagination.hidden = true;
         sizeControl.hidden = chartMode.value === 'donut';
         const summaries = monthlyStats(records, chartMonth.value);
+        get('copyAttendanceChart').disabled = !summaries.length;
+        get('downloadAttendanceChart').disabled = !summaries.length;
+        get('attendanceExportStatus').textContent = '';
         const totals = summaries.reduce((total, entry) => {
             for (const [status, count] of statusCounts(entry)) total[status] += count;
             return total;
@@ -949,6 +965,138 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     chartPageSize.onchange = resetAttendanceChartPage;
     chartPrevious.onclick = () => { chartPage--; drawAttendanceChart(); };
     chartNext.onclick = () => { chartPage++; drawAttendanceChart(); };
+
+    function attendanceChartPng() {
+        const all = monthlyStats(chartRecords, chartMonth.value);
+        if (!all.length) return Promise.reject(new Error('No chart data'));
+        const mode = chartMode.value;
+        const size = Number(chartPageSize.value) || 6;
+        const rows = all.slice(chartPage * size, (chartPage + 1) * size);
+        const totals = all.reduce((sum, entry) => {
+            for (const [status, count] of statusCounts(entry)) sum[status] += count;
+            return sum;
+        }, { present: 0, absent: 0, excused: 0 });
+        const statuses = Object.keys(totals);
+        const palette = { present: '#187653', absent: '#b63d46', excused: '#315ea4' };
+        const rtl = lang !== 'en';
+        const width = 1080;
+        const height = mode === 'donut' ? 540 : 280 + rows.length * 43;
+        const canvas = document.createElement('canvas');
+        canvas.width = width * 2;
+        canvas.height = height * 2;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(2, 2);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, width, height);
+        const position = x => rtl ? width - x : x;
+        function box(x, y, w, h, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(position(x) - (rtl ? w : 0), y, w, h);
+        }
+        function label(value, x, y, { color = '#142849', size = 16, weight = 400, center = false, max = width, direction = rtl ? 'rtl' : 'ltr' } = {}) {
+            ctx.direction = direction;
+            ctx.textAlign = center ? 'center' : rtl ? 'right' : 'left';
+            ctx.font = weight + ' ' + size + 'px Arial, Tahoma, sans-serif';
+            ctx.fillStyle = color;
+            ctx.fillText(String(value), position(x), y, max);
+        }
+        box(0, 0, width, 102, '#142849');
+        label(tr('الرسم البياني للحضور'), 36, 43, { color: '#fff', size: 27, weight: 700 });
+        const modeLabels = { bars: 'مقارنة الموظفين', donut: 'ملخص دائري', table: 'جدول تفصيلي' };
+        label(tr(modeLabels[mode]) + ' · ' + chartMonth.value, 36, 76, { color: '#dbe8fb' });
+
+        const metricLabels = ['الموظفون المسجّلون', ...Object.values(chartStatusLabels)];
+        const counts = [all.length, ...Object.values(totals)];
+        metricLabels.forEach((key, i) => {
+            const x = 36 + i * 254;
+            box(x, 120, 244, 75, '#eef3fa');
+            label(tr(key), x + 12, 146, { weight: 700, max: 222 });
+            label(counts[i], x + 12, 177, { size: 23, weight: 700, color: palette[statuses[i - 1]] || '#142849' });
+        });
+
+        if (mode === 'donut') {
+            const total = Object.values(totals).reduce((sum, value) => sum + value, 0);
+            const x = position(270), y = 360;
+            let start = -Math.PI / 2;
+            for (const status of statuses) {
+                const end = start + (total ? totals[status] / total * 2 * Math.PI : 0);
+                ctx.beginPath();
+                ctx.lineWidth = 33;
+                ctx.strokeStyle = palette[status];
+                ctx.arc(x, y, 99, start, end);
+                ctx.stroke();
+                start = end;
+            }
+            label(total, 270, 359, { center: true, size: 30, weight: 700 });
+            label(tr('إجمالي الحالات'), 270, 389, { center: true });
+            statuses.forEach((status, index) => {
+                const baseline = 306 + index * 61;
+                const percent = total ? Math.round(totals[status] / total * 1000) / 10 : 0;
+                box(475, baseline - 13, 14, 14, palette[status]);
+                label(tr(chartStatusLabels[status]), 503, baseline, { weight: 700 });
+                label(totals[status] + ' · ' + percent + '%', 800, baseline, { direction: 'ltr' });
+            });
+        } else {
+            const columnX = [768, 879, 990];
+            const max = all.reduce((largest, entry) => Math.max(largest, entry.present + entry.absent.length + entry.excused), 1);
+            box(36, 216, 1008, 34, '#e9f0f9');
+            label(tr('اسم الموظف'), 48, 238, { weight: 700 });
+            statuses.forEach((status, index) => label(tr(chartStatusLabels[status]), columnX[index], 238,
+                { center: true, weight: 700, size: 14, max: 108, color: palette[status] }));
+            rows.forEach((entry, index) => {
+                const top = 250 + index * 43;
+                box(36, top, 1008, 43, index % 2 ? '#f2f6fb' : '#fff');
+                label(entry.person, 48, top + 27, { max: mode === 'bars' ? 300 : 640, direction: /\p{Script=Arabic}/u.test(entry.person) ? 'rtl' : 'ltr' });
+                const values = statusCounts(entry);
+                if (mode === 'bars') {
+                    let x = 374;
+                    box(x, top + 17, 326, 12, '#e5edf8');
+                    for (const [status, count] of values) {
+                        const barWidth = 326 * count / max;
+                        if (barWidth) box(x, top + 17, barWidth, 12, palette[status]);
+                        x += barWidth;
+                    }
+                }
+                values.forEach(([status, count], i) => label(count, columnX[i], top + 27,
+                    { center: true, weight: 700, color: palette[status] }));
+            });
+            const pageCount = Math.ceil(all.length / size);
+            label(tr('صفحة ') + (chartPage + 1) + ' / ' + pageCount, 36, height - 10, { size: 12 });
+        }
+        return new Promise((resolve, reject) => canvas.toBlob(blob => {
+            if (blob) resolve(blob);
+            else reject(new Error('PNG creation failed'));
+        }, 'image/png'));
+    }
+
+    const attendanceExportStatus = get('attendanceExportStatus');
+    get('copyAttendanceChart').onclick = async () => {
+        if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+            attendanceExportStatus.textContent = tr('تعذّر النسخ. استخدم زر تنزيل PNG.');
+            return;
+        }
+        try {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': attendanceChartPng() })]);
+            attendanceExportStatus.textContent = tr('تم نسخ الرسم كصورة.');
+        } catch {
+            attendanceExportStatus.textContent = tr('تعذّر النسخ. استخدم زر تنزيل PNG.');
+        }
+    };
+    get('downloadAttendanceChart').onclick = async () => {
+        try {
+            const name = 'Meeting_Attendance_' + chartMonth.value + '_' + chartMode.value +
+                (chartMode.value === 'donut' ? '' : '_p' + (chartPage + 1)) + '.png';
+            const url = URL.createObjectURL(await attendanceChartPng());
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = name;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            attendanceExportStatus.textContent = tr('تم تجهيز صورة الرسم للتنزيل.');
+        } catch {
+            attendanceExportStatus.textContent = tr('تعذّر إنشاء صورة الرسم.');
+        }
+    };
 
     function prepareAbsenceDraft(summary, date, month, warning, meetingName) {
         absenceDraft.reset();
