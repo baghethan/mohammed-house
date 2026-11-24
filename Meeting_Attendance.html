@@ -87,6 +87,43 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 #followupForm textarea { width: min(300px, 75vw); }
 #meetingPanel .add-action-point { justify-self: start; }
 #meetingItems ul { margin-block: 4px 10px; }
+#attendanceStatsPanel { --att-present: #187653; --att-absent: #b63d46; --att-excused: #315ea4; }
+.attendance-chart-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 10px 18px; margin: 12px 0; }
+.attendance-chart-controls label[hidden], .attendance-pagination[hidden] { display: none; }
+.attendance-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-block: 16px; }
+.attendance-metric { min-width: 0; padding: 11px 13px; background: #f1f5fa; border: 1px solid #dbe4ef; border-radius: 10px; }
+.attendance-metric span { display: block; font-size: 13px; font-weight: 600; }
+.attendance-metric strong { display: block; font-size: 24px; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.metric-present { background: #eaf7f0; color: #156044; }
+.metric-absent { background: #fceff0; color: #972d37; }
+.metric-excused { background: #edf3fe; color: #285296; }
+.attendance-bar-grid { border: 1px solid #dbe4ef; border-radius: 9px; overflow: hidden; }
+.attendance-bar-row { display: grid; grid-template-columns: minmax(145px, 1.2fr) minmax(90px, 2fr) auto; align-items: center; gap: 12px; padding: 9px 12px; }
+.attendance-bar-row:nth-child(even) { background: #f6f8fc; }
+.attendance-bar-row strong { overflow-wrap: anywhere; font-size: 14px; }
+.attendance-bar-row .stats-bar { width: 100%; height: 12px; margin: 0; }
+.attendance-row-counts { display: flex; gap: 4px; font-variant-numeric: tabular-nums; }
+.attendance-count { display: inline-grid; place-items: center; min-width: 22px; border-radius: 5px; padding: 2px 4px; font-size: 13px; font-weight: 700; }
+.attendance-donut-layout { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; justify-content: center; padding: 14px; border: 1px solid #dbe4ef; border-radius: 10px; }
+.attendance-donut { display: grid; place-items: center; width: min(190px, 100%); aspect-ratio: 1; border-radius: 50%; background: conic-gradient(var(--att-present) 0 var(--present-end), var(--att-absent) var(--present-end) var(--absent-end), var(--att-excused) var(--absent-end) 100%); }
+.attendance-donut-center { display: grid; place-content: center; text-align: center; width: 69%; aspect-ratio: 1; border-radius: 50%; background: white; }
+.attendance-donut-center strong { font-size: 26px; }
+.attendance-donut-center span { font-size: 13px; }
+.attendance-breakdown { padding: 0; margin: 0; min-width: min(240px, 100%); list-style: none; }
+.attendance-breakdown li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #dbe4ef; }
+.attendance-table-wrap { overflow-x: auto; border: 1px solid #dbe4ef; border-radius: 9px; }
+.attendance-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.attendance-table th, .attendance-table td { padding: 8px 10px; text-align: center; }
+.attendance-table th:first-child { text-align: start; }
+.attendance-table thead, .attendance-table tbody tr:nth-child(even) { background: #f1f5fa; }
+.attendance-pagination { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin-top: 12px; }
+.attendance-pagination button:disabled { opacity: .55; cursor: default; }
+.attendance-chart-empty { text-align: center; padding: 12px; background: #f6f8fc; border-radius: 8px; }
+@media (max-width: 620px) {
+  .attendance-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .attendance-bar-row { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; }
+  .attendance-bar-row .stats-bar { grid-column: 1 / -1; grid-row: 2; }
+}
 </style>
 </head>
 <body>
@@ -250,7 +287,20 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
   </section>
   <section id="attendanceStatsPanel" hidden>
     <h2>الرسم البياني للحضور</h2>
-    <label>الشهر الميلادي <input id="attendanceMonth" type="month" required></label>
+    <div class="attendance-chart-controls">
+      <label>الشهر الميلادي <input id="attendanceMonth" type="month" required></label>
+      <label>طريقة العرض
+        <select id="attendanceChartMode">
+          <option value="bars">مقارنة الموظفين</option>
+          <option value="donut">ملخص دائري</option>
+          <option value="table">جدول تفصيلي</option>
+        </select>
+      </label>
+      <label id="attendancePageSizeControl">موظفون لكل صفحة
+        <select id="attendancePageSize"><option value="6">6</option><option value="10">10</option><option value="20">20</option></select>
+      </label>
+    </div>
+    <div id="attendanceMetrics" class="attendance-metrics"></div>
     <p>تُحسب الحالات المسجّلة لكل موظف. الاجتماع الذي لا يوجد فيه سجل للموظف لا يدخل في العدّ.</p>
     <ul class="stats-legend" aria-label="مفتاح الرسم البياني">
       <li><span class="stats-swatch stats-present"></span>حاضر</li>
@@ -258,6 +308,11 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
       <li><span class="stats-swatch stats-excused"></span>معتذر</li>
     </ul>
     <div id="attendanceChart"></div>
+    <nav id="attendancePagination" class="attendance-pagination" aria-label="صفحات الرسم البياني" hidden>
+      <button id="attendancePrevious" type="button">السابق</button>
+      <span id="attendancePageIndicator" role="status"></span>
+      <button id="attendanceNext" type="button">التالي</button>
+    </nav>
   </section>
   <dialog id="translationDialog" aria-labelledby="translationTitle">
     <h2 id="translationTitle">ترجمة النص</h2>
@@ -273,6 +328,17 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 (() => {
     const get = id => document.getElementById(id);
     const english = {
+    "طريقة العرض": "View",
+    "مقارنة الموظفين": "Employee comparison",
+    "ملخص دائري": "Donut summary",
+    "جدول تفصيلي": "Detailed table",
+    "موظفون لكل صفحة": "Employees per page",
+    "صفحات الرسم البياني": "Chart pages",
+    "السابق": "Previous",
+    "التالي": "Next",
+    "الموظفون المسجّلون": "Employees with records",
+    "إجمالي الحالات": "Total records",
+    "صفحة ": "Page ",
     "إزالة من الاجتماع": "Remove from meeting",
     "هل تريد إزالة الموظف وحذف حالة حضوره من هذا الاجتماع؟": "Remove the employee and their attendance status from this meeting?",
     "إضافة نقطة": "Add bullet",
@@ -476,7 +542,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.5.1';
+    get('meetingVersion').textContent = 'v1.6.0';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -720,31 +786,169 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             tr(' (دون عذر: ') + summary.absent.length + tr('، معتذر: ') + summary.excused + ')';
     }
 
-    function drawAttendanceChart(records) {
+    const chartMode = get('attendanceChartMode');
+    const chartPageSize = get('attendancePageSize');
+    const chartPrevious = get('attendancePrevious');
+    const chartNext = get('attendanceNext');
+    const chartStatusLabels = { present: 'حاضر', absent: 'غائب دون عذر', excused: 'معتذر' };
+    let chartPage = 0;
+    let chartRecords = [];
+
+    function statusCounts(entry) {
+        return [['present', entry.present], ['absent', entry.absent.length], ['excused', entry.excused]];
+    }
+
+    function chartMetric(label, count, status = '') {
+        const card = node('div', '');
+        card.className = 'attendance-metric' + (status ? ' metric-' + status : '');
+        card.append(node('span', tr(label)), node('strong', String(count)));
+        return card;
+    }
+
+    function drawAttendanceChart(records = chartRecords) {
+        chartRecords = records;
         const chart = get('attendanceChart');
+        const metrics = get('attendanceMetrics');
+        const pagination = get('attendancePagination');
+        const sizeControl = get('attendancePageSizeControl');
         chart.replaceChildren();
+        metrics.replaceChildren();
+        pagination.hidden = true;
+        sizeControl.hidden = chartMode.value === 'donut';
         const summaries = monthlyStats(records, chartMonth.value);
+        const totals = summaries.reduce((total, entry) => {
+            for (const [status, count] of statusCounts(entry)) total[status] += count;
+            return total;
+        }, { present: 0, absent: 0, excused: 0 });
+        metrics.append(chartMetric('الموظفون المسجّلون', summaries.length));
+        for (const [status, label] of Object.entries(chartStatusLabels)) {
+            metrics.append(chartMetric(label, totals[status], status));
+        }
         if (!summaries.length) {
-            chart.append(node('p', tr('لا توجد سجلات حضور للشهر المختار.')));
+            const empty = node('p', tr('لا توجد سجلات حضور للشهر المختار.'));
+            empty.className = 'attendance-chart-empty';
+            chart.append(empty);
             return;
         }
-        const max = Math.max(...summaries.map(entry => entry.present + entry.absent.length + entry.excused));
-        for (const entry of summaries) {
-            const row = node('article', '');
+        if (chartMode.value === 'donut') {
+            drawAttendanceDonut(chart, totals);
+            return;
+        }
+
+        const size = Number(chartPageSize.value) || 6;
+        const pageCount = Math.ceil(summaries.length / size);
+        chartPage = Math.max(0, Math.min(chartPage, pageCount - 1));
+        const first = chartPage * size;
+        const page = summaries.slice(first, first + size);
+        if (chartMode.value === 'table') drawAttendanceTable(chart, page);
+        else drawAttendanceBars(chart, page, summaries);
+
+        pagination.hidden = pageCount < 2;
+        chartPrevious.disabled = chartPage === 0;
+        chartNext.disabled = chartPage >= pageCount - 1;
+        get('attendancePageIndicator').textContent = tr('صفحة ') + (chartPage + 1) +
+            ' / ' + pageCount + ' · ' + (first + 1) + '–' + (first + page.length) + ' / ' + summaries.length;
+    }
+
+    function drawAttendanceBars(chart, page, summaries) {
+        const max = summaries.reduce((value, entry) => Math.max(value, entry.present + entry.absent.length + entry.excused), 1);
+        const grid = node('div', '');
+        grid.className = 'attendance-bar-grid';
+        for (const entry of page) {
+            const row = node('div', '');
+            row.className = 'attendance-bar-row';
+            const name = node('strong', entry.person);
+            name.dir = 'auto';
             const bar = node('div', '');
             bar.className = 'stats-bar';
             bar.setAttribute('aria-hidden', 'true');
-            for (const [status, count] of [['present', entry.present], ['absent', entry.absent.length], ['excused', entry.excused]]) {
+            const counts = node('div', '');
+            counts.className = 'attendance-row-counts';
+            for (const [status, count] of statusCounts(entry)) {
+                const token = node('span', String(count));
+                token.className = 'attendance-count metric-' + status;
+                const label = tr(chartStatusLabels[status]) + ': ' + count;
+                token.title = label;
+                token.setAttribute('aria-label', label);
+                counts.append(token);
                 if (!count) continue;
                 const segment = node('span', '');
                 segment.className = 'stats-' + status;
                 segment.style.width = (100 * count / max) + '%';
                 bar.append(segment);
             }
-            row.append(node('strong', entry.person), bar, node('p', countLabel(entry)));
-            chart.append(row);
+            row.append(name, bar, counts);
+            grid.append(row);
         }
+        chart.append(grid);
     }
+
+    function drawAttendanceDonut(chart, totals) {
+        const total = totals.present + totals.absent + totals.excused;
+        const group = node('div', '');
+        group.className = 'attendance-donut-layout';
+        const donut = node('div', '');
+        donut.className = 'attendance-donut';
+        donut.style.setProperty('--present-end', (total ? totals.present / total * 100 : 0) + '%');
+        donut.style.setProperty('--absent-end', (total ? (totals.present + totals.absent) / total * 100 : 0) + '%');
+        const center = node('div', '');
+        center.className = 'attendance-donut-center';
+        center.append(node('strong', String(total)), node('span', tr('إجمالي الحالات')));
+        donut.append(center);
+        const breakdown = node('ul', '');
+        breakdown.className = 'attendance-breakdown';
+        for (const [status, label] of Object.entries(chartStatusLabels)) {
+            const line = node('li', '');
+            const swatch = node('span', '');
+            swatch.className = 'stats-swatch stats-' + status;
+            swatch.setAttribute('aria-hidden', 'true');
+            const percent = total ? (100 * totals[status] / total) : 0;
+            const format = new Intl.NumberFormat(lang === 'en' ? 'en' : 'ar', { maximumFractionDigits: 1 });
+            line.append(swatch, node('span', tr(label)), node('strong', totals[status] + ' · ' + format.format(percent) + '%'));
+            breakdown.append(line);
+        }
+        group.append(donut, breakdown);
+        chart.append(group);
+    }
+
+    function drawAttendanceTable(chart, page) {
+        const wrap = node('div', '');
+        wrap.className = 'attendance-table-wrap';
+        const table = node('table', '');
+        table.className = 'attendance-table';
+        const header = node('thead', '');
+        const heading = node('tr', '');
+        for (const label of ['اسم الموظف', ...Object.values(chartStatusLabels), 'إجمالي الحالات']) {
+            const th = node('th', tr(label));
+            th.scope = 'col';
+            heading.append(th);
+        }
+        header.append(heading);
+        const body = node('tbody', '');
+        for (const entry of page) {
+            const row = node('tr', '');
+            const name = node('th', entry.person);
+            name.scope = 'row';
+            name.dir = 'auto';
+            const counts = statusCounts(entry);
+            row.append(name, ...counts.map(([, count]) => node('td', String(count))),
+                node('td', String(counts.reduce((sum, [, count]) => sum + count, 0))));
+            body.append(row);
+        }
+        table.append(header, body);
+        wrap.append(table);
+        chart.append(wrap);
+    }
+
+    function resetAttendanceChartPage() {
+        chartPage = 0;
+        drawAttendanceChart();
+    }
+
+    chartMode.onchange = resetAttendanceChartPage;
+    chartPageSize.onchange = resetAttendanceChartPage;
+    chartPrevious.onclick = () => { chartPage--; drawAttendanceChart(); };
+    chartNext.onclick = () => { chartPage++; drawAttendanceChart(); };
 
     function prepareAbsenceDraft(summary, date, month, warning, meetingName) {
         absenceDraft.reset();
@@ -1287,10 +1491,10 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         get('absenceNotices').replaceChildren();
         get('absenceWarnings').replaceChildren();
         get('absencePeriod').textContent = '';
-        get('attendanceChart').replaceChildren();
         absenceDraft.hidden = true;
         const date = dateInput.value;
         if (!date) {
+            drawAttendanceChart();
             syncDirectoryChoices();
             renderWorkload({ attendance: [], items: [] }, '');
             return;
@@ -1300,6 +1504,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         try {
             data = load();
         } catch {
+            drawAttendanceChart([]);
             renderWorkload({ attendance: [], items: [] }, date);
             feedback.textContent = tr('تعذر قراءة السجل المحفوظ في هذا المتصفح.');
             return;
@@ -1411,7 +1616,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 
     dateInput.value = today();
     chartMonth.value = dateInput.value.slice(0, 7);
-    chartMonth.onchange = render;
+    chartMonth.onchange = resetAttendanceChartPage;
     get('cancelFollowup').onclick = resetFollowup;
     dateInput.onchange = () => {
         clearWorkloadSelection();
@@ -1419,6 +1624,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         clearWorkloadImage();
         resetWorkloadInputs();
         chartMonth.value = dateInput.value.slice(0, 7);
+        chartPage = 0;
         resetAttendance();
         resetFollowup();
         feedback.textContent = '';
