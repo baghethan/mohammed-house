@@ -129,6 +129,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
       <label>اسم الموظف <input name="person" required maxlength="120" readonly></label>
       <label>الحالة <select name="status"><option value="حاضر">حاضر</option><option value="غائب">غائب</option><option value="معتذر">معتذر</option></select></label>
       <label id="excuseReasonLabel" hidden>سبب الاعتذار <input name="excuseReason" maxlength="250" disabled></label>
+      <p id="excuseEnglishPreview" dir="ltr" role="status" hidden></p>
       <button type="submit">حفظ الحضور</button>
     </form>
   </section>
@@ -475,7 +476,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.5.0';
+    get('meetingVersion').textContent = 'v1.5.1';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -497,6 +498,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         attendance.reset();
         attendance.hidden = true;
         syncExcuseReason();
+        updateExcusePreview();
     }
 
     function today() {
@@ -582,9 +584,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 
     function memoActionPoints(value) {
         const { list, lines } = actionPoints(value);
-        if (!list || !lines.length) return escapeMemo(lines[0] || '');
+        if (!list || !lines.length) return memoAutoText(lines[0] || '');
         return '<ul style="margin:4px 0;padding-inline-start:20px;">' +
-            lines.map(line => '<li dir="auto">' + escapeMemo(line) + '</li>').join('') + '</ul>';
+            lines.map(line => '<li dir="auto">' + memoAutoText(line) + '</li>').join('') + '</ul>';
     }
 
     function showActionPoints(parent, value) {
@@ -607,7 +609,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             (index + 1) + '. ' + escapeMemo(person.person)).join('<br>') : '—';
         const others = people.filter(person => person.status !== 'حاضر').map(person =>
             escapeMemo(person.person) + ' — ' + escapeMemo(statusEnglish[person.status]) +
-            (person.status === 'معتذر' && person.excuseReason ? ' | Reason: ' + escapeMemo(person.excuseReason) : '')
+            (person.status === 'معتذر' && person.excuseReason ? ' | Reason: ' + memoAutoText(person.excuseReason) : '')
         ).join('<br>');
         const tableStyle = 'width:100%;border-collapse:collapse;font-size:14px;line-height:1.4;';
         const cellStyle = 'padding:6px 9px;border:1px solid #cdd9e8;overflow-wrap:anywhere;';
@@ -620,7 +622,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             const kind = item.kind === 'طلب' ? 'Request' : 'Task';
             const meta = [kind, item.reference, status].filter(Boolean).map(escapeMemo).join(' · ');
             const action = memoActionPoints(item.description) + '<br><span style="color:#526781;font-size:12px;">' + meta + '</span>' +
-                (item.blocker ? '<br><strong>Blocker:</strong> ' + escapeMemo(item.blocker) : '') +
+                (item.blocker ? '<br><strong>Blocker:</strong> ' + memoAutoText(item.blocker) : '') +
                 (item.action ? '<br><strong>Next action:</strong> ' + memoActionPoints(item.action) : '');
             return `<tr>${cell(index + 1, 'text-align:center;')}${cell(action, 'width:59%;')}${cell(escapeMemo(item.owner), 'width:21%;')}${cell(escapeMemo(item.due || '—'), 'width:15%;')}</tr>`;
         }).join('');
@@ -652,8 +654,10 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     }
 
     function memoHtml() {
+        const exportContent = preview.cloneNode(true);
+        for (const element of exportContent.querySelectorAll('[data-auto-english]')) element.removeAttribute('data-auto-english');
         return '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>' +
-            escapeMemo(subject.value) + '</title></head><body>' + preview.innerHTML + '</body></html>';
+            escapeMemo(subject.value) + '</title></head><body>' + exportContent.innerHTML + '</body></html>';
     }
 
     get('copyMeetingMemo').onclick = async () => {
@@ -1315,8 +1319,14 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         syncDirectoryChoices();
 
         for (const entry of [...roster.values()].sort((a, b) => a.person.localeCompare(b.person))) {
-            const row = node('li', entry.person + ' · ' + tr(entry.status || 'لم يُسجّل') +
-                (entry.status === 'معتذر' && entry.excuseReason ? tr(' · سبب الاعتذار: ') + entry.excuseReason : '') + ' ');
+            const row = node('li', entry.person + ' · ' + tr(entry.status || 'لم يُسجّل') + ' ');
+            if (entry.status === 'معتذر' && entry.excuseReason) {
+                row.append(node('span', tr(' · سبب الاعتذار: ')));
+                const reason = node('span', (lang === 'en' ? knownEnglish(entry.excuseReason) : entry.excuseReason) + ' ');
+                reason.dir = 'auto';
+                if (lang === 'en') reason.dataset.autoEnglish = entry.excuseReason;
+                row.append(reason);
+            }
             row.append(...['حاضر', 'غائب'].map(status => button(tr(status === 'حاضر' ? 'تسجيل حاضر' : 'تسجيل غائب'), () => {
                 if (saveAttendance(entry.person, status, '')) resetAttendance();
             })), button(entry.status === 'معتذر' ? tr('تعديل الاعتذار') : tr('تسجيل معتذر'), () => {
@@ -1326,6 +1336,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
                 excuseReasonInput.value = entry.excuseReason ?? '';
                 syncExcuseReason();
                 excuseReasonInput.focus();
+                updateExcusePreview();
             }), button(tr('إزالة من الاجتماع'), () => {
                 if (entry.status && !window.confirm(tr('هل تريد إزالة الموظف وحذف حالة حضوره من هذا الاجتماع؟'))) return;
                 if (update((data, date) => removeMeetingEmployee(data, date, entry.person))) resetAttendance();
@@ -1380,6 +1391,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         }
         if (!items.length) itemsList.append(node('p', tr('لا توجد بنود متابعة مسجلة حتى تاريخ الاجتماع.')));
         buildMemo(date, people, items, details);
+        translateDisplayedText(preview);
+        if (lang === 'en') translateDisplayedText(attendanceList);
+        updateExcusePreview();
     }
 
     const tabs = document.querySelectorAll('.meeting-nav button');
@@ -1411,7 +1425,10 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         render();
     };
 
-    attendance.elements.status.onchange = syncExcuseReason;
+    attendance.elements.status.onchange = () => {
+        syncExcuseReason();
+        updateExcusePreview();
+    };
     syncExcuseReason();
 
     const rosterForm = get('rosterForm');
@@ -1738,6 +1755,95 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         render();
         for (const { input, value } of pending) input.value = value;
     };
+
+    const commonEnglishExcuses = new Map([
+        ['التدريب', 'Training'], ['تدريب', 'Training'], ['دورة تدريبية', 'Training course'],
+        ['الدوام الليلي', 'Night shift'], ['الدوام الليل', 'Night shift'],
+        ['دوام ليلي', 'Night shift'], ['دوام الليل', 'Night shift'], ['المناوبة الليلية', 'Night shift'],
+        ['إجازة', 'Leave'], ['اجازة', 'Leave'], ['إجازة مرضية', 'Sick leave'], ['اجازة مرضية', 'Sick leave'],
+        ['إجازة سنوية', 'Annual leave'], ['اجازة سنوية', 'Annual leave']
+    ]);
+    const automaticTranslations = new Map();
+    const pendingTranslations = new Map();
+    const arabicText = /\p{Script=Arabic}/u;
+    let automaticTranslator;
+    let excusePreviewRun = 0;
+    let excusePreviewTimer;
+
+    function knownEnglish(value) {
+        const text = String(value ?? '').trim();
+        return automaticTranslations.get(text) ?? commonEnglishExcuses.get(text.replace(/\s+/g, ' ')) ?? text;
+    }
+
+    function translateAutomatically(value) {
+        const text = String(value ?? '').trim();
+        const known = knownEnglish(text);
+        if (!arabicText.test(known) || !globalThis.Translator) return Promise.resolve(known);
+        if (pendingTranslations.has(text)) return pendingTranslations.get(text);
+
+        const api = globalThis.Translator;
+        const pair = { sourceLanguage: 'ar', targetLanguage: 'en' };
+        const pending = (async () => {
+            try {
+                automaticTranslator ??= (async () => {
+                    const availability = await api.availability(pair);
+                    if (availability === 'unavailable') return null;
+                    if (availability === 'downloadable' && !navigator.userActivation?.isActive) return null;
+                    return api.create(pair);
+                })();
+                const translator = await automaticTranslator;
+                if (!translator) {
+                    automaticTranslator = null;
+                    return text;
+                }
+                const translated = formattedText(await translator.translate(text));
+                if (translated && !arabicText.test(translated)) automaticTranslations.set(text, translated);
+                return knownEnglish(text);
+            } catch {
+                automaticTranslator = null;
+                return text;
+            }
+        })().finally(() => pendingTranslations.delete(text));
+        pendingTranslations.set(text, pending);
+        return pending;
+    }
+
+    function memoAutoText(value) {
+        const text = String(value ?? '');
+        return '<span data-auto-english="' + escapeMemo(text) + '" dir="auto">' + escapeMemo(knownEnglish(text)) + '</span>';
+    }
+
+    function translateDisplayedText(root) {
+        for (const element of root.querySelectorAll('[data-auto-english]')) {
+            const source = element.dataset.autoEnglish;
+            if (!arabicText.test(knownEnglish(source))) continue;
+            void translateAutomatically(source).then(translated => {
+                if (element.isConnected && translated !== source) element.textContent = translated;
+            });
+        }
+    }
+
+    function updateExcusePreview() {
+        const preview = get('excuseEnglishPreview');
+        const source = excuseReasonInput.value.trim();
+        const request = ++excusePreviewRun;
+        clearTimeout(excusePreviewTimer);
+        const visible = lang === 'en' && !attendance.hidden && !excuseReasonInput.disabled && arabicText.test(source);
+        preview.hidden = !visible;
+        preview.textContent = '';
+        if (!visible) return;
+        const show = translated => {
+            if (request !== excusePreviewRun) return;
+            preview.textContent = translated !== source
+                ? 'English: ' + translated
+                : 'English translation unavailable. The original will be kept.';
+        };
+        if (!arabicText.test(knownEnglish(source))) show(knownEnglish(source));
+        else excusePreviewTimer = setTimeout(() => void translateAutomatically(source).then(show), 250);
+    }
+
+    excuseReasonInput.addEventListener('input', updateExcusePreview);
+
 
     renderLanguage();
 
