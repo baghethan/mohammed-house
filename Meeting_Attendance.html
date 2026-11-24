@@ -123,7 +123,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
       <button id="addRosterEmployee" type="submit" disabled>إضافة المحددين</button>
     </form>
     <p id="employeeDirectoryStatus" role="status">جارٍ تحميل قائمة الموظفين…</p>
-    <p>تظهر قائمة الموظفين من تاريخ إضافتهم في الاجتماعات التالية. اختر الحالة الفعلية لكل موظف.</p>
+    <p>اختر الموظفين لكل تاريخ اجتماع، ثم سجّل حالة كل موظف.</p>
     <ul id="attendanceList"></ul>
     <form id="attendanceForm" hidden>
       <label>اسم الموظف <input name="person" required maxlength="120" readonly></label>
@@ -272,6 +272,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 (() => {
     const get = id => document.getElementById(id);
     const english = {
+    "إزالة من الاجتماع": "Remove from meeting",
+    "هل تريد إزالة الموظف وحذف حالة حضوره من هذا الاجتماع؟": "Remove the employee and their attendance status from this meeting?",
     "إضافة نقطة": "Add bullet",
     "اكتب كل نقطة في سطر مستقل أو اضغط «إضافة نقطة».": "Enter each point on its own line or select Add bullet.",
     "اختيار الموظفين لإدخال الأعداد": "Select employees to enter counts",
@@ -320,7 +322,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     "اسم الموظف": "Employee name",
     "إضافة الموظف": "Add employee",
     "جارٍ تحميل قائمة الموظفين…": "Loading the employee directory…",
-    "تظهر قائمة الموظفين من تاريخ إضافتهم في الاجتماعات التالية. اختر الحالة الفعلية لكل موظف.": "Employees appear in the roster from their addition date onward. Record each employee’s actual status.",
+    "اختر الموظفين لكل تاريخ اجتماع، ثم سجّل حالة كل موظف.": "Select employees for each meeting date, then record their attendance.",
     "الحالة": "Status",
     "حاضر": "Present",
     "غائب": "Absent",
@@ -473,7 +475,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.4.1';
+    get('meetingVersion').textContent = 'v1.5.0';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -1306,10 +1308,10 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         memoDetails.elements.meetingTime.value = details.time || '';
         memoDetails.elements.venue.value = details.venue || '';
         const roster = new Map((data.roster ?? [])
-            .filter(entry => entry.from <= date)
+            .filter(entry => entry.from === date)
             .map(entry => [employeeKey(entry.person), { person: entry.person }]));
-        rosterNamesForDate = new Set(roster.keys());
         for (const record of people) roster.set(employeeKey(record.person), record);
+        rosterNamesForDate = new Set(roster.keys());
         syncDirectoryChoices();
 
         for (const entry of [...roster.values()].sort((a, b) => a.person.localeCompare(b.person))) {
@@ -1324,6 +1326,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
                 excuseReasonInput.value = entry.excuseReason ?? '';
                 syncExcuseReason();
                 excuseReasonInput.focus();
+            }), button(tr('إزالة من الاجتماع'), () => {
+                if (entry.status && !window.confirm(tr('هل تريد إزالة الموظف وحذف حالة حضوره من هذا الاجتماع؟'))) return;
+                if (update((data, date) => removeMeetingEmployee(data, date, entry.person))) resetAttendance();
             }));
             attendanceList.append(row);
         }
@@ -1534,21 +1539,28 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             feedback.textContent = tr(manualEmployee.disabled ? 'اختر موظفًا واحدًا على الأقل.' : 'أدخل اسم الموظف.');
             return;
         }
-        if (update((data, date) => {
-            data.roster ??= [];
-            const roster = new Map(data.roster.map(entry => [employeeKey(entry.person), entry]));
-            for (const person of people) {
-                const key = employeeKey(person);
-                const existing = roster.get(key);
-                if (!existing) roster.set(key, { person, from: date });
-                else if (date < existing.from) existing.from = date;
-            }
-            data.roster = [...roster.values()];
-        })) {
+        if (update((data, date) => addMeetingEmployees(data, date, people))) {
             rosterForm.reset();
             syncDirectoryChoices();
         }
     };
+
+    function addMeetingEmployees(data, date, people) {
+        data.roster ??= [];
+        const names = new Set(data.roster.filter(entry => entry.from === date).map(entry => employeeKey(entry.person)));
+        for (const person of people) {
+            const key = employeeKey(person);
+            if (names.has(key)) continue;
+            data.roster.push({ person, from: date });
+            names.add(key);
+        }
+    }
+
+    function removeMeetingEmployee(data, date, person) {
+        const key = employeeKey(person);
+        data.roster = (data.roster ?? []).filter(entry => entry.from !== date || employeeKey(entry.person) !== key);
+        data.attendance = data.attendance.filter(entry => entry.date !== date || employeeKey(entry.person) !== key);
+    }
 
     function saveAttendance(person, status, excuseReason) {
         return update((data, date) => {
