@@ -62,11 +62,20 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 #attendanceForm[hidden] { display: none; }
 #attendanceList li { border-bottom: 1px solid #dbe4ef; }
 #attendanceList button { margin: 3px; }
+ .meeting-heading { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+.meeting-tools { display: flex; align-items: center; gap: 7px; }
+.version-mark { background: #e8f0fa; color: #142849; border-radius: 6px; padding: 5px 8px; font-size: 13px; font-weight: 700; }
+#translationDialog { width: min(500px, calc(100vw - 48px)); border: 1px solid #a8b8cd; border-radius: 12px; color: #142849; }
+#translationDialog::backdrop { background: #14284999; }
+#translationDialog label { display: grid; margin-block: 8px; }
+#meetingPanel .translate-field { display: block; font-size: 12px; padding: 4px 8px; margin: 0; justify-self: start; }
 </style>
 </head>
 <body>
 <main id="meetingPanel">
-  <header><h1>إدارة الاجتماعات والمتابعة</h1>
+  <header><div class="meeting-heading"><h1>إدارة الاجتماعات والمتابعة</h1>
+    <div class="meeting-tools"><span class="version-mark" id="meetingVersion" dir="ltr"></span><button type="button" id="toggleMeetingLanguage" lang="en">English</button></div>
+    </div>
     <label>تاريخ الاجتماع <input id="meetingDate" type="date" required></label>
     <p>تُحفظ السجلات في هذا المتصفح. تُسجّل الطلبات والمهام يدويًا.</p>
     <p id="meetingFeedback" role="status"></p>
@@ -94,7 +103,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     <ul id="attendanceList"></ul>
     <form id="attendanceForm" hidden>
       <label>اسم الموظف <input name="person" required maxlength="120" readonly></label>
-      <label>الحالة <select name="status"><option>حاضر</option><option>غائب</option><option>معتذر</option></select></label>
+      <label>الحالة <select name="status"><option value="حاضر">حاضر</option><option value="غائب">غائب</option><option value="معتذر">معتذر</option></select></label>
       <label id="excuseReasonLabel" hidden>سبب الاعتذار <input name="excuseReason" maxlength="250" disabled></label>
       <button type="submit">حفظ الحضور</button>
     </form>
@@ -130,7 +139,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     <h3>متابعة البنود بالتفصيل</h3>
     <p id="meetingCounts"></p>
     <form id="followupForm">
-      <label>النوع <select name="kind"><option>طلب</option><option>مهمة</option></select></label>
+      <label>النوع <select name="kind"><option value="طلب">طلب</option><option value="مهمة">مهمة</option></select></label>
       <label>الرقم المرجعي <input name="reference" maxlength="50"></label>
       <label>وصف البند <input name="description" required maxlength="200"></label>
       <label>المسؤول <input name="owner" required maxlength="120"></label>
@@ -188,10 +197,189 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     </ul>
     <div id="attendanceChart"></div>
   </section>
+  <dialog id="translationDialog" aria-labelledby="translationTitle">
+    <h2 id="translationTitle">ترجمة النص</h2>
+    <label>النص الأصلي <textarea id="translationSource" rows="4" dir="auto"></textarea></label>
+    <label>معاينة الترجمة <textarea id="translationResult" rows="4" dir="auto"></textarea></label>
+    <p id="translationFeedback" role="status"></p>
+    <button type="button" id="runTranslation">ترجمة وتنسيق</button>
+    <button type="button" id="applyTranslation" disabled>استخدام الترجمة</button>
+    <button type="button" id="cancelTranslation">إلغاء</button>
+  </dialog>
 </main>
 <script>
 (() => {
     const get = id => document.getElementById(id);
+    const english = {
+    "إدارة الاجتماعات والمتابعة": "Meeting Attendance and Follow-up",
+    "تاريخ الاجتماع": "Meeting date",
+    "تُحفظ السجلات في هذا المتصفح. تُسجّل الطلبات والمهام يدويًا.": "Records are stored in this browser. Requests and tasks are entered manually.",
+    "أقسام الاجتماع": "Meeting sections",
+    "الحضور": "Attendance",
+    "الطلبات والمهام": "Requests and Tasks",
+    "ميمو البريد": "Email Memo",
+    "تنبيهات الغياب": "Absence Alerts",
+    "الرسم البياني": "Charts",
+    "حضور الاجتماع": "Meeting attendance",
+    "اختيار موظف من قائمة Employee Management": "Select an employee from Employee Management",
+    "اختر اسم الموظف": "Select an employee",
+    "اسم الموظف": "Employee name",
+    "إضافة الموظف": "Add employee",
+    "جارٍ تحميل قائمة الموظفين…": "Loading the employee directory…",
+    "تظهر قائمة الموظفين من تاريخ إضافتهم في الاجتماعات التالية. اختر الحالة الفعلية لكل موظف.": "Employees appear in the roster from their addition date onward. Record each employee’s actual status.",
+    "الحالة": "Status",
+    "حاضر": "Present",
+    "غائب": "Absent",
+    "معتذر": "Excused",
+    "سبب الاعتذار": "Reason for excuse",
+    "حفظ الحضور": "Save attendance",
+    "متابعة الطلبات والمهام": "Requests and tasks",
+    "جدول الأعداد حسب الموظف": "Counts by employee",
+    "أدخل الأعداد لكل حالة حسب تاريخ الاجتماع المحدد أعلاه. إدخال اسم الموظف نفسه مرة أخرى يحدّث صفه في النوع المختار.": "Enter the status counts for the selected meeting date. Enter the same employee name again to update the row for the selected type.",
+    "نوع البنود": "Item category",
+    "الطلبات": "Requests",
+    "المهام": "Tasks",
+    "غير مسند": "Unassigned",
+    "حفظ الأعداد": "Save counts",
+    "متابعة البنود بالتفصيل": "Detailed follow-up",
+    "النوع": "Type",
+    "طلب": "Request",
+    "مهمة": "Task",
+    "الرقم المرجعي": "Reference number",
+    "وصف البند": "Item description",
+    "المسؤول": "Owner",
+    "موعد الإغلاق المستهدف": "Target closure date",
+    "سبب عدم الإغلاق": "Blocker",
+    "الإجراء التالي": "Next action",
+    "حفظ البند": "Save item",
+    "إلغاء التعديل": "Cancel editing",
+    "ميمو الاجتماع": "Meeting memo",
+    "اسم الاجتماع": "Meeting name",
+    "الوقت": "Time",
+    "المكان": "Venue",
+    "حفظ معلومات الاجتماع": "Save meeting details",
+    "موضوع البريد": "Email subject",
+    "انسخ المحضر المنسّق، ثم افتح مسودة البريد والصقه في نص الرسالة.": "Copy the formatted minutes, open the email draft, and paste them into the message body.",
+    "نسخ المحضر المنسّق": "Copy formatted minutes",
+    "فتح مسودة البريد": "Open email draft",
+    "تنزيل المحضر بتنسيق HTML": "Download minutes as HTML",
+    "معاينة محضر الاجتماع": "Minutes preview",
+    "اختر اجتماعًا من خانة التاريخ أعلاه. يظهر الغائبون عن ذلك الاجتماع، وتظهر أهلية الإنذار عند تسجيل ثلاث غيابات دون عذر أو أكثر في شهر الاجتماع.": "Select a meeting date to see its unexcused absences. An employee qualifies for a warning after three unexcused absences in the same month.",
+    "غابوا عن الاجتماع المحدد": "Absent from the selected meeting",
+    "بلغوا حد الإنذار في الشهر": "Reached the monthly warning threshold",
+    "مسودة البريد": "Email draft",
+    "بريد الموظف": "Employee email",
+    "اختياري": "Optional",
+    "الموضوع": "Subject",
+    "نص الرسالة": "Message",
+    "نسخ الموضوع والنص": "Copy subject and message",
+    "فتح المسودة في البريد": "Open draft in email",
+    "الرسم البياني للحضور": "Attendance chart",
+    "الشهر الميلادي": "Calendar month",
+    "تُحسب الحالات المسجّلة لكل موظف. الاجتماع الذي لا يوجد فيه سجل للموظف لا يدخل في العدّ.": "Only recorded attendance statuses count toward each employee’s totals.",
+    "مفتاح الرسم البياني": "Chart legend",
+    "غائب دون عذر": "Unexcused absence",
+    "تم الحفظ.": "Saved.",
+    "تعذر حفظ السجل في هذا المتصفح.": "Could not save the record in this browser.",
+    "تعذر قراءة السجل المحفوظ في هذا المتصفح.": "Could not read records stored in this browser.",
+    "أدخل اسم الموظف.": "Enter an employee name.",
+    "أدخل سبب الاعتذار.": "Enter the reason for the excuse.",
+    "أدخل وصف البند واسم المسؤول.": "Enter the item description and owner.",
+    "تعديل الأعداد": "Edit counts",
+    "تعديل": "Edit",
+    "إغلاق": "Close",
+    "إعادة فتح": "Reopen",
+    "تسجيل معتذر": "Record excused",
+    "تعديل الاعتذار": "Edit excuse",
+    "لم يُسجّل": "Not recorded",
+    "مغلق": "Closed",
+    "مفتوح ومتأخر": "Open and overdue",
+    "مفتوح": "Open",
+    "لا توجد سجلات حضور للشهر المختار.": "No attendance records for the selected month.",
+    "تجهيز مسودة إنذار": "Prepare warning draft",
+    "تجهيز مسودة تنبيه": "Prepare reminder draft",
+    "لا يوجد غياب دون عذر مسجّل لهذا الاجتماع.": "No unexcused absences recorded for this meeting.",
+    "لم يبلغ أي موظف حد الإنذار في هذا الشهر.": "No employees reached the warning threshold this month.",
+    "تم نسخ موضوع الرسالة ونصها.": "Subject and message copied.",
+    "تم تحديد نص الرسالة. اضغط Ctrl+C لنسخه.": "Message selected. Press Ctrl+C to copy it.",
+    "الرسالة طويلة. انسخ الموضوع والنص والصقهما في برنامج البريد.": "The message is too long. Copy the subject and message into your email app.",
+    "تم نسخ المحضر المنسّق. الصقه في نص رسالة البريد.": "Formatted minutes copied. Paste them into the email body.",
+    "تم تحديد المحضر. اضغط Ctrl+C لنسخه ثم الصقه في البريد.": "Minutes selected. Press Ctrl+C to copy, then paste into your email.",
+    "لا توجد أعداد مسجّلة لهذا النوع في التاريخ المحدد.": "No counts recorded for this category and date.",
+    "اختر تاريخ الاجتماع.": "Select a meeting date.",
+    "أدخل اسم الموظف أو اختر «غير مسند».": "Enter an employee name or choose Unassigned.",
+    "أدخل عددًا صحيحًا من صفر إلى 999999999 لكل حالة.": "Enter a whole number from 0 to 999999999 for each status.",
+    "أضف الموظفين لعرض قائمة الحضور لهذا الاجتماع.": "Add employees to display the meeting roster.",
+    "لا توجد بنود متابعة مسجلة حتى تاريخ الاجتماع.": "No follow-up items recorded as of the meeting date.",
+    "لا يوجد موظفون نشطون في Employee Management.": "No active employees found in Employee Management.",
+    "تعذّر تحميل قائمة الموظفين. تحقق من صلاحية القراءة في البوابة أو أدخل الاسم يدويًا.": "Could not load employees. Check portal read access or enter the name manually.",
+    "تعذّر الاتصال بقائمة الموظفين. يمكنك إدخال الاسم يدويًا.": "Could not connect to the directory. You can enter the name manually.",
+    "افتح تبويب Meeting_Attendance من البوابة لاختيار موظف من القائمة.": "Open the Meeting_Attendance tab from the portal to select an employee from the directory.",
+    "ترجمة النص": "Translate text",
+    "النص الأصلي": "Original text",
+    "معاينة الترجمة": "Translation preview",
+    "ترجمة وتنسيق": "Translate and format",
+    "استخدام الترجمة": "Use translation",
+    "إلغاء": "Cancel",
+    "جارٍ إعداد الترجمة…": "Preparing translation…",
+    "جارٍ تنزيل نموذج اللغة…": "Downloading the language model…",
+    "الترجمة داخل الصفحة غير متاحة في هذا المتصفح أو الجهاز. افتح الصفحة في Chrome لسطح المكتب وجرّب من جديد.": "In-page translation is unavailable in this browser or device. Open the page in desktop Chrome and try again.",
+    "لم تكتمل الترجمة. تحقق من الاتصال وحاول مرة أخرى.": "Translation could not be completed. Check your connection and try again.",
+    "أدخل نصًا للترجمة.": "Enter text to translate.",
+    "يمكنك مراجعة الترجمة وتعديلها قبل استخدامها.": "Review and edit the translation before using it.",
+    "الترجمة أطول من الحد المسموح لهذا الحقل.": "The translation exceeds this field’s length limit.",
+    "ترجم": "Translate",
+    "حضر: ": "Present: ",
+    " | لم يحضر: ": " | Missed: ",
+    " (دون عذر: ": " (unexcused: ",
+    "، معتذر: ": ", excused: ",
+    "مسودة إنذار غياب — ": "Absence warning draft — ",
+    "مسودة تنبيه غياب — ": "Absence reminder draft — ",
+    "الاجتماع: ": "Meeting: ",
+    " | شهر الاحتساب: ": " | Month: ",
+    " · سبب الاعتذار: ": " · Excuse: ",
+    "الطلبات المفتوحة: ": "Open requests: ",
+    " | المهام المفتوحة: ": " | Open tasks: ",
+    " | المتأخرة: ": " | Overdue: ",
+    "المسؤول: ": "Owner: ",
+    " | الحالة: ": " | Status: ",
+    " | موعد الإغلاق المستهدف: ": " | Target closure date: ",
+    " | تاريخ التسجيل: ": " | Recorded on: ",
+    "سبب عدم الإغلاق: ": "Blocker: ",
+    "الإجراء التالي: ": "Next action: ",
+    "أُغلق في اجتماع لاحق بتاريخ ": "Closed in a later meeting on ",
+    "الموظفون النشطون في Employee Management: ": "Active employees in Employee Management: ",
+    "تسجيل حاضر": "Mark present",
+    "تسجيل غائب": "Mark absent"
+};
+    const languageKey = 'mmc-meeting-interface-language';
+    let lang = 'ar';
+    try { if (localStorage.getItem(languageKey) === 'en') lang = 'en'; } catch {}
+    const tr = text => lang === 'en' && Object.hasOwn(english, text) ? english[text] : text;
+    const interfaceText = [];
+    const walker = document.createTreeWalker(get('meetingPanel'), NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const text = node.nodeValue.trim();
+        if (Object.hasOwn(english, text)) interfaceText.push({ node, text });
+    }
+    const interfaceAttributes = [...get('meetingPanel').querySelectorAll('[aria-label], [placeholder]')]
+        .flatMap(element => ['aria-label', 'placeholder']
+            .filter(name => element.hasAttribute(name))
+            .map(name => ({ element, name, text: element.getAttribute(name) })));
+
+    function renderLanguage() {
+        document.documentElement.lang = lang;
+        document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
+        document.title = tr('إدارة الاجتماعات والمتابعة');
+        for (const { node, text } of interfaceText) node.nodeValue = tr(text);
+        for (const { element, name, text } of interfaceAttributes) element.setAttribute(name, tr(text));
+        const toggle = get('toggleMeetingLanguage');
+        toggle.textContent = lang === 'en' ? 'العربية' : 'English';
+        toggle.lang = lang === 'en' ? 'ar' : 'en';
+    }
+
+    get('meetingVersion').textContent = 'v1.1.0';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -264,9 +452,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             const data = load();
             change(data, date);
             localStorage.setItem(storageKey, JSON.stringify(data));
-            feedback.textContent = 'تم الحفظ.';
+            feedback.textContent = tr('تم الحفظ.');
         } catch {
-            feedback.textContent = 'تعذر حفظ السجل في هذا المتصفح.';
+            feedback.textContent = tr('تعذر حفظ السجل في هذا المتصفح.');
             return false;
         }
         render();
@@ -351,14 +539,14 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
                 'text/html': new Blob([memoHtml()], { type: 'text/html' }),
                 'text/plain': new Blob([preview.innerText], { type: 'text/plain' })
             })]);
-            feedback.textContent = 'تم نسخ المحضر المنسّق. الصقه في نص رسالة البريد.';
+            feedback.textContent = tr('تم نسخ المحضر المنسّق. الصقه في نص رسالة البريد.');
         } catch {
             const selection = window.getSelection();
             const range = document.createRange();
             range.selectNodeContents(preview);
             selection.removeAllRanges();
             selection.addRange(range);
-            feedback.textContent = 'تم تحديد المحضر. اضغط Ctrl+C لنسخه ثم الصقه في البريد.';
+            feedback.textContent = tr('تم تحديد المحضر. اضغط Ctrl+C لنسخه ثم الصقه في البريد.');
         }
     };
 
@@ -400,8 +588,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     }
 
     function countLabel(summary) {
-        return 'حضر: ' + summary.present + ' | لم يحضر: ' + (summary.absent.length + summary.excused) +
-            ' (دون عذر: ' + summary.absent.length + '، معتذر: ' + summary.excused + ')';
+        return tr('حضر: ') + summary.present + tr(' | لم يحضر: ') + (summary.absent.length + summary.excused) +
+            tr(' (دون عذر: ') + summary.absent.length + tr('، معتذر: ') + summary.excused + ')';
     }
 
     function drawAttendanceChart(records) {
@@ -409,7 +597,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         chart.replaceChildren();
         const summaries = monthlyStats(records, chartMonth.value);
         if (!summaries.length) {
-            chart.append(node('p', 'لا توجد سجلات حضور للشهر المختار.'));
+            chart.append(node('p', tr('لا توجد سجلات حضور للشهر المختار.')));
             return;
         }
         const max = Math.max(...summaries.map(entry => entry.present + entry.absent.length + entry.excused));
@@ -433,7 +621,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     function prepareAbsenceDraft(summary, date, month, warning, meetingName) {
         absenceDraft.reset();
         absenceFeedback.textContent = '';
-        get('absenceDraftTitle').textContent = (warning ? 'مسودة إنذار غياب — ' : 'مسودة تنبيه غياب — ') + summary.person;
+        get('absenceDraftTitle').textContent = (warning ? tr('مسودة إنذار غياب — ') : tr('مسودة تنبيه غياب — ')) + summary.person;
         const fields = absenceDraft.elements;
         fields.mailSubject.value = (warning ? 'Attendance Warning' : 'Meeting Attendance Reminder') +
             ' | ' + summary.person + ' | ' + (warning ? month : date);
@@ -463,32 +651,32 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         notices.replaceChildren();
         warnings.replaceChildren();
         const month = date.slice(0, 7);
-        get('absencePeriod').textContent = 'الاجتماع: ' + date + ' | شهر الاحتساب: ' + month;
+        get('absencePeriod').textContent = tr('الاجتماع: ') + date + tr(' | شهر الاحتساب: ') + month;
         const summaries = monthlyStats(records, month);
         for (const summary of summaries) {
             const warning = summary.absent.length >= warningThreshold;
             const addRow = (container, isWarning) => {
                 const row = node('article', '');
                 row.append(node('strong', summary.person), node('p', countLabel(summary)),
-                    button(isWarning ? 'تجهيز مسودة إنذار' : 'تجهيز مسودة تنبيه', () =>
+                    button(isWarning ? tr('تجهيز مسودة إنذار') : tr('تجهيز مسودة تنبيه'), () =>
                         prepareAbsenceDraft(summary, date, month, isWarning, details.name || defaultMeetingName)));
                 container.append(row);
             };
             if (summary.absent.includes(date)) addRow(notices, warning);
             if (warning) addRow(warnings, true);
         }
-        if (!notices.childElementCount) notices.append(node('p', 'لا يوجد غياب دون عذر مسجّل لهذا الاجتماع.'));
-        if (!warnings.childElementCount) warnings.append(node('p', 'لم يبلغ أي موظف حد الإنذار في هذا الشهر.'));
+        if (!notices.childElementCount) notices.append(node('p', tr('لا يوجد غياب دون عذر مسجّل لهذا الاجتماع.')));
+        if (!warnings.childElementCount) warnings.append(node('p', tr('لم يبلغ أي موظف حد الإنذار في هذا الشهر.')));
     }
 
     get('copyAbsenceDraft').onclick = async () => {
         const { mailSubject, mailBody } = absenceDraft.elements;
         try {
             await navigator.clipboard.writeText(mailSubject.value + '\n\n' + mailBody.value);
-            absenceFeedback.textContent = 'تم نسخ موضوع الرسالة ونصها.';
+            absenceFeedback.textContent = tr('تم نسخ موضوع الرسالة ونصها.');
         } catch {
             mailBody.select();
-            absenceFeedback.textContent = 'تم تحديد نص الرسالة. اضغط Ctrl+C لنسخه.';
+            absenceFeedback.textContent = tr('تم تحديد نص الرسالة. اضغط Ctrl+C لنسخه.');
         }
     };
 
@@ -499,7 +687,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             '?subject=' + encodeURIComponent(mailSubject.value) +
             '&body=' + encodeURIComponent(mailBody.value.replaceAll('\n', '\r\n'));
         if (url.length > 1900) {
-            absenceFeedback.textContent = 'الرسالة طويلة. انسخ الموضوع والنص والصقهما في برنامج البريد.';
+            absenceFeedback.textContent = tr('الرسالة طويلة. انسخ الموضوع والنص والصقهما في برنامج البريد.');
             return;
         }
         window.location.href = url;
@@ -553,7 +741,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             name.scope = 'row';
             name.dir = 'auto';
             const actions = node('td', '');
-            actions.append(button('تعديل الأعداد', () => {
+            actions.append(button(tr('تعديل الأعداد'), () => {
                 workloadFields.employee.value = entry.employee;
                 for (const key of countKeys) workloadFields[key].value = entry[key];
                 workloadFields.open.focus();
@@ -563,7 +751,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             for (const key of countKeys) totals[key] += entry[key];
         }
         if (!rows.length) {
-            const empty = node('td', date ? 'لا توجد أعداد مسجّلة لهذا النوع في التاريخ المحدد.' : 'اختر تاريخ الاجتماع.');
+            const empty = node('td', date ? tr('لا توجد أعداد مسجّلة لهذا النوع في التاريخ المحدد.') : tr('اختر تاريخ الاجتماع.'));
             empty.colSpan = 5;
             empty.dir = 'rtl';
             const row = node('tr', '');
@@ -591,13 +779,13 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         event.preventDefault();
         const employee = workloadFields.employee.value.trim();
         if (!employee) {
-            feedback.textContent = 'أدخل اسم الموظف أو اختر «غير مسند».';
+            feedback.textContent = tr('أدخل اسم الموظف أو اختر «غير مسند».');
             workloadFields.employee.focus();
             return;
         }
         const counts = Object.fromEntries(countKeys.map(key => [key, workloadFields[key].valueAsNumber]));
         if (Object.values(counts).some(value => !Number.isSafeInteger(value) || value < 0 || value > 999999999)) {
-            feedback.textContent = 'أدخل عددًا صحيحًا من صفر إلى 999999999 لكل حالة.';
+            feedback.textContent = tr('أدخل عددًا صحيحًا من صفر إلى 999999999 لكل حالة.');
             return;
         }
         if (update((data, date) => {
@@ -634,7 +822,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             data = load();
         } catch {
             renderWorkload({ attendance: [], items: [] }, date);
-            feedback.textContent = 'تعذر قراءة السجل المحفوظ في هذا المتصفح.';
+            feedback.textContent = tr('تعذر قراءة السجل المحفوظ في هذا المتصفح.');
             return;
         }
         const { people, items, details } = onDate(data, date);
@@ -650,11 +838,11 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         for (const record of people) roster.set(employeeKey(record.person), record);
 
         for (const entry of [...roster.values()].sort((a, b) => a.person.localeCompare(b.person))) {
-            const row = node('li', entry.person + ' · ' + (entry.status || 'لم يُسجّل') +
-                (entry.status === 'معتذر' && entry.excuseReason ? ' · سبب الاعتذار: ' + entry.excuseReason : '') + ' ');
-            row.append(...['حاضر', 'غائب'].map(status => button('تسجيل ' + status, () => {
+            const row = node('li', entry.person + ' · ' + tr(entry.status || 'لم يُسجّل') +
+                (entry.status === 'معتذر' && entry.excuseReason ? tr(' · سبب الاعتذار: ') + entry.excuseReason : '') + ' ');
+            row.append(...['حاضر', 'غائب'].map(status => button(tr(status === 'حاضر' ? 'تسجيل حاضر' : 'تسجيل غائب'), () => {
                 if (saveAttendance(entry.person, status, '')) resetAttendance();
-            })), button(entry.status === 'معتذر' ? 'تعديل الاعتذار' : 'تسجيل معتذر', () => {
+            })), button(entry.status === 'معتذر' ? tr('تعديل الاعتذار') : tr('تسجيل معتذر'), () => {
                 attendance.hidden = false;
                 attendance.elements.person.value = entry.person;
                 attendance.elements.status.value = 'معتذر';
@@ -664,38 +852,38 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             }));
             attendanceList.append(row);
         }
-        if (!roster.size) attendanceList.append(node('li', 'أضف الموظفين لعرض قائمة الحضور لهذا الاجتماع.'));
+        if (!roster.size) attendanceList.append(node('li', tr('أضف الموظفين لعرض قائمة الحضور لهذا الاجتماع.')));
 
         const open = items.filter(item => !item.closed || item.closed > date);
         const requests = open.filter(item => item.kind === 'طلب').length;
         const overdue = open.filter(item => item.due && item.due < date).length;
-        get('meetingCounts').textContent = 'الطلبات المفتوحة: ' + requests +
-            ' | المهام المفتوحة: ' + (open.length - requests) + ' | المتأخرة: ' + overdue;
+        get('meetingCounts').textContent = tr('الطلبات المفتوحة: ') + requests +
+            tr(' | المهام المفتوحة: ') + (open.length - requests) + tr(' | المتأخرة: ') + overdue;
 
         for (const item of items) {
             const closed = item.closed === date;
             const row = node('article', '');
             row.append(
-                node('strong', [item.kind, item.reference, item.description].filter(Boolean).join(' · ')),
-                node('p', 'المسؤول: ' + item.owner + ' | الحالة: ' +
-                    (closed ? 'مغلق' : item.due && item.due < date ? 'مفتوح ومتأخر' : 'مفتوح') +
-                    (item.due ? ' | موعد الإغلاق المستهدف: ' + item.due : '') +
-                    ' | تاريخ التسجيل: ' + item.date)
+                node('strong', [tr(item.kind), item.reference, item.description].filter(Boolean).join(' · ')),
+                node('p', tr('المسؤول: ') + item.owner + tr(' | الحالة: ') +
+                    (closed ? tr('مغلق') : item.due && item.due < date ? tr('مفتوح ومتأخر') : tr('مفتوح')) +
+                    (item.due ? tr(' | موعد الإغلاق المستهدف: ') + item.due : '') +
+                    tr(' | تاريخ التسجيل: ') + item.date)
             );
-            if (item.blocker) row.append(node('p', 'سبب عدم الإغلاق: ' + item.blocker));
-            if (item.action) row.append(node('p', 'الإجراء التالي: ' + item.action));
+            if (item.blocker) row.append(node('p', tr('سبب عدم الإغلاق: ') + item.blocker));
+            if (item.action) row.append(node('p', tr('الإجراء التالي: ') + item.action));
 
             if (item.closed && item.closed > date) {
-                row.append(node('p', 'أُغلق في اجتماع لاحق بتاريخ ' + item.closed));
+                row.append(node('p', tr('أُغلق في اجتماع لاحق بتاريخ ') + item.closed));
             } else {
-                row.append(button('تعديل', () => {
+                row.append(button(tr('تعديل'), () => {
                     editingId = item.id;
                     for (const field of ['kind', 'reference', 'description', 'owner', 'due', 'blocker', 'action']) {
                         followup.elements[field].value = item[field];
                     }
                     get('cancelFollowup').hidden = false;
                     followup.elements.description.focus();
-                }), button(closed ? 'إعادة فتح' : 'إغلاق', () => {
+                }), button(closed ? tr('إعادة فتح') : tr('إغلاق'), () => {
                     update((data, selectedDate) => {
                         const record = data.items.find(entry => entry.id === item.id);
                         if (record && (!record.closed || record.closed === selectedDate)) {
@@ -706,7 +894,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             }
             itemsList.append(row);
         }
-        if (!items.length) itemsList.append(node('p', 'لا توجد بنود متابعة مسجلة حتى تاريخ الاجتماع.'));
+        if (!items.length) itemsList.append(node('p', tr('لا توجد بنود متابعة مسجلة حتى تاريخ الاجتماع.')));
         buildMemo(date, people, items, details);
     }
 
@@ -745,10 +933,14 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     const directoryStatus = get('employeeDirectoryStatus');
     const addRosterEmployee = get('addRosterEmployee');
     let employeeDirectory = new Map();
+    let latestEmployeeSnapshot = null;
+    let manualDirectoryMessage = '';
 
     function useManualRoster(message) {
         employeeDirectory.clear();
-        directoryStatus.textContent = message;
+        latestEmployeeSnapshot = null;
+        manualDirectoryMessage = message;
+        directoryStatus.textContent = tr(message);
         directorySelect.disabled = true;
         get('directoryPickerLabel').hidden = true;
         get('manualEmployeeLabel').hidden = false;
@@ -758,6 +950,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     }
 
     function populateEmployeeDirectory(snapshot) {
+        latestEmployeeSnapshot = snapshot;
         const selected = directorySelect.value;
         const entries = new Map();
         snapshot.forEach(doc => {
@@ -772,7 +965,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         });
 
         employeeDirectory = entries;
-        const placeholder = node('option', 'اختر اسم الموظف');
+        const placeholder = node('option', tr('اختر اسم الموظف'));
         placeholder.value = '';
         directorySelect.replaceChildren(placeholder);
         const ordered = [...entries].sort(([, a], [, b]) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code));
@@ -789,8 +982,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         manualEmployee.required = false;
         addRosterEmployee.disabled = !entries.size;
         directoryStatus.textContent = entries.size
-            ? 'الموظفون النشطون في Employee Management: ' + entries.size
-            : 'لا يوجد موظفون نشطون في Employee Management.';
+            ? tr('الموظفون النشطون في Employee Management: ') + entries.size
+            : tr('لا يوجد موظفون نشطون في Employee Management.');
     }
 
     function connectEmployeeDirectory() {
@@ -819,7 +1012,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         const selectedEmployee = employeeDirectory.get(directorySelect.value);
         const person = manualEmployee.disabled ? selectedEmployee?.name : manualEmployee.value.trim();
         if (!person) {
-            feedback.textContent = 'أدخل اسم الموظف.';
+            feedback.textContent = tr('أدخل اسم الموظف.');
             return;
         }
         if (update((data, date) => {
@@ -842,13 +1035,13 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         event.preventDefault();
         const person = attendance.elements.person.value.trim();
         if (!person) {
-            feedback.textContent = 'أدخل اسم الموظف.';
+            feedback.textContent = tr('أدخل اسم الموظف.');
             return;
         }
         const status = attendance.elements.status.value;
         const excuseReason = status === 'معتذر' ? excuseReasonInput.value.trim() : '';
         if (status === 'معتذر' && !excuseReason) {
-            feedback.textContent = 'أدخل سبب الاعتذار.';
+            feedback.textContent = tr('أدخل سبب الاعتذار.');
             excuseReasonInput.focus();
             return;
         }
@@ -859,7 +1052,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         event.preventDefault();
         const fields = Object.fromEntries([...new FormData(followup)].map(([key, value]) => [key, value.trim()]));
         if (!fields.description || !fields.owner) {
-            feedback.textContent = 'أدخل وصف البند واسم المسؤول.';
+            feedback.textContent = tr('أدخل وصف البند واسم المسؤول.');
             return;
         }
         if (update((data, date) => {
@@ -881,6 +1074,121 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             };
         });
     };
+
+    const translationDialog = get('translationDialog');
+    const sourceText = get('translationSource');
+    const resultText = get('translationResult');
+    const translationFeedback = get('translationFeedback');
+    const runTranslation = get('runTranslation');
+    const applyTranslation = get('applyTranslation');
+    let translationField = null;
+    let translationRequest = 0;
+
+    const translationButtons = [...document.querySelectorAll(
+        '#rosterForm input[name="employee"], #attendanceForm input[name="excuseReason"], ' +
+        '#workloadForm input[name="employee"], #followupForm input[name="description"], ' +
+        '#followupForm input[name="owner"], #followupForm input[name="blocker"], #followupForm input[name="action"], ' +
+        '#memoDetails input[name="meetingName"], #memoDetails input[name="venue"]'
+    )].map(field => {
+        field.dir = 'auto';
+        const control = button(tr('ترجم'), () => {
+            translationField = field;
+            sourceText.value = field.value;
+            resultText.value = '';
+            translationFeedback.textContent = '';
+            applyTranslation.disabled = true;
+            runTranslation.disabled = false;
+            translationDialog.showModal();
+            sourceText.focus();
+        });
+        control.className = 'translate-field';
+        field.parentElement.append(control);
+        return control;
+    });
+
+    function formattedText(value) {
+        return value.split(/\r?\n/).map(line => line.trim().replace(/[\t ]+/g, ' ')).join('\n')
+            .replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    runTranslation.onclick = async () => {
+        const source = formattedText(sourceText.value);
+        if (!source) {
+            translationFeedback.textContent = tr('أدخل نصًا للترجمة.');
+            return;
+        }
+        const fromArabic = /\p{Script=Arabic}/u.test(source);
+        const pair = { sourceLanguage: fromArabic ? 'ar' : 'en', targetLanguage: fromArabic ? 'en' : 'ar' };
+        const api = globalThis.Translator;
+        const message = 'الترجمة داخل الصفحة غير متاحة في هذا المتصفح أو الجهاز. افتح الصفحة في Chrome لسطح المكتب وجرّب من جديد.';
+        if (!api) {
+            translationFeedback.textContent = tr(message);
+            return;
+        }
+        const request = ++translationRequest;
+        applyTranslation.disabled = true;
+        runTranslation.disabled = true;
+        translationFeedback.textContent = tr('جارٍ إعداد الترجمة…');
+        let translator;
+        try {
+            if (await api.availability(pair) === 'unavailable') {
+                if (request === translationRequest) translationFeedback.textContent = tr(message);
+                return;
+            }
+            if (request !== translationRequest) return;
+            translator = await api.create({
+                ...pair,
+                monitor(download) {
+                    download.addEventListener('downloadprogress', () => {
+                        if (request === translationRequest) translationFeedback.textContent = tr('جارٍ تنزيل نموذج اللغة…');
+                    });
+                }
+            });
+            const translated = formattedText(await translator.translate(source));
+            if (request !== translationRequest) return;
+            resultText.value = translated;
+            applyTranslation.disabled = !translated;
+            translationFeedback.textContent = tr('يمكنك مراجعة الترجمة وتعديلها قبل استخدامها.');
+        } catch {
+            if (request === translationRequest) translationFeedback.textContent = tr('لم تكتمل الترجمة. تحقق من الاتصال وحاول مرة أخرى.');
+        } finally {
+            translator?.destroy();
+            if (request === translationRequest) runTranslation.disabled = false;
+        }
+    };
+
+    applyTranslation.onclick = () => {
+        if (!translationField) return;
+        const value = formattedText(resultText.value).replace(/\n+/g, ' ');
+        if (!value) return;
+        if (translationField.maxLength >= 0 && value.length > translationField.maxLength) {
+            translationFeedback.textContent = tr('الترجمة أطول من الحد المسموح لهذا الحقل.');
+            return;
+        }
+        translationField.value = value;
+        translationDialog.close();
+    };
+    get('cancelTranslation').onclick = () => translationDialog.close();
+    translationDialog.addEventListener('close', () => {
+        translationRequest++;
+        translationField = null;
+    });
+
+    get('toggleMeetingLanguage').onclick = () => {
+        lang = lang === 'ar' ? 'en' : 'ar';
+        try { localStorage.setItem(languageKey, lang); } catch {}
+        const { meetingName, meetingTime, venue } = memoDetails.elements;
+        const pending = [meetingName, meetingTime, venue].map(input => ({ input, value: input.value }));
+        renderLanguage();
+        for (const control of translationButtons) control.textContent = tr('ترجم');
+        if (latestEmployeeSnapshot) populateEmployeeDirectory(latestEmployeeSnapshot);
+        else if (manualDirectoryMessage) directoryStatus.textContent = tr(manualDirectoryMessage);
+        feedback.textContent = '';
+        render();
+        for (const { input, value } of pending) input.value = value;
+    };
+
+    renderLanguage();
 
     connectEmployeeDirectory();
     render();
