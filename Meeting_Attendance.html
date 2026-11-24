@@ -81,9 +81,15 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
   <section id="attendancePanel">
     <h2>حضور الاجتماع</h2>
     <form id="rosterForm">
-      <label>إضافة موظف إلى قائمة الاجتماع <input name="employee" required maxlength="120" dir="auto"></label>
-      <button type="submit">إضافة الموظف</button>
+      <label id="directoryPickerLabel">اختيار موظف من قائمة Employee Management
+        <select name="directoryEmployee" required disabled><option value="">اختر اسم الموظف</option></select>
+      </label>
+      <label id="manualEmployeeLabel" hidden>اسم الموظف
+        <input name="employee" maxlength="120" dir="auto" disabled>
+      </label>
+      <button id="addRosterEmployee" type="submit" disabled>إضافة الموظف</button>
     </form>
+    <p id="employeeDirectoryStatus" role="status">جارٍ تحميل قائمة الموظفين…</p>
     <p>تظهر قائمة الموظفين من تاريخ إضافتهم في الاجتماعات التالية. اختر الحالة الفعلية لكل موظف.</p>
     <ul id="attendanceList"></ul>
     <form id="attendanceForm" hidden>
@@ -734,9 +740,84 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     syncExcuseReason();
 
     const rosterForm = get('rosterForm');
+    const directorySelect = rosterForm.elements.directoryEmployee;
+    const manualEmployee = rosterForm.elements.employee;
+    const directoryStatus = get('employeeDirectoryStatus');
+    const addRosterEmployee = get('addRosterEmployee');
+    let employeeDirectory = new Map();
+
+    function useManualRoster(message) {
+        employeeDirectory.clear();
+        directoryStatus.textContent = message;
+        directorySelect.disabled = true;
+        get('directoryPickerLabel').hidden = true;
+        get('manualEmployeeLabel').hidden = false;
+        manualEmployee.disabled = false;
+        manualEmployee.required = true;
+        addRosterEmployee.disabled = false;
+    }
+
+    function populateEmployeeDirectory(snapshot) {
+        const selected = directorySelect.value;
+        const entries = new Map();
+        snapshot.forEach(doc => {
+            const record = doc.data();
+            const status = String(record.status ?? '').trim().toLowerCase();
+            const active = typeof record.active === 'boolean' ? record.active :
+                !['inactive', 'hidden', 'false', '0', 'مخفي', 'غيرنشط', 'غير نشط'].includes(status);
+            const name = String(record.name || record.fullName || record.employeeName || '').trim();
+            if (!active || !name) return;
+            const code = String(record.empNum || record.empId || record.employeeId || record.technicianId || '').trim();
+            entries.set(doc.id, { name, code });
+        });
+
+        employeeDirectory = entries;
+        const placeholder = node('option', 'اختر اسم الموظف');
+        placeholder.value = '';
+        directorySelect.replaceChildren(placeholder);
+        const ordered = [...entries].sort(([, a], [, b]) => a.name.localeCompare(b.name) || a.code.localeCompare(b.code));
+        for (const [id, employee] of ordered) {
+            const option = node('option', employee.name + (employee.code ? ' — ' + employee.code : ''));
+            option.value = id;
+            directorySelect.append(option);
+        }
+        if (entries.has(selected)) directorySelect.value = selected;
+        get('directoryPickerLabel').hidden = false;
+        directorySelect.disabled = !entries.size;
+        get('manualEmployeeLabel').hidden = true;
+        manualEmployee.disabled = true;
+        manualEmployee.required = false;
+        addRosterEmployee.disabled = !entries.size;
+        directoryStatus.textContent = entries.size
+            ? 'الموظفون النشطون في Employee Management: ' + entries.size
+            : 'لا يوجد موظفون نشطون في Employee Management.';
+    }
+
+    function connectEmployeeDirectory() {
+        let portal;
+        try {
+            portal = window.parent !== window ? window.parent : null;
+            if (portal?.appAuth?.currentUser && portal.appDb) {
+                const unsubscribe = portal.appDb.collection('employees').onSnapshot(
+                    populateEmployeeDirectory,
+                    () => useManualRoster('تعذّر تحميل قائمة الموظفين. تحقق من صلاحية القراءة في البوابة أو أدخل الاسم يدويًا.')
+                );
+                window.addEventListener('pagehide', event => {
+                    if (!event.persisted) unsubscribe();
+                });
+                return;
+            }
+        } catch {
+            useManualRoster('تعذّر الاتصال بقائمة الموظفين. يمكنك إدخال الاسم يدويًا.');
+            return;
+        }
+        useManualRoster('افتح تبويب Meeting_Attendance من البوابة لاختيار موظف من القائمة.');
+    }
+
     rosterForm.onsubmit = event => {
         event.preventDefault();
-        const person = rosterForm.elements.employee.value.trim();
+        const selectedEmployee = employeeDirectory.get(directorySelect.value);
+        const person = manualEmployee.disabled ? selectedEmployee?.name : manualEmployee.value.trim();
         if (!person) {
             feedback.textContent = 'أدخل اسم الموظف.';
             return;
@@ -801,6 +882,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         });
     };
 
+    connectEmployeeDirectory();
     render();
     window.addEventListener('storage', event => {
         if (event.key === storageKey) render();
