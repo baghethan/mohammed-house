@@ -76,12 +76,14 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 #workloadImageTable th, #workloadImageTable td { border-bottom: 1px solid #dbe4ef; padding: 6px; }
 #workloadImageTable input { width: 100%; }
 #workloadImageTable input[type="number"] { min-width: 78px; }
-#directoryPickerLabel { flex: 1 0 100%; min-width: 0; box-sizing: border-box; border: 1px solid #dbe4ef; border-radius: 8px; padding: 10px; }
+#directoryPickerLabel, #workloadPicker { flex: 1 0 100%; min-width: 0; box-sizing: border-box; border: 1px solid #dbe4ef; border-radius: 8px; padding: 10px; }
 .directory-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
 .employee-checkboxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 265px), 1fr)); gap: 5px 12px; max-height: 300px; overflow: auto; }
 #meetingPanel .employee-choice { display: flex; gap: 6px; align-items: center; padding: 5px; cursor: pointer; overflow-wrap: anywhere; }
 .employee-choice input { width: 17px; height: 17px; flex-shrink: 0; }
 .employee-choice:has(input:disabled) { color: #526781; cursor: default; }
+#workloadPicker { margin-block: 16px; }
+#workloadAddSelected { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -145,14 +147,29 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
       <label>Overdue <input name="overdue" type="number" min="0" max="999999999" step="1" value="0" required></label>
       <button type="submit">حفظ الأعداد</button>
     </form>
+    <fieldset id="workloadPicker">
+      <legend>اختيار الموظفين لإدخال الأعداد</legend>
+      <div class="directory-tools">
+        <button type="button" id="workloadPickerAll">تحديد الكل</button>
+        <button type="button" id="workloadPickerClear">إلغاء التحديد</button>
+        <span id="workloadSelectedCount" role="status"></span>
+      </div>
+      <p id="workloadPickerEmpty">تظهر الأسماء بعد تحميل قائمة الموظفين من البوابة أو إضافة أسماء يدويًا.</p>
+      <div id="workloadPickerNames" class="employee-checkboxes"></div>
+      <button type="button" id="workloadAddSelected" disabled>إضافة المحددين</button>
+    </fieldset>
     <details id="workloadImageImport">
-      <summary>استيراد جدول من صورة</summary>
+      <summary>استيراد جدول من صورة أو Excel</summary>
       <p>اختر نوع البنود أعلاه، وارفع لقطة واضحة تتضمن أسماء الموظفين وعناوين Open وOn Hold وOverdue.</p>
       <div class="ocr-controls">
         <label>صورة الجدول <input id="workloadImage" type="file" accept="image/png,image/jpeg,image/webp,image/bmp"></label>
         <label>لغة الأسماء <select id="workloadImageLanguage"><option value="eng">الإنجليزية</option><option value="ara">العربية والإنجليزية</option></select></label>
         <button type="button" id="readWorkloadImage">قراءة الصورة</button>
       </div>
+      <p>قراءة الصورة تتطلب تثبيت مكتبة القراءة المعتمدة داخل البوابة.</p>
+      <label>لصق جدول من Excel <textarea id="workloadPaste" rows="4" dir="auto" maxlength="100000"></textarea></label>
+      <button type="button" id="readWorkloadPaste">معاينة الجدول الملصق</button>
+    </details>
       <p id="workloadImageStatus" role="status"></p>
       <div id="workloadImagePreview" hidden>
         <div class="workload-table-wrap">
@@ -163,7 +180,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         </div>
         <button type="button" id="saveWorkloadImage">اعتماد الأعداد وتحديث الجدول</button>
       </div>
-    </details>
+
     <div class="workload-table-wrap">
       <table id="workloadTable" dir="ltr">
         <caption id="workloadCaption"></caption>
@@ -249,6 +266,14 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 (() => {
     const get = id => document.getElementById(id);
     const english = {
+    "اختيار الموظفين لإدخال الأعداد": "Select employees to enter counts",
+    "تظهر الأسماء بعد تحميل قائمة الموظفين من البوابة أو إضافة أسماء يدويًا.": "Names appear after loading the portal employee directory or adding names manually.",
+    "أدخل أعداد كل موظف ثم اعتمد الجدول.": "Enter the counts for each employee, then apply the table.",
+    "استيراد جدول من صورة أو Excel": "Import a table from an image or Excel",
+    "قراءة الصورة تتطلب تثبيت مكتبة القراءة المعتمدة داخل البوابة.": "Image reading requires the approved OCR library to be installed in the portal.",
+    "لصق جدول من Excel": "Paste a table from Excel",
+    "معاينة الجدول الملصق": "Preview pasted table",
+    "اختر تاريخ الاجتماع والصق أربعة أعمدة من Excel: الموظف وOpen وOn Hold وOverdue.": "Select a meeting date and paste four Excel columns: Employee, Open, On Hold, and Overdue.",
     "اختر الموظفين من Employee Management": "Select employees from Employee Management",
     "تحديد الكل": "Select all",
     "إلغاء التحديد": "Clear selection",
@@ -269,7 +294,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     "جارٍ قراءة الصورة…": "Reading the image…",
     "لم يُتعرّف على الجدول. قصّ الصورة حول أعمدة الموظف وOpen وOn Hold وOverdue ثم أعد المحاولة.": "The table was not recognized. Crop to the Employee, Open, On Hold, and Overdue columns and retry.",
     "راجع الأسماء والأعداد وأكمل الخانات الفارغة قبل اعتماد الجدول.": "Review names and counts and fill in any empty cells before applying the table.",
-    "تعذّرت قراءة الصورة. تحقق من الصورة والاتصال بمكتبة القراءة ثم أعد المحاولة.": "Could not read the image. Check the image and whether the OCR library can load, then try again.",
+    "تعذّرت قراءة الصورة. تأكد أن مكتبة القراءة المعتمدة مثبتة داخل البوابة، أو الصق الجدول من Excel.": "Could not read the image. Check that the approved OCR library is installed in the portal, or paste the table from Excel.",
     "أكمل الأسماء والأعداد الصحيحة وتأكد أن أسماء الموظفين غير مكررة.": "Enter a unique employee name and valid counts for each row.",
     "تم اعتماد الأعداد وتحديث جدول الموظفين.": "Counts applied and the employee table updated.",
     "إدارة الاجتماعات والمتابعة": "Meeting Attendance and Follow-up",
@@ -440,7 +465,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.3.0';
+    get('meetingVersion').textContent = 'v1.4.0';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -754,6 +779,70 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         window.location.href = url;
     };
 
+    const workloadPickerNames = get('workloadPickerNames');
+    const workloadAddSelected = get('workloadAddSelected');
+    let workloadCandidates = new Map();
+    let workloadSavedRows = [];
+
+    function syncWorkloadPicker() {
+        const choices = [...workloadPickerNames.querySelectorAll('input')];
+        const count = choices.filter(input => input.checked).length;
+        workloadAddSelected.disabled = !count || !dateInput.value;
+        get('workloadPickerAll').disabled = !choices.length || count === choices.length;
+        get('workloadPickerClear').disabled = !count;
+        get('workloadSelectedCount').textContent = tr('المحددون: ') + count;
+    }
+
+    function drawWorkloadPicker() {
+        const selected = new Set([...workloadPickerNames.querySelectorAll('input:checked')].map(input => input.value));
+        const candidates = new Map(workloadCandidates);
+        for (const { name } of directoryChoices) candidates.set(employeeKey(name), name);
+        workloadPickerNames.replaceChildren();
+        for (const [key, name] of [...candidates].sort((a, b) => a[1].localeCompare(b[1]))) {
+            const label = node('label', '');
+            label.className = 'employee-choice';
+            const input = node('input', '');
+            input.type = 'checkbox';
+            input.value = key;
+            input.checked = selected.has(key);
+            input.onchange = syncWorkloadPicker;
+            const caption = node('span', name);
+            caption.dir = 'auto';
+            label.append(input, caption);
+            workloadPickerNames.append(label);
+        }
+        get('workloadPickerEmpty').hidden = candidates.size > 0;
+        syncWorkloadPicker();
+    }
+
+    get('workloadPickerAll').onclick = () => {
+        for (const input of workloadPickerNames.querySelectorAll('input')) input.checked = true;
+        syncWorkloadPicker();
+    };
+    function clearWorkloadSelection() {
+        for (const input of workloadPickerNames.querySelectorAll('input')) input.checked = false;
+        syncWorkloadPicker();
+    }
+    get('workloadPickerClear').onclick = clearWorkloadSelection;
+
+    workloadAddSelected.onclick = () => {
+        if (!dateInput.value) return;
+        const keys = new Set([...workloadPickerNames.querySelectorAll('input:checked')].map(input => input.value));
+        if (!keys.size) return;
+        const candidates = new Map(workloadCandidates);
+        for (const { name } of directoryChoices) candidates.set(employeeKey(name), name);
+        const saved = new Map(workloadSavedRows.map(row => [employeeKey(row.employee), row]));
+        const records = [...keys].filter(key => candidates.has(key)).map(key =>
+            saved.get(key) ?? { employee: candidates.get(key), open: 0, onHold: 0, overdue: 0 });
+        if (!records.length) return;
+        clearWorkloadImage();
+        ocrSource = { date: dateInput.value, bucket: workloadFields.bucket.value };
+        showOcrRows(records, false);
+        ocrStatus.textContent = tr('أدخل أعداد كل موظف ثم اعتمد الجدول.');
+        ocrPreview.scrollIntoView({ block: 'nearest' });
+        ocrRows.querySelector('input[type="number"]')?.focus({ preventScroll: true });
+    };
+
     const workloadForm = get('workloadForm');
     const workloadFields = workloadForm.elements;
     const countKeys = ['open', 'onHold', 'overdue'];
@@ -779,6 +868,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         for (const entry of [...(data.roster ?? []).map(row => row.person), ...data.attendance.map(row => row.person), ...data.items.map(row => row.owner), ...rows.map(row => row.employee)]) {
             if (entry) names.set(employeeKey(entry), entry);
         }
+        workloadCandidates = names;
+        workloadSavedRows = rows;
+        drawWorkloadPicker();
         for (const name of [...names.values()].sort((a, b) => a.localeCompare(b))) {
             const option = node('option', '');
             option.value = name;
@@ -827,6 +919,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     }
 
     workloadFields.bucket.onchange = () => {
+        clearWorkloadSelection();
         clearWorkloadImage();
         resetWorkloadInputs();
         render();
@@ -922,20 +1015,63 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     const ocrStatus = get('workloadImageStatus');
     const ocrPreview = get('workloadImagePreview');
     const ocrRows = get('workloadImageRows');
+    const ocrAssets = new URL('./assets/ocr/', window.location.href);
     let ocrScript;
     let ocrSource = null;
     let ocrRun = 0;
 
     function loadOcrLibrary() {
-        if (globalThis.Tesseract) return Promise.resolve(globalThis.Tesseract);
         ocrScript ??= new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js';
-            script.onload = () => globalThis.Tesseract ? resolve(globalThis.Tesseract) : reject(new Error('OCR unavailable'));
-            script.onerror = () => { script.remove(); reject(new Error('OCR download failed')); };
+            script.src = new URL('tesseract.min.js', ocrAssets).href;
+            const failed = () => {
+                clearTimeout(timer);
+                script.remove();
+                reject(new Error('OCR library unavailable'));
+            };
+            const timer = setTimeout(failed, 10000);
+            script.onload = () => {
+                clearTimeout(timer);
+                if (globalThis.Tesseract?.createWorker) resolve(globalThis.Tesseract);
+                else failed();
+            };
+            script.onerror = failed;
             document.head.append(script);
         }).catch(error => { ocrScript = null; throw error; });
         return ocrScript;
+    }
+
+    async function recognizeWorkloadImage(api, image, languages) {
+        let worker;
+        let expired = false;
+        let timer;
+        const work = (async () => {
+            worker = await api.createWorker(languages, 1, {
+                workerPath: new URL('worker.min.js', ocrAssets).href,
+                corePath: new URL('core', ocrAssets).href,
+                langPath: new URL('lang', ocrAssets).href,
+                workerBlobURL: false
+            });
+            if (expired) {
+                await worker.terminate().catch(() => {});
+                return '';
+            }
+            await worker.setParameters({ tessedit_pageseg_mode: '6' });
+            const { data } = await worker.recognize(image, {}, { tsv: true });
+            return data.tsv || '';
+        })();
+        const timeout = new Promise((_, reject) => {
+            timer = setTimeout(() => {
+                expired = true;
+                reject(new Error('OCR timed out'));
+            }, 35000);
+        });
+        try {
+            return await Promise.race([work, timeout]);
+        } finally {
+            clearTimeout(timer);
+            if (worker) void worker.terminate().catch(() => {});
+        }
     }
 
     async function prepareWorkloadImage(file) {
@@ -964,7 +1100,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         ocrRead.disabled = false;
     }
 
-    function showOcrRows(records) {
+    function showOcrRows(records, editableName = true) {
         for (const [index, record] of records.entries()) {
             const row = node('tr', '');
             const labels = { employee: 'Employee', open: 'Open', onHold: 'On Hold', overdue: 'Overdue' };
@@ -974,7 +1110,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
                 input.setAttribute('aria-label', labels[key] + ' ' + (index + 1));
                 input.dataset.column = key;
                 input.value = record[key];
-                if (key === 'employee') { input.maxLength = 120; input.dir = 'auto'; }
+                if (key === 'employee') { input.maxLength = 120; input.dir = 'auto'; input.readOnly = !editableName; }
                 else { input.type = 'number'; input.min = '0'; input.max = '999999999'; input.step = '1'; }
                 cell.append(input);
                 row.append(cell);
@@ -1002,16 +1138,14 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         const source = { date: dateInput.value, bucket: workloadFields.bucket.value };
         ocrRead.disabled = true;
         ocrStatus.textContent = tr('جارٍ قراءة الصورة…');
-        let worker;
         try {
             const image = await prepareWorkloadImage(file);
             const api = await loadOcrLibrary();
             if (run !== ocrRun) return;
-            worker = await api.createWorker(get('workloadImageLanguage').value === 'ara' ? ['eng', 'ara'] : 'eng', 1);
-            await worker.setParameters({ tessedit_pageseg_mode: '6' });
-            const { data } = await worker.recognize(image, {}, { tsv: true });
+            const languages = get('workloadImageLanguage').value === 'ara' ? ['eng', 'ara'] : 'eng';
+            const tsv = await recognizeWorkloadImage(api, image, languages);
             if (run !== ocrRun) return;
-            const records = readWorkloadTsv(data.tsv || '');
+            const records = readWorkloadTsv(tsv);
             if (!records.length) {
                 ocrStatus.textContent = tr('لم يُتعرّف على الجدول. قصّ الصورة حول أعمدة الموظف وOpen وOn Hold وOverdue ثم أعد المحاولة.');
                 return;
@@ -1020,11 +1154,56 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             showOcrRows(records);
             ocrStatus.textContent = tr('راجع الأسماء والأعداد وأكمل الخانات الفارغة قبل اعتماد الجدول.');
         } catch {
-            if (run === ocrRun) ocrStatus.textContent = tr('تعذّرت قراءة الصورة. تحقق من الصورة والاتصال بمكتبة القراءة ثم أعد المحاولة.');
+            if (run === ocrRun) ocrStatus.textContent = tr('تعذّرت قراءة الصورة. تأكد أن مكتبة القراءة المعتمدة مثبتة داخل البوابة، أو الصق الجدول من Excel.');
         } finally {
-            if (worker) await worker.terminate().catch(() => {});
             if (run === ocrRun) ocrRead.disabled = false;
         }
+    };
+
+    function parsePastedWorkload(text) {
+        const digit = value => value.replace(/[٠-٩]/g, char => String(char.charCodeAt(0) - 0x660))
+            .replace(/[۰-۹]/g, char => String(char.charCodeAt(0) - 0x6f0)).trim();
+        const headerKeys = new Map([
+            ['open', 'open'], ['onhold', 'onHold'], ['overdue', 'overdue'],
+            ['مفتوح', 'open'], ['معلق', 'onHold'], ['متأخر', 'overdue']
+        ]);
+        const normalize = value => value.toLowerCase().replace(/[\s_-]/g, '');
+        const records = [];
+        let order = countKeys;
+        for (const line of text.split(/\r?\n/)) {
+            if (!line.trim()) continue;
+            if (!line.includes('\t') && /\bopen\b.*\bon\s*hold\b.*\bover\s*due\b/i.test(line)) continue;
+            let fields = line.split('\t').map(value => value.trim());
+            if (fields.length === 1) {
+                const match = line.trim().match(/^(.+?)\s+([\d٠-٩۰-۹]+)\s+([\d٠-٩۰-۹]+)\s+([\d٠-٩۰-۹]+)$/u);
+                if (match) fields = match.slice(1);
+            }
+            const employee = fields[0];
+            if (/^(total|grand\s*total|الإجمالي|المجموع)$/i.test(employee)) continue;
+            if (fields.length !== 4) return null;
+            const keys = fields.slice(1).map(value => headerKeys.get(normalize(value)));
+            if (keys.every(Boolean) && new Set(keys).size === 3) {
+                order = keys;
+                continue;
+            }
+            const values = fields.slice(1).map(digit);
+            if (!employee || employee.length > 120 || values.some(value => value && !/^\d{1,9}$/.test(value))) return null;
+            records.push({ employee, ...Object.fromEntries(order.map((key, index) => [key, values[index]])) });
+        }
+        return records;
+    }
+
+    get('readWorkloadPaste').onclick = () => {
+        clearWorkloadImage();
+        const text = get('workloadPaste').value;
+        const records = text.length <= 100000 ? parsePastedWorkload(text) : null;
+        if (!dateInput.value || !records?.length) {
+            ocrStatus.textContent = tr('اختر تاريخ الاجتماع والصق أربعة أعمدة من Excel: الموظف وOpen وOn Hold وOverdue.');
+            return;
+        }
+        ocrSource = { date: dateInput.value, bucket: workloadFields.bucket.value };
+        showOcrRows(records);
+        ocrStatus.textContent = tr('راجع الأسماء والأعداد وأكمل الخانات الفارغة قبل اعتماد الجدول.');
     };
 
     ocrSave.onclick = () => {
@@ -1049,6 +1228,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         })) {
             clearWorkloadImage();
             ocrFile.value = '';
+            get('workloadPaste').value = '';
+            clearWorkloadSelection();
             ocrStatus.textContent = tr('تم اعتماد الأعداد وتحديث جدول الموظفين.');
         }
     };
@@ -1174,6 +1355,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     chartMonth.onchange = render;
     get('cancelFollowup').onclick = resetFollowup;
     dateInput.onchange = () => {
+        clearWorkloadSelection();
         for (const { input } of directoryChoices) input.checked = false;
         clearWorkloadImage();
         resetWorkloadInputs();
@@ -1203,6 +1385,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         directoryStatus.textContent = tr(message);
         directoryChoices = [];
         employeeCheckboxes.replaceChildren();
+        drawWorkloadPicker();
         addRosterEmployee.textContent = tr('إضافة الموظف');
         get('directoryPickerLabel').hidden = true;
         get('manualEmployeeLabel').hidden = false;
@@ -1249,6 +1432,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         manualEmployee.required = false;
         addRosterEmployee.textContent = tr('إضافة المحددين');
         syncDirectoryChoices();
+        drawWorkloadPicker();
         directoryStatus.textContent = entries.size
             ? tr('الموظفون النشطون في Employee Management: ') + entries.size
             : tr('لا يوجد موظفون نشطون في Employee Management.');
