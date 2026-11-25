@@ -585,7 +585,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.7.3';
+    get('meetingVersion').textContent = 'v1.7.4';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -2244,6 +2244,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     const emptySharedAttendance = () => ({ attendance: [], roster: [] });
     let sharedAttendance = emptySharedAttendance();
     let sharedDb = null;
+    let sharedDataToFirestore = null;
     let sharedRef = null;
     let canManageAttendance = false;
     let attendanceOwnerAwaitingVerification = null;
@@ -2342,6 +2343,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
                 return;
             }
             sharedDb = portal.appDb;
+            // Firestore belongs to the portal frame, so create plain objects in that frame.
+            sharedDataToFirestore = data => portal.JSON.parse(JSON.stringify(data));
             sharedRef = sharedDb.collection('meeting_attendance').doc('shared');
             const stop = sharedRef.onSnapshot({ includeMetadataChanges: true }, snapshot => {
                 if (snapshot.metadata.fromCache && !sharedReady) return;
@@ -2407,13 +2410,15 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             sharedAttendance = await sharedDb.runTransaction(async transaction => {
                 const data = attendanceFromSnapshot(await transaction.get(sharedRef));
                 change(data, date);
-                transaction.set(sharedRef, data);
+                transaction.set(sharedRef, sharedDataToFirestore(data));
                 return data;
             });
             render();
             return true;
-        } catch {
-            feedback.textContent = syncMessage('failed');
+        } catch (error) {
+            const code = typeof error?.code === 'string' ? error.code : error?.name || 'unknown';
+            feedback.textContent = syncMessage('failed') + ' (' + code + ')';
+            console.warn('Meeting attendance write failed', { code, message: error?.message });
             return false;
         } finally {
             sharedPending = false;
