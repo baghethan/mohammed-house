@@ -59,7 +59,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 #workloadTable th:first-child, #workloadTable td:first-child { text-align: start; overflow-wrap: anywhere; }
 #workloadTable .workload-overdue { color: #a52334; font-weight: 600; }
 #workloadForm input[type="number"] { width: 92px; }
-#attendanceForm[hidden] { display: none; }
+#attendanceForm[hidden], #attendanceForm label[hidden], #addRosterEmployee[hidden] { display: none; }
 #attendanceList li { border-bottom: 1px solid #dbe4ef; }
 #attendanceList button { margin: 3px; }
  .meeting-heading { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
@@ -168,7 +168,6 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         <legend>اختر الموظفين من Employee Management</legend>
         <div class="directory-tools">
           <button id="selectAllEmployees" type="button">تحديد الكل</button>
-          <button id="clearSelectedEmployees" type="button">إلغاء التحديد</button>
           <span id="selectedEmployeeCount" role="status"></span>
         </div>
         <div id="employeeCheckboxes" class="employee-checkboxes"></div>
@@ -176,17 +175,18 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
       <label id="manualEmployeeLabel" hidden>اسم الموظف
         <input name="employee" maxlength="120" dir="auto" disabled>
       </label>
-      <button id="addRosterEmployee" type="submit" disabled>إضافة المحددين</button>
+      <button id="addRosterEmployee" type="submit" hidden disabled>إضافة المحددين</button>
     </form>
     <p id="employeeDirectoryStatus" role="status">جارٍ تحميل قائمة الموظفين…</p>
-    <p id="attendanceEditHint">اختر الموظفين لكل تاريخ اجتماع، ثم سجّل حالة كل موظف.</p>
+    <p id="attendanceAutoSaveStatus" role="status"></p>
+    <p id="attendanceEditHint">اختيار الموظف وتغيير حالته يُحفظان تلقائيًا لكل تاريخ اجتماع.</p>
     <ul id="attendanceList"></ul>
     <form id="attendanceForm" hidden>
       <label>اسم الموظف <input name="person" required maxlength="120" readonly></label>
-      <label>الحالة <select name="status"><option value="حاضر">حاضر</option><option value="غائب">غائب</option><option value="معتذر">معتذر</option></select></label>
+      <label hidden>الحالة <select name="status"><option value="حاضر">حاضر</option><option value="غائب">غائب</option><option value="معتذر">معتذر</option></select></label>
       <label id="excuseReasonLabel" hidden>سبب الاعتذار <input name="excuseReason" maxlength="250" disabled></label>
       <p id="excuseEnglishPreview" dir="ltr" role="status" hidden></p>
-      <button type="submit">حفظ الحضور</button>
+      <p>يُحفظ سبب الاعتذار تلقائيًا بعد التوقف عن الكتابة.</p>
     </form>
   </section>
   <section id="followupPanel" hidden>
@@ -352,6 +352,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 (() => {
     const get = id => document.getElementById(id);
     const english = {
+    "يُحفظ سبب الاعتذار تلقائيًا بعد التوقف عن الكتابة.": "The reason saves automatically after you stop typing.",
+    "جارٍ حفظ الحضور…": "Saving attendance…",
+    "تم حفظ الحضور في Firestore.": "Attendance saved to Firestore.",
     "لتفعيل تعديل الحضور لحساب المالك، وثّق بريدك. بعد فتح رابط التوثيق في بريدك، ارجع واضغط «تحقق من التوثيق».": "Verify the owner email to enable attendance editing. Open the link in your inbox, then return and select Check verification.",
     "إرسال رابط التوثيق": "Send verification link",
     "تحقق من التوثيق": "Check verification",
@@ -432,7 +435,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     "اسم الموظف": "Employee name",
     "إضافة الموظف": "Add employee",
     "جارٍ تحميل قائمة الموظفين…": "Loading the employee directory…",
-    "اختر الموظفين لكل تاريخ اجتماع، ثم سجّل حالة كل موظف.": "Select employees for each meeting date, then record their attendance.",
+    "اختيار الموظف وتغيير حالته يُحفظان تلقائيًا لكل تاريخ اجتماع.": "Selecting an employee or changing their status saves automatically for the selected meeting date.",
     "الحالة": "Status",
     "حاضر": "Present",
     "غائب": "Absent",
@@ -585,7 +588,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.7.4';
+    get('meetingVersion').textContent = 'v1.8.0';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -604,6 +607,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     }
 
     function resetAttendance() {
+        flushExcuseSave();
         attendance.reset();
         attendance.hidden = true;
         syncExcuseReason();
@@ -1716,8 +1720,10 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
                 row.append(reason);
             }
             row.append(...['حاضر', 'غائب'].map(status => button(tr(status === 'حاضر' ? 'تسجيل حاضر' : 'تسجيل غائب'), async () => {
-                if (await saveAttendance(entry.person, status, '')) resetAttendance();
+                flushExcuseSave();
+                if (await saveAttendance(entry.person, status, '') && attendance.elements.person.value === entry.person) resetAttendance();
             })), button(entry.status === 'معتذر' ? tr('تعديل الاعتذار') : tr('تسجيل معتذر'), () => {
+                flushExcuseSave();
                 attendance.hidden = false;
                 attendance.elements.person.value = entry.person;
                 attendance.elements.status.value = 'معتذر';
@@ -1727,7 +1733,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
                 updateExcusePreview();
             }), button(tr('إزالة من الاجتماع'), async () => {
                 if (entry.status && !window.confirm(tr('هل تريد إزالة الموظف وحذف حالة حضوره من هذا الاجتماع؟'))) return;
-                if (await updateSharedAttendance((data, date) => removeMeetingEmployee(data, date, entry.person))) resetAttendance();
+                flushExcuseSave();
+                if (await updateSharedAttendance((data, date) => removeMeetingEmployee(data, date, entry.person)) && attendance.elements.person.value === entry.person) resetAttendance();
             }));
             attendanceList.append(row);
         }
@@ -1844,6 +1851,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         employeeCheckboxes.replaceChildren();
         drawWorkloadPicker();
         addRosterEmployee.textContent = tr('إضافة الموظف');
+        addRosterEmployee.hidden = false;
         get('directoryPickerLabel').hidden = true;
         get('manualEmployeeLabel').hidden = false;
         manualEmployee.disabled = false;
@@ -1875,7 +1883,10 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             input.type = 'checkbox';
             input.value = id;
             input.checked = selected.has(id);
-            input.onchange = syncDirectoryChoices;
+            input.onchange = () => {
+                syncDirectoryChoices();
+                if (input.checked) void saveSelectedDirectoryEmployees([employee.name], [input]);
+            };
             const caption = node('span', employee.name + (employee.code ? ' — ' + employee.code : ''));
             caption.dir = 'auto';
             const addedBadge = node('small', tr('تمت الإضافة'));
@@ -1887,7 +1898,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         get('manualEmployeeLabel').hidden = true;
         manualEmployee.disabled = true;
         manualEmployee.required = false;
-        addRosterEmployee.textContent = tr('إضافة المحددين');
+        addRosterEmployee.hidden = true;
         syncDirectoryChoices();
         drawWorkloadPicker();
         directoryStatus.textContent = entries.size
@@ -1908,17 +1919,23 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         }
         get('selectedEmployeeCount').textContent = tr('المحددون: ') + selectedCount;
         get('selectAllEmployees').disabled = availableCount === selectedCount;
-        get('clearSelectedEmployees').disabled = !selectedCount;
-        addRosterEmployee.disabled = !selectedCount;
+    }
+
+    async function saveSelectedDirectoryEmployees(people, checkboxes) {
+        const date = dateInput.value;
+        const saved = await updateSharedAttendance(data => addMeetingEmployees(data, date, people), date);
+        if (!saved && dateInput.value === date) {
+            for (const checkbox of checkboxes) checkbox.checked = false;
+            syncDirectoryChoices();
+        }
     }
 
     get('selectAllEmployees').onclick = () => {
-        for (const { input } of directoryChoices) input.checked = !input.disabled;
+        const selected = directoryChoices.filter(({ input }) => !input.disabled);
+        if (!selected.length) return;
+        for (const { input } of selected) input.checked = true;
         syncDirectoryChoices();
-    };
-    get('clearSelectedEmployees').onclick = () => {
-        for (const { input } of directoryChoices) input.checked = false;
-        syncDirectoryChoices();
+        void saveSelectedDirectoryEmployees(selected.map(({ name }) => name), selected.map(({ input }) => input));
     };
 
     function connectEmployeeDirectory() {
@@ -1974,29 +1991,36 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         data.attendance = data.attendance.filter(entry => entry.date !== date || employeeKey(entry.person) !== key);
     }
 
-    function saveAttendance(person, status, excuseReason) {
+    function saveAttendance(person, status, excuseReason, meetingDate = dateInput.value) {
         return updateSharedAttendance((data, date) => {
             const entry = data.attendance.find(row => row.date === date && employeeKey(row.person) === employeeKey(person));
             if (entry) Object.assign(entry, { status, excuseReason });
             else data.attendance.push({ date, person, status, excuseReason });
-        });
+        }, meetingDate);
     }
 
-    attendance.onsubmit = async event => {
-        event.preventDefault();
+    let excuseSaveTimer;
+    let pendingExcuse = null;
+
+    function flushExcuseSave() {
+        clearTimeout(excuseSaveTimer);
+        const draft = pendingExcuse;
+        pendingExcuse = null;
+        if (draft) void saveAttendance(draft.person, 'معتذر', draft.reason, draft.date);
+    }
+
+    excuseReasonInput.addEventListener('input', () => {
+        clearTimeout(excuseSaveTimer);
         const person = attendance.elements.person.value.trim();
-        if (!person) {
-            feedback.textContent = tr('أدخل اسم الموظف.');
-            return;
-        }
-        const status = attendance.elements.status.value;
-        const excuseReason = status === 'معتذر' ? excuseReasonInput.value.trim() : '';
-        if (status === 'معتذر' && !excuseReason) {
-            feedback.textContent = tr('أدخل سبب الاعتذار.');
-            excuseReasonInput.focus();
-            return;
-        }
-        if (await saveAttendance(person, status, excuseReason)) resetAttendance();
+        const reason = excuseReasonInput.value.trim();
+        pendingExcuse = person && reason && dateInput.value ? { person, reason, date: dateInput.value } : null;
+        if (pendingExcuse) excuseSaveTimer = setTimeout(flushExcuseSave, 650);
+    });
+    excuseReasonInput.addEventListener('change', flushExcuseSave);
+    excuseReasonInput.addEventListener('blur', flushExcuseSave);
+    attendance.onsubmit = event => {
+        event.preventDefault();
+        flushExcuseSave();
     };
 
     for (const control of document.querySelectorAll('[data-point-field]')) {
@@ -2128,6 +2152,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             return;
         }
         translationField.value = value;
+        if (translationField === excuseReasonInput) translationField.dispatchEvent(new Event('input'));
         translationDialog.close();
     };
     get('cancelTranslation').onclick = () => translationDialog.close();
@@ -2251,7 +2276,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     const attendanceOwnerEmail = 'baghethanmh@almajdouie.com';
     const attendanceOwnerUid = 'DFFhtc8d9COhReMqYFABICVlANs1';
     let sharedReady = false;
-    let sharedPending = false;
+    let sharedPending = 0;
+    let attendanceWriteQueue = Promise.resolve();
+    const attendanceAutoSaveStatus = get('attendanceAutoSaveStatus');
     const syncStatus = get('attendanceSyncStatus');
     const migrateAttendance = get('migrateAttendance');
     const migratedAttendanceKey = storageKey + '-copied-to-firestore';
@@ -2276,9 +2303,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         syncStatus.textContent = syncMessage(state);
         get('attendanceOwnerVerification').hidden = !attendanceOwnerAwaitingVerification;
         document.body.classList.toggle('attendance-readonly', !canManageAttendance || !sharedReady);
-        document.body.classList.toggle('attendance-saving', sharedPending);
+        document.body.classList.toggle('attendance-saving', sharedPending > 0);
         migrateAttendance.hidden = !canManageAttendance || !sharedReady || localCopied;
-        migrateAttendance.disabled = sharedPending;
+        migrateAttendance.disabled = sharedPending > 0;
     }
 
     function savedAttendanceDates() {
@@ -2394,36 +2421,44 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         window.location.reload();
     }, 'تعذّر التحقق من حالة البريد. أعد تسجيل الدخول وحاول مجددًا.');
 
-    async function updateSharedAttendance(change) {
-        if (!canManageAttendance || !sharedReady || !sharedRef || sharedPending) {
+    function updateSharedAttendance(change, date = dateInput.value) {
+        if (!canManageAttendance || !sharedReady || !sharedRef) {
             feedback.textContent = syncMessage('readonly');
-            return false;
+            return Promise.resolve(false);
         }
-        const date = dateInput.value;
         if (!date) {
             dateInput.reportValidity();
-            return false;
+            return Promise.resolve(false);
         }
-        sharedPending = true;
+        sharedPending++;
+        attendanceAutoSaveStatus.textContent = tr('جارٍ حفظ الحضور…');
         showAttendanceSync();
-        try {
-            sharedAttendance = await sharedDb.runTransaction(async transaction => {
-                const data = attendanceFromSnapshot(await transaction.get(sharedRef));
-                change(data, date);
-                transaction.set(sharedRef, sharedDataToFirestore(data));
-                return data;
-            });
-            render();
-            return true;
-        } catch (error) {
-            const code = typeof error?.code === 'string' ? error.code : error?.name || 'unknown';
-            feedback.textContent = syncMessage('failed') + ' (' + code + ')';
-            console.warn('Meeting attendance write failed', { code, message: error?.message });
-            return false;
-        } finally {
-            sharedPending = false;
-            showAttendanceSync();
-        }
+        const save = attendanceWriteQueue.then(async () => {
+            try {
+                if (!sharedReady || !canManageAttendance) throw new Error('Attendance connection unavailable');
+                sharedAttendance = await sharedDb.runTransaction(async transaction => {
+                    const data = attendanceFromSnapshot(await transaction.get(sharedRef));
+                    change(data, date);
+                    transaction.set(sharedRef, sharedDataToFirestore(data));
+                    return data;
+                });
+                render();
+                if (sharedPending === 1) attendanceAutoSaveStatus.textContent = tr('تم حفظ الحضور في Firestore.');
+                return true;
+            } catch (error) {
+                const code = typeof error?.code === 'string' ? error.code : error?.name || 'unknown';
+                const message = syncMessage('failed') + ' (' + code + ')';
+                attendanceAutoSaveStatus.textContent = message;
+                feedback.textContent = message;
+                console.warn('Meeting attendance write failed', { code, message: error?.message });
+                return false;
+            } finally {
+                sharedPending--;
+                showAttendanceSync();
+            }
+        });
+        attendanceWriteQueue = save;
+        return save;
     }
 
     function mergeLocalAttendance(remote, local) {
