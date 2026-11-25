@@ -315,9 +315,6 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
           <option value="table">جدول تفصيلي</option>
         </select>
       </label>
-      <label id="attendancePageSizeControl">موظفون لكل صفحة
-        <select id="attendancePageSize"><option value="6">6</option><option value="10">10</option><option value="20">20</option></select>
-      </label>
     </div>
     <div class="attendance-export">
       <button type="button" id="copyAttendanceChart" disabled>نسخ الرسم كصورة</button>
@@ -332,11 +329,6 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
       <li><span class="stats-swatch stats-excused"></span>معتذر</li>
     </ul>
     <div id="attendanceChart"></div>
-    <nav id="attendancePagination" class="attendance-pagination" aria-label="صفحات الرسم البياني" hidden>
-      <button id="attendancePrevious" type="button">السابق</button>
-      <span id="attendancePageIndicator" role="status"></span>
-      <button id="attendanceNext" type="button">التالي</button>
-    </nav>
   </section>
   <dialog id="translationDialog" aria-labelledby="translationTitle">
     <h2 id="translationTitle">ترجمة النص</h2>
@@ -588,7 +580,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.8.0';
+    get('meetingVersion').textContent = 'v1.9.0';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -838,11 +830,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     }
 
     const chartMode = get('attendanceChartMode');
-    const chartPageSize = get('attendancePageSize');
-    const chartPrevious = get('attendancePrevious');
-    const chartNext = get('attendanceNext');
     const chartStatusLabels = { present: 'حاضر', absent: 'غائب دون عذر', excused: 'معتذر' };
-    let chartPage = 0;
     let chartRecords = [];
 
     function statusCounts(entry) {
@@ -860,12 +848,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         chartRecords = records;
         const chart = get('attendanceChart');
         const metrics = get('attendanceMetrics');
-        const pagination = get('attendancePagination');
-        const sizeControl = get('attendancePageSizeControl');
         chart.replaceChildren();
         metrics.replaceChildren();
-        pagination.hidden = true;
-        sizeControl.hidden = chartMode.value === 'donut';
         const summaries = monthlyStats(records, chartMonth.value);
         get('copyAttendanceChart').disabled = !summaries.length;
         get('downloadAttendanceChart').disabled = !summaries.length;
@@ -889,19 +873,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             return;
         }
 
-        const size = Number(chartPageSize.value) || 6;
-        const pageCount = Math.ceil(summaries.length / size);
-        chartPage = Math.max(0, Math.min(chartPage, pageCount - 1));
-        const first = chartPage * size;
-        const page = summaries.slice(first, first + size);
-        if (chartMode.value === 'table') drawAttendanceTable(chart, page);
-        else drawAttendanceBars(chart, page, summaries);
-
-        pagination.hidden = pageCount < 2;
-        chartPrevious.disabled = chartPage === 0;
-        chartNext.disabled = chartPage >= pageCount - 1;
-        get('attendancePageIndicator').textContent = tr('صفحة ') + (chartPage + 1) +
-            ' / ' + pageCount + ' · ' + (first + 1) + '–' + (first + page.length) + ' / ' + summaries.length;
+        if (chartMode.value === 'table') drawAttendanceTable(chart, summaries);
+        else drawAttendanceBars(chart, summaries, summaries);
     }
 
     function drawAttendanceBars(chart, page, summaries) {
@@ -994,22 +967,17 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         chart.append(wrap);
     }
 
-    function resetAttendanceChartPage() {
-        chartPage = 0;
+    function refreshAttendanceChart() {
         drawAttendanceChart();
     }
 
-    chartMode.onchange = resetAttendanceChartPage;
-    chartPageSize.onchange = resetAttendanceChartPage;
-    chartPrevious.onclick = () => { chartPage--; drawAttendanceChart(); };
-    chartNext.onclick = () => { chartPage++; drawAttendanceChart(); };
+    chartMode.onchange = refreshAttendanceChart;
 
     function attendanceChartPng() {
         const all = monthlyStats(chartRecords, chartMonth.value);
         if (!all.length) return Promise.reject(new Error('No chart data'));
         const mode = chartMode.value;
-        const size = Number(chartPageSize.value) || 6;
-        const rows = all.slice(chartPage * size, (chartPage + 1) * size);
+        const rows = all;
         const totals = all.reduce((sum, entry) => {
             for (const [status, count] of statusCounts(entry)) sum[status] += count;
             return sum;
@@ -1098,8 +1066,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
                 values.forEach(([status, count], i) => label(count, columnX[i], top + 27,
                     { center: true, weight: 700, color: palette[status] }));
             });
-            const pageCount = Math.ceil(all.length / size);
-            label(tr('صفحة ') + (chartPage + 1) + ' / ' + pageCount, 36, height - 10, { size: 12 });
+
         }
         return new Promise((resolve, reject) => canvas.toBlob(blob => {
             if (blob) resolve(blob);
@@ -1122,8 +1089,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     };
     get('downloadAttendanceChart').onclick = async () => {
         try {
-            const name = 'Meeting_Attendance_' + chartMonth.value + '_' + chartMode.value +
-                (chartMode.value === 'donut' ? '' : '_p' + (chartPage + 1)) + '.png';
+            const name = 'Meeting_Attendance_' + chartMonth.value + '_' + chartMode.value + '.png';
             const url = URL.createObjectURL(await attendanceChartPng());
             const link = document.createElement('a');
             link.href = url;
@@ -1667,6 +1633,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     };
 
     function render() {
+        showAttendanceSync();
         renderSavedAttendanceDates();
         const attendanceList = get('attendanceList');
         const itemsList = get('meetingItems');
@@ -1740,7 +1707,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         }
         if (!roster.size) {
             const message = !sharedReady ? 'سجلات الحضور المشتركة غير متاحة حاليًا.'
-                : canManageAttendance ? 'أضف الموظفين لعرض قائمة الحضور لهذا الاجتماع.'
+                : canEditAttendanceDate(date) ? 'أضف الموظفين لعرض قائمة الحضور لهذا الاجتماع.'
                 : savedAttendanceDates().length ? 'لا توجد سجلات حضور في التاريخ المحدد. اختر تاريخًا من الاجتماعات المحفوظة.'
                 : 'لا توجد اجتماعات محفوظة في Firestore حتى الآن.';
             attendanceList.append(node('li', tr(message)));
@@ -1812,7 +1779,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 
     dateInput.value = today();
     chartMonth.value = dateInput.value.slice(0, 7);
-    chartMonth.onchange = resetAttendanceChartPage;
+    chartMonth.onchange = refreshAttendanceChart;
     get('cancelFollowup').onclick = resetFollowup;
     dateInput.onchange = () => {
         clearWorkloadSelection();
@@ -1820,7 +1787,6 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         clearWorkloadImage();
         resetWorkloadInputs();
         chartMonth.value = dateInput.value.slice(0, 7);
-        chartPage = 0;
         resetAttendance();
         resetFollowup();
         feedback.textContent = '';
@@ -2268,6 +2234,51 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 
     const emptySharedAttendance = () => ({ attendance: [], roster: [] });
     let sharedAttendance = emptySharedAttendance();
+    let legacyAttendance = emptySharedAttendance();
+    let dailyAttendance = new Map();
+    let legacyReady = false;
+    let dailyReady = false;
+    let canRecordToday = false;
+    const attendanceDayMillis = 86400000;
+
+    function attendanceDateId(date) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return '';
+        const timestamp = Date.parse(date + 'T00:00:00Z');
+        if (!Number.isFinite(timestamp) || timestamp < 0 || new Date(timestamp).toISOString().slice(0, 10) !== date) return '';
+        return String(timestamp / attendanceDayMillis);
+    }
+
+    function canEditAttendanceDate(date) {
+        return Boolean(attendanceDateId(date)) && (canManageAttendance || (canRecordToday && date === today()));
+    }
+
+    function recordsForDate(source, date) {
+        return {
+            attendance: source.attendance.filter(entry => entry.date === date),
+            roster: source.roster.filter(entry => entry.from === date)
+        };
+    }
+
+    function normalizeDailyRecords(source, date) {
+        return {
+            attendance: source.attendance.filter(row => row && typeof row.person === 'string')
+                .map(row => ({ ...row, date })),
+            roster: source.roster.filter(row => row && typeof row.person === 'string')
+                .map(row => ({ ...row, from: date }))
+        };
+    }
+
+    function combineAttendance() {
+        sharedAttendance = {
+            attendance: legacyAttendance.attendance.filter(entry => !dailyAttendance.has(entry.date)),
+            roster: legacyAttendance.roster.filter(entry => !dailyAttendance.has(entry.from))
+        };
+        for (const records of dailyAttendance.values()) {
+            sharedAttendance.attendance.push(...records.attendance);
+            sharedAttendance.roster.push(...records.roster);
+        }
+    }
+
     let sharedDb = null;
     let sharedDataToFirestore = null;
     let sharedRef = null;
@@ -2289,6 +2300,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         connecting: ['Connecting to Firestore…', 'جارٍ الاتصال بـ Firestore…'],
         owner: ['Firestore connected · Attendance editor', 'Firestore متصل · صلاحية تعديل الحضور'],
         viewer: ['Firestore connected · Read-only attendance', 'Firestore متصل · عرض الحضور فقط'],
+        supervisorToday: ['Firestore connected · You can record today’s attendance', 'Firestore متصل · يمكنك تسجيل حضور اليوم'],
+        supervisorLocked: ['This meeting date is read-only. Contact an administrator to edit it.', 'هذا التاريخ للعرض فقط. تواصل مع الأدمن لتعديله.'],
         denied: ['Attendance is unavailable. Check portal access and Firestore Rules.', 'الحضور غير متاح. تحقق من صلاحية البوابة وقواعد Firestore.'],
         local: ['Open this page through the portal to view shared attendance.', 'افتح الصفحة من داخل البوابة لعرض الحضور المشترك.'],
         failed: ['Could not save shared attendance. Check Firestore Rules and connectivity.', 'تعذّر حفظ الحضور المشترك. تحقق من قواعد Firestore والاتصال.'],
@@ -2300,9 +2313,12 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     const syncMessage = key => syncMessages[key][lang === 'en' ? 0 : 1];
     function showAttendanceSync(state = syncState) {
         syncState = state;
-        syncStatus.textContent = syncMessage(state);
+        const displayState = sharedReady && canRecordToday && !canManageAttendance
+            ? (canEditAttendanceDate(dateInput.value) ? 'supervisorToday' : 'supervisorLocked')
+            : state;
+        syncStatus.textContent = syncMessage(displayState);
         get('attendanceOwnerVerification').hidden = !attendanceOwnerAwaitingVerification;
-        document.body.classList.toggle('attendance-readonly', !canManageAttendance || !sharedReady);
+        document.body.classList.toggle('attendance-readonly', !sharedReady || !canEditAttendanceDate(dateInput.value));
         document.body.classList.toggle('attendance-saving', sharedPending > 0);
         migrateAttendance.hidden = !canManageAttendance || !sharedReady || localCopied;
         migrateAttendance.disabled = sharedPending > 0;
@@ -2361,11 +2377,15 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             const isOwner = String(user.email || '').toLowerCase() === attendanceOwnerEmail;
             const active = profile.active !== false && !['inactive', 'pending', 'rejected'].includes(String(profile.status || '').toLowerCase())
                 && !['pending', 'rejected'].includes(String(profile.approvalStatus || '').toLowerCase());
+            const hasAttendanceTab = Array.isArray(profile.permissions_main_tabs) && profile.permissions_main_tabs.includes('meeting_attendance');
+            const role = String(profile.role || '').toLowerCase();
             canManageAttendance = active && (
-                user.uid === attendanceOwnerUid || profile.superAdmin === true || (user.emailVerified === true && isOwner)
+                user.uid === attendanceOwnerUid || profile.superAdmin === true ||
+                (user.emailVerified === true && isOwner) || (role === 'admin' && hasAttendanceTab)
             );
+            canRecordToday = active && role === 'supervisor' && hasAttendanceTab;
             attendanceOwnerAwaitingVerification = active && isOwner && !canManageAttendance ? user : null;
-            if (!active || (!canManageAttendance && !(Array.isArray(profile.permissions_main_tabs) && profile.permissions_main_tabs.includes('meeting_attendance')))) {
+            if (!active || (!canManageAttendance && !hasAttendanceTab)) {
                 showAttendanceSync('denied');
                 return;
             }
@@ -2373,19 +2393,46 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             // Firestore belongs to the portal frame, so create plain objects in that frame.
             sharedDataToFirestore = data => portal.JSON.parse(JSON.stringify(data));
             sharedRef = sharedDb.collection('meeting_attendance').doc('shared');
-            const stop = sharedRef.onSnapshot({ includeMetadataChanges: true }, snapshot => {
-                if (snapshot.metadata.fromCache && !sharedReady) return;
-                sharedReady = true;
-                sharedAttendance = attendanceFromSnapshot(snapshot);
-                showAttendanceSync(canManageAttendance ? 'owner' : 'viewer');
+            const refresh = () => {
+                sharedReady = legacyReady && dailyReady;
+                combineAttendance();
+                showAttendanceSync(sharedReady ? (canManageAttendance ? 'owner' : 'viewer') : 'connecting');
                 render();
-            }, () => {
+            };
+            const failed = () => {
                 sharedReady = false;
-                sharedAttendance = emptySharedAttendance();
+                legacyReady = false;
+                dailyReady = false;
+                legacyAttendance = emptySharedAttendance();
+                dailyAttendance.clear();
+                combineAttendance();
                 showAttendanceSync('denied');
                 render();
+            };
+            const options = { includeMetadataChanges: true };
+            const stopLegacy = sharedRef.onSnapshot(options, snapshot => {
+                if (snapshot.metadata.fromCache) return;
+                legacyReady = true;
+                legacyAttendance = attendanceFromSnapshot(snapshot);
+                refresh();
+            }, failed);
+            const stopDaily = sharedDb.collection('meeting_attendance_days').onSnapshot(options, snapshot => {
+                if (snapshot.metadata.fromCache) return;
+                const records = new Map();
+                snapshot.forEach(doc => {
+                    const day = Number(doc.id);
+                    if (!/^\d{1,8}$/.test(doc.id) || day > 2932896) return;
+                    const date = new Date(day * attendanceDayMillis).toISOString().slice(0, 10);
+                    records.set(date, normalizeDailyRecords(attendanceFromSnapshot(doc), date));
+                });
+                dailyAttendance = records;
+                dailyReady = true;
+                refresh();
+            }, failed);
+            window.addEventListener('pagehide', event => {
+                if (!event.persisted) { stopLegacy(); stopDaily(); }
             });
-            window.addEventListener('pagehide', event => { if (!event.persisted) stop(); });
+
         } catch {
             showAttendanceSync('denied');
         }
@@ -2422,7 +2469,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     }, 'تعذّر التحقق من حالة البريد. أعد تسجيل الدخول وحاول مجددًا.');
 
     function updateSharedAttendance(change, date = dateInput.value) {
-        if (!canManageAttendance || !sharedReady || !sharedRef) {
+        if (!sharedReady || !sharedRef || !canEditAttendanceDate(date)) {
             feedback.textContent = syncMessage('readonly');
             return Promise.resolve(false);
         }
@@ -2435,13 +2482,19 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         showAttendanceSync();
         const save = attendanceWriteQueue.then(async () => {
             try {
-                if (!sharedReady || !canManageAttendance) throw new Error('Attendance connection unavailable');
-                sharedAttendance = await sharedDb.runTransaction(async transaction => {
-                    const data = attendanceFromSnapshot(await transaction.get(sharedRef));
+                if (!sharedReady || !canEditAttendanceDate(date)) throw new Error('Attendance date is read-only');
+                const dayRef = sharedDb.collection('meeting_attendance_days').doc(attendanceDateId(date));
+                const updated = await sharedDb.runTransaction(async transaction => {
+                    const snapshot = await transaction.get(dayRef);
+                    const data = snapshot.exists
+                        ? normalizeDailyRecords(attendanceFromSnapshot(snapshot), date)
+                        : recordsForDate(attendanceFromSnapshot(await transaction.get(sharedRef)), date);
                     change(data, date);
-                    transaction.set(sharedRef, sharedDataToFirestore(data));
+                    transaction.set(dayRef, sharedDataToFirestore(data));
                     return data;
                 });
+                dailyAttendance.set(date, updated);
+                combineAttendance();
                 render();
                 if (sharedPending === 1) attendanceAutoSaveStatus.textContent = tr('تم حفظ الحضور في Firestore.');
                 return true;
@@ -2482,7 +2535,18 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             feedback.textContent = syncMessage('none');
             return;
         }
-        if (await updateSharedAttendance(remote => mergeLocalAttendance(remote, local))) {
+        const dates = new Set([
+            ...(local.attendance ?? []).map(entry => entry.date),
+            ...(local.roster ?? []).map(entry => entry.from)
+        ].filter(date => attendanceDateId(date)));
+        let copied = dates.size > 0;
+        for (const date of dates) {
+            if (!await updateSharedAttendance(remote => mergeLocalAttendance(remote, recordsForDate(local, date)), date)) {
+                copied = false;
+                break;
+            }
+        }
+        if (copied) {
             localCopied = true;
             try { localStorage.setItem(migratedAttendanceKey, '1'); } catch {}
             showAttendanceSync();
@@ -2494,7 +2558,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     renderLanguage();
 
     connectSharedAttendance();
-    if (canManageAttendance) connectEmployeeDirectory();
+    if (canManageAttendance || canRecordToday) connectEmployeeDirectory();
     render();
     window.addEventListener('storage', event => {
         if (event.key === storageKey) render();
