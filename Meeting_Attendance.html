@@ -129,6 +129,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 .attendance-readonly #rosterForm, .attendance-readonly #attendanceForm, .attendance-readonly #employeeDirectoryStatus,
 .attendance-readonly #attendanceList button, .attendance-readonly #attendanceEditHint { display: none; }
 .attendance-saving #attendanceList button, .attendance-saving #rosterForm button, .attendance-saving #attendanceForm button { pointer-events: none; opacity: .55; }
+.meeting-date-controls { display: flex; flex-wrap: wrap; gap: 10px; }
 </style>
 </head>
 <body class="attendance-readonly">
@@ -136,7 +137,12 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
   <header><div class="meeting-heading"><h1>إدارة الاجتماعات والمتابعة</h1>
     <div class="meeting-tools"><span class="version-mark" id="meetingVersion" dir="ltr"></span><button type="button" id="toggleMeetingLanguage" lang="en">English</button></div>
     </div>
-    <label>تاريخ الاجتماع <input id="meetingDate" type="date" required></label>
+    <div class="meeting-date-controls">
+      <label>تاريخ الاجتماع <input id="meetingDate" type="date" required></label>
+      <label id="savedMeetingDatesLabel" hidden>الاجتماعات المحفوظة
+        <select id="savedMeetingDates"></select>
+      </label>
+    </div>
     <p>تُحفظ سجلات الحضور في Firestore. الطلبات والمهام ومعلومات الميمو تُحفظ في هذا المتصفح.</p>
     <p id="meetingFeedback" role="status"></p>
   </header>
@@ -340,6 +346,11 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 (() => {
     const get = id => document.getElementById(id);
     const english = {
+    "الاجتماعات المحفوظة": "Saved meetings",
+    "اختر اجتماعًا محفوظًا": "Select a saved meeting",
+    "لا توجد سجلات حضور في التاريخ المحدد. اختر تاريخًا من الاجتماعات المحفوظة.": "No attendance records for this date. Select a date from Saved meetings.",
+    "لا توجد اجتماعات محفوظة في Firestore حتى الآن.": "No meetings have been saved to Firestore yet.",
+    "سجلات الحضور المشتركة غير متاحة حاليًا.": "Shared attendance records are currently unavailable.",
     "نقل سجلات الحضور من هذا المتصفح": "Copy attendance records from this browser",
     "نسخ الرسم كصورة": "Copy chart as image",
     "تنزيل PNG": "Download PNG",
@@ -561,7 +572,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.7.0';
+    get('meetingVersion').textContent = 'v1.7.1';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -1639,6 +1650,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     };
 
     function render() {
+        renderSavedAttendanceDates();
         const attendanceList = get('attendanceList');
         const itemsList = get('meetingItems');
         attendanceList.replaceChildren();
@@ -1706,7 +1718,13 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             }));
             attendanceList.append(row);
         }
-        if (!roster.size) attendanceList.append(node('li', tr('أضف الموظفين لعرض قائمة الحضور لهذا الاجتماع.')));
+        if (!roster.size) {
+            const message = !sharedReady ? 'سجلات الحضور المشتركة غير متاحة حاليًا.'
+                : canManageAttendance ? 'أضف الموظفين لعرض قائمة الحضور لهذا الاجتماع.'
+                : savedAttendanceDates().length ? 'لا توجد سجلات حضور في التاريخ المحدد. اختر تاريخًا من الاجتماعات المحفوظة.'
+                : 'لا توجد اجتماعات محفوظة في Firestore حتى الآن.';
+            attendanceList.append(node('li', tr(message)));
+        }
 
         const open = items.filter(item => !item.closed || item.closed > date);
         const requests = open.filter(item => item.kind === 'طلب').length;
@@ -2244,6 +2262,40 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         migrateAttendance.hidden = !canManageAttendance || !sharedReady || localCopied;
         migrateAttendance.disabled = sharedPending;
     }
+
+    function savedAttendanceDates() {
+        const dates = new Set([
+            ...sharedAttendance.attendance.map(entry => entry.date),
+            ...sharedAttendance.roster.map(entry => entry.from)
+        ]);
+        return [...dates].filter(date => typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)).sort().reverse();
+    }
+
+    const savedMeetingDates = get('savedMeetingDates');
+    function renderSavedAttendanceDates() {
+        const dates = sharedReady ? savedAttendanceDates() : [];
+        get('savedMeetingDatesLabel').hidden = !dates.length;
+        const placeholder = node('option', tr('اختر اجتماعًا محفوظًا'));
+        placeholder.value = '';
+        savedMeetingDates.replaceChildren(placeholder);
+        const format = new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : 'ar-SA-u-ca-gregory', {
+            dateStyle: 'medium', timeZone: 'UTC'
+        });
+        for (const date of dates) {
+            const value = new Date(date + 'T00:00:00Z');
+            if (Number.isNaN(value.getTime())) continue;
+            const option = node('option', format.format(value));
+            option.value = date;
+            savedMeetingDates.append(option);
+        }
+        savedMeetingDates.value = dates.includes(dateInput.value) ? dateInput.value : '';
+    }
+
+    savedMeetingDates.onchange = () => {
+        if (!savedMeetingDates.value) return;
+        dateInput.value = savedMeetingDates.value;
+        dateInput.onchange();
+    };
 
     function attendanceFromSnapshot(snapshot) {
         if (!snapshot.exists) return emptySharedAttendance();
