@@ -156,6 +156,12 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
   <section id="attendancePanel">
     <h2>حضور الاجتماع</h2>
     <p id="attendanceSyncStatus" role="status"></p>
+    <div id="attendanceOwnerVerification" hidden>
+      <p>لتفعيل تعديل الحضور لحساب المالك، وثّق بريدك. بعد فتح رابط التوثيق في بريدك، ارجع واضغط «تحقق من التوثيق».</p>
+      <button type="button" id="sendAttendanceVerification">إرسال رابط التوثيق</button>
+      <button type="button" id="checkAttendanceVerification">تحقق من التوثيق</button>
+      <p id="attendanceVerificationStatus" role="status"></p>
+    </div>
     <button type="button" id="migrateAttendance" hidden>نقل سجلات الحضور من هذا المتصفح</button>
     <form id="rosterForm">
       <fieldset id="directoryPickerLabel" hidden>
@@ -346,6 +352,13 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 (() => {
     const get = id => document.getElementById(id);
     const english = {
+    "لتفعيل تعديل الحضور لحساب المالك، وثّق بريدك. بعد فتح رابط التوثيق في بريدك، ارجع واضغط «تحقق من التوثيق».": "Verify the owner email to enable attendance editing. Open the link in your inbox, then return and select Check verification.",
+    "إرسال رابط التوثيق": "Send verification link",
+    "تحقق من التوثيق": "Check verification",
+    "أُرسل رابط التوثيق. افتح بريدك واضغط الرابط.": "Verification link sent. Open your inbox and follow the link.",
+    "تعذّر إرسال رابط التوثيق. حاول لاحقًا أو تواصل مع مسؤول Firebase.": "Could not send the verification link. Try again later or contact the Firebase administrator.",
+    "لم يتم توثيق البريد بعد. افتح الرابط الوارد في بريدك ثم حاول مجددًا.": "Email is not verified yet. Open the link in your inbox and try again.",
+    "تعذّر التحقق من حالة البريد. أعد تسجيل الدخول وحاول مجددًا.": "Could not check verification. Sign in again and retry.",
     "الاجتماعات المحفوظة": "Saved meetings",
     "اختر اجتماعًا محفوظًا": "Select a saved meeting",
     "لا توجد سجلات حضور في التاريخ المحدد. اختر تاريخًا من الاجتماعات المحفوظة.": "No attendance records for this date. Select a date from Saved meetings.",
@@ -572,7 +585,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.7.1';
+    get('meetingVersion').textContent = 'v1.7.2';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -2233,6 +2246,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     let sharedDb = null;
     let sharedRef = null;
     let canManageAttendance = false;
+    let attendanceOwnerAwaitingVerification = null;
+    const attendanceOwnerEmail = 'baghethanmh@almajdouie.com';
     let sharedReady = false;
     let sharedPending = false;
     const syncStatus = get('attendanceSyncStatus');
@@ -2257,6 +2272,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     function showAttendanceSync(state = syncState) {
         syncState = state;
         syncStatus.textContent = syncMessage(state);
+        get('attendanceOwnerVerification').hidden = !attendanceOwnerAwaitingVerification;
         document.body.classList.toggle('attendance-readonly', !canManageAttendance || !sharedReady);
         document.body.classList.toggle('attendance-saving', sharedPending);
         migrateAttendance.hidden = !canManageAttendance || !sharedReady || localCopied;
@@ -2313,8 +2329,12 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
                 showAttendanceSync('local');
                 return;
             }
-            canManageAttendance = profile.superAdmin === true || (user.emailVerified === true && String(user.email || '').toLowerCase() === 'baghethanmh@almajdouie.com');
-            if (profile.active === false || (!canManageAttendance && !(Array.isArray(profile.permissions_main_tabs) && profile.permissions_main_tabs.includes('meeting_attendance')))) {
+            const isOwner = String(user.email || '').toLowerCase() === attendanceOwnerEmail;
+            const active = profile.active !== false && !['inactive', 'pending', 'rejected'].includes(String(profile.status || '').toLowerCase())
+                && !['pending', 'rejected'].includes(String(profile.approvalStatus || '').toLowerCase());
+            canManageAttendance = active && (profile.superAdmin === true || (user.emailVerified === true && isOwner));
+            attendanceOwnerAwaitingVerification = active && isOwner && !canManageAttendance ? user : null;
+            if (!active || (!canManageAttendance && !(Array.isArray(profile.permissions_main_tabs) && profile.permissions_main_tabs.includes('meeting_attendance')))) {
                 showAttendanceSync('denied');
                 return;
             }
@@ -2337,6 +2357,36 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             showAttendanceSync('denied');
         }
     }
+
+    async function withAttendanceOwnerVerification(control, task, errorMessage) {
+        const user = attendanceOwnerAwaitingVerification;
+        if (!user || control.disabled) return;
+        const status = get('attendanceVerificationStatus');
+        control.disabled = true;
+        status.textContent = '';
+        try { await task(user, status); }
+        catch { status.textContent = tr(errorMessage); }
+        finally { control.disabled = false; }
+    }
+
+    const sendAttendanceVerification = get('sendAttendanceVerification');
+    sendAttendanceVerification.onclick = () => withAttendanceOwnerVerification(sendAttendanceVerification, async (user, status) => {
+        await user.sendEmailVerification();
+        status.textContent = tr('أُرسل رابط التوثيق. افتح بريدك واضغط الرابط.');
+    }, 'تعذّر إرسال رابط التوثيق. حاول لاحقًا أو تواصل مع مسؤول Firebase.');
+
+    const checkAttendanceVerification = get('checkAttendanceVerification');
+    checkAttendanceVerification.onclick = () => withAttendanceOwnerVerification(checkAttendanceVerification, async (user, status) => {
+        await user.reload();
+        const current = window.parent.appAuth.currentUser;
+        if (!current || current.uid !== user.uid) throw new Error('Session changed');
+        if (!current.emailVerified) {
+            status.textContent = tr('لم يتم توثيق البريد بعد. افتح الرابط الوارد في بريدك ثم حاول مجددًا.');
+            return;
+        }
+        await current.getIdToken(true);
+        window.location.reload();
+    }, 'تعذّر التحقق من حالة البريد. أعد تسجيل الدخول وحاول مجددًا.');
 
     async function updateSharedAttendance(change) {
         if (!canManageAttendance || !sharedReady || !sharedRef || sharedPending) {
