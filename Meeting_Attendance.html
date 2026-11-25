@@ -126,15 +126,18 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 }
 .attendance-export { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-block: 12px; }
 .attendance-export button:disabled { opacity: .55; cursor: default; }
+.attendance-readonly #rosterForm, .attendance-readonly #attendanceForm, .attendance-readonly #employeeDirectoryStatus,
+.attendance-readonly #attendanceList button, .attendance-readonly #attendanceEditHint { display: none; }
+.attendance-saving #attendanceList button, .attendance-saving #rosterForm button, .attendance-saving #attendanceForm button { pointer-events: none; opacity: .55; }
 </style>
 </head>
-<body>
+<body class="attendance-readonly">
 <main id="meetingPanel">
   <header><div class="meeting-heading"><h1>إدارة الاجتماعات والمتابعة</h1>
     <div class="meeting-tools"><span class="version-mark" id="meetingVersion" dir="ltr"></span><button type="button" id="toggleMeetingLanguage" lang="en">English</button></div>
     </div>
     <label>تاريخ الاجتماع <input id="meetingDate" type="date" required></label>
-    <p>تُحفظ السجلات في هذا المتصفح. تُسجّل الطلبات والمهام يدويًا.</p>
+    <p>تُحفظ سجلات الحضور في Firestore. الطلبات والمهام ومعلومات الميمو تُحفظ في هذا المتصفح.</p>
     <p id="meetingFeedback" role="status"></p>
   </header>
   <nav class="meeting-nav" aria-label="أقسام الاجتماع">
@@ -146,6 +149,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
   </nav>
   <section id="attendancePanel">
     <h2>حضور الاجتماع</h2>
+    <p id="attendanceSyncStatus" role="status"></p>
+    <button type="button" id="migrateAttendance" hidden>نقل سجلات الحضور من هذا المتصفح</button>
     <form id="rosterForm">
       <fieldset id="directoryPickerLabel" hidden>
         <legend>اختر الموظفين من Employee Management</legend>
@@ -162,7 +167,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
       <button id="addRosterEmployee" type="submit" disabled>إضافة المحددين</button>
     </form>
     <p id="employeeDirectoryStatus" role="status">جارٍ تحميل قائمة الموظفين…</p>
-    <p>اختر الموظفين لكل تاريخ اجتماع، ثم سجّل حالة كل موظف.</p>
+    <p id="attendanceEditHint">اختر الموظفين لكل تاريخ اجتماع، ثم سجّل حالة كل موظف.</p>
     <ul id="attendanceList"></ul>
     <form id="attendanceForm" hidden>
       <label>اسم الموظف <input name="person" required maxlength="120" readonly></label>
@@ -335,6 +340,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
 (() => {
     const get = id => document.getElementById(id);
     const english = {
+    "نقل سجلات الحضور من هذا المتصفح": "Copy attendance records from this browser",
     "نسخ الرسم كصورة": "Copy chart as image",
     "تنزيل PNG": "Download PNG",
     "تعذّر النسخ. استخدم زر تنزيل PNG.": "Could not copy. Use Download PNG.",
@@ -389,7 +395,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     "تم اعتماد الأعداد وتحديث جدول الموظفين.": "Counts applied and the employee table updated.",
     "إدارة الاجتماعات والمتابعة": "Meeting Attendance and Follow-up",
     "تاريخ الاجتماع": "Meeting date",
-    "تُحفظ السجلات في هذا المتصفح. تُسجّل الطلبات والمهام يدويًا.": "Records are stored in this browser. Requests and tasks are entered manually.",
+    "تُحفظ سجلات الحضور في Firestore. الطلبات والمهام ومعلومات الميمو تُحفظ في هذا المتصفح.": "Attendance is stored in Firestore. Requests, tasks and memo details are stored in this browser.",
     "أقسام الاجتماع": "Meeting sections",
     "الحضور": "Attendance",
     "الطلبات والمهام": "Requests and Tasks",
@@ -555,7 +561,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         toggle.lang = lang === 'en' ? 'ar' : 'en';
     }
 
-    get('meetingVersion').textContent = 'v1.6.1';
+    get('meetingVersion').textContent = 'v1.7.0';
     const storageKey = 'mmc-weekly-meetings-v1';
     const dateInput = get('meetingDate');
     const attendance = get('attendanceForm');
@@ -587,9 +593,13 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         return ['year', 'month', 'day'].map(type => parts.find(part => part.type === type).value).join('-');
     }
 
-    function load() {
+    function loadLocal() {
         const raw = localStorage.getItem(storageKey);
         return raw ? JSON.parse(raw) : { attendance: [], items: [] };
+    }
+
+    function load() {
+        return { ...loadLocal(), ...sharedAttendance };
     }
 
     function onDate(data, date) {
@@ -626,7 +636,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             return false;
         }
         try {
-            const data = load();
+            const data = loadLocal();
             change(data, date);
             localStorage.setItem(storageKey, JSON.stringify(data));
             feedback.textContent = tr('تم الحفظ.');
@@ -1680,8 +1690,8 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
                 if (lang === 'en') reason.dataset.autoEnglish = entry.excuseReason;
                 row.append(reason);
             }
-            row.append(...['حاضر', 'غائب'].map(status => button(tr(status === 'حاضر' ? 'تسجيل حاضر' : 'تسجيل غائب'), () => {
-                if (saveAttendance(entry.person, status, '')) resetAttendance();
+            row.append(...['حاضر', 'غائب'].map(status => button(tr(status === 'حاضر' ? 'تسجيل حاضر' : 'تسجيل غائب'), async () => {
+                if (await saveAttendance(entry.person, status, '')) resetAttendance();
             })), button(entry.status === 'معتذر' ? tr('تعديل الاعتذار') : tr('تسجيل معتذر'), () => {
                 attendance.hidden = false;
                 attendance.elements.person.value = entry.person;
@@ -1690,9 +1700,9 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
                 syncExcuseReason();
                 excuseReasonInput.focus();
                 updateExcusePreview();
-            }), button(tr('إزالة من الاجتماع'), () => {
+            }), button(tr('إزالة من الاجتماع'), async () => {
                 if (entry.status && !window.confirm(tr('هل تريد إزالة الموظف وحذف حالة حضوره من هذا الاجتماع؟'))) return;
-                if (update((data, date) => removeMeetingEmployee(data, date, entry.person))) resetAttendance();
+                if (await updateSharedAttendance((data, date) => removeMeetingEmployee(data, date, entry.person))) resetAttendance();
             }));
             attendanceList.append(row);
         }
@@ -1901,7 +1911,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         useManualRoster('افتح تبويب Meeting_Attendance من البوابة لاختيار موظف من القائمة.');
     }
 
-    rosterForm.onsubmit = event => {
+    rosterForm.onsubmit = async event => {
         event.preventDefault();
         const people = manualEmployee.disabled
             ? directoryChoices.filter(({ input }) => input.checked && !input.disabled).map(({ name }) => name)
@@ -1910,7 +1920,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             feedback.textContent = tr(manualEmployee.disabled ? 'اختر موظفًا واحدًا على الأقل.' : 'أدخل اسم الموظف.');
             return;
         }
-        if (update((data, date) => addMeetingEmployees(data, date, people))) {
+        if (await updateSharedAttendance((data, date) => addMeetingEmployees(data, date, people))) {
             rosterForm.reset();
             syncDirectoryChoices();
         }
@@ -1934,14 +1944,14 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     }
 
     function saveAttendance(person, status, excuseReason) {
-        return update((data, date) => {
+        return updateSharedAttendance((data, date) => {
             const entry = data.attendance.find(row => row.date === date && employeeKey(row.person) === employeeKey(person));
             if (entry) Object.assign(entry, { status, excuseReason });
             else data.attendance.push({ date, person, status, excuseReason });
         });
     }
 
-    attendance.onsubmit = event => {
+    attendance.onsubmit = async event => {
         event.preventDefault();
         const person = attendance.elements.person.value.trim();
         if (!person) {
@@ -1955,7 +1965,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
             excuseReasonInput.focus();
             return;
         }
-        if (saveAttendance(person, status, excuseReason)) resetAttendance();
+        if (await saveAttendance(person, status, excuseReason)) resetAttendance();
     };
 
     for (const control of document.querySelectorAll('[data-point-field]')) {
@@ -2101,6 +2111,7 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
         const { meetingName, meetingTime, venue } = memoDetails.elements;
         const pending = [meetingName, meetingTime, venue].map(input => ({ input, value: input.value }));
         renderLanguage();
+        showAttendanceSync();
         for (const control of translationButtons) control.textContent = tr('ترجم');
         for (const control of ocrRows.querySelectorAll('button')) control.textContent = tr('استبعاد');
         if (latestEmployeeSnapshot) populateEmployeeDirectory(latestEmployeeSnapshot);
@@ -2199,9 +2210,146 @@ body { margin: 0; padding: 20px 14px; background: #f1f5fa; font-family: "Segoe U
     excuseReasonInput.addEventListener('input', updateExcusePreview);
 
 
+    const emptySharedAttendance = () => ({ attendance: [], roster: [] });
+    let sharedAttendance = emptySharedAttendance();
+    let sharedDb = null;
+    let sharedRef = null;
+    let canManageAttendance = false;
+    let sharedReady = false;
+    let sharedPending = false;
+    const syncStatus = get('attendanceSyncStatus');
+    const migrateAttendance = get('migrateAttendance');
+    const migratedAttendanceKey = storageKey + '-copied-to-firestore';
+    let localCopied = false;
+    try { localCopied = localStorage.getItem(migratedAttendanceKey) === '1'; } catch {}
+
+    const syncMessages = {
+        connecting: ['Connecting to Firestore…', 'جارٍ الاتصال بـ Firestore…'],
+        owner: ['Firestore connected · Attendance editor', 'Firestore متصل · صلاحية تعديل الحضور'],
+        viewer: ['Firestore connected · Read-only attendance', 'Firestore متصل · عرض الحضور فقط'],
+        denied: ['Attendance is unavailable. Check portal access and Firestore Rules.', 'الحضور غير متاح. تحقق من صلاحية البوابة وقواعد Firestore.'],
+        local: ['Open this page through the portal to view shared attendance.', 'افتح الصفحة من داخل البوابة لعرض الحضور المشترك.'],
+        failed: ['Could not save shared attendance. Check Firestore Rules and connectivity.', 'تعذّر حفظ الحضور المشترك. تحقق من قواعد Firestore والاتصال.'],
+        readonly: ['Attendance editing is unavailable for this account or connection.', 'تعديل الحضور غير متاح لهذا الحساب أو الاتصال.'],
+        imported: ['Local attendance records copied to Firestore.', 'نُسخت سجلات الحضور المحلية إلى Firestore.'],
+        none: ['There are no local attendance records to copy.', 'لا توجد سجلات حضور محلية لنسخها.']
+    };
+    let syncState = 'connecting';
+    const syncMessage = key => syncMessages[key][lang === 'en' ? 0 : 1];
+    function showAttendanceSync(state = syncState) {
+        syncState = state;
+        syncStatus.textContent = syncMessage(state);
+        document.body.classList.toggle('attendance-readonly', !canManageAttendance || !sharedReady);
+        document.body.classList.toggle('attendance-saving', sharedPending);
+        migrateAttendance.hidden = !canManageAttendance || !sharedReady || localCopied;
+        migrateAttendance.disabled = sharedPending;
+    }
+
+    function attendanceFromSnapshot(snapshot) {
+        if (!snapshot.exists) return emptySharedAttendance();
+        const { attendance, roster } = snapshot.data();
+        return { attendance: Array.isArray(attendance) ? attendance : [], roster: Array.isArray(roster) ? roster : [] };
+    }
+
+    function connectSharedAttendance() {
+        showAttendanceSync();
+        try {
+            const portal = window.parent !== window ? window.parent : null;
+            const user = portal?.appAuth?.currentUser;
+            const profile = portal?.currentUserData;
+            if (!user || !profile || profile.uid !== user.uid || !portal.appDb) {
+                showAttendanceSync('local');
+                return;
+            }
+            canManageAttendance = profile.superAdmin === true || (user.emailVerified === true && String(user.email || '').toLowerCase() === 'baghethanmh@almajdouie.com');
+            if (profile.active === false || (!canManageAttendance && !(Array.isArray(profile.permissions_main_tabs) && profile.permissions_main_tabs.includes('meeting_attendance')))) {
+                showAttendanceSync('denied');
+                return;
+            }
+            sharedDb = portal.appDb;
+            sharedRef = sharedDb.collection('meeting_attendance').doc('shared');
+            const stop = sharedRef.onSnapshot({ includeMetadataChanges: true }, snapshot => {
+                if (snapshot.metadata.fromCache && !sharedReady) return;
+                sharedReady = true;
+                sharedAttendance = attendanceFromSnapshot(snapshot);
+                showAttendanceSync(canManageAttendance ? 'owner' : 'viewer');
+                render();
+            }, () => {
+                sharedReady = false;
+                sharedAttendance = emptySharedAttendance();
+                showAttendanceSync('denied');
+                render();
+            });
+            window.addEventListener('pagehide', event => { if (!event.persisted) stop(); });
+        } catch {
+            showAttendanceSync('denied');
+        }
+    }
+
+    async function updateSharedAttendance(change) {
+        if (!canManageAttendance || !sharedReady || !sharedRef || sharedPending) {
+            feedback.textContent = syncMessage('readonly');
+            return false;
+        }
+        const date = dateInput.value;
+        if (!date) {
+            dateInput.reportValidity();
+            return false;
+        }
+        sharedPending = true;
+        showAttendanceSync();
+        try {
+            sharedAttendance = await sharedDb.runTransaction(async transaction => {
+                const data = attendanceFromSnapshot(await transaction.get(sharedRef));
+                change(data, date);
+                transaction.set(sharedRef, data);
+                return data;
+            });
+            render();
+            return true;
+        } catch {
+            feedback.textContent = syncMessage('failed');
+            return false;
+        } finally {
+            sharedPending = false;
+            showAttendanceSync();
+        }
+    }
+
+    function mergeLocalAttendance(remote, local) {
+        for (const [key, dateField] of [['attendance', 'date'], ['roster', 'from']]) {
+            const existing = new Set(remote[key].map(entry => JSON.stringify([entry[dateField], employeeKey(entry.person)])));
+            for (const entry of local[key] ?? []) {
+                if (!entry || typeof entry.person !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(entry[dateField])) continue;
+                const identity = JSON.stringify([entry[dateField], employeeKey(entry.person)]);
+                if (existing.has(identity)) continue;
+                remote[key].push(entry);
+                existing.add(identity);
+            }
+        }
+    }
+
+    migrateAttendance.onclick = async () => {
+        if (localCopied) return;
+        let local;
+        try { local = loadLocal(); } catch { feedback.textContent = tr('تعذر قراءة السجل المحفوظ في هذا المتصفح.'); return; }
+        if (!local.attendance?.length && !local.roster?.length) {
+            feedback.textContent = syncMessage('none');
+            return;
+        }
+        if (await updateSharedAttendance(remote => mergeLocalAttendance(remote, local))) {
+            localCopied = true;
+            try { localStorage.setItem(migratedAttendanceKey, '1'); } catch {}
+            showAttendanceSync();
+            feedback.textContent = syncMessage('imported');
+        }
+    };
+
+
     renderLanguage();
 
-    connectEmployeeDirectory();
+    connectSharedAttendance();
+    if (canManageAttendance) connectEmployeeDirectory();
     render();
     window.addEventListener('storage', event => {
         if (event.key === storageKey) render();
